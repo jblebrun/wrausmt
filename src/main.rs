@@ -26,6 +26,6 @@ fn main() {
         ])
     };
 
-    runtime.load(&test_mod);
+    runtime.load(test_mod);
     println!("Hello, world! {:?}", runtime);
 }

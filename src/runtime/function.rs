@@ -3,10 +3,10 @@ use super::super::types::FunctionType;
 
 /// A function entry in the store.
 #[derive(Debug)]
-pub struct FunctionInstance<'lt> {
+pub struct FunctionInstance {
     /// The types of the values returned by the function.
-    pub functype: &'lt FunctionType,
+    pub functype: FunctionType,
 
     /// The list of instructions in the function.
-    pub code: &'lt Function,
+    pub code: Function,
 }

@@ -6,19 +6,19 @@ use super::module::Module;
 
 #[derive(Debug)]
 /// Contains all of the runtime state for the WASM interpreter.
-pub struct Runtime<'lt> {
+pub struct Runtime {
     /// The Store of the runtime, as described by the spec.
-    store: Store<'lt>,
+    store: Store,
 }
 
-impl<'lt> Runtime<'lt> {
-    pub fn new() -> Runtime<'lt> {
+impl Runtime {
+    pub fn new() -> Runtime {
         Runtime {
             store: Store::new()
         }
     }
 
-    pub fn load(&mut self, module: &'lt Module) {
+    pub fn load(&mut self, module: Module) {
         self.store.load(module);
     }
 }
