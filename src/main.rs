@@ -23,9 +23,15 @@ fn main() {
                 functype: 0,
                 body: Box::new([Inst::LocalGet(0), Inst::Const32(42), Inst::Add32])
             }
+        ]),
+        exports: Box::new([
+            Export {
+                name: "test".to_string(),
+                idx: 0
+            }
         ])
     };
 
-    runtime.load(test_mod);
-    println!("Hello, world! {:?}", runtime);
+    let mod_inst = runtime.load(test_mod);
+    runtime.call(&mod_inst, "test");
 }
