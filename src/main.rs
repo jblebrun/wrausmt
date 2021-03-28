@@ -35,6 +35,6 @@ fn main() {
 
     let mod_inst = runtime.load(test_mod);
     let mod_inst2 = runtime.load(mod2);
-    runtime.call(mod_inst, "test", 3);
+    runtime.call(mod_inst, "test", 100);
     runtime.call(mod_inst2, "test", 4);
 }

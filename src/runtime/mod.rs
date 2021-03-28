@@ -21,14 +21,15 @@ pub struct Runtime {
 
     stack: Stack,
 
-    // TODO next: Current rame management
+    current_frame: Option<Rc<Frame>>,
 }
 
 impl Runtime {
     pub fn new() -> Runtime {
         Runtime {
             store: Store::new(),
-            stack: Stack::new()
+            stack: Stack::new(),
+            current_frame: None
         }
     }
 
@@ -59,17 +60,19 @@ impl Runtime {
 
                 let func = self.store.funcs[export.addr as usize].clone();
 
+                let frame = Rc::new(Frame {
+                    arity: func.params_arity() as u32,
+                    locals: Box::new([arg]),
+                    module: mod_instance.clone()
+                });
+                
                 // create activation frame
                 self.stack.push( StackEntry::Activation { 
                     arity: func.result_arity() as u32,
-                    frame: Frame {
-                        arity: func.params_arity() as u32,
-                        locals: Box::new([arg]),
-                        module: mod_instance.clone()
-                    }
+                    frame: frame.clone()
                 });
 
-                // TODO - mark current frame
+                self.current_frame = Some(frame);
 
                 // create label
                 self.stack.push ( StackEntry::Label {
@@ -83,7 +86,6 @@ impl Runtime {
                 self.execute(body);
                 
                 println!("{:?}", self.stack.pop());
-                // retrieve result from stack
             }
         }
     }

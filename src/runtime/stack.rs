@@ -13,7 +13,7 @@ pub struct Frame {
 pub enum StackEntry {
     Value(u64),
     Label { arity: u32, continuation: Rc<[Inst]> },
-    Activation { arity: u32, frame: Frame }
+    Activation { arity: u32, frame: Rc<Frame> }
 }
 
 
