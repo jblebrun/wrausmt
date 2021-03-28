@@ -31,7 +31,10 @@ fn main() {
             }
         ])
     };
+    let mod2 = test_mod.clone();
 
     let mod_inst = runtime.load(test_mod);
-    runtime.call(&mod_inst, "test");
+    let mod_inst2 = runtime.load(mod2);
+    runtime.call(mod_inst, "test", 3);
+    runtime.call(mod_inst2, "test", 4);
 }

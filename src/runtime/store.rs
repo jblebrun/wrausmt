@@ -1,11 +1,14 @@
 use super::super::module::*;
-use super::super::types::FunctionType;
+use super::super::types::*;
 use std::rc::Rc;
 
 /// The WASM Store as described in the specification.
 #[derive(Debug)]
 pub struct Store {
-    funcs: Vec<FunctionInstance>
+    // FunctionInstance contain Functions, and thus the code
+    // to run. They will be used by execution threads, so 
+    // are stored as Rc.
+    pub funcs: Vec<Rc<FunctionInstance>>
 }
 
 type FuncAddr = u32;
@@ -15,12 +18,10 @@ type FuncAddr = u32;
 pub struct ModuleInstance {
     types: Box<[FunctionType]>,
     exports: Box<[Export]>,
-    funcOffset: u32
+    func_offset: u32
 }
 
 impl ModuleInstance {
-    pub fn func(&self, idx: FuncIdx) -> FuncAddr { self.funcOffset + idx }
-
     pub fn resolve(&self, name: &str) -> Option<&Export> {
         let found = self.exports.into_iter().find(|e| {
             e.name == name
@@ -33,7 +34,7 @@ impl ModuleInstance {
 #[derive(Debug)]
 pub struct Export {
     pub name: String,
-    pub idx: FuncAddr
+    pub addr: FuncAddr
 }
 
 impl Store {
@@ -57,7 +58,7 @@ impl Store {
             // Take the module types from the module for the instance.
             types: module.types,
 
-            funcOffset: func_offset,
+            func_offset: func_offset,
 
             // Convert the module exports into runtime exports;
             // this means converting the index values into address
@@ -68,17 +69,17 @@ impl Store {
                 .map(|e| {
                     Export {
                         name: e.name,
-                        idx: e.idx + func_offset
+                        addr: e.idx + func_offset
                     }
                 }).collect()
         });
 
         // Append created functions into the store.
         for f in module.funcs.into_vec() {
-            self.funcs.push(FunctionInstance {
-                moduleInstance: mod_inst.clone(),
+            self.funcs.push(Rc::new(FunctionInstance {
+                module_instance: mod_inst.clone(),
                 code: f
-            });
+            }));
         }
 
         mod_inst
@@ -89,8 +90,17 @@ impl Store {
 #[derive(Debug)]
 pub struct FunctionInstance {
     /// The module instance that generated this function instance.
-    pub moduleInstance: Rc<ModuleInstance>,
+    pub module_instance: Rc<ModuleInstance>,
 
     /// The list of instructions in the function.
     pub code: Function,
+}
+
+impl FunctionInstance {
+    pub fn result_arity(&self) -> usize {
+        self.module_instance.types[self.code.functype as usize].result.len()
+    }
+    pub fn params_arity(&self) -> usize {
+        self.module_instance.types[self.code.functype as usize].params.len()
+    }
 }
