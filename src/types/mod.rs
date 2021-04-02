@@ -1,7 +1,7 @@
 use std::boxed::Box;
 
 #[derive(Debug, Copy, Clone)]
-pub enum NumType { I32 = 1, I64 = 2, F32 =3 , F64 =4}
+pub enum NumType { I32, I64, F32, F64 }
 
 #[derive(Debug, Copy, Clone)]
 pub enum RefType { Func, Extern }

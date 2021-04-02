@@ -2,21 +2,34 @@ use super::super::instructions::Inst;
 use std::rc::Rc;
 use super::ModuleInstance;
 
+/// Contains the information needed for a function that's executing.
+/// local contains the values of params and local variables of the
+/// function.
+/// module contains a module instance for the module defining the function,
+/// which can be used to resolve additional function calls, externals, etc.
 #[derive(Debug)]
 pub struct Frame {
-    pub arity: u32,
     pub locals: Box<[u64]>,
     pub module: Rc<ModuleInstance>
 }
 
+/// A single entry on the runtime stack.
 #[derive(Debug)]
 pub enum StackEntry {
+    /// A normal value entry used by operation.
     Value(u64),
+
+    /// A label entry, used for flow control.
     Label { arity: u32, continuation: Rc<[Inst]> },
+    
+    /// An activation entry, used for function calls.
     Activation { arity: u32, frame: Rc<Frame> }
 }
 
 
+/// The runtime stack for the WASM machine. It contains
+/// the values used as operands to instructions, context for
+/// active functions, and labels for flow control operations.
 #[derive(Debug)]
 pub struct Stack(Vec<StackEntry>);
 

@@ -19,8 +19,10 @@ pub struct Runtime {
     /// The Store of the runtime, as described by the spec.
     store: Store,
 
+    /// The runtime stack.
     stack: Stack,
 
+    /// The topmost frame in the stack, if there is one.
     current_frame: Option<Rc<Frame>>,
 }
 
@@ -52,16 +54,12 @@ impl Runtime {
         let found = mod_instance.resolve(name); 
         match found {
             None => {
-                println!("Not found!");
-                return
+                panic!("Method not found: {}", name);
             },
             Some(export) => {
-                println!("Found it! {:?}", export);
-
                 let func = self.store.funcs[export.addr as usize].clone();
 
                 let frame = Rc::new(Frame {
-                    arity: func.params_arity() as u32,
                     locals: Box::new([arg]),
                     module: mod_instance.clone()
                 });
@@ -86,6 +84,15 @@ impl Runtime {
                 self.execute(body);
                 
                 println!("{:?}", self.stack.pop());
+
+                // pop the label
+                self.stack.pop();
+
+                // pop the frame
+                self.stack.pop();
+
+                // clear current frame
+                self.current_frame = None;
             }
         }
     }

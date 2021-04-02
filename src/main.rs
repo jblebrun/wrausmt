@@ -2,11 +2,13 @@ mod runtime;
 mod types;
 mod instructions;
 mod module;
+mod format;
 
 use types::*;
 use instructions::Inst;
 use runtime::Runtime;
 use module::*;
+use format::binary::*;
 
 fn main() {
     let mut runtime = Runtime::new();
