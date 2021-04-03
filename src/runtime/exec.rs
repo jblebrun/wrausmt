@@ -18,7 +18,7 @@ impl Inst {
             },
 
             // Place the provided constant value on the stack.
-            Const32(val) => {
+            I32_Const(val) => {
                 runtime.stack.push(Value(*val as u64));
             },
 
@@ -29,6 +29,7 @@ impl Inst {
                 let b = runtime.stack.pop_value();
                 runtime.stack.push(Value(a+b));
             }
+            _ => panic!("not yet")
         }
     }
 }

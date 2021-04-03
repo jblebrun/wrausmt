@@ -2,7 +2,8 @@ mod error;
 use std::io::Read;
 use std::io;
 use std::fs::File;
-use super::super::instructions::Inst;
+use super::super::instructions::*;
+use super::super::instructions::Inst::*;
 use super::super::module::*;
 use super::super::types::*;
 use super::super::types::ValueType::*;
@@ -24,7 +25,7 @@ trait WasmParser: Read {
         println!("CUSTOM: {:?}", section);
         Ok(())
     }
-    
+   
     fn next_leb_128(&mut self) -> Result<u32> {
         let mut result: u32 = 0;
         let mut pos = 0;
@@ -193,7 +194,6 @@ trait WasmParser: Read {
         let items = self.next_leb_128().wrap("parsing item count")?;
         let mut result: Vec<ValueType> = vec![];
 
-        // TODO - is there a flatmap solution here?
         for i in 0..items {
             let reps = self.next_leb_128().wrap("parsing type rep")?;
             let val = self.parse_value_type().wrap("parsing value type")?;
@@ -204,11 +204,58 @@ trait WasmParser: Read {
         Ok(result.into_boxed_slice())
     }
 
+    fn next_idx(&mut self) -> Result<u32> {
+        self.next_leb_128().wrap("parsing index argument")
+    }
+
+    fn next_memarg(&mut self) -> Result<MemArg> {
+        Ok(
+            MemArg {
+                align: self.next_leb_128().wrap("read memarg align")?,
+                offset: self.next_leb_128().wrap("read memarg offset")?,
+            }
+        )
+    }
+
+    fn parse_inst(&mut self) -> Result<Inst> {
+        let opcode = self.next_leb_128().wrap("parsing item count")?;
+        match opcode {
+            0x02 => Ok(Block(self.next_idx()?)),
+            0x0D => Ok(BrIf(self.next_idx()?)),
+            0x0F => Ok(Return),
+            0x10 => Ok(Call(self.next_idx()?)),
+            0x11 => Ok(CallIndirect(self.next_idx()?, self.next_idx()?)),
+            0x1b => Ok(Select),
+            0x20 => Ok(LocalGet(self.next_idx()?)),
+            0x21 => Ok(LocalSet(self.next_idx()?)),
+            0x22 => Ok(LocalTee(self.next_idx()?)),
+            0x23 => Ok(GlobalGet(self.next_idx()?)),
+            0x28 => Ok(I32_Load(self.next_memarg()?)),
+            0x36 => Ok(I32_Store(self.next_memarg()?)),
+            0x41 => Ok(I32_Const(self.next_idx()?)),
+            0x48 => Ok(I32_Lt),
+            0x4A => Ok(I32_Gt),
+            0xB => Ok(End),
+            _ => Err(ParseError::new(format!("Unhandled opcode 0x{:x}", opcode)))
+        }
+    }
+
     fn parse_code(&mut self) -> Result<Box<[Inst]>> {
-        let mut data: Vec<u8> = vec![];
-        self.read_to_end(&mut data).wrap("consuming data")?;
-        println!("CODE: {:x?}", data);
-        Ok(Box::new([]))
+        let mut result: Vec<Inst> = vec![];
+        let mut block_depth = 0;
+
+        loop {
+            let next = self.parse_inst()?;
+            match next {
+                Block(_) => { block_depth += 1 },
+                End => match block_depth {
+                    0 => return Ok(result.into_boxed_slice()),
+                    _ => block_depth -= 1
+                },
+                _ => () 
+            }
+            result.push(next);
+        }
     }
 }
 
@@ -307,7 +354,7 @@ pub fn parse<R>(src: &mut R) -> Result<Module> where R : Read {
         let mut remaining: Vec<u8> = vec![];
         section_reader.read_to_end(&mut remaining).wrap("check remaining")?;
         if remaining.len() > 0 {
-            Err(ParseError::new(format!("Section {} was not fully consumed. {} remaining.", section, remaining.len())))
+            Err(ParseError::new(format!("Section {} was not fully consumed. {:x?} remaining.", section, remaining)))
         } else {
             Ok(())
         }
@@ -351,7 +398,8 @@ fn test_leb128() {
     let data: Vec<u8> = vec![0x80, 0x01];
     let res = data.as_slice().next_leb_128().unwrap();
     assert_eq!(res, 128);
-
+    
+    let data: Vec<u8> = vec![0x40];
+    let res = data.as_slice().next_leb_128().unwrap();
+    assert_eq!(res, 64);
 }
-
-
