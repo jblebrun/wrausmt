@@ -11,15 +11,15 @@ use error::*;
 
 
 trait WasmParser: Read {
-    fn skip_section(&mut self, len: u32) -> Result<()> {
-        let mut section: Vec<u8> = vec![0; len as usize];
-        self.read_exact(&mut section).wrap("reading skipped content")?;
+    fn skip_section(&mut self) -> Result<()> {
+        let mut section: Vec<u8> = vec![];
+        self.read_to_end(&mut section).wrap("reading skipped content")?;
         Ok(())
     }
 
-    fn parse_section_0(&mut self, len: u32) -> Result<()> {
-        let mut section: Vec<u8> = vec![0; len as usize];
-        self.read_exact(&mut section).wrap("reading custom content")?;
+    fn parse_section_0(&mut self) -> Result<()> {
+        let mut section: Vec<u8> = vec![];
+        self.read_to_end(&mut section).wrap("reading custom content")?;
         println!("CUSTOM: {:?}", section);
         Ok(())
     }
@@ -84,7 +84,7 @@ trait WasmParser: Read {
         }.wrap("parsing next byte")
     }
 
-    fn parse_section_1(&mut self, len: u32) -> Result<Box<[FunctionType]>> { 
+    fn parse_section_1(&mut self) -> Result<Box<[FunctionType]>> { 
         let result: Vec<FunctionType>;
         let items = self.next_leb_128().wrap("parsing item count")?;
 
@@ -246,13 +246,20 @@ pub fn parse<R>(src: &mut R) -> Result<Module> where R : Read {
     ) -> Result<()> {
         let len = reader.next_leb_128().wrap("parsing length")?;
         println!("SECTION {} ({:x}) -- LENGTH {}", section, section, len);
+        let mut section_reader = reader.take(len as u64);
         match section {
-            0 => reader.parse_section_0(len).wrap("parsing custom")?,
-            1 => module.types = reader.parse_section_1(len).wrap("parsing types")?,
-            2 => module.imports = reader.parse_section_2().wrap("parsing imports")?,
-            _ => reader.skip_section(len).wrap("skipping section")?
+            0 => section_reader.parse_section_0().wrap("parsing custom")?,
+            1 => module.types = section_reader.parse_section_1().wrap("parsing types")?,
+            2 => module.imports = section_reader.parse_section_2().wrap("parsing imports")?,
+            _ => section_reader.skip_section().wrap("skipping section")?
         }
-        Ok(())
+        let mut remaining: Vec<u8> = vec![];
+        section_reader.read_to_end(&mut remaining).wrap("check remaining")?;
+        if remaining.len() > 0 {
+            Err(ParseError::new(format!("Section {} was not fully consumed. {} remaining.", section, remaining.len())))
+        } else {
+            Ok(())
+        }
     }
 
     loop {
