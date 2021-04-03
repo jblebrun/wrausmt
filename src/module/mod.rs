@@ -61,5 +61,6 @@ pub struct Export {
 #[derive(Debug, Clone)]
 pub struct Function {
     pub functype: TypeIndex,
+    pub locals: Box<[ValueType]>,
     pub body: Box<[Inst]>
 }

@@ -24,6 +24,7 @@ fn main() {
         funcs: Box::new([
             Function {
                 functype: 0,
+                locals: Box::new([]),
                 body: Box::new([Inst::LocalGet(0), Inst::Const32(42), Inst::Add32])
             }
         ]),

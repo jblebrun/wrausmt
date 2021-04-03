@@ -2,6 +2,7 @@ mod error;
 use std::io::Read;
 use std::io;
 use std::fs::File;
+use super::super::instructions::Inst;
 use super::super::module::*;
 use super::super::types::*;
 use super::super::types::ValueType::*;
@@ -17,7 +18,7 @@ trait WasmParser: Read {
         Ok(())
     }
 
-    fn parse_section_0(&mut self) -> Result<()> {
+    fn parse_custom_section(&mut self) -> Result<()> {
         let mut section: Vec<u8> = vec![];
         self.read_to_end(&mut section).wrap("reading custom content")?;
         println!("CUSTOM: {:?}", section);
@@ -84,7 +85,7 @@ trait WasmParser: Read {
         }.wrap("parsing next byte")
     }
 
-    fn parse_section_1(&mut self) -> Result<Box<[FunctionType]>> { 
+    fn parse_types_section(&mut self) -> Result<Box<[FunctionType]>> { 
         let result: Vec<FunctionType>;
         let items = self.next_leb_128().wrap("parsing item count")?;
 
@@ -97,8 +98,7 @@ trait WasmParser: Read {
         }).collect()
     }
     
-    /// Section 2: Imports
-    fn parse_section_2(&mut self) -> Result<Box<[Import]>> {
+    fn parse_imports_section(&mut self) -> Result<Box<[Import]>> {
         let items = self.next_leb_128().wrap("parsing count")?;
 
         (0..items).map(|_| {
@@ -163,6 +163,52 @@ trait WasmParser: Read {
         Ok(MemType {
             limits: self.parse_limits().wrap("parsing limits")?
         })
+    }
+
+    fn parse_funcs_section(&mut self) -> Result<Box<[TypeIndex]>> {
+        let items = self.next_leb_128().wrap("parsing item count")?;
+        (0..items).map(|i| {
+            self.next_leb_128().wrap("parsing func")
+        }).collect()
+    }
+
+    fn parse_code_section(&mut self, types: &Box<[TypeIndex]>) -> Result<Box<[Function]>> {
+       let items = self.next_leb_128().wrap("parsing item count")?;
+       (0..items).map(|i| {
+            let codesize = self.next_leb_128().wrap("parsing func")?;
+            println!("\nFUNCTION {}", i);
+            println!("CODE SIZE {}", codesize);
+            let mut code_reader = self.take(codesize as u64);
+            Ok(
+                Function {
+                    functype: types[i as usize],
+                    locals: code_reader.parse_locals().wrap("parsing locals")?,
+                    body: code_reader.take(codesize as u64).parse_code().wrap("parsing code")?
+                }
+            )
+        }).collect()
+    }
+
+    fn parse_locals(&mut self) -> Result<Box<[ValueType]>> {
+        let items = self.next_leb_128().wrap("parsing item count")?;
+        let mut result: Vec<ValueType> = vec![];
+
+        // TODO - is there a flatmap solution here?
+        for i in 0..items {
+            let reps = self.next_leb_128().wrap("parsing type rep")?;
+            let val = self.parse_value_type().wrap("parsing value type")?;
+            for r in 0..reps {
+                result.push(val);
+            }
+        }
+        Ok(result.into_boxed_slice())
+    }
+
+    fn parse_code(&mut self) -> Result<Box<[Inst]>> {
+        let mut data: Vec<u8> = vec![];
+        self.read_to_end(&mut data).wrap("consuming data")?;
+        println!("CODE: {:x?}", data);
+        Ok(Box::new([]))
     }
 }
 
@@ -239,18 +285,23 @@ pub fn parse<R>(src: &mut R) -> Result<Module> where R : Read {
         exports: Box::new([]),
     };
 
+    let mut functypes: Box<[TypeIndex]> = Box::new([]);
+
     fn parse_section<R : Read>(
         section: u8, 
         module: &mut Module, 
         reader: &mut R,
+        functypes: &mut Box<[TypeIndex]>
     ) -> Result<()> {
         let len = reader.next_leb_128().wrap("parsing length")?;
         println!("SECTION {} ({:x}) -- LENGTH {}", section, section, len);
         let mut section_reader = reader.take(len as u64);
         match section {
-            0 => section_reader.parse_section_0().wrap("parsing custom")?,
-            1 => module.types = section_reader.parse_section_1().wrap("parsing types")?,
-            2 => module.imports = section_reader.parse_section_2().wrap("parsing imports")?,
+            0 => section_reader.parse_custom_section().wrap("parsing custom")?,
+            1 => module.types = section_reader.parse_types_section().wrap("parsing types")?,
+            2 => module.imports = section_reader.parse_imports_section().wrap("parsing imports")?,
+            3 => *functypes = section_reader.parse_funcs_section().wrap("parsing funcs")?,
+            10 => module.funcs = section_reader.parse_code_section(functypes).wrap("parsing code")?,
             _ => section_reader.skip_section().wrap("skipping section")?
         }
         let mut remaining: Vec<u8> = vec![];
@@ -269,7 +320,7 @@ pub fn parse<R>(src: &mut R) -> Result<Module> where R : Read {
             None => break
         };
 
-        match parse_section(section, &mut module, reader) {
+        match parse_section(section, &mut module, reader, &mut functypes) {
             Err(e) => {
                 let consumed = reader.consumed();
                 println!("\n\nError parsing at {} (0x{:x}), caused by:\n{}\n\n", consumed, consumed, e);
@@ -278,6 +329,7 @@ pub fn parse<R>(src: &mut R) -> Result<Module> where R : Read {
             _ => ()
         }
     }
+    println!("FUNCTYPES {:?}", functypes);
     Ok(module)
 }
 
