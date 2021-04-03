@@ -20,6 +20,7 @@ fn main() {
                 result: Box::new([ValueType::Num(NumType::I32)]),
             }
         ]),
+        imports: Box::new([]),
         funcs: Box::new([
             Function {
                 functype: 0,
