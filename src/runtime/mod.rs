@@ -11,7 +11,6 @@ use store::ModuleInstance;
 use std::rc::Rc;
 use stack::StackEntry;
 use stack::Frame;
-use super::instructions::Inst;
 
 #[derive(Debug)]
 /// Contains all of the runtime state for the WASM interpreter.
@@ -37,12 +36,6 @@ impl Runtime {
 
     pub fn load(&mut self, module: Module) -> Rc<ModuleInstance> {
         self.store.load(module)
-    }
-
-    pub fn execute(&mut self, block: &[Inst]) {
-        for inst in block {
-            inst.execute(self);
-        }
     }
 
     pub fn call<'lt>(
@@ -79,9 +72,7 @@ impl Runtime {
                 });
 
                 // start executing
-                let body = &func.code.body;
-
-                self.execute(body);
+                self.invoke(&func.code.body);
                 
                 println!("{:?}", self.stack.pop());
 

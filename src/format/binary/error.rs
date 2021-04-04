@@ -29,19 +29,7 @@ pub trait ResultFrom<T, E> {
     fn wrap(self, msg: &str) -> Result<T>;
 }
 
-impl ParseErrorFrom for std::io::Error {
-    fn wrap(self, msg: &str) ->  ParseError {
-        ParseError::Wrapped(msg.to_string(), Box::new(self))
-    }
-}
-
-impl ParseErrorFrom for std::string::FromUtf8Error {
-    fn wrap(self, msg: &str) ->  ParseError {
-        ParseError::Wrapped(msg.to_string(), Box::new(self))
-    }
-}
-
-impl ParseErrorFrom for ParseError {
+impl <E : Error + Sized + 'static> ParseErrorFrom for E {
     fn wrap(self, msg: &str) ->  ParseError {
         ParseError::Wrapped(msg.to_string(), Box::new(self))
     }
@@ -63,6 +51,4 @@ impl fmt::Display for ParseError {
 }
 
 impl Error for ParseError { }
-
-
 

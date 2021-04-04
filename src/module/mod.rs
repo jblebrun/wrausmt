@@ -1,7 +1,6 @@
 use super::types::FunctionType;
 use super::types::ValueType;
 use super::types::RefType;
-use super::instructions::Inst;
 
 #[derive(Debug, Clone)]
 pub struct Module {
@@ -62,5 +61,5 @@ pub struct Export {
 pub struct Function {
     pub functype: TypeIndex,
     pub locals: Box<[ValueType]>,
-    pub body: Box<[Inst]>
+    pub body: Box<[u8]>
 }

@@ -5,10 +5,9 @@ mod module;
 mod format;
 
 use types::*;
-use instructions::Inst;
+use instructions::*;
 use runtime::Runtime;
 use module::*;
-use format::binary::*;
 
 fn main() {
     let mut runtime = Runtime::new();
@@ -25,7 +24,7 @@ fn main() {
             Function {
                 functype: 0,
                 locals: Box::new([]),
-                body: Box::new([Inst::LocalGet(0), Inst::I32_Const(42), Inst::Add32])
+                body: Box::new([LocalGet, 0x00, 0, 0 , 0, I32Const, 0x42, 0, 0, 0, I32Add, End])
             }
         ]),
         exports: Box::new([

@@ -1,4 +1,3 @@
-use super::super::instructions::Inst;
 use std::rc::Rc;
 use super::ModuleInstance;
 
@@ -20,7 +19,7 @@ pub enum StackEntry {
     Value(u64),
 
     /// A label entry, used for flow control.
-    Label { arity: u32, continuation: Rc<[Inst]> },
+    Label { arity: u32, continuation: Rc<[u8]> },
     
     /// An activation entry, used for function calls.
     Activation { arity: u32, frame: Rc<Frame> }

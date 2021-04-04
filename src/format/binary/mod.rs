@@ -1,9 +1,7 @@
 mod error;
-use std::io::Read;
+use std::io::{Read,Write};
 use std::io;
-use std::fs::File;
 use super::super::instructions::*;
-use super::super::instructions::Inst::*;
 use super::super::module::*;
 use super::super::types::*;
 use super::super::types::ValueType::*;
@@ -87,7 +85,6 @@ trait WasmParser: Read {
     }
 
     fn parse_types_section(&mut self) -> Result<Box<[FunctionType]>> { 
-        let result: Vec<FunctionType>;
         let items = self.next_leb_128().wrap("parsing item count")?;
 
         (0..items).map(|_| {
@@ -168,7 +165,7 @@ trait WasmParser: Read {
 
     fn parse_funcs_section(&mut self) -> Result<Box<[TypeIndex]>> {
         let items = self.next_leb_128().wrap("parsing item count")?;
-        (0..items).map(|i| {
+        (0..items).map(|_| {
             self.next_leb_128().wrap("parsing func")
         }).collect()
     }
@@ -194,10 +191,10 @@ trait WasmParser: Read {
         let items = self.next_leb_128().wrap("parsing item count")?;
         let mut result: Vec<ValueType> = vec![];
 
-        for i in 0..items {
+        for _ in 0..items {
             let reps = self.next_leb_128().wrap("parsing type rep")?;
             let val = self.parse_value_type().wrap("parsing value type")?;
-            for r in 0..reps {
+            for _ in 0..reps {
                 result.push(val);
             }
         }
@@ -208,69 +205,56 @@ trait WasmParser: Read {
         self.next_leb_128().wrap("parsing index argument")
     }
 
-    fn next_memarg(&mut self) -> Result<MemArg> {
-        Ok(
-            MemArg {
-                align: self.next_leb_128().wrap("read memarg align")?,
-                offset: self.next_leb_128().wrap("read memarg offset")?,
-            }
-        )
-    }
+    fn parse_inst<W : Write>(&mut self, out: &mut W) -> Result<()> {
+        let mut opcode_buf = [0u8; 1];
+        self.read_exact(&mut opcode_buf).wrap("parsing opcode")?;
+        let opcode = opcode_buf[0];
+        
+        // Assume success, write out the opcode. Validation occurs later.
+        out.write(&opcode_buf).wrap("writing opcode")?;
 
-    fn parse_inst(&mut self) -> Result<Inst> {
-        let opcode = self.next_leb_128().wrap("parsing item count")?;
+        // Handle any additional behavior
+        #[allow(non_upper_case_globals)]
         match opcode {
-            0x02 => Ok(Block(self.next_idx()?)),
-            0x0D => Ok(BrIf(self.next_idx()?)),
-            0x0F => Ok(Return),
-            0x10 => Ok(Call(self.next_idx()?)),
-            0x11 => Ok(CallIndirect(self.next_idx()?, self.next_idx()?)),
-            0x1b => Ok(Select),
-            0x20 => Ok(LocalGet(self.next_idx()?)),
-            0x21 => Ok(LocalSet(self.next_idx()?)),
-            0x22 => Ok(LocalTee(self.next_idx()?)),
-            0x23 => Ok(GlobalGet(self.next_idx()?)),
-            0x28 => Ok(I32_Load(self.next_memarg()?)),
-            0x36 => Ok(I32_Store(self.next_memarg()?)),
-            0x41 => Ok(I32_Const(self.next_idx()?)),
-            0x48 => Ok(I32_Lt),
-            0x4A => Ok(I32_Gt),
-            0xB => Ok(End),
-            _ => Err(ParseError::new(format!("Unhandled opcode 0x{:x}", opcode)))
+            Block => self.emit_next_leb_128(out)?,
+            BrIf => self.emit_next_leb_128(out)?,
+            Call => self.emit_next_leb_128(out)?,
+            CallIndirect => {
+                self.emit_next_leb_128(out)?;
+                self.emit_next_leb_128(out)?;
+            },
+            _ => ()
         }
+        Ok(())
     }
 
-    fn parse_code(&mut self) -> Result<Box<[Inst]>> {
-        let mut result: Vec<Inst> = vec![];
-        let mut block_depth = 0;
+    fn emit_next_leb_128<W : Write>(&mut self, out: &mut W) -> Result<()> {
+        out.write(
+            &self.next_leb_128().wrap("reading leb 128")?.to_le_bytes()
+        ).wrap("writing leb 128")?;
+        Ok(())
+    }
 
-        loop {
-            let next = self.parse_inst()?;
-            match next {
-                Block(_) => { block_depth += 1 },
-                End => match block_depth {
-                    0 => return Ok(result.into_boxed_slice()),
-                    _ => block_depth -= 1
-                },
-                _ => () 
-            }
-            result.push(next);
-        }
+    fn parse_code(&mut self) -> Result<Box<[u8]>> {
+        let result: Vec<u8> = vec![];
+        Ok(result.into_boxed_slice())
     }
 }
 
 impl <I> WasmParser for I where I:Read {}
 
+#[allow(dead_code)]
 pub fn convert_number_type(byte: u8) -> Result<NumType> {
     match byte {
         0x7F => Ok(I32),
         0x7E => Ok(I64),
-        0x7C => Ok(F32),
+        0x7D => Ok(F32),
         0x7C => Ok(F64),
         _ => Err(ParseError::new(format!("{} does not encode a NumType", byte)))
     }
 }
 
+#[allow(dead_code)]
 pub fn convert_ref_type(byte: u8) -> Result<RefType> {
     match byte {
         0x70 => Ok(Func),
@@ -279,11 +263,12 @@ pub fn convert_ref_type(byte: u8) -> Result<RefType> {
     }
 }
 
+#[allow(dead_code)]
 pub fn convert_value_type(byte: u8) -> Result<ValueType> {
     match byte {
         0x7F => Ok(Num(I32)),
         0x7E => Ok(Num(I64)),
-        0x7C => Ok(Num(F32)),
+        0x7D => Ok(Num(F32)),
         0x7C => Ok(Num(F64)),
         0x70 => Ok(Ref(Func)),
         0x6F => Ok(Ref(Extern)),
@@ -299,7 +284,7 @@ struct CountRead<T> {
 impl <T> CountRead<T> {
     fn new(inner: T) -> CountRead<T> {
         CountRead {
-            inner: inner,
+            inner,
             consumed: 0
         }
     }
@@ -316,13 +301,14 @@ impl <T : Read> Read for CountRead<T> {
     }
 }
 
+#[allow(dead_code)]
 pub fn parse<R>(src: &mut R) -> Result<Module> where R : Read {
     let reader = &mut CountRead::new(src);
 
     let mut buf: [u8; 4] = [0; 4];
-    let magic_result = reader.read_exact(&mut buf);
+    reader.read_exact(&mut buf).wrap("reading magic")?;
     assert_eq!(buf, [0x00, 0x61, 0x73, 0x6D]);
-    let version_result = reader.read_exact(&mut buf);
+    reader.read_exact(&mut buf).wrap("reading version")?;
     assert_eq!(buf, [0x01, 0x00, 0x00, 0x00]);
 
     let mut module = Module {
@@ -380,26 +366,31 @@ pub fn parse<R>(src: &mut R) -> Result<Module> where R : Read {
     Ok(module)
 }
 
+#[cfg(test)]
+mod test {
+    use std::fs::File;
+    use super::*;
 
-#[test]
-fn test_parse_file_1() {
-    let mut f = File::open("a.out.wasm").unwrap();
-    let module = parse(&mut f);
-    println!("MODULE! {:?}", module);
+    #[test]
+    fn test_parse_file_1() {
+        let mut f = File::open("a.out.wasm").unwrap();
+        let module = parse(&mut f);
+        println!("MODULE! {:?}", module);
 
-}
+    }
 
-#[test]
-fn test_leb128() {
-    let data: Vec<u8> = vec![8];
-    let res = data.as_slice().next_leb_128().unwrap();
-    assert_eq!(res, 8);
-    
-    let data: Vec<u8> = vec![0x80, 0x01];
-    let res = data.as_slice().next_leb_128().unwrap();
-    assert_eq!(res, 128);
-    
-    let data: Vec<u8> = vec![0x40];
-    let res = data.as_slice().next_leb_128().unwrap();
-    assert_eq!(res, 64);
+    #[test]
+    fn test_leb128() {
+        let data: Vec<u8> = vec![8];
+        let res = data.as_slice().next_leb_128().unwrap();
+        assert_eq!(res, 8);
+
+        let data: Vec<u8> = vec![0x80, 0x01];
+        let res = data.as_slice().next_leb_128().unwrap();
+        assert_eq!(res, 128);
+
+        let data: Vec<u8> = vec![0x40];
+        let res = data.as_slice().next_leb_128().unwrap();
+        assert_eq!(res, 64);
+    }
 }
