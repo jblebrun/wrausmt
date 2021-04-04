@@ -1,5 +1,4 @@
 use super::Runtime;
-use super::stack::StackEntry::*;
 use std::convert::TryInto;
 use super::super::instructions::*;
 use super::super::error::*;
@@ -30,16 +29,16 @@ impl<'l> InvocationContext<'l> {
                         Some(frame) => frame.locals[idx as usize],
                         _ => panic!("no current frame")
                     };
-                    self.runtime.stack.push(Value(val));
+                    self.runtime.stack.push(val.into());
                 },
                 I32Const => {
                     let val = self.next_u32()?;
-                    self.runtime.stack.push(Value(val as u64));
+                    self.runtime.stack.push(val.into());
                 },
                 I32Add => {
                     let a = self.runtime.stack.pop_value();
                     let b = self.runtime.stack.pop_value();
-                    self.runtime.stack.push(Value(a+b));
+                    self.runtime.stack.push((a+b).into());
                 },
                 End => {
                     return Ok(())
@@ -53,7 +52,7 @@ impl<'l> InvocationContext<'l> {
 
 /// Implementation of instruction implementation for this runtime.
 impl Runtime {
-    pub fn invoke(&mut self, body: &[u8]) -> Result<()> { 
+    pub fn enter(&mut self, body: &[u8]) -> Result<()> { 
         println!("EXECUTING {:x?}", body);
         let mut ic = InvocationContext {
             runtime: self,

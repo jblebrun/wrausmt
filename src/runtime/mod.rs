@@ -1,14 +1,15 @@
 pub mod function;
 pub mod store;
 pub mod stack;
+pub mod error;
 mod exec;
 
 
 use super::module::Module;
 use std::rc::Rc;
 use stack::{Stack, StackEntry, Frame};
-use store::{Export, ExternalVal, ModuleInstance, Store};
-use super::error::{Error, Result};
+use store::{Export, ExternalVal, ModuleInstance, Store, FuncAddr};
+use super::error::{Error, ResultFrom, Result};
 
 #[derive(Debug)]
 /// Contains all of the runtime state for the WASM interpreter.
@@ -36,57 +37,98 @@ impl Runtime {
         self.store.load(module)
     }
 
-    pub fn call<'lt>(
+    pub fn invoke(
+        &mut self,
+        addr: FuncAddr,
+    ) -> Result<()> {
+        // 1. Assert S.funcaddr exists
+        // 2. Let funcinst = S.funcs[funcaddr]
+        let funcinst = self.store.func(addr)?;
+        
+        // 3. Let [tn_1] -> [tm_2] be the function type.
+        // 4. Let t* be the list of locals.
+        // 5. Let instr* end be the code body
+        // 6. Assert (due to validation) n values on the stack
+        // 7. Pop val_n from the stack
+        let param_count = funcinst.functype().params.len();
+        let locals = (0..param_count).map(|_| {
+            self.stack.pop_value()
+        }).collect();
+
+        // 8. Let val0* be the list of zero values (other locals). TODO
+        // 9. Let F be the frame.
+        let frame = Rc::new(Frame::new(&funcinst.module_instance, locals));
+
+        // Impl detail: store ref to current frame.
+        self.current_frame = Some(frame.clone());
+
+        // 10. Push activation w/ arity m onto the stack.
+        self.stack.push( StackEntry::Activation { 
+            arity: funcinst.functype().result.len() as u32,
+            frame 
+        });
+
+        // 11. Let L be the Label with continuation at function end.
+        // 12. Enter the instruction sequence with the label.
+        
+        // Impl TODO: label-only stack for convenience?
+        self.stack.push ( StackEntry::Label {
+            arity: funcinst.functype().result.len() as u32,
+            continuation: Rc::new([])
+        });
+
+        self.enter(&funcinst.code.body)
+    }
+
+    /// Invocation of a function by the host.
+    pub fn call(
         &mut self, 
         mod_instance: Rc<ModuleInstance>, 
         name: &str,
-        arg: u64
+        vals: &[u64],
     ) -> Result<u64> {
-        let found = mod_instance.resolve(name); 
-        match found {
-            Some(Export { name: _, addr: ExternalVal::Func(addr) }) => {
-                let func = self.store.funcs[*addr as usize].clone();
+        let funcaddr = match mod_instance.resolve(name) {
+            Some(Export { name: _, addr: ExternalVal::Func(addr)}) => Ok(addr),
+            _ => Err(Error::new(format!("Method not found in module: {}", name)))
+        }?;
+        
+        // 1. Assert S.funcaddr exists
+        // 2. Let funcinst = S.funcs[funcaddr]
+        let funcinst = self.store.func(*funcaddr).wrap(&format!("for name {}", name))?;
 
-                let frame = Rc::new(Frame {
-                    locals: Box::new([arg]),
-                    module: mod_instance.clone()
-                });
-                
-                // create activation frame
-                self.stack.push( StackEntry::Activation { 
-                    arity: func.result_arity() as u32,
-                    frame: frame.clone()
-                });
+        // 3. Let [tn_1] -> [tm_2] be the function type.
+        // 4. If the length of vals is different then the number of vals provided, fail.
+        // 5. For each value type, if not matching declared type, fail.
+        funcinst.validate_args(vals).wrap(&format!("for {}", name))?;
 
-                self.current_frame = Some(frame);
+        // 6. Let F be a dummy frame. (Represents a dummy "caller" for the function to invoke).
+        // 7. Push F to the stack. 
+        let dummy_frame = Rc::new(Frame::dummy());
+        self.stack.push(StackEntry::Activation { arity: 0, frame: dummy_frame});
 
-                // create label
-                self.stack.push ( StackEntry::Label {
-                    arity: func.result_arity() as u32,
-                    continuation: Rc::new([])
-                });
+        // 8. Push the values to the stack.
+        for val in vals {
+            self.stack.push(val.into());
+        }
+        
+        // 9. Invoke the function.
+        self.invoke(*funcaddr)?;
+         
+        // assume single result for now
+        let result = self.stack.pop().unwrap();
 
-                // start executing
-                self.invoke(&func.code.body)?;
-                
-                // assume single result for now
-                let result = self.stack.pop().unwrap();
+        // pop the label
+        self.stack.pop();
 
-                // pop the label
-                self.stack.pop();
+        // pop the frame
+        self.stack.pop();
 
-                // pop the frame
-                self.stack.pop();
+        // clear current frame
+        self.current_frame = None;
 
-                // clear current frame
-                self.current_frame = None;
-                
-                match result {
-                    StackEntry::Value(val) => Ok(val),
-                    _ => Err(Error::new(format!("Bad stack type {:?}", result)))
-                }
-            },
-            _ => Err(Error::new(format!("Method not found: {}", name)))
+        match result {
+            StackEntry::Value(val) => Ok(val),
+            _ => Err(Error::new(format!("Bad stack type {:?}", result)))
         }
     }
 }

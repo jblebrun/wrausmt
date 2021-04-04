@@ -16,4 +16,3 @@ pub struct FunctionType {
     pub params: Box<ResultType>,
     pub result: Box<ResultType>
 }
-

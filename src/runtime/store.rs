@@ -1,6 +1,8 @@
 use super::super::module::*;
 use super::super::types::*;
 use std::rc::Rc;
+use super::super::error::{Result, Error, ErrorFrom};
+use super::error::ArgumentCountError;
 
 /// The WASM Store as described in the specification.
 #[derive(Debug)]
@@ -11,10 +13,10 @@ pub struct Store {
     pub funcs: Vec<Rc<FunctionInstance>>
 }
 
-type FuncAddr = u32;
-type TableAddr = u32;
-type MemoryAddr = u32;
-type GlobalAddr = u32;
+pub type FuncAddr = u32;
+pub type TableAddr = u32;
+pub type MemoryAddr = u32;
+pub type GlobalAddr = u32;
 
 #[derive(Debug)]
 pub enum ExternalVal {
@@ -32,6 +34,14 @@ pub struct ModuleInstance {
 }
 
 impl ModuleInstance {
+    pub fn empty() -> ModuleInstance {
+        ModuleInstance { 
+            types: Box::new([]), 
+            exports: Box::new([]), 
+            func_offset: 0 
+        }
+
+    }
     pub fn resolve(&self, name: &str) -> Option<&Export> {
         let found = self.exports.into_iter().find(|e| {
             e.name == name
@@ -52,6 +62,14 @@ impl Store {
         Store {
             funcs: vec![]
         }
+    }
+
+    pub fn func(&self, addr: FuncAddr) -> Result<Rc<FunctionInstance>> {
+        if self.funcs.len() < addr as usize {
+            return Err(Error::new(format!("No function at addr {}", addr)))
+        }
+
+        Ok(self.funcs[addr as usize].clone())
     }
 
     /// Load the provided module into this store.
@@ -115,10 +133,19 @@ pub struct FunctionInstance {
 }
 
 impl FunctionInstance {
-    pub fn result_arity(&self) -> usize {
-        self.module_instance.types[self.code.functype as usize].result.len()
+    pub fn functype(&self) -> &FunctionType {
+        &self.module_instance.types[self.code.functype as usize]
     }
-    pub fn params_arity(&self) -> usize {
-        self.module_instance.types[self.code.functype as usize].params.len()
+
+    pub fn validate_args(&self, args: &[u64]) -> Result<()> {
+        let params_arity = self.functype().params.len();
+        if params_arity != args.len() {
+             return Err(ArgumentCountError::new(
+                    params_arity, 
+                    args.len()
+            ).wrap(""))
+        }
+        Ok(())
+        
     }
 }

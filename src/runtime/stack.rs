@@ -12,6 +12,24 @@ pub struct Frame {
     pub module: Rc<ModuleInstance>
 }
 
+impl Frame {
+    pub fn dummy() -> Frame {
+        Frame {
+            locals: Box::new([]), 
+            module: Rc::new(ModuleInstance::empty())
+        }
+    }
+
+    pub fn new(
+        module: &Rc<ModuleInstance>,
+        locals: Box<[u64]>
+    ) -> Frame {
+        Frame {
+            locals,
+            module: module.clone(),
+        }
+    }
+}
 /// A single entry on the runtime stack.
 #[derive(Debug)]
 pub enum StackEntry {
@@ -55,3 +73,24 @@ impl Stack {
         }
     }
 }
+
+impl From<&u64> for StackEntry {
+    fn from(val: &u64) -> StackEntry {
+        StackEntry::Value(*val)
+    }
+}
+
+impl From<u64> for StackEntry {
+    fn from(val: u64) -> StackEntry {
+        StackEntry::Value(val)
+    }
+}
+
+impl From<u32> for StackEntry {
+    fn from(val: u32) -> StackEntry {
+        StackEntry::Value(val as u64)
+    }
+}
+
+
+
