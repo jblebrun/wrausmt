@@ -2,6 +2,7 @@ use super::Runtime;
 use std::convert::TryInto;
 use super::super::instructions::*;
 use super::super::error::*;
+use super::super::types::Value;
 
 struct InvocationContext<'l> {
     runtime: &'l mut Runtime,
@@ -36,8 +37,8 @@ impl<'l> InvocationContext<'l> {
                     self.runtime.stack.push(val.into());
                 },
                 I32Add => {
-                    let a = self.runtime.stack.pop_value();
-                    let b = self.runtime.stack.pop_value();
+                    let a = self.runtime.stack.pop_i32()?;
+                    let b = self.runtime.stack.pop_i32()?;
                     self.runtime.stack.push((a+b).into());
                 },
                 End => {

@@ -10,6 +10,7 @@ use std::rc::Rc;
 use stack::{Stack, StackEntry, Frame};
 use store::{Export, ExternalVal, ModuleInstance, Store, FuncAddr};
 use super::error::{Error, ResultFrom, Result};
+use super::types::Value;
 
 #[derive(Debug)]
 /// Contains all of the runtime state for the WASM interpreter.
@@ -51,9 +52,11 @@ impl Runtime {
         // 6. Assert (due to validation) n values on the stack
         // 7. Pop val_n from the stack
         let param_count = funcinst.functype().params.len();
-        let locals = (0..param_count).map(|_| {
-            self.stack.pop_value()
-        }).collect();
+        let mut vals: Vec<Value> = vec![];
+        for _ in 0..param_count {
+            vals.push(self.stack.pop_value()?);
+        }
+        let locals = vals.into_boxed_slice();
 
         // 8. Let val0* be the list of zero values (other locals). TODO
         // 9. Let F be the frame.
@@ -85,8 +88,8 @@ impl Runtime {
         &mut self, 
         mod_instance: Rc<ModuleInstance>, 
         name: &str,
-        vals: &[u64],
-    ) -> Result<u64> {
+        vals: &[Value],
+    ) -> Result<Value> {
         let funcaddr = match mod_instance.resolve(name) {
             Some(Export { name: _, addr: ExternalVal::Func(addr)}) => Ok(addr),
             _ => Err(Error::new(format!("Method not found in module: {}", name)))

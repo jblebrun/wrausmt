@@ -137,7 +137,7 @@ impl FunctionInstance {
         &self.module_instance.types[self.code.functype as usize]
     }
 
-    pub fn validate_args(&self, args: &[u64]) -> Result<()> {
+    pub fn validate_args(&self, args: &[Value]) -> Result<()> {
         let params_arity = self.functype().params.len();
         if params_arity != args.len() {
              return Err(ArgumentCountError::new(

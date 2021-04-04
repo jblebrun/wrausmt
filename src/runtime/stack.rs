@@ -1,5 +1,7 @@
 use std::rc::Rc;
+use super::super::types::*;
 use super::ModuleInstance;
+use super::super::error::Result;
 
 /// Contains the information needed for a function that's executing.
 /// local contains the values of params and local variables of the
@@ -8,7 +10,7 @@ use super::ModuleInstance;
 /// which can be used to resolve additional function calls, externals, etc.
 #[derive(Debug)]
 pub struct Frame {
-    pub locals: Box<[u64]>,
+    pub locals: Box<[Value]>,
     pub module: Rc<ModuleInstance>
 }
 
@@ -22,7 +24,7 @@ impl Frame {
 
     pub fn new(
         module: &Rc<ModuleInstance>,
-        locals: Box<[u64]>
+        locals: Box<[Value]>
     ) -> Frame {
         Frame {
             locals,
@@ -34,7 +36,7 @@ impl Frame {
 #[derive(Debug)]
 pub enum StackEntry {
     /// A normal value entry used by operation.
-    Value(u64),
+    Value(Value),
 
     /// A label entry, used for flow control.
     Label { arity: u32, continuation: Rc<[u8]> },
@@ -51,6 +53,17 @@ pub enum StackEntry {
 pub struct Stack(Vec<StackEntry>);
 
 
+macro_rules! pop {
+    ( $name:ident, $class:ident, $ty:ident, $out:ty ) => {
+        pub fn $name(&mut self) -> Result<$out> {
+            match self.0.pop() {
+                Some(StackEntry::Value(Value::$class($class::$ty(val)))) => Ok(val),
+                _ => Err("wrong type on stack".into())
+            }
+        }
+    }
+}
+
 impl Stack {
     pub fn new() -> Stack { Stack(vec![]) }
 
@@ -62,35 +75,40 @@ impl Stack {
         self.0.pop()
     }
 
-    pub fn pop_value(&mut self) -> u64 {
+    pub fn pop_value(&mut self) -> Result<Value> {
         // To investigate - in validated mode,
         // is it possible to remove all checks here,
         // and simply unwrap the popped value, assuming
         // it's Some(Value(_))?
         match self.0.pop() {
-            Some(StackEntry::Value(val)) => val,
-            _ => panic!("Stack assertion")
+            Some(StackEntry::Value(val)) => Ok(val),
+            _ => Err("Stack assertion".into())
+        }
+    }
+
+    pop! { pop_i32, Num, I32, u32 }
+    pop! { pop_i64, Num, I64, u64 }
+    pop! { pop_f32, Num, F32, f32 }
+    pop! { pop_f64, Num, F64, f64 }
+    pop! { pop_func, Ref, Func, u64 }
+    pop! { pop_extern, Ref, Extern, u64 }
+}
+
+macro_rules! intostack {
+    ( $ty:ty, $id:ident, $res:expr ) => {
+        impl From<$ty> for StackEntry {
+            fn from($id: $ty) -> StackEntry {
+                StackEntry::Value($res)
+            }
         }
     }
 }
 
-impl From<&u64> for StackEntry {
-    fn from(val: &u64) -> StackEntry {
-        StackEntry::Value(*val)
-    }
-}
-
-impl From<u64> for StackEntry {
-    fn from(val: u64) -> StackEntry {
-        StackEntry::Value(val)
-    }
-}
-
-impl From<u32> for StackEntry {
-    fn from(val: u32) -> StackEntry {
-        StackEntry::Value(val as u64)
-    }
-}
-
+intostack! { u32, v, Value::Num(Num::I32(v))}
+intostack! { u64, v, Value::Num(Num::I64(v))}
+intostack! { f32, v, Value::Num(Num::F32(v))}
+intostack! { f64, v, Value::Num(Num::F64(v))}
+intostack! { Value, v, v }
+intostack! { &Value, v, *v }
 
 
