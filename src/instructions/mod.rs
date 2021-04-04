@@ -4,10 +4,13 @@ pub struct Opcode {}
 macro_rules! opcodes {
     ( $( $name:ident = $opcode:expr ),* ) => {
         $(
+            #[allow(non_upper_case_globals)]
+            #[allow(dead_code)]
             pub const $name:u8 = $opcode;
         )*
     }
 }
+
 
 opcodes! {
     // Control

@@ -1,5 +1,6 @@
 use std::io::{Read,Write};
 use std::io;
+use std::fmt;
 use super::super::instructions::*;
 use super::super::module::*;
 use super::super::types::*;
@@ -7,7 +8,6 @@ use super::super::types::ValueType::*;
 use super::super::types::NumType::*;
 use super::super::types::RefType::*;
 use super::super::error::*;
-
 
 trait WasmParser: Read {
     fn skip_section(&mut self) -> Result<()> {
@@ -204,9 +204,15 @@ trait WasmParser: Read {
         self.next_leb_128().wrap("parsing index argument")
     }
 
-    fn parse_inst<W : Write>(&mut self, out: &mut W) -> Result<()> {
+    /// Returns 0 if EOF was reached while parsing an opcode.
+    /// Returns 1 if a full instruction was parsed.
+    /// Returns Err result otherwise.
+    fn parse_inst<W : Write>(&mut self, out: &mut W) -> Result<usize> {
         let mut opcode_buf = [0u8; 1];
-        self.read_exact(&mut opcode_buf).wrap("parsing opcode")?;
+        let cnt = self.read(&mut opcode_buf).wrap("parsing opcode")?;
+        if cnt == 0 {
+            return Ok(0)
+        }
         let opcode = opcode_buf[0];
         
         // Assume success, write out the opcode. Validation occurs later.
@@ -222,9 +228,11 @@ trait WasmParser: Read {
                 self.emit_next_leb_128(out)?;
                 self.emit_next_leb_128(out)?;
             },
+            LocalGet => self.emit_next_leb_128(out)?,
+            I32Const => self.emit_next_leb_128(out)?,
             _ => ()
         }
-        Ok(())
+        Ok(1)
     }
 
     fn emit_next_leb_128<W : Write>(&mut self, out: &mut W) -> Result<()> {
@@ -235,8 +243,13 @@ trait WasmParser: Read {
     }
 
     fn parse_code(&mut self) -> Result<Box<[u8]>> {
-        let result: Vec<u8> = vec![];
-        Ok(result.into_boxed_slice())
+        let mut result: Vec<u8> = vec![];
+        loop {
+            match self.parse_inst(&mut result)? {
+                0 => return Ok(result.into_boxed_slice()),
+                _ => ()
+            }
+        }
     }
 }
 
@@ -329,11 +342,16 @@ pub fn parse<R>(src: &mut R) -> Result<Module> where R : Read {
         println!("SECTION {} ({:x}) -- LENGTH {}", section, section, len);
         let mut section_reader = reader.take(len as u64);
         match section {
-            0 => section_reader.parse_custom_section().wrap("parsing custom")?,
-            1 => module.types = section_reader.parse_types_section().wrap("parsing types")?,
-            2 => module.imports = section_reader.parse_imports_section().wrap("parsing imports")?,
-            3 => *functypes = section_reader.parse_funcs_section().wrap("parsing funcs")?,
-            10 => module.funcs = section_reader.parse_code_section(functypes).wrap("parsing code")?,
+            0 => section_reader.parse_custom_section()
+                .wrap("parsing custom")?,
+            1 => module.types = section_reader.parse_types_section()
+                .wrap("parsing types")?,
+            2 => module.imports = section_reader.parse_imports_section()
+                .wrap("parsing imports")?,
+            3 => *functypes = section_reader.parse_funcs_section()
+                .wrap("parsing funcs")?,
+            10 => module.funcs = section_reader.parse_code_section(functypes)
+                .wrap("parsing code")?,
             _ => section_reader.skip_section().wrap("skipping section")?
         }
         let mut remaining: Vec<u8> = vec![];
@@ -374,7 +392,7 @@ mod test {
     fn test_parse_file_1() {
         let mut f = File::open("a.out.wasm").unwrap();
         let module = parse(&mut f);
-        println!("MODULE! {:?}", module);
+        println!("MODULE! {:x?}", module);
 
     }
 
