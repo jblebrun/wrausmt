@@ -1,43 +1,8 @@
 use super::Runtime;
 use super::stack::StackEntry::*;
 use std::convert::TryInto;
-use std::fmt;
 use super::super::instructions::*;
-
-#[derive(Debug)]
-pub struct Error {
-    msg: String
-}
-
-impl std::error::Error for Error {}
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.msg) 
-    }
-}
-
-trait ErrorFrom {
-    fn wrap(&self, msg: &str) -> Error;
-}
-
-type Result<T> = std::result::Result<T, Error>;
-
-pub trait ResultFrom<T> {
-    fn wrap(self, msg: &str) -> Result<T>;
-}
-
-impl <T : Sized + fmt::Display> ErrorFrom for T {
-    fn wrap(&self, msg: &str) -> Error {
-        Error { msg: format!("{} -- {}", msg, self) }
-    }
-}
-
-impl <T : Sized, E : ErrorFrom> ResultFrom<T> for std::result::Result<T, E> {
-    fn wrap(self, msg: &str) -> Result<T> {
-        self.map_err(|e| e.wrap(msg))
-    }
-}
+use super::super::error::*;
 
 struct InvocationContext<'l> {
     runtime: &'l mut Runtime,
@@ -52,6 +17,7 @@ impl<'l> InvocationContext<'l> {
         Ok(result)
     }
 
+    #[allow(non_upper_case_globals)]
     pub fn run(&mut self) -> Result<()> {
         while self.pc < self.body.len() {
             let op = self.body[self.pc];
@@ -90,7 +56,7 @@ impl Runtime {
         println!("EXECUTING {:x?}", body);
         let mut ic = InvocationContext {
             runtime: self,
-            body: body,
+            body,
             pc: 0
         };
         ic.run()

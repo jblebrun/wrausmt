@@ -3,6 +3,7 @@ mod types;
 mod instructions;
 mod module;
 mod format;
+mod error;
 
 use types::*;
 use instructions::*;

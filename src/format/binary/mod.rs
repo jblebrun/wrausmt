@@ -1,4 +1,3 @@
-mod error;
 use std::io::{Read,Write};
 use std::io;
 use super::super::instructions::*;
@@ -7,7 +6,7 @@ use super::super::types::*;
 use super::super::types::ValueType::*;
 use super::super::types::NumType::*;
 use super::super::types::RefType::*;
-use error::*;
+use super::super::error::*;
 
 
 trait WasmParser: Read {
@@ -38,12 +37,12 @@ trait WasmParser: Read {
             }
             pos += 7;
             if pos > 31 {
-                return Err(ParseError::new(format!("u32 LEB128 data is too long")));
+                return Err(Error::new(format!("u32 LEB128 data is too long")));
             }
         }
 
         if !completed {
-            return Err(ParseError::new(format!("Reached end of input before parsing LEB128")));
+            return Err(Error::new(format!("Reached end of input before parsing LEB128")));
         }
         
         return Ok(result);
@@ -70,7 +69,7 @@ trait WasmParser: Read {
     fn expect_byte(&mut self, expect: u8) -> Result<u8> {
         let actual = self.parse_next_byte().wrap("parsing byte")?;
         if actual != expect {
-            Err(ParseError::new(format!("Expected {} but got {}", expect, actual)))
+            Err(Error::new(format!("Expected {} but got {}", expect, actual)))
         } else {
             Ok(actual)
         }
@@ -110,7 +109,7 @@ trait WasmParser: Read {
                         1 => ImportDesc::Table(self.parse_table_type().wrap("parsing table")?),
                         2 => ImportDesc::Memory(self.parse_memory_type().wrap("parsing memory")?),
                         3 => ImportDesc::Global(self.parse_global_type().wrap("parsing global")?),
-                        _ => return Err(ParseError::new(format!("unknown import desc {}", kind)))
+                        _ => return Err(Error::new(format!("unknown import desc {}", kind)))
                     }
                 }
             })
@@ -131,7 +130,7 @@ trait WasmParser: Read {
        match bool_byte {
            0 => Ok(false),
            1 => Ok(true),
-           _ => Err(ParseError::new(format!("invalid bool value {}", bool_byte)))
+           _ => Err(Error::new(format!("invalid bool value {}", bool_byte)))
        }
     }
 
@@ -250,7 +249,7 @@ pub fn convert_number_type(byte: u8) -> Result<NumType> {
         0x7E => Ok(I64),
         0x7D => Ok(F32),
         0x7C => Ok(F64),
-        _ => Err(ParseError::new(format!("{} does not encode a NumType", byte)))
+        _ => Err(Error::new(format!("{} does not encode a NumType", byte)))
     }
 }
 
@@ -259,7 +258,7 @@ pub fn convert_ref_type(byte: u8) -> Result<RefType> {
     match byte {
         0x70 => Ok(Func),
         0x6F => Ok(Extern),
-        _ => Err(ParseError::new(format!("{} does not encode a RefType", byte)))
+        _ => Err(Error::new(format!("{} does not encode a RefType", byte)))
     }
 }
 
@@ -272,7 +271,7 @@ pub fn convert_value_type(byte: u8) -> Result<ValueType> {
         0x7C => Ok(Num(F64)),
         0x70 => Ok(Ref(Func)),
         0x6F => Ok(Ref(Extern)),
-        _ => Err(ParseError::new(format!("{} does not encode a ValueType", byte)))
+        _ => Err(Error::new(format!("{} does not encode a ValueType", byte)))
     }
 }
 
@@ -340,7 +339,7 @@ pub fn parse<R>(src: &mut R) -> Result<Module> where R : Read {
         let mut remaining: Vec<u8> = vec![];
         section_reader.read_to_end(&mut remaining).wrap("check remaining")?;
         if remaining.len() > 0 {
-            Err(ParseError::new(format!("Section {} was not fully consumed. {:x?} remaining.", section, remaining)))
+            Err(Error::new(format!("Section {} was not fully consumed. {:x?} remaining.", section, remaining)))
         } else {
             Ok(())
         }
