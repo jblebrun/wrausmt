@@ -21,6 +21,7 @@ impl<'l> InvocationContext<'l> {
     pub fn run(&mut self) -> Result<()> {
         while self.pc < self.body.len() {
             let op = self.body[self.pc];
+            println!("HANDLE OP {}", op);
             self.pc += 1;
             match op {
                 LocalGet => {

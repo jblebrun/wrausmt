@@ -4,13 +4,11 @@ pub mod stack;
 mod exec;
 
 
-use store::Store; 
-use stack::Stack;
 use super::module::Module;
-use store::ModuleInstance;
 use std::rc::Rc;
-use stack::StackEntry;
-use stack::Frame;
+use stack::{Stack, StackEntry, Frame};
+use store::{Export, ExternalVal, ModuleInstance, Store};
+use super::error::{Error, Result};
 
 #[derive(Debug)]
 /// Contains all of the runtime state for the WASM interpreter.
@@ -43,14 +41,11 @@ impl Runtime {
         mod_instance: Rc<ModuleInstance>, 
         name: &str,
         arg: u64
-    ) {
+    ) -> Result<u64> {
         let found = mod_instance.resolve(name); 
         match found {
-            None => {
-                panic!("Method not found: {}", name);
-            },
-            Some(export) => {
-                let func = self.store.funcs[export.addr as usize].clone();
+            Some(Export { name: _, addr: ExternalVal::Func(addr) }) => {
+                let func = self.store.funcs[*addr as usize].clone();
 
                 let frame = Rc::new(Frame {
                     locals: Box::new([arg]),
@@ -72,9 +67,10 @@ impl Runtime {
                 });
 
                 // start executing
-                self.invoke(&func.code.body);
+                self.invoke(&func.code.body)?;
                 
-                println!("{:?}", self.stack.pop());
+                // assume single result for now
+                let result = self.stack.pop().unwrap();
 
                 // pop the label
                 self.stack.pop();
@@ -84,7 +80,13 @@ impl Runtime {
 
                 // clear current frame
                 self.current_frame = None;
-            }
+                
+                match result {
+                    StackEntry::Value(val) => Ok(val),
+                    _ => Err(Error::new(format!("Bad stack type {:?}", result)))
+                }
+            },
+            _ => Err(Error::new(format!("Method not found: {}", name)))
         }
     }
 }

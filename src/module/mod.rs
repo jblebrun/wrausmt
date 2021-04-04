@@ -11,7 +11,9 @@ pub struct Module {
 }
 
 pub type TypeIndex = u32;
-pub type FuncIdx = u32;
+pub type TableIndex = u32;
+pub type MemIndex = u32;
+pub type GlobalIndex = u32;
 
 #[derive(Debug, Clone)]
 pub struct Limits {
@@ -45,6 +47,14 @@ pub enum ImportDesc {
 }
 
 #[derive(Debug, Clone)]
+pub enum ExportDesc {
+    Func(TypeIndex),
+    Table(TableIndex),
+    Memory(MemIndex),
+    Global(GlobalIndex)
+}
+
+#[derive(Debug, Clone)]
 pub struct Import {
     pub module_name: String,
     pub name: String,
@@ -54,7 +64,7 @@ pub struct Import {
 #[derive(Debug, Clone)]
 pub struct Export {
     pub name: String,
-    pub idx: FuncIdx
+    pub desc: ExportDesc
 }
 
 #[derive(Debug, Clone)]

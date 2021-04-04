@@ -1,6 +1,5 @@
 use std::io::{Read,Write};
 use std::io;
-use std::fmt;
 use super::super::instructions::*;
 use super::super::module::*;
 use super::super::types::*;
@@ -117,6 +116,28 @@ trait WasmParser: Read {
         }).collect()
     }
 
+    fn parse_exports_section(&mut self) -> Result<Box<[Export]>> {
+        let items = self.next_leb_128().wrap("parsing count")?;
+
+        (0..items).map(|_| {
+            Ok(Export {
+                name: self.parse_name().wrap("parsing name")?, 
+                desc: {
+                    let kind = self.parse_next_byte().wrap("parsing kind")?;
+                    match kind {
+                        0 => ExportDesc::Func(self.next_leb_128().wrap("parsing func")?),
+                        1 => ExportDesc::Table(self.next_leb_128().wrap("parsing table")?),
+                        2 => ExportDesc::Memory(self.next_leb_128().wrap("parsing memory")?),
+                        3 => ExportDesc::Global(self.next_leb_128().wrap("parsing global")?),
+                        _ => return Err(Error::new(format!("unknown import desc {}", kind)))
+                    }
+                }
+            })
+
+        }).collect()
+    }
+
+
     fn parse_value_type(&mut self) -> Result<ValueType> {
         convert_value_type(self.parse_next_byte().wrap("fetching value type")?)
     }
@@ -189,6 +210,7 @@ trait WasmParser: Read {
     fn parse_locals(&mut self) -> Result<Box<[ValueType]>> {
         let items = self.next_leb_128().wrap("parsing item count")?;
         let mut result: Vec<ValueType> = vec![];
+        println!("{} LOCALS", items);
 
         for _ in 0..items {
             let reps = self.next_leb_128().wrap("parsing type rep")?;
@@ -350,6 +372,8 @@ pub fn parse<R>(src: &mut R) -> Result<Module> where R : Read {
                 .wrap("parsing imports")?,
             3 => *functypes = section_reader.parse_funcs_section()
                 .wrap("parsing funcs")?,
+            7 => module.exports = section_reader.parse_exports_section()
+                .wrap("parsing exports")?,
             10 => module.funcs = section_reader.parse_code_section(functypes)
                 .wrap("parsing code")?,
             _ => section_reader.skip_section().wrap("skipping section")?
@@ -385,16 +409,8 @@ pub fn parse<R>(src: &mut R) -> Result<Module> where R : Read {
 
 #[cfg(test)]
 mod test {
-    use std::fs::File;
     use super::*;
 
-    #[test]
-    fn test_parse_file_1() {
-        let mut f = File::open("a.out.wasm").unwrap();
-        let module = parse(&mut f);
-        println!("MODULE! {:x?}", module);
-
-    }
 
     #[test]
     fn test_leb128() {
