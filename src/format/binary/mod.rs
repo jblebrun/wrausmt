@@ -36,15 +36,15 @@ trait WasmParser: Read {
             }
             pos += 7;
             if pos > 31 {
-                return Err(Error::new(format!("u32 LEB128 data is too long")));
+                return Err(Error::new("u32 LEB128 data is too long".to_string()));
             }
         }
 
         if !completed {
-            return Err(Error::new(format!("Reached end of input before parsing LEB128")));
+            return Err(Error::new("Reached end of input before parsing LEB128".to_string()));
         }
         
-        return Ok(result);
+        Ok(result)
     }
 
     fn parse_name(&mut self) -> Result<String> {
@@ -190,7 +190,7 @@ trait WasmParser: Read {
         }).collect()
     }
 
-    fn parse_code_section(&mut self, types: &Box<[TypeIndex]>) -> Result<Box<[Function]>> {
+    fn parse_code_section(&mut self, types: &[TypeIndex]) -> Result<Box<[Function]>> {
        let items = self.next_leb_128().wrap("parsing item count")?;
        (0..items).map(|i| {
             let codesize = self.next_leb_128().wrap("parsing func")?;
@@ -280,12 +280,8 @@ trait WasmParser: Read {
 
     fn parse_code(&mut self) -> Result<Box<[u8]>> {
         let mut result: Vec<u8> = vec![];
-        loop {
-            match self.parse_inst(&mut result)? {
-                0 => return Ok(result.into_boxed_slice()),
-                _ => ()
-            }
-        }
+        while self.parse_inst(&mut result)? == 1 {}
+        Ok(result.into_boxed_slice())
     }
 }
 
@@ -394,7 +390,7 @@ pub fn parse<R>(src: &mut R) -> Result<Module> where R : Read {
         }
         let mut remaining: Vec<u8> = vec![];
         section_reader.read_to_end(&mut remaining).wrap("check remaining")?;
-        if remaining.len() > 0 {
+        if !remaining.is_empty() {
             Err(Error::new(format!("Section {} was not fully consumed. {:x?} remaining.", section, remaining)))
         } else {
             Ok(())
@@ -408,13 +404,10 @@ pub fn parse<R>(src: &mut R) -> Result<Module> where R : Read {
             None => break
         };
 
-        match parse_section(section, &mut module, reader, &mut functypes) {
-            Err(e) => {
-                let consumed = reader.consumed();
-                println!("\n\nError parsing at {} (0x{:x}), caused by:\n{}\n\n", consumed, consumed, e);
-                break;
-            }
-            _ => ()
+        if let Err(e) = parse_section(section, &mut module, reader, &mut functypes) {
+            let consumed = reader.consumed();
+            println!("\n\nError parsing at {} (0x{:x}), caused by:\n{}\n\n", consumed, consumed, e);
+            break;
         }
     }
     println!("FUNCTYPES {:?}", functypes);

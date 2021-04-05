@@ -13,6 +13,12 @@ pub struct Store {
     pub funcs: Vec<Rc<FunctionInstance>>
 }
 
+impl Default for Store {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 pub type FuncAddr = u32;
 pub type TableAddr = u32;
 pub type MemoryAddr = u32;
@@ -43,11 +49,11 @@ impl ModuleInstance {
 
     }
     pub fn resolve(&self, name: &str) -> Option<&Export> {
-        let found = self.exports.into_iter().find(|e| {
+        let found = self.exports.iter().find(|e| {
             e.name == name
         });
 
-        return found;
+        found
     }
 }
 
