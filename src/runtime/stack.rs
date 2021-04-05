@@ -65,6 +65,12 @@ macro_rules! pop {
     }
 }
 
+impl Default for Stack {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Stack {
     pub fn new() -> Stack { Stack(vec![]) }
 

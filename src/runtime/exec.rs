@@ -2,7 +2,6 @@ use super::Runtime;
 use std::convert::TryInto;
 use super::super::instructions::*;
 use super::super::error::*;
-use super::super::types::Value;
 use super::stack::Frame;
 use std::rc::Rc;
 
@@ -22,7 +21,7 @@ impl<'l> InvocationContext<'l> {
     fn current_frame(&self) -> Result<Rc<Frame>> {
         match &self.runtime.current_frame {
             Some(frame) => Ok(frame.clone()),
-            _ => Err(Error::new(format!("no current frame")))
+            _ => Err(Error::new("no current frame".to_string()))
         }
     }
 
@@ -67,13 +66,13 @@ impl<'l> InvocationContext<'l> {
                     self.runtime.stack.push((a-b).into());
                 },
                 I32Load => {
-                    let align = self.next_u32()?;
-                    let offset= self.next_u32()?;
+                    let _align = self.next_u32()?;
+                    let _offset= self.next_u32()?;
                     // TODO - actual load memory
                 },
                 I32Store => {
-                    let align = self.next_u32()?;
-                    let offset= self.next_u32()?;
+                    let _align = self.next_u32()?;
+                    let _offset= self.next_u32()?;
                     // TODO - actual store memory
                 },
                 End => {

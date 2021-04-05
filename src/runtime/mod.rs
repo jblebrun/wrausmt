@@ -25,6 +25,12 @@ pub struct Runtime {
     current_frame: Option<Rc<Frame>>,
 }
 
+impl Default for Runtime {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Runtime {
     pub fn new() -> Runtime {
         Runtime {
@@ -58,7 +64,7 @@ impl Runtime {
         }
 
         // 8. Let val0* be the list of zero values (other locals). TODO
-        for localtype in funcinst.code.locals.into_iter() {
+        for localtype in funcinst.code.locals.iter() {
             vals.push(localtype.default());
         }
 
