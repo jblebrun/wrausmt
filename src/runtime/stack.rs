@@ -53,18 +53,6 @@ pub enum StackEntry {
 #[derive(Debug)]
 pub struct Stack(Vec<StackEntry>);
 
-
-macro_rules! pop {
-    ( $name:ident, $class:ident, $ty:ident, $out:ty ) => {
-        pub fn $name(&mut self) -> Result<$out> {
-            match self.0.pop() {
-                Some(StackEntry::Value(Value::$class($class::$ty(val)))) => Ok(val),
-                _ => Err("wrong type on stack".into())
-            }
-        }
-    }
-}
-
 impl Default for Stack {
     fn default() -> Self {
         Self::new()
@@ -92,13 +80,6 @@ impl Stack {
             _ => Err("Stack assertion".into())
         }
     }
-
-    pop! { pop_i32, Num, I32, u32 }
-    pop! { pop_i64, Num, I64, u64 }
-    pop! { pop_f32, Num, F32, f32 }
-    pop! { pop_f64, Num, F64, f64 }
-    pop! { pop_func, Ref, Func, u64 }
-    pop! { pop_extern, Ref, Extern, u64 }
 }
 
 macro_rules! intostack {

@@ -1,4 +1,6 @@
 use std::boxed::Box;
+use std::convert::TryFrom;
+use super::error::Error;
 
 #[derive(Debug, Copy, Clone)]
 pub enum NumType { I32, I64, F32, F64 }
@@ -62,6 +64,17 @@ macro_rules! froms {
         impl From<$ty> for Value {
             fn from(v: $ty) -> Value {
                 Value::Num(Num::$name(v as $ty))
+            }
+        }
+
+        impl TryFrom<Value> for $ty {
+            type Error = Error;
+
+            fn try_from(val: Value) -> Result<$ty, Self::Error> {
+                match val {
+                    Value::Num(Num::$name(v)) => Ok(v),
+                    _ => Err(Error::new("couldn't convert".to_string()))
+                }
             }
         }
     }
