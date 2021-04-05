@@ -56,10 +56,14 @@ impl Runtime {
         for _ in 0..param_count {
             vals.push(self.stack.pop_value()?);
         }
-        let locals = vals.into_boxed_slice();
 
         // 8. Let val0* be the list of zero values (other locals). TODO
+        for localtype in funcinst.code.locals.into_iter() {
+            vals.push(localtype.default());
+        }
+
         // 9. Let F be the frame.
+        let locals = vals.into_boxed_slice();
         let frame = Rc::new(Frame::new(&funcinst.module_instance, locals));
 
         // Impl detail: store ref to current frame.

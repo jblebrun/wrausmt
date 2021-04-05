@@ -226,6 +226,14 @@ trait WasmParser: Read {
         self.next_leb_128().wrap("parsing index argument")
     }
 
+    fn arg1<W : Write>(&mut self, out: &mut W) -> Result<()> {
+        self.emit_next_leb_128(out)
+    }
+    fn arg2<W : Write>(&mut self, out: &mut W) -> Result<()> {
+        self.emit_next_leb_128(out)?;
+        self.emit_next_leb_128(out)
+    }
+
     /// Returns 0 if EOF was reached while parsing an opcode.
     /// Returns 1 if a full instruction was parsed.
     /// Returns Err result otherwise.
@@ -243,16 +251,22 @@ trait WasmParser: Read {
         // Handle any additional behavior
         #[allow(non_upper_case_globals)]
         match opcode {
-            Block => self.emit_next_leb_128(out)?,
-            BrIf => self.emit_next_leb_128(out)?,
-            Call => self.emit_next_leb_128(out)?,
-            CallIndirect => {
-                self.emit_next_leb_128(out)?;
-                self.emit_next_leb_128(out)?;
-            },
-            LocalGet => self.emit_next_leb_128(out)?,
-            I32Const => self.emit_next_leb_128(out)?,
-            _ => ()
+            Block => self.arg1(out)?,
+            BrIf => self.arg1(out)?,
+            Return => (),
+            Call => self.arg1(out)?,
+            CallIndirect => self.arg2(out)?,
+            End => (),
+            LocalGet => self.arg1(out)?,
+            LocalSet => self.arg1(out)?,
+            GlobalGet => self.arg1(out)?,
+            I32Load => self.arg2(out)?,
+            I32Store => self.arg2(out)?,
+            I32Const => self.arg1(out)?,
+            F32Const => self.arg1(out)?,
+            I32Add => (),
+            I32Sub => (),
+            _ => return Err(Error::new(format!("unknown opcode 0x{:x?}", opcode)))
         }
         Ok(1)
     }

@@ -67,7 +67,7 @@ opcodes! {
     I64Load32s = 0x34,
     I64Load32u = 0x35,
 
-    I32store = 0x36,
+    I32Store = 0x36,
     I64Store = 0x37,
     F32Store = 0x38,
     F64Store = 0x39,

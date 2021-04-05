@@ -22,3 +22,18 @@ fn simplefunc() -> Result<()> {
     assert_eq!(res2, 46u32.into());
     Ok(())
 }
+
+#[test]
+fn locals() -> Result<()> {
+    let mut runtime = Runtime::new();
+
+    let mut f = File::open("testdata/locals.wasm").unwrap();
+    let test_mod = parse(&mut f)?;
+    println!("MODULE {:x?}",test_mod);
+
+    let mod_inst = runtime.load(test_mod);
+    let res = runtime.call(mod_inst, "test", &[100u32.into()]).unwrap();
+    assert_eq!(res, 500u32.into());
+
+    Ok(())
+}

@@ -38,6 +38,19 @@ pub enum Value {
     Ref(Ref)
 }
 
+impl ValueType {
+    pub fn default(&self) -> Value {
+        match &self {
+            ValueType::Num(NumType::I32) => Value::Num(Num::I32(0)),
+            ValueType::Num(NumType::I64) => Value::Num(Num::I64(0)),
+            ValueType::Num(NumType::F32) => Value::Num(Num::F32(0f32)),
+            ValueType::Num(NumType::F64) => Value::Num(Num::F64(0f64)),
+            ValueType::Ref(RefType::Func) => Value::Ref(Ref::Func(0)),
+            ValueType::Ref(RefType::Extern) => Value::Ref(Ref::Extern(0)),
+        }
+    }
+}
+
 macro_rules! froms {
     ( $ty:ty, $name:ident ) => {
         impl From<$ty> for Num {

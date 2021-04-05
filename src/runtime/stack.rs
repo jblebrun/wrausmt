@@ -2,6 +2,7 @@ use std::rc::Rc;
 use super::super::types::*;
 use super::ModuleInstance;
 use super::super::error::Result;
+use std::cell::RefCell;
 
 /// Contains the information needed for a function that's executing.
 /// local contains the values of params and local variables of the
@@ -10,14 +11,14 @@ use super::super::error::Result;
 /// which can be used to resolve additional function calls, externals, etc.
 #[derive(Debug)]
 pub struct Frame {
-    pub locals: Box<[Value]>,
+    pub locals: RefCell<Box<[Value]>>,
     pub module: Rc<ModuleInstance>
 }
 
 impl Frame {
     pub fn dummy() -> Frame {
         Frame {
-            locals: Box::new([]), 
+            locals: RefCell::new(Box::new([])), 
             module: Rc::new(ModuleInstance::empty())
         }
     }
@@ -27,7 +28,7 @@ impl Frame {
         locals: Box<[Value]>
     ) -> Frame {
         Frame {
-            locals,
+            locals: RefCell::new(locals),
             module: module.clone(),
         }
     }
