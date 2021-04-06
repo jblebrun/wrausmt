@@ -1,7 +1,7 @@
 use std::fs::File;
-use rust_wasm::format::binary::parse;
-use rust_wasm::runtime::Runtime;
-use rust_wasm::error::Result;
+use wrausmt::format::binary::parse;
+use wrausmt::runtime::Runtime;
+use wrausmt::error::Result;
 #[test]
 fn simplefunc() -> Result<()> {
     let mut runtime = Runtime::new();

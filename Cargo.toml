@@ -1,5 +1,5 @@
 [package]
-name = "rust-wasm"
+name = "wrausmt"
 version = "0.1.0"
 authors = ["Jason LeBrun <jblebrun@gmail.com>"]
 edition = "2018"
