@@ -2,7 +2,7 @@ use super::types::FunctionType;
 use super::types::ValueType;
 use super::types::RefType;
 
-#[derive(Debug, Clone)]
+#[derive(Default, Debug, Clone)]
 pub struct Module {
     pub types: Box<[FunctionType]>,
     pub imports: Box<[Import]>,

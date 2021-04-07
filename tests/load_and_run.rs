@@ -1,9 +1,8 @@
 use std::fs::File;
-use wrausmt::format::binary::parse;
+use wrausmt::format::binary::{ParseError, parse};
 use wrausmt::runtime::Runtime;
-use wrausmt::error::Result;
 #[test]
-fn simplefunc() -> Result<()> {
+fn simplefunc() -> Result<(), ParseError> {
     let mut runtime = Runtime::new();
 
 
@@ -24,7 +23,7 @@ fn simplefunc() -> Result<()> {
 }
 
 #[test]
-fn locals() -> Result<()> {
+fn locals() -> Result<(), ParseError> {
     let mut runtime = Runtime::new();
 
     let mut f = File::open("testdata/locals.wasm").unwrap();
