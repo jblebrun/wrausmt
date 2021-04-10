@@ -93,7 +93,7 @@ pub type Type = FunctionType;
 
 /// The funcs component of a module defines a vector of functions.
 /// [Spec](https://webassembly.github.io/spec/core/syntax/modules.html#types)
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct Function {
     /// The type of a function declares its signature by reference to a type defined in the module.
     /// The parameters of the function are referenced through 0-based local indices in the

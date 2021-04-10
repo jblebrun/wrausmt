@@ -23,14 +23,9 @@ use funcs::ReadFuncs;
 use leb128::ReadLeb128;
 use ensure_consumed::EnsureConsumed;
 
-#[derive(Default)]
-pub struct ReadState {
-    pub functypes: Option<Box<[index::Type]>>
-}
-
 /// Read and return the next section in a binary module being read by a std::io::Read
 /// If the end of the binary module has been reached, Section::Eof will be returned.
-fn read_section<R:Read>(reader: &mut R, state: &ReadState) -> Result<Section> {
+fn read_section<R:Read>(reader: &mut R) -> Result<Section> {
     let section_num = match reader.bytes().next() {
         Some(Ok(v)) => v,
         Some(Err(e)) => return Err(e).wrap("parsing section"),
@@ -46,18 +41,27 @@ fn read_section<R:Read>(reader: &mut R, state: &ReadState) -> Result<Section> {
         2 => Section::Imports(section_reader.read_imports_section().wrap("reading imports")?),
         3 => Section::Funcs(section_reader.read_funcs_section().wrap("reading funcs")?),
         7 => Section::Exports(section_reader.read_exports_section().wrap("reading exports")?),
-        10 => {
-            match &state.functypes {
-                Some(ft) => Section::Code(section_reader.read_code_section(ft).wrap("reading code")?),
-                _ => return Err(Error::new("Received code section without types section".to_string()))
-            }
-        },
+        10 => Section::Code(section_reader.read_code_section().wrap("reading code")?),
         _ => { section_reader.read_custom_section().wrap("while skipping section")?; Section::Skip }
     };
     
     section_reader.ensure_consumed().wrap(&format!("Section {}", section_num))?;
     
     Ok(section)
+}
+
+fn resolve_functypes(funcs: &mut [Function], functypes: &[index::Func]) -> Result<()> {
+    // In a valid module, we will have parsed the func types section already, so we'll
+    // have some partially-initialized function items ready.
+    if funcs.len() != functypes.len() {
+        return Err(Error::new("func size mismatch".into()));
+    }
+
+    // Add the functype type to the returned function structs.
+    for (i, func) in funcs.iter_mut().enumerate() {
+        func.functype = functypes[i];
+    }
+    Ok(())
 }
 
 /// Attempt to interpret the data in the provided std::io:Read as a WASM binary module.
@@ -73,19 +77,24 @@ pub fn parse<R>(src: &mut R) -> std::result::Result<Module, ParseError> where R 
     assert_eq!(buf, [0x01, 0x00, 0x00, 0x00]);
 
     let mut module = Module::default();
-    let mut state = ReadState::default();
+
+    let mut functypes: Box<[index::Func]> = Box::new([]);
 
     loop {
-        let section = read_section(reader, &state);
+        let section = read_section(reader);
         match section {
             Ok(Section::Eof) => break,
             Ok(Section::Skip) => (),
             Ok(Section::Custom(_)) => (),
             Ok(Section::Types(t)) => module.types = t,
             Ok(Section::Imports(i)) => module.imports = i,
-            Ok(Section::Funcs(f)) => state.functypes = Some(f),
+            Ok(Section::Funcs(f)) => functypes = f,
             Ok(Section::Exports(e)) => module.exports = e,
-            Ok(Section::Code(c)) => module.funcs = c,
+            Ok(Section::Code(c)) => {
+                module.funcs = c;
+                resolve_functypes(module.funcs.as_mut(), &functypes)?
+
+            },
             Err(e) => {
                 let consumed = reader.consumed();
                 println!("\n\nError parsing at {} (0x{:x}), caused by:\n{}\n\n", consumed, consumed, e);
@@ -107,8 +116,8 @@ impl From<Error> for ParseError {
     fn from(e: Error) -> ParseError {
         ParseError { cause: e, location: 0, module:None }
     }
-
 }
+
 impl std::fmt::Display for ParseError {
     fn fmt<'l>(&'l self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "Error parsing binary module at {}\nContents so far:{:?}", self.location, self.module)
