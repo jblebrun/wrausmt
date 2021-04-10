@@ -16,8 +16,11 @@
 //! [Spec]: https://webassembly.github.io/spec/core/syntax/values.html#values
 
 use std::convert::TryFrom;
-use crate::error::Error;
-use crate::types::{ValueType, NumType, RefType};
+use crate::{
+    err,
+    error::Error,
+    types::{ValueType, NumType, RefType}
+};
 
 /// A value that a WebAssembly program can manipulate. [Spec][Spec]
 ///
@@ -91,7 +94,7 @@ macro_rules! froms {
             fn try_from(val: Value) -> Result<$ty, Self::Error> {
                 match val {
                     Value::Num(Num::$name(v)) => Ok(v),
-                    _ => Err(Error::new("couldn't convert".to_string()))
+                    _ => err!("couldn't convert")
                 }
             }
         }

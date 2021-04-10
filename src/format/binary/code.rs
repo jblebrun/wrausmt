@@ -3,10 +3,13 @@ use super::{
     ensure_consumed::EnsureConsumed, 
     values::ReadWasmValues
 };
-use crate::module::Function;
-use crate::types::ValueType;
-use crate::error::{Error, Result, ResultFrom};
-use crate::instructions::*;
+use crate::{
+    module::Function,
+    types::ValueType,
+    error::{Result, ResultFrom},
+    instructions::*,
+    err,
+};
 
 /// Read the Code section of a binary module.
 /// codesec := section vec(code)
@@ -96,7 +99,7 @@ pub trait ReadCode : ReadWasmValues {
             F32Const => self.read_1_arg(out)?,
             I32Add => (),
             I32Sub => (),
-            _ => return Err(Error::new(format!("unknown opcode 0x{:x?}", opcode)))
+            _ => return err!("unknown opcode 0x{:x?}", opcode)
         }
         Ok(1)
     }

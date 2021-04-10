@@ -1,6 +1,10 @@
+use std::convert::TryFrom;
+use crate::{
+    types::{RefType, ResultType, ValueType, NumType},
+    err,
+    error::{ResultFrom, Error, Result},
+};
 use super::leb128::ReadLeb128;
-use crate::types::{RefType, ResultType, ValueType, NumType};
-use crate::error::{ResultFrom, Error, Result};
 
 macro_rules! read_exact_bytes {
     ( $r:expr, $size:expr, $expect:expr ) => {
@@ -43,7 +47,7 @@ pub trait ReadWasmValues : ReadLeb128 {
     /// Names are encoded as a vec(byte).
     fn read_name(&mut self) -> Result<String> {
         let length = self.read_leb_128().wrap("parsing length")?;
-        
+
         let mut bs: Vec<u8> = vec![0; length as usize];
 
         self.read_exact(&mut bs).wrap("reading name data")?;
@@ -54,22 +58,26 @@ pub trait ReadWasmValues : ReadLeb128 {
     /// Read a boolean field.
     /// A boolean field should only contain a value of 1 (for true) or 0 (for false).
     fn read_bool(&mut self) -> Result<bool> {
-       let bool_byte = self.read_byte().wrap("fetching bool")?;
-       match bool_byte {
-           0 => Ok(false),
-           1 => Ok(true),
-           _ => Err(Error::new(format!("invalid bool value {}", bool_byte)))
-       }
+        let bool_byte = self.read_byte().wrap("fetching bool")?;
+        match bool_byte {
+            0 => Ok(false),
+            1 => Ok(true),
+            _ => err!("invalid bool value {}", bool_byte)
+        }
     }
 
     fn read_value_type(&mut self) -> Result<ValueType> {
-        convert_value_type(self.read_byte().wrap("fetching value type")?)
+        ValueType::try_from(
+            self.read_byte().wrap("fetching value type")?
+        )
     }
 
     fn read_ref_type(&mut self) -> Result<RefType> {
-        convert_ref_type(self.read_byte().wrap("fetching ref type")?)
+        RefType::try_from(
+            self.read_byte().wrap("fetching ref type")?
+        )
     }
-    
+
     fn read_result_type(&mut self) -> Result<Box<ResultType>> {
         let item_count = self.read_leb_128().wrap("parsing count")?;
 
@@ -82,22 +90,28 @@ pub trait ReadWasmValues : ReadLeb128 {
 
 impl <I> ReadWasmValues for I where I:ReadLeb128 {} 
 
-pub fn convert_value_type(byte: u8) -> Result<ValueType> {
-    match byte {
-        0x7F => Ok(ValueType::Num(NumType::I32)),
-        0x7E => Ok(ValueType::Num(NumType::I64)),
-        0x7D => Ok(ValueType::Num(NumType::F32)),
-        0x7C => Ok(ValueType::Num(NumType::F64)),
-        0x70 => Ok(ValueType::Ref(RefType::Func)),
-        0x6F => Ok(ValueType::Ref(RefType::Extern)),
-        _ => Err(Error::new(format!("{} does not encode a ValueType", byte)))
+impl TryFrom<u8> for ValueType {
+    type Error=Error;
+    fn try_from(byte: u8) -> Result<ValueType> {
+        match byte {
+            0x7F => Ok(NumType::I32.into()),
+            0x7E => Ok(NumType::I64.into()),
+            0x7D => Ok(NumType::F32.into()),
+            0x7C => Ok(NumType::F64.into()),
+            0x70 => Ok(RefType::Func.into()),
+            0x6F => Ok(RefType::Extern.into()),
+            _ => err!("{:x?} is not a value type", byte)
+        }
     }
 }
 
-pub fn convert_ref_type(byte: u8) -> Result<RefType> {
-    match byte {
-        0x70 => Ok(RefType::Func),
-        0x6F => Ok(RefType::Extern),
-        _ => Err(Error::new(format!("{} does not encode a RefType", byte)))
+impl TryFrom<u8> for RefType {
+    type Error=Error;
+    fn try_from(byte: u8) -> Result<RefType> {
+        match byte {
+            0x70 => Ok(RefType::Func),
+            0x6F => Ok(RefType::Extern),
+            _ => err!("{} does not encode a RefType", byte)
+        }
     }
 }

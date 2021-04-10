@@ -13,7 +13,8 @@ mod section;
 use std::io::Read;
 use crate::{
     module::{Function, Module, index},
-    error::{Error, Result}
+    error::Result,
+    err
 };
 use super::error::ParseError;
 use countread::CountRead;
@@ -24,7 +25,7 @@ fn resolve_functypes(funcs: &mut [Function], functypes: &[index::Func]) -> Resul
     // In a valid module, we will have parsed the func types section already, so we'll
     // have some partially-initialized function items ready.
     if funcs.len() != functypes.len() {
-        return Err(Error::new("func size mismatch".into()));
+        return err!("func size mismatch");
     }
 
     // Add the functype type to the returned function structs.

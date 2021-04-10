@@ -1,6 +1,7 @@
 use std::io::Read;
 use std::iter::Iterator;
-use crate::error::{Error, Result, ResultFrom};
+use crate::error::{Result, ResultFrom};
+use crate::err;
 use super::token::Token;
 
 #[cfg(test)]
@@ -35,7 +36,7 @@ impl <R : Read> Tokenizer<R> {
         self.current = buf[0];
         if amount_read == 0 {
             if self.eof {
-                return Err(Error::new("unexpected eof".to_string()))
+                return err!("unexpected eof")
             } else {
                 self.eof = true;
             }
@@ -138,7 +139,7 @@ impl <R : Read> Tokenizer<R> {
     }
 
     fn consume_other(&mut self) -> Result<Token> {
-        Err(Error::new("UNKNOWN".to_string())).wrap("")
+        err!("UNKNOWN")
     }
 
     fn consume_name(&mut self) -> Result<String> {
@@ -148,7 +149,7 @@ impl <R : Read> Tokenizer<R> {
             self.advance()?;
         }
         if !self.eof && !self.is_whitespace() && self.current != b')' {
-            return Err(Error::new(format!("Invalid char {}", self.current)));
+            return err!("Invalid char {}", self.current);
         }
         let sresult = String::from_utf8(result).wrap("bad utf8")?;
         Ok(sresult)

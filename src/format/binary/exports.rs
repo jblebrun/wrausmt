@@ -1,5 +1,6 @@
 use super::values::ReadWasmValues;
-use crate::error::{Error, Result, ResultFrom};
+use crate::error::{Result, ResultFrom};
+use crate::err;
 use crate::module::{Export, ExportDesc};
 
 /// A trait to allow parsing of an exports section from something implementing 
@@ -26,7 +27,7 @@ pub trait ReadExports : ReadWasmValues {
                         1 => ExportDesc::Table(self.read_leb_128().wrap("parsing table")?),
                         2 => ExportDesc::Memory(self.read_leb_128().wrap("parsing memory")?),
                         3 => ExportDesc::Global(self.read_leb_128().wrap("parsing global")?),
-                        _ => return Err(Error::new(format!("unknown import desc {}", kind)))
+                        _ => return err!("unknown import desc {:x}", kind)
                     }
                 }
             })
