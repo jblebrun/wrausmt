@@ -3,7 +3,7 @@ use super::{
     ensure_consumed::EnsureConsumed, 
     values::ReadWasmValues
 };
-use crate::module::{Function, index};
+use crate::module::Function;
 use crate::types::ValueType;
 use crate::error::{Error, Result, ResultFrom};
 use crate::instructions::*;
@@ -15,22 +15,22 @@ use crate::instructions::*;
 /// locals := n:u32 t:type
 /// expr := (instr)*
 pub trait ReadCode : ReadWasmValues {
-    fn read_code_section(&mut self, types: &[index::Type]) -> Result<Box<[Function]>> {
+    fn read_code_section(&mut self) -> Result<Box<[Function]>> {
        let items = self.read_leb_128().wrap("parsing item count")?;
        (0..items)
-           .map(|i| types[i as usize])
-           .map(|t| self.read_func(t))
+           .map(|_| self.read_func())
            .collect()
     }
 
     /// code := size:u32 code:func
     /// func := (t*)*:vec(locals) e:expr
     /// The size is the size in bytes of the entire section, locals + exprs
-    fn read_func(&mut self, type_index: index::Type) -> Result<Function> {
+    fn read_func(&mut self) -> Result<Function> {
         let codesize = self.read_leb_128().wrap("parsing func")?;
         let mut code_reader = self.take(codesize as u64);
         let function = Function {
-            functype: type_index,
+            // The types are parsed earlier and will be set on the returned values.
+            functype: 0,
             locals: code_reader.read_locals().wrap("parsing locals")?,
             body: code_reader.read_expr().wrap("parsing code")?
         };
