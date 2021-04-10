@@ -2,6 +2,7 @@ pub mod function;
 pub mod store;
 pub mod stack;
 pub mod error;
+pub mod values;
 mod exec;
 
 
@@ -10,7 +11,7 @@ use std::rc::Rc;
 use stack::{Stack, StackEntry, Frame};
 use store::{Export, ExternalVal, ModuleInstance, Store, FuncAddr};
 use super::error::{Error, ResultFrom, Result};
-use super::types::Value;
+use values::Value;
 
 #[derive(Debug)]
 /// Contains all of the runtime state for the WASM interpreter.

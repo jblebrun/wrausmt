@@ -4,8 +4,8 @@ use super::super::instructions::*;
 use super::super::error::*;
 use super::stack::Frame;
 use std::rc::Rc;
-use super::super::types::*;
 use std::convert::TryFrom;
+use super::values::Value;
 
 struct InvocationContext<'l> {
     runtime: &'l mut Runtime,

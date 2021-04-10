@@ -1,8 +1,9 @@
 use super::super::module::*;
-use super::super::types::*;
 use std::rc::Rc;
 use super::super::error::{Result, Error, ErrorFrom};
 use super::error::ArgumentCountError;
+use super::values::Value;
+use crate::types::FunctionType;
 
 /// The WASM Store as described in the specification.
 #[derive(Debug)]

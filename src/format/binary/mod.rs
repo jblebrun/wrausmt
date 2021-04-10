@@ -10,7 +10,7 @@ mod custom;
 mod ensure_consumed;
 
 use std::io::Read;
-use crate::module::{Module, Import, Export, Function, TypeIndex};
+use crate::module::{Module, Import, Export, Function, index};
 use crate::types::FunctionType;
 use crate::error::{ResultFrom, Error, Result};
 use countread::CountRead;
@@ -25,7 +25,7 @@ use ensure_consumed::EnsureConsumed;
 
 #[derive(Default)]
 pub struct ReadState {
-    pub functypes: Option<Box<[TypeIndex]>>
+    pub functypes: Option<Box<[index::Type]>>
 }
 
 /// Read and return the next section in a binary module being read by a std::io::Read
@@ -124,7 +124,7 @@ pub enum Section {
     Custom(Box<[u8]>),
     Types(Box<[FunctionType]>),
     Imports(Box<[Import]>),
-    Funcs(Box<[TypeIndex]>),
+    Funcs(Box<[index::Type]>),
     Exports(Box<[Export]>),
     Code(Box<[Function]>),
 }

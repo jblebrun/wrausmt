@@ -1,6 +1,9 @@
 use std::io::{Read, Write};
-use super::{ensure_consumed::EnsureConsumed, values::ReadWasmValues};
-use crate::module::{Function, TypeIndex};
+use super::{
+    ensure_consumed::EnsureConsumed, 
+    values::ReadWasmValues
+};
+use crate::module::{Function, index};
 use crate::types::ValueType;
 use crate::error::{Error, Result, ResultFrom};
 use crate::instructions::*;
@@ -12,7 +15,7 @@ use crate::instructions::*;
 /// locals := n:u32 t:type
 /// expr := (instr)*
 pub trait ReadCode : ReadWasmValues {
-    fn read_code_section(&mut self, types: &[TypeIndex]) -> Result<Box<[Function]>> {
+    fn read_code_section(&mut self, types: &[index::Type]) -> Result<Box<[Function]>> {
        let items = self.read_leb_128().wrap("parsing item count")?;
        (0..items)
            .map(|i| types[i as usize])
@@ -23,7 +26,7 @@ pub trait ReadCode : ReadWasmValues {
     /// code := size:u32 code:func
     /// func := (t*)*:vec(locals) e:expr
     /// The size is the size in bytes of the entire section, locals + exprs
-    fn read_func(&mut self, type_index: TypeIndex) -> Result<Function> {
+    fn read_func(&mut self, type_index: index::Type) -> Result<Function> {
         let codesize = self.read_leb_128().wrap("parsing func")?;
         let mut code_reader = self.take(codesize as u64);
         let function = Function {

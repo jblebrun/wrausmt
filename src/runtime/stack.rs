@@ -1,8 +1,8 @@
 use std::rc::Rc;
-use super::super::types::*;
 use super::ModuleInstance;
-use super::super::error::Result;
+use crate::error::Result;
 use std::cell::RefCell;
+use super::values::{Value, Num};
 
 /// Contains the information needed for a function that's executing.
 /// local contains the values of params and local variables of the
