@@ -11,7 +11,7 @@ macro_rules! expect_tokens {
             println!("OK: {:?}", tok);
         )*
         let end = tokenizer.next();
-        assert!(end.is_none(), format!("Expected none, got {:?}", end));
+        assert!(end.is_none(), "Expected none, got {:?}", end);
     }
 }
 
@@ -32,10 +32,10 @@ fn simple_parse() -> Result<()> {
         "(foo) \"hello\" (5.6 -0xF 0xF) (; comment (; nested ;) more ;)\n(yay)"
         ,
         Token::Open,
-        Token::Keyword("foo".to_string()),
+        Token::Keyword("foo".into()),
         Token::Close,
         Token::Whitespace,
-        Token::String("hello".to_string()),
+        Token::String("hello".into()),
         Token::Whitespace,
         Token::Open,
         Token::Float(5.6),
@@ -48,7 +48,7 @@ fn simple_parse() -> Result<()> {
         Token::BlockComment,
         Token::Whitespace,
         Token::Open,
-        Token::Keyword("yay".to_string()),
+        Token::Keyword("yay".into()),
         Token::Close
     );
     Ok(())
@@ -118,7 +118,7 @@ fn seps() -> Result<()> {
 #[test]
 fn longer_test() -> Result<()> {
     let mut f = std::fs::File::open("testdata/locals.wat").wrap("opening file")?;
-    let mut tokenizer = Tokenizer::new(&mut f)?;
+    let tokenizer = Tokenizer::new(&mut f)?;
 
     println!("here we go");
     for token in tokenizer {
