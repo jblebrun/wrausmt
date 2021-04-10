@@ -1,4 +1,5 @@
-use crate::module::{Import, ImportDesc, Limits, MemType, GlobalType, TableType};
+use crate::module::{Import, ImportDesc};
+use crate::types::{Limits, MemType, GlobalType, TableType};
 use crate::error::{Error, Result, ResultFrom};
 use super::values::ReadWasmValues;
 

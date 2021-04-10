@@ -12,6 +12,8 @@ macro_rules! opcodes {
 }
 
 
+pub type Expr = [u8];
+
 opcodes! {
     // Control
     Nop = 0x01,
