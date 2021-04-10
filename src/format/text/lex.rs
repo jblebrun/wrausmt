@@ -13,6 +13,7 @@ pub struct Tokenizer<R> {
 }
 
 impl <R : Read> Tokenizer<R> {
+    #[allow(dead_code)]
     pub fn new(r: R) -> Result<Tokenizer<R>> {
         let mut tokenizer = Tokenizer {
             inner: r,
