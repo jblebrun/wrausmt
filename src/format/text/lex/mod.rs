@@ -3,6 +3,9 @@ use std::iter::Iterator;
 use crate::error::{Error, Result, ResultFrom};
 use super::token::Token;
 
+#[cfg(test)]
+mod test;
+
 #[derive(Debug)]
 pub struct Tokenizer<R> {
     inner: R,
