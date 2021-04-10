@@ -124,17 +124,17 @@ impl <R : Read> Tokenizer<R> {
 
     fn consume_string(&mut self) -> Result<Token> {
         let mut result: Vec<u8> = vec![];
-        let mut prev: char = '\0';
+        let mut prev: u8 = 0;
 
         loop {
             self.advance()?;
-            if self.current as char == '"' && prev != '\\' {
+            if self.current == b'"' && prev != b'\\' {
                 let as_string = String::from_utf8(result).wrap("bad utf8")?;
                 self.advance()?;
                 return Ok(Token::String(as_string))
             }
             result.push(self.current);
-            prev = self.current as char;
+            prev = self.current;
         }
     }
 
@@ -148,8 +148,8 @@ impl <R : Read> Tokenizer<R> {
             result.push(self.current);
             self.advance()?;
         }
-        if !self.is_whitespace() && self.current as char != ')' {
-            return Err(Error::new("Invalid char".to_string()));
+        if !self.eof && !self.is_whitespace() && self.current != b')' {
+            return Err(Error::new(format!("Invalid char {}", self.current)));
         }
         let sresult = String::from_utf8(result).wrap("bad utf8")?;
         Ok(sresult)
@@ -157,6 +157,17 @@ impl <R : Read> Tokenizer<R> {
 
     fn consume_keyword(&mut self) -> Result<Token> {
         let result = self.consume_name()?;
+        if result == "nan" {
+           return Ok(Token::NaN);
+        }
+        if result == "inf" {
+            return Ok(Token::Inf);
+        }
+        if &result[0..6] == "nan:0x" {
+            let nanx = Self::interpret_whole_number(true, result[6..].into())?;
+            return Ok(Token::NaNX(nanx as u32))
+
+        }
         Ok(Token::Keyword(result))
     }
 
@@ -177,26 +188,31 @@ impl <R : Read> Tokenizer<R> {
     }
 
     fn digit_val(&self, digit_byte: u8) -> u8 {
-        match digit_byte as char {
-            '0'..='9' => digit_byte - '0' as u8,
-            'a'..='f' => 10u8 + digit_byte - 'a' as u8,
-            'A'..='F' => 10u8 + digit_byte - 'A' as u8,
+        match digit_byte {
+            b'0'..=b'9' => digit_byte - b'0',
+            b'a'..=b'f' => 10u8 + digit_byte - b'a',
+            b'A'..=b'F' => 10u8 + digit_byte - b'A',
             _ => panic!("invalid digit")
         }
     }
 
-    fn parse_whole_number(&mut self, hex: bool) -> Result<u64> {
-        let digit_bytes = self.consume_digits(hex)?;
+    fn interpret_whole_number(hex: bool, digit_bytes: Vec<u8>) -> Result<u64> {
         let mut exp = 1u64;
         let mut result = 0u64;
         let exp_mult = if hex { 16 } else { 10 };
         for digit in digit_bytes.into_iter().rev() {
-            if digit as char != '_' {
+            if digit != b'_' {
                 result += exp * (digit - '0' as u8) as u64;
                 exp *= exp_mult;
             }
         }
         return Ok(result)
+    }
+
+    fn parse_whole_number(&mut self, hex: bool) -> Result<u64> {
+        let digit_bytes = self.consume_digits(hex)?;
+        Self::interpret_whole_number(hex, digit_bytes)
+   
     }
 
     fn parse_frac_number(&mut self, hex: bool) -> Result<f64> {
@@ -205,7 +221,7 @@ impl <R : Read> Tokenizer<R> {
         let mut result = 0f64;
         let exp_mult = if hex { 16 } else { 10 };
         for digit in digit_bytes.into_iter().rev() {
-            if digit == '_' as u8 { continue; }
+            if digit == b'_' { continue; }
             let digit_val = self.digit_val(digit);
             result += (digit_val) as f64 / exp as f64;
             exp *= exp_mult;
@@ -264,7 +280,7 @@ impl <R : Read> Tokenizer<R> {
                 if signed { self.advance()? }
                 self.parse_whole_number(hex)? as f64 * exp_sign as f64 
             } else {
-                1f64
+                0f64
             };
 
             println!("WHOLE {} FRAC {} EXP {}", whole, frac, exp);
@@ -338,7 +354,10 @@ enum Token {
     Id(String),
     Open,
     Close,
-    Reserved(String)
+    Reserved(String),
+    Inf,
+    NaN,
+    NaNX(u32),
 }
 
 
@@ -412,6 +431,21 @@ mod test {
         printout("+0xFF")?;
         printout("+0xFF.8p2")?;
         printout("-0xFF.7p-2")?;
+        Ok(())
+    }
+
+    #[test]
+    fn nans() -> Result<()> {
+        printout("nan")?;
+        printout("inf")?;
+        printout("nan:0x56")?;
+        Ok(())
+    }
+
+    #[test]
+    fn seps() -> Result<()> {
+        printout("100_000")?;
+        printout("1.500_000_1")?;
         Ok(())
     }
 
