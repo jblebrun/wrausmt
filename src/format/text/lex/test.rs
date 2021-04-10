@@ -1,5 +1,5 @@
-use super::lex::Tokenizer;
-use super::token::Token;
+use super::Tokenizer;
+use super::super::token::Token;
 use crate::error::{Result, ResultFrom};
 
 macro_rules! expect_tokens {
