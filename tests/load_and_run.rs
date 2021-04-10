@@ -1,5 +1,6 @@
 use std::fs::File;
-use wrausmt::format::binary::{ParseError, parse};
+use wrausmt::format::binary::parse;
+use wrausmt::format::error::ParseError;
 use wrausmt::runtime::Runtime;
 #[test]
 fn simplefunc() -> Result<(), ParseError> {

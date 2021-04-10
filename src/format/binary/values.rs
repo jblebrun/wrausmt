@@ -2,8 +2,30 @@ use super::leb128::ReadLeb128;
 use crate::types::{RefType, ResultType, ValueType, NumType};
 use crate::error::{ResultFrom, Error, Result};
 
+macro_rules! read_exact_bytes {
+    ( $r:expr, $size:expr, $expect:expr ) => {
+        {
+            let mut buf = [0u8; $size];
+            $r.read_exact(&mut buf).wrap("reading")?;
+            if buf != $expect {
+                Err(Error::new(format!("mismatched bytes {:x?} -- expected {:x?}", buf, $expect)))
+            } else {
+                Ok(())
+            }
+        }
+    }
+}
+
 /// A collection of read helpers used by the various section reader traits.
 pub trait ReadWasmValues : ReadLeb128 {
+
+    fn read_magic(&mut self) -> Result<()> {
+        read_exact_bytes!(self, 4, [0x00, 0x61, 0x73, 0x6d]).wrap("wrong magic")
+    }
+
+    fn read_version(&mut self) -> Result<()> {
+        read_exact_bytes!(self, 4, [0x01, 0x00, 0x00, 0x00]).wrap("unsupported version")
+    }
 
     /// Read a single byte, returning an errror for EOF.
     fn read_byte(&mut self) -> Result<u8> {
@@ -13,13 +35,8 @@ pub trait ReadWasmValues : ReadLeb128 {
     }
 
     /// Read a single byte, returning an error if it doesn't match the value provided.
-    fn read_specific_byte(&mut self, expect: u8) -> Result<u8> {
-        let actual = self.read_byte().wrap("parsing byte")?;
-        if actual != expect {
-            Err(Error::new(format!("Expected {} but got {}", expect, actual)))
-        } else {
-            Ok(actual)
-        }
+    fn read_specific_byte(&mut self, expect: u8) -> Result<()> {
+        read_exact_bytes!(self, 1, [expect])
     }
 
     /// Read a "name" field.
