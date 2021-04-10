@@ -34,46 +34,40 @@ impl <R : Read> Tokenizer<R> {
             } else {
                 self.eof = true;
             }
+        } else if self.current == b'\n' {
+            self.line += 1;
+            self.pos = 0;
         } else {
-            if self.current as char == '\n' {
-                self.line += 1;
-                self.pos = 0;
-            } else {
-                self.pos += 1;
-            }
+            self.pos += 1;
         }
         Ok(())
     }
 
     fn is_whitespace(&self) -> bool  {
-        match self.current as char {
-            ' ' | '\t' | '\n' | '\r' => true,
-            _ => false
-        }
+        matches!(self.current, b' ' | b'\t' | b'\n' | b'\r')
     }
 
     fn is_idchar(&self) -> bool {
-        match self.current as char {
-            '0'..='9' | 'A'..='Z' | 'a'..='z' | '!' | '#' |
-                '$' | '%' | '&' | '\'' | '*' | '+' | '/'  |
-                ':' | '<' | '=' | '>' | '?' | '@' | '\\' | 
-                '^' | '_' | '`' | '|' | '~' | '.'  => true,
-                _ => false
-        }
+        matches!(self.current, 
+            b'0'..=b'9' | b'A'..=b'Z'  | b'a'..=b'z' | b'!' | b'#' |
+            b'$' | b'%' | b'&' | b'\'' | b'*' | b'+' | b'/'  |
+            b':' | b'<' | b'=' | b'>'  | b'?' | b'@' | b'\\' | 
+            b'^' | b'_' | b'`' | b'|'  | b'~' | b'.'
+        )
     }
 
     fn is_digit(&self, hex: bool) -> bool {
-        match self.current as char {
-            '_' | '0'..='9' => true,
-            'a'..='f' | 'A'..='F' => hex,
+        match self.current {
+            b'_' | b'0'..=b'9' => true,
+            b'a'..=b'f' | b'A'..=b'F' => hex,
             _ => false
         }
     }
 
     fn is_exp(&self, hex: bool) -> bool {
-        match self.current as char {
-            'e' | 'E' => !hex,
-            'p' | 'P' => hex,
+        match self.current {
+            b'e' | b'E' => !hex,
+            b'p' | b'P' => hex,
             _ => false
         }
     }
@@ -87,7 +81,7 @@ impl <R : Read> Tokenizer<R> {
 
 
     fn consume_line_comment(&mut self) -> Result<Token> {
-        while self.current as char != '\n' {
+        while self.current != b'\n' {
             self.advance()?;
         }
         self.advance()?;
@@ -164,8 +158,8 @@ impl <R : Read> Tokenizer<R> {
             return Ok(Token::Inf);
         }
         if &result[0..6] == "nan:0x" {
-            let nanx = Self::interpret_whole_number(true, result[6..].into())?;
-            return Ok(Token::NaNX(nanx as u32))
+            let nanx = Self::interpret_whole_number(true, result[6..].into());
+            return Ok(Token::NaNx(nanx as u32))
 
         }
         Ok(Token::Keyword(result))
@@ -196,22 +190,22 @@ impl <R : Read> Tokenizer<R> {
         }
     }
 
-    fn interpret_whole_number(hex: bool, digit_bytes: Vec<u8>) -> Result<u64> {
+    fn interpret_whole_number(hex: bool, digit_bytes: Vec<u8>) -> u64 {
         let mut exp = 1u64;
         let mut result = 0u64;
         let exp_mult = if hex { 16 } else { 10 };
         for digit in digit_bytes.into_iter().rev() {
             if digit != b'_' {
-                result += exp * (digit - '0' as u8) as u64;
+                result += exp * (digit - b'0') as u64;
                 exp *= exp_mult;
             }
         }
-        return Ok(result)
+        result
     }
 
     fn parse_whole_number(&mut self, hex: bool) -> Result<u64> {
         let digit_bytes = self.consume_digits(hex)?;
-        Self::interpret_whole_number(hex, digit_bytes)
+        Ok(Self::interpret_whole_number(hex, digit_bytes))
    
     }
 
@@ -226,7 +220,7 @@ impl <R : Read> Tokenizer<R> {
             result += (digit_val) as f64 / exp as f64;
             exp *= exp_mult;
         }
-        return Ok(result)
+        Ok(result)
     }
 
     fn sign_info(&mut self) -> (bool, i64) {
@@ -283,20 +277,14 @@ impl <R : Read> Tokenizer<R> {
                 0f64
             };
 
-            println!("WHOLE {} FRAC {} EXP {}", whole, frac, exp);
             let base = if hex { 16f64 } else { 10f64 };
             let result = ((frac + whole as f64) * base.powf(exp)) as f64 ;
             Ok(Token::Float(sign as f64 * result))
+        } else  if signed {
+            Ok(Token::Signed(whole as i64 * sign))
         } else {
-            if signed {
-                Ok(Token::Signed(whole as i64 * sign))
-            } else {
-                Ok(Token::Unsigned(whole))
-            }
+            Ok(Token::Unsigned(whole))
         }
-        // inf
-        // nan
-        // nan:0x
     }
 
     fn next_token(&mut self) -> Result<Token> {
@@ -357,7 +345,7 @@ enum Token {
     Reserved(String),
     Inf,
     NaN,
-    NaNX(u32),
+    NaNx(u32),
 }
 
 
