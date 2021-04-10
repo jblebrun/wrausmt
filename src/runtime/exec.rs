@@ -1,11 +1,14 @@
-use super::Runtime;
-use std::convert::TryInto;
-use super::super::instructions::*;
-use super::super::error::*;
-use super::stack::Frame;
-use std::rc::Rc;
-use std::convert::TryFrom;
-use super::values::Value;
+use std::{
+    convert::TryInto,
+    rc::Rc,
+    convert::TryFrom
+};
+use crate::{
+    instructions::*,
+    error::{Result, ResultFrom, Error},
+    err
+};
+use super::{Runtime, stack::Frame, values::Value};
 
 struct InvocationContext<'l> {
     runtime: &'l mut Runtime,
@@ -68,7 +71,7 @@ impl<'l> InvocationContext<'l> {
     fn current_frame(&self) -> Result<Rc<Frame>> {
         match &self.runtime.current_frame {
             Some(frame) => Ok(frame.clone()),
-            _ => Err(Error::new("no current frame".to_string()))
+            _ => err!("no current frame")
         }
     }
 

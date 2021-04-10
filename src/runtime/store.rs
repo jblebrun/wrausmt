@@ -1,9 +1,14 @@
-use super::super::module::*;
 use std::rc::Rc;
-use super::super::error::{Result, Error, ErrorFrom};
-use super::error::ArgumentCountError;
-use super::values::Value;
-use crate::types::FunctionType;
+use crate::{
+    module::{Module, Function, ExportDesc},
+    error::{Result, ErrorFrom},
+    types::FunctionType,
+    err
+};
+use super::{
+    error::ArgumentCountError,
+    values::Value,
+};
 
 /// The WASM Store as described in the specification.
 #[derive(Debug)]
@@ -73,7 +78,7 @@ impl Store {
 
     pub fn func(&self, addr: FuncAddr) -> Result<Rc<FunctionInstance>> {
         if self.funcs.len() < addr as usize {
-            return Err(Error::new(format!("No function at addr {}", addr)))
+            return err!("No function at addr {}", addr)
         }
 
         Ok(self.funcs[addr as usize].clone())

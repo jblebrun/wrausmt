@@ -1,6 +1,9 @@
-use crate::module::{Import, ImportDesc};
-use crate::types::{Limits, MemType, GlobalType, TableType};
-use crate::error::{Error, Result, ResultFrom};
+use crate::{
+    module::{Import, ImportDesc},
+    types::{Limits, MemType, GlobalType, TableType},
+    error::{Result, ResultFrom},
+    err
+};
 use super::values::ReadWasmValues;
 
 /// A trait to allow parsing of an imports section from something implementing 
@@ -28,7 +31,7 @@ pub trait ReadImports : ReadWasmValues {
                         1 => ImportDesc::Table(self.read_table_type().wrap("parsing table")?),
                         2 => ImportDesc::Memory(self.read_memory_type().wrap("parsing memory")?),
                         3 => ImportDesc::Global(self.read_global_type().wrap("parsing global")?),
-                        _ => return Err(Error::new(format!("unknown import desc {}", kind)))
+                        _ => return err!("unknown import desc {}", kind)
                     }
                 }
             })

@@ -1,5 +1,6 @@
 use std::io::Read;
-use crate::error::{Result, Error, ResultFrom};
+use crate::error::{Result, ResultFrom};
+use crate::err;
 
 pub trait ReadLeb128 : Read {
     fn read_leb_128(&mut self) -> Result<u32> {
@@ -16,12 +17,12 @@ pub trait ReadLeb128 : Read {
             }
             pos += 7;
             if pos > 31 {
-                return Err(Error::new("u32 LEB128 data is too long".to_string()));
+                return err!("u32 LEB128 data is too long");
             }
         }
 
         if !completed {
-            return Err(Error::new("Reached end of input before parsing LEB128".to_string()));
+            return err!("Reached end of input before parsing LEB128");
         }
         
         Ok(result)

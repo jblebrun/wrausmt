@@ -1,4 +1,5 @@
-use crate::error::{Error, Result};
+use crate::error::Result;
+use crate::err;
 
 /// A convenience method for take to assert that its contents have been fully consumed.
 pub trait EnsureConsumed {
@@ -6,7 +7,7 @@ pub trait EnsureConsumed {
     fn ensure_consumed(&self) -> Result<()> {
         let remaining = self.limit();
         if remaining > 0 {
-            Err(Error::new(format!("{} remaining", remaining)))
+            err!("{} remaining", remaining)
         } else {
             Ok(())
         }

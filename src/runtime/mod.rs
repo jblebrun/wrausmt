@@ -5,13 +5,17 @@ pub mod error;
 pub mod values;
 mod exec;
 
-
-use super::module::Module;
 use std::rc::Rc;
-use stack::{Stack, StackEntry, Frame};
-use store::{Export, ExternalVal, ModuleInstance, Store, FuncAddr};
-use super::error::{Error, ResultFrom, Result};
-use values::Value;
+use super::{
+    module::Module,
+    error::{ResultFrom, Result},
+    err
+};
+use {
+    values::Value,
+    stack::{Stack, StackEntry, Frame},
+    store::{Export, ExternalVal, ModuleInstance, Store, FuncAddr},
+};
 
 #[derive(Debug)]
 /// Contains all of the runtime state for the WASM interpreter.
@@ -103,7 +107,7 @@ impl Runtime {
     ) -> Result<Value> {
         let funcaddr = match mod_instance.resolve(name) {
             Some(Export { name: _, addr: ExternalVal::Func(addr)}) => Ok(addr),
-            _ => Err(Error::new(format!("Method not found in module: {}", name)))
+            _ => err!("Method not found in module: {}", name)
         }?;
         
         // 1. Assert S.funcaddr exists
@@ -142,7 +146,7 @@ impl Runtime {
 
         match result {
             StackEntry::Value(val) => Ok(val),
-            _ => Err(Error::new(format!("Bad stack type {:?}", result)))
+            _ => err!("Bad stack type {:?}", result)
         }
     }
 }

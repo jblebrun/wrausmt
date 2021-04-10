@@ -1,5 +1,19 @@
 use std::fmt;
 
+#[macro_export]
+macro_rules! error {
+    ( $($arg:expr),* ) => {
+        crate::error::Error::new(format!($($arg),*))
+    }
+}
+
+#[macro_export]
+macro_rules! err {
+    ( $($arg:expr),* ) => {
+        Err(crate::error!($($arg),*))
+    }
+}
+
 #[derive(Debug)]
 pub enum Error {
     Error(String),

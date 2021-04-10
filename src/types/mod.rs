@@ -113,3 +113,14 @@ pub struct GlobalType {
 }
 
 
+impl From<NumType> for ValueType {
+    fn from(nt: NumType) -> ValueType {
+        ValueType::Num(nt)
+    }
+}
+
+impl From<RefType> for ValueType {
+    fn from(rt: RefType) -> ValueType {
+        ValueType::Ref(rt)
+    }
+}
