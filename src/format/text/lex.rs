@@ -96,11 +96,9 @@ impl <R : Read> Tokenizer<R> {
 
     // Caller will have consume (, and we will be on the ;
     fn consume_block_comment(&mut self) -> Result<Token> {
-        println!("ENTER BC");
         let mut depth = 1;
         self.advance()?;
         while depth > 0 {
-            println!("CHECK {}", self.current);
             match self.current as char {
                 '(' => {
                     self.advance()?;
@@ -113,6 +111,7 @@ impl <R : Read> Tokenizer<R> {
                     if self.current as char == ')' {
                         depth -=1;
                         if depth == 0 {
+                            self.advance()?;
                             break;
                         }
                     }
@@ -167,24 +166,59 @@ impl <R : Read> Tokenizer<R> {
         Ok(Token::Id(result))
     }
 
-    fn consume_digits(&mut self, hex: bool) -> Result<u64> {
+    fn consume_digits(&mut self, hex: bool) -> Result<Vec<u8>> {
         let mut digit_bytes: Vec<u8> = vec![];
-        let whole = loop {
-            if self.is_digit(hex) {
-                digit_bytes.push(self.current);
-                self.advance()?;
-            } else {
-                let mut exp = 1u64;
-                let mut result = 0u64;
-                for digit in digit_bytes.into_iter().rev() {
-                    if digit as char != '_' {
-                        result += exp * (digit - '0' as u8) as u64;
-                        exp *= 10;
-                    }
-                }
-                return Ok(result)
+        while self.is_digit(hex) {
+            digit_bytes.push(self.current);
+            self.advance()?;
+        }
+        Ok(digit_bytes)
+
+    }
+
+    fn digit_val(&self, digit_byte: u8) -> u8 {
+        match digit_byte as char {
+            '0'..='9' => digit_byte - '0' as u8,
+            'a'..='f' => 10u8 + digit_byte - 'a' as u8,
+            'A'..='F' => 10u8 + digit_byte - 'A' as u8,
+            _ => panic!("invalid digit")
+        }
+    }
+
+    fn parse_whole_number(&mut self, hex: bool) -> Result<u64> {
+        let digit_bytes = self.consume_digits(hex)?;
+        let mut exp = 1u64;
+        let mut result = 0u64;
+        let exp_mult = if hex { 16 } else { 10 };
+        for digit in digit_bytes.into_iter().rev() {
+            if digit as char != '_' {
+                result += exp * (digit - '0' as u8) as u64;
+                exp *= exp_mult;
             }
-        };
+        }
+        return Ok(result)
+    }
+
+    fn parse_frac_number(&mut self, hex: bool) -> Result<f64> {
+        let digit_bytes = self.consume_digits(hex)?;
+        let mut exp = if hex { 16u64 } else { 10u64 };
+        let mut result = 0f64;
+        let exp_mult = if hex { 16 } else { 10 };
+        for digit in digit_bytes.into_iter().rev() {
+            if digit == '_' as u8 { continue; }
+            let digit_val = self.digit_val(digit);
+            result += (digit_val) as f64 / exp as f64;
+            exp *= exp_mult;
+        }
+        return Ok(result)
+    }
+
+    fn sign_info(&mut self) -> (bool, i64) {
+        match self.current as char {
+            '+'  => (true, 1),
+            '-'  => (true, -1),
+            _ => (false, 1)
+        }
     }
 
     fn consume_number(&mut self) -> Result<Token> {
@@ -193,15 +227,7 @@ impl <R : Read> Tokenizer<R> {
             self.advance()?;
         }
 
-        let signed = match self.current as char {
-            '+' | '-' => true,
-            _ => false
-        };
-
-        let sign = match self.current as char {
-            '-' => -1,
-            _ => 1
-        };
+        let (signed, sign) = self.sign_info();
 
         if signed {
             self.advance()?;
@@ -221,26 +247,29 @@ impl <R : Read> Tokenizer<R> {
         };
 
         // read whole part while digit
-        let whole = self.consume_digits(hex)?;
+        let whole = self.parse_whole_number(hex)?;
         
         // read fraction part while digit
         if self.current as char == '.' || self.is_exp(hex) {
-            let frac_raw = if self.current as char == '.' {
+            let frac = if self.current as char == '.' {
                 self.advance()?;
-                self.consume_digits(hex)?
+                self.parse_frac_number(hex)?
             } else {
-                0
+                0.
             };
 
             let exp = if self.is_exp(hex) {
                 self.advance()?;
-                self.consume_digits(hex)?
+                let (signed, exp_sign) = self.sign_info();
+                if signed { self.advance()? }
+                self.parse_whole_number(hex)? as f64 * exp_sign as f64 
             } else {
-                1u64
+                1f64
             };
 
-            println!("WHOLE {} FRAC {} EXP {}", whole, frac_raw, exp);
-            let result = (whole * exp) as f64;
+            println!("WHOLE {} FRAC {} EXP {}", whole, frac, exp);
+            let base = if hex { 16f64 } else { 10f64 };
+            let result = ((frac + whole as f64) * base.powf(exp)) as f64 ;
             Ok(Token::Float(sign as f64 * result))
         } else {
             if signed {
@@ -337,7 +366,7 @@ mod test {
     }
 
     #[test]
-    fn simple_test() -> Result<()> {
+    fn simple_parse() -> Result<()> {
         printout("(foo) \"hello\" (; comment (; nested ;) more ;)\n(yay)")
     }
 
@@ -370,8 +399,22 @@ mod test {
         printout("-1.")?;
         printout("-5e10")?;
         printout("-5.6e10")?;
+        printout("-2.5e2")?;
+        printout("-2.5e-2")?;
         Ok(())
     }
+
+    #[test]
+    fn bare_unsigned_hex() -> Result<()> {
+        printout("0x60")?;
+        printout("0xFF")?;
+        printout("-0xFF")?;
+        printout("+0xFF")?;
+        printout("+0xFF.8p2")?;
+        printout("-0xFF.7p-2")?;
+        Ok(())
+    }
+
     #[test]
     fn longer_test() -> Result<()> {
         let mut f = std::fs::File::open("testdata/locals.wat").wrap("opening file")?;
