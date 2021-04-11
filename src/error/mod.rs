@@ -14,6 +14,15 @@ macro_rules! err {
     }
 }
 
+#[macro_export]
+macro_rules! assert_err_match {
+    ( $res:expr, $match:expr ) => {
+        match $res {
+            Ok(e) => assert!(false, "Expected error containg {}, got {:?}", $match, e),
+            Err(e) => assert!(e.to_string().contains($match), "\nContents:\n{}\n\ndo not contain:\n{}\n", e.to_string(), $match)
+        }
+    }
+}
 #[derive(Debug)]
 pub enum Error {
     Error(String),

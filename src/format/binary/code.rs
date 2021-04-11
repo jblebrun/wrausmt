@@ -19,7 +19,7 @@ use crate::{
 /// expr := (instr)*
 pub trait ReadCode : ReadWasmValues {
     fn read_code_section(&mut self) -> Result<Box<[Function]>> {
-       let items = self.read_leb_128().wrap("parsing item count")?;
+       let items = self.read_u32_leb_128().wrap("parsing item count")?;
        (0..items)
            .map(|_| self.read_func())
            .collect()
@@ -29,7 +29,7 @@ pub trait ReadCode : ReadWasmValues {
     /// func := (t*)*:vec(locals) e:expr
     /// The size is the size in bytes of the entire section, locals + exprs
     fn read_func(&mut self) -> Result<Function> {
-        let codesize = self.read_leb_128().wrap("parsing func")?;
+        let codesize = self.read_u32_leb_128().wrap("parsing func")?;
         let mut code_reader = self.take(codesize as u64);
         let function = Function {
             // The types are parsed earlier and will be set on the returned values.
@@ -44,11 +44,11 @@ pub trait ReadCode : ReadWasmValues {
     /// Read the locals description for the function.
     /// locals := n:u32 t:type
     fn read_locals(&mut self) -> Result<Box<[ValueType]>> {
-        let items = self.read_leb_128().wrap("parsing item count")?;
+        let items = self.read_u32_leb_128().wrap("parsing item count")?;
         let mut result: Vec<ValueType> = vec![];
 
         for _ in 0..items {
-            let reps = self.read_leb_128().wrap("parsing type rep")?;
+            let reps = self.read_u32_leb_128().wrap("parsing type rep")?;
             let val = self.read_value_type().wrap("parsing value type")?;
             for _ in 0..reps {
                 result.push(val);
@@ -106,19 +106,19 @@ pub trait ReadCode : ReadWasmValues {
 
     /// Clarity method: use to read a single LEB128 argument for an instruction.
     fn read_1_arg<W : Write>(&mut self, out: &mut W) -> Result<()> {
-        self.emit_read_leb_128(out)
+        self.emit_read_u32_leb_128(out)
     }
 
     /// Clarity method: use to read a two successive LEB128 arguments for an instruction.
     fn read_2_args<W : Write>(&mut self, out: &mut W) -> Result<()> {
-        self.emit_read_leb_128(out)?;
-        self.emit_read_leb_128(out)
+        self.emit_read_u32_leb_128(out)?;
+        self.emit_read_u32_leb_128(out)
     }
 
     /// Read one LEB128 value and emit it to the provided writer.
-    fn emit_read_leb_128<W : Write>(&mut self, out: &mut W) -> Result<()> {
+    fn emit_read_u32_leb_128<W : Write>(&mut self, out: &mut W) -> Result<()> {
         out.write(
-            &self.read_leb_128().wrap("reading leb 128")?.to_le_bytes()
+            &self.read_u32_leb_128().wrap("reading leb 128")?.to_le_bytes()
         ).wrap("writing leb 128")?;
         Ok(())
     }

@@ -9,9 +9,9 @@ pub trait ReadFuncs : ReadLeb128 {
     /// The values here don't correspond to a real module section, instead they
     /// correlate with the rest of the function data in the code section.
     fn read_funcs_section(&mut self) -> Result<Box<[index::Type]>> {
-        let items = self.read_leb_128().wrap("parsing item count")?;
+        let items = self.read_u32_leb_128().wrap("parsing item count")?;
         (0..items).map(|_| {
-            self.read_leb_128().wrap("parsing func")
+            self.read_u32_leb_128().wrap("parsing func")
         }).collect()
     }
 }
