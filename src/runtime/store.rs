@@ -1,9 +1,9 @@
-use super::{error::ArgumentCountError, values::Value};
+use super::module_instance::ModuleInstance;
+use crate::runtime::function_instance::FunctionInstance;
 use crate::{
     err,
-    error::{ErrorFrom, Result},
-    module::{ExportDesc, Function, Module},
-    types::FunctionType,
+    error::Result,
+    module::{ExportDesc, Module},
 };
 use std::rc::Rc;
 
@@ -33,28 +33,6 @@ pub enum ExternalVal {
     Table(TableAddr),
     Memory(MemoryAddr),
     Global(GlobalAddr),
-}
-
-#[derive(Debug)]
-pub struct ModuleInstance {
-    types: Box<[FunctionType]>,
-    exports: Box<[Export]>,
-    func_offset: u32,
-}
-
-impl ModuleInstance {
-    pub fn empty() -> ModuleInstance {
-        ModuleInstance {
-            types: Box::new([]),
-            exports: Box::new([]),
-            func_offset: 0,
-        }
-    }
-    pub fn resolve(&self, name: &str) -> Option<&Export> {
-        let found = self.exports.iter().find(|e| e.name == name);
-
-        found
-    }
 }
 
 #[derive(Debug)]
@@ -123,29 +101,5 @@ impl Store {
         }
 
         mod_inst
-    }
-}
-
-/// A function entry in the store.
-#[derive(Debug)]
-pub struct FunctionInstance {
-    /// The module instance that generated this function instance.
-    pub module_instance: Rc<ModuleInstance>,
-
-    /// The list of instructions in the function.
-    pub code: Function,
-}
-
-impl FunctionInstance {
-    pub fn functype(&self) -> &FunctionType {
-        &self.module_instance.types[self.code.functype as usize]
-    }
-
-    pub fn validate_args(&self, args: &[Value]) -> Result<()> {
-        let params_arity = self.functype().params.len();
-        if params_arity != args.len() {
-            return Err(ArgumentCountError::new(params_arity, args.len()).wrap(""));
-        }
-        Ok(())
     }
 }
