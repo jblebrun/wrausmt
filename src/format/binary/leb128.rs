@@ -2,69 +2,82 @@ use crate::err;
 use crate::error::{Result, ResultFrom};
 use std::io::Read;
 
-// A macro to help with the very similar 32/64 bit implementations.
-// This could also be done with type traits and using the type size
-// To figure out the remainder and max byte, but this seemed more
-// straight forward.
-// $self - The self to call read_leb_128_byte on
-// $ty - The type to return (u32 or u64)
-// $maxbyte - The max number of bytes to expect - 1 (4 or 9)
-// $remmask - The mask to use for checking remainder overflow (0xF0 or 0xFE)
-// $signex - Whether or not to sign extend
-macro_rules! leb_128 {
-    ( $self:expr, $ty:ty, $maxbyte:expr, $remmask:expr, $signex:expr ) => {{
-        let mut result: $ty = 0;
-        let mut pos = 0;
-        let maxbyte = $maxbyte;
+// The final bit is the MSB. If it's unsigned, none of the high bits should be set.
+// If it's signed, *all* of the high bits should be set.
+fn validate_final_byte(result: &[u8], size: usize, signed: bool) -> Result<()> {
+    let overflow_bit_count = 7 - (result.len() * 7) % size;
+    let remainder_mask = 0xFF << overflow_bit_count;
 
-        for idx in 0..=maxbyte {
-            let (last, x) = $self.read_leb_128_byte()?;
-            result |= (x as $ty) << pos;
-            if last {
-                if idx == maxbyte {
-                    let remainder = $remmask & x;
-                    if remainder != 0 {
-                        return err!("Too many bits to fit while LEB128 decoding");
-                    }
-                }
-                if $signex && (x & 0x40 == 0x40) {
-                    let signmask = <$ty>::MAX << pos;
-                    result |= signmask;
-                }
-                return Ok(result);
-            }
-            pos += 7;
-        }
-        return err!("Did not reach final byte of LEB128");
-    }};
+    let signbit = result.last().unwrap() & 0x40 == 0x40;
+    let expect = if signed && signbit { remainder_mask & 0x7f } else { 0x00 };
+
+    let last = result.last().unwrap();
+    if last  & remainder_mask != expect {
+        err!("value overflows requested size in final byte: {}", last)
+    } else {
+        Ok(())
+    }
 }
-pub trait ReadLeb128: Read {
-    fn read_leb_128_byte(&mut self) -> Result<(bool, u8)> {
-        let mut buf = [0u8; 1];
-        self.read_exact(&mut buf).wrap("reading next LEB byte")?;
-        let completed = (buf[0] & 0x80) == 0x00;
-        Ok((completed, buf[0] & 0x7f))
+
+fn sign_extend(result: &mut Vec<u8>, size: usize, signed: bool) {
+    if signed {
+        let signbit = result.last().unwrap() & 0x40 == 0x40;
+        if signbit {
+            while result.len() < size {
+                result.push(0xFF)
+            }
+        }
+    }
+}
+
+fn read_leb_128_bytes<R: Read + ?Sized>(r: &mut R, size: usize, signed: bool) -> Result<Vec<u8>> {
+    let bytecount: usize = (size as f32 / 7.).ceil() as usize;
+    let mut result = Vec::<u8>::with_capacity(bytecount);
+
+    for br in r.bytes().take(bytecount) {
+        let b = br.wrap("reading next LEB byte")?;
+        result.push(b & 0x7f);
+        if b & 0x80 == 0 {
+            // Check for bit overflow for requested size
+            if result.len() == bytecount {
+                validate_final_byte(&result, size, signed)?;
+            }
+
+            sign_extend(&mut result, size, signed);
+ 
+            return Ok(result)
+        }
     }
 
-    fn read_64_leb_128(&mut self, signex: bool) -> Result<u64> {
-        leb_128!(self, u64, 9, 0xFE, signex)
-    }
+    err!("did not reach terminal LEB128 byte in time: {:?}", result)
+}
 
-    fn read_32_leb_128(&mut self, signex: bool) -> Result<u32> {
-        leb_128!(self, u32, 4, 0xF0, signex)
-    }
+// Generalized converter for both signed & unsigned LEB128 of any size.
+// This does not handle size verification or signing, those are handled 
+// in read_leb_128_bytes.
+fn parse_leb_128(buf: &[u8]) -> u64 {
+    buf.iter().rev().fold(0, |acc, i| (acc << 7) | *i as u64)
+}
 
+pub trait ReadLeb128: Read + Sized {
     fn read_u32_leb_128(&mut self) -> Result<u32> {
-        self.read_32_leb_128(false)
+        let bytes = read_leb_128_bytes(self, 32, false)?;
+        Ok(parse_leb_128(&bytes) as u32)
     }
     fn read_i32_leb_128(&mut self) -> Result<i32> {
-        self.read_32_leb_128(true).map(|v| v as i32)
+        let bytes = read_leb_128_bytes(self, 32, true)?;
+        Ok(parse_leb_128(&bytes) as i32)
     }
     fn read_u64_leb_128(&mut self) -> Result<u64> {
-        self.read_64_leb_128(false)
+        let bytes = read_leb_128_bytes(self, 64, false)?;
+        Ok(parse_leb_128(&bytes) as u64)
     }
     fn read_i64_leb_128(&mut self) -> Result<i64> {
-        self.read_64_leb_128(true).map(|v| v as i64)
+        let bytes = read_leb_128_bytes(self, 64, true)?;
+        println!("i64 bytes {:x?}", bytes);
+        let uresult = parse_leb_128(&bytes);
+        println!("i64 uninterp {:x?}", uresult);
+        Ok(uresult as i64)
     }
 }
 
@@ -73,14 +86,24 @@ impl<I: Read> ReadLeb128 for I {}
 #[cfg(test)]
 mod test {
 
+    use super::parse_leb_128;
     use super::ReadLeb128;
     use crate::assert_err_match;
+
+    #[test]
+    fn test_parse_leb128() {
+        let res = parse_leb_128(&[0x80u8, 0x01]);
+        assert_eq!(res, 128);
+
+        let res = parse_leb_128(&[0xFF, 0xFF, 0xFF, 0xFF, 0x0F]);
+        assert_eq!(res, 0xFFFFFFFF);
+    }
 
     #[test]
     fn test_leb128_u32() {
         let data = vec![];
         let res = data.as_slice().read_u32_leb_128();
-        assert_err_match!(res, "reading next LEB byte");
+        assert_err_match!(res, "did not reach terminal LEB128 byte");
 
         let data: Vec<u8> = vec![8];
         let res = data.as_slice().read_u32_leb_128().unwrap();
@@ -104,18 +127,18 @@ mod test {
 
         let data: Vec<u8> = vec![0xFF, 0xFF, 0xFF, 0xFF, 0x7F];
         let res = data.as_slice().read_u32_leb_128();
-        assert_err_match!(res, "Too many bits to fit");
+        assert_err_match!(res, "value overflows");
 
         let data: Vec<u8> = vec![0xFF, 0xFF, 0xFF, 0xFF, 0xFF];
         let res = data.as_slice().read_u32_leb_128();
-        assert_err_match!(res, "Did not reach final");
+        assert_err_match!(res, "did not reach terminal LEB128 byte");
     }
 
     #[test]
     fn test_leb128_u64() {
         let data = vec![];
         let res = data.as_slice().read_u64_leb_128();
-        assert_err_match!(res, "reading next LEB byte");
+        assert_err_match!(res, "did not reach terminal LEB128 byte");
 
         let data: Vec<u8> = vec![8];
         let res = data.as_slice().read_u64_leb_128().unwrap();
@@ -139,13 +162,13 @@ mod test {
 
         let data: Vec<u8> = vec![0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F];
         let res = data.as_slice().read_u64_leb_128();
-        assert_err_match!(res, "Too many bits");
+        assert_err_match!(res, "value overflows");
 
         let data: Vec<u8> = vec![
             0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
         ];
         let res = data.as_slice().read_u64_leb_128();
-        assert_err_match!(res, "Did not reach final byte");
+        assert_err_match!(res, "did not reach terminal LEB128 byte");
     }
 
     #[test]
@@ -158,11 +181,11 @@ mod test {
         let res = data.as_slice().read_i32_leb_128().unwrap();
         assert_eq!(res, 0x7FFFFFFF);
 
-        let data: Vec<u8> = vec![0x80, 0x41];
+        let data: Vec<u8> = vec![0x80, 0x7f];
         let res = data.as_slice().read_i32_leb_128().unwrap();
         assert_eq!(res, -128);
 
-        let data: Vec<u8> = vec![0x80, 0x80, 0x80, 0x80, 0x08];
+        let data: Vec<u8> = vec![0x80, 0x80, 0x80, 0x80, 0x78];
         let res = data.as_slice().read_i32_leb_128().unwrap();
         assert_eq!(res, -0x80000000);
     }
@@ -177,11 +200,15 @@ mod test {
         let res = data.as_slice().read_i64_leb_128().unwrap();
         assert_eq!(res, -0x8000000000000000);
 
+        let data: Vec<u8> = vec![0x80, 0x7f];
+        let res = data.as_slice().read_i64_leb_128().unwrap();
+        assert_eq!(res, -128);
+
         let data: Vec<u8> = vec![0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x01];
         let res = data.as_slice().read_i64_leb_128().unwrap();
         assert_eq!(res, -1);
 
-        let data: Vec<u8> = vec![0x80, 0x41];
+        let data: Vec<u8> = vec![0x80, 0x7F];
         let res = data.as_slice().read_i64_leb_128().unwrap();
         assert_eq!(res, -128);
     }
