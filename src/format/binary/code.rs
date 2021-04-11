@@ -19,17 +19,11 @@ use crate::{
 /// expr := (instr)*
 pub trait ReadCode : ReadWasmValues {
     fn read_code_section(&mut self) -> Result<Box<[Function]>> {
-       let items = self.read_u32_leb_128().wrap("parsing item count")?;
-       (0..items)
-           .map(|_| self.read_func())
-           .collect()
+        self.read_vec(|_, s| { s.read_func().wrap("reading func") })
     }
 
     fn read_vec_exprs(&mut self) -> Result<Box<[Box<Expr>]>> {
-        let items = self.read_u32_leb_128().wrap("parsing item count")?;
-        (0..items)
-            .map(|_| self.read_expr())
-            .collect()
+        self.read_vec(|_, s| { s.read_expr().wrap("reading expr") })
     }
 
     /// code := size:u32 code:func
@@ -70,7 +64,7 @@ pub trait ReadCode : ReadWasmValues {
     /// expr := (instr)*
     fn read_expr(&mut self) -> Result<Box<[u8]>> {
         let mut result: Vec<u8> = vec![];
-        while self.read_inst(&mut result)? == 1 {}
+        while self.read_inst(&mut result).wrap("read inst byte")? == 1 {}
         Ok(result.into_boxed_slice())
     }
 
@@ -113,13 +107,13 @@ pub trait ReadCode : ReadWasmValues {
 
     /// Clarity method: use to read a single LEB128 argument for an instruction.
     fn read_1_arg<W : Write>(&mut self, out: &mut W) -> Result<()> {
-        self.emit_read_u32_leb_128(out)
+        self.emit_read_u32_leb_128(out).wrap("parsing arg 1/1")
     }
 
     /// Clarity method: use to read a two successive LEB128 arguments for an instruction.
     fn read_2_args<W : Write>(&mut self, out: &mut W) -> Result<()> {
-        self.emit_read_u32_leb_128(out)?;
-        self.emit_read_u32_leb_128(out)
+        self.emit_read_u32_leb_128(out).wrap("parsing arg 1/2")?;
+        self.emit_read_u32_leb_128(out).wrap("arsing arg 2/2")
     }
 
     /// Read one LEB128 value and emit it to the provided writer.

@@ -37,26 +37,25 @@ pub trait ReadElems : ReadWasmValues + ReadCode {
     /// The values here don't correspond to a real module section, instead they
     /// correlate with the rest of the function data in the code section.
     fn read_elems_section(&mut self) -> Result<Box<[Elem]>>{
-        let items = self.read_u32_leb_128().wrap("parsing item count")?;
-        (0..items).map(|_| {
-            let variants = ElemVariant::new(self.read_byte()?);
+        self.read_vec(|_, s| {
+            let variants = ElemVariant::new(s.read_byte()?);
 
             let tidx = if variants.has_tableidx() {
                 // read table idx
-                self.read_u32_leb_128()?
+                s.read_u32_leb_128()?
             } else { 0 };
 
             let offset_expr = if variants.active() {
                 // read offset expr
-                self.read_expr()?
+                s.read_expr()?
             } else { Box::new([]) };
 
             let (init_expr, typekind) = if variants.use_initexpr() {
                 (
-                    self.read_vec_exprs()?,
+                    s.read_vec_exprs()?,
                     if variants.read_eltypekind() {
                         // read element kind
-                        self.read_u32_leb_128().wrap("parsing element kind")?;
+                        s.read_u32_leb_128().wrap("parsing element kind")?;
                         // Only expect 0 -> funcref for now
                         RefType::Func
                     } else { RefType::Func }
@@ -64,13 +63,13 @@ pub trait ReadElems : ReadWasmValues + ReadCode {
             } else {
                 (
                     // read vec(funcidx), generate ref.func expr
-                    self.read_vec_funcidx()?.iter().map(|_| {
+                    s.read_vec_funcidx()?.iter().map(|_| {
                         let genexpr = vec![0xD2u8, 0x00, 0x00, 0x00, 0x00];
                         genexpr.into_boxed_slice()
                     }).collect(),
                     if variants.read_eltypekind() {
                         // read elemnt type
-                        self.read_ref_type().wrap("parsing reftype")?
+                        s.read_ref_type().wrap("parsing reftype")?
                     } else { RefType::Func }
                 )
             };
@@ -91,7 +90,7 @@ pub trait ReadElems : ReadWasmValues + ReadCode {
                 }
             )
 
-        }).collect()
+        })
     }
 
     fn read_vec_funcidx(&mut self) -> Result<Box<[index::Func]>> {

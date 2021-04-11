@@ -15,24 +15,22 @@ pub trait ReadExports : ReadWasmValues {
     /// 0x02 Memory
     /// 0x03 Global
     fn read_exports_section(&mut self) -> Result<Box<[Export]>> {
-        let items = self.read_u32_leb_128().wrap("parsing count")?;
-
-        (0..items).map(|_| {
+        self.read_vec(|_, s| {
             Ok(Export {
-                name: self.read_name().wrap("parsing name")?, 
+                name: s.read_name().wrap("parsing name")?, 
                 desc: {
-                    let kind = self.read_byte().wrap("parsing kind")?;
+                    let kind = s.read_byte().wrap("parsing kind")?;
                     match kind {
-                        0 => ExportDesc::Func(self.read_u32_leb_128().wrap("parsing func")?),
-                        1 => ExportDesc::Table(self.read_u32_leb_128().wrap("parsing table")?),
-                        2 => ExportDesc::Memory(self.read_u32_leb_128().wrap("parsing memory")?),
-                        3 => ExportDesc::Global(self.read_u32_leb_128().wrap("parsing global")?),
+                        0 => ExportDesc::Func(s.read_u32_leb_128().wrap("parsing func")?),
+                        1 => ExportDesc::Table(s.read_u32_leb_128().wrap("parsing table")?),
+                        2 => ExportDesc::Memory(s.read_u32_leb_128().wrap("parsing memory")?),
+                        3 => ExportDesc::Global(s.read_u32_leb_128().wrap("parsing global")?),
                         _ => return err!("unknown import desc {:x}", kind)
                     }
                 }
             })
 
-        }).collect()
+        })
     } 
 }
 

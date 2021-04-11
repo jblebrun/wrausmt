@@ -21,8 +21,7 @@ macro_rules! read_exact_bytes {
 }
 
 /// A collection of read helpers used by the various section reader traits.
-pub trait ReadWasmValues : ReadLeb128 {
-
+pub trait ReadWasmValues : ReadLeb128 + Sized {
     fn read_magic(&mut self) -> Result<()> {
         read_exact_bytes!(self, 4, [0x00, 0x61, 0x73, 0x6d]).wrap("wrong magic")
     }
@@ -47,11 +46,8 @@ pub trait ReadWasmValues : ReadLeb128 {
     /// Names are encoded as a vec(byte).
     fn read_name(&mut self) -> Result<String> {
         let length = self.read_u32_leb_128().wrap("parsing length")?;
-
         let mut bs: Vec<u8> = vec![0; length as usize];
-
         self.read_exact(&mut bs).wrap("reading name data")?;
-
         String::from_utf8(bs).wrap("parsing name data")
     }
 
@@ -78,12 +74,16 @@ pub trait ReadWasmValues : ReadLeb128 {
         )
     }
 
-    fn read_result_type(&mut self) -> Result<Box<ResultType>> {
+    fn read_vec<T, F>(&mut self, f:F) -> Result<Box<[T]>> where
+        Self : Sized,
+        F : Fn(u32, &mut Self) -> Result<T>
+    {
         let item_count = self.read_u32_leb_128().wrap("parsing count")?;
+        (0..item_count).map(|i| f(i,self)).collect()
+    }
 
-        (0..item_count).map(|_| {
-            self.read_value_type()
-        }).collect()
+    fn read_result_type(&mut self) -> Result<Box<ResultType>> {
+        self.read_vec(|_, s| { s.read_value_type() })
     }
 
     fn read_memory_type(&mut self) -> Result<MemType> {
@@ -91,7 +91,6 @@ pub trait ReadWasmValues : ReadLeb128 {
             limits: self.read_limits().wrap("parsing limits")?
         })
     }
-
 
     fn read_table_type(&mut self) -> Result<TableType> {
         Ok(TableType {
