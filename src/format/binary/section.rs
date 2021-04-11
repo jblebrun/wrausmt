@@ -35,7 +35,7 @@ pub fn read_section<R:Read>(reader: &mut R) -> Result<Section> {
         None => return Ok(Section::Eof)
     };
 
-    let len = reader.read_leb_128().wrap("parsing length")?;
+    let len = reader.read_u32_leb_128().wrap("parsing length")?;
     println!("SECTION {} ({:x}) -- LENGTH {}", section_num, section_num, len);
     let mut section_reader = reader.take(len as u64);
     let section = match section_num {

@@ -46,7 +46,7 @@ pub trait ReadWasmValues : ReadLeb128 {
     /// Read a "name" field.
     /// Names are encoded as a vec(byte).
     fn read_name(&mut self) -> Result<String> {
-        let length = self.read_leb_128().wrap("parsing length")?;
+        let length = self.read_u32_leb_128().wrap("parsing length")?;
 
         let mut bs: Vec<u8> = vec![0; length as usize];
 
@@ -79,7 +79,7 @@ pub trait ReadWasmValues : ReadLeb128 {
     }
 
     fn read_result_type(&mut self) -> Result<Box<ResultType>> {
-        let item_count = self.read_leb_128().wrap("parsing count")?;
+        let item_count = self.read_u32_leb_128().wrap("parsing count")?;
 
         (0..item_count).map(|_| {
             self.read_value_type()
