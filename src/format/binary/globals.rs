@@ -1,5 +1,5 @@
 use crate::{
-    error::{Result, ResultFrom},
+    error::Result,
     module::Global,
 };
 use super::{
@@ -13,15 +13,14 @@ pub trait ReadGlobals : ReadWasmValues + ReadCode {
     /// The values here don't correspond to a real module section, instead they
     /// correlate with the rest of the function data in the code section.
     fn read_globals_section(&mut self) -> Result<Box<[Global]>>{
-        let items = self.read_u32_leb_128().wrap("parsing item count")?;
-        (0..items).map(|_| {
+        self.read_vec(|_, s| {
             Ok(
                 Global {
-                    typ: self.read_global_type()?,
-                    init: self.read_expr()?
+                    typ: s.read_global_type()?,
+                    init: s.read_expr()?
                 }
             )
-        }).collect()
+        })
     }
 }
 

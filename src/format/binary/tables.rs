@@ -8,10 +8,7 @@ pub trait ReadTables : ReadWasmValues {
     /// The values here don't correspond to a real module section, instead they
     /// correlate with the rest of the function data in the code section.
     fn read_tables_section(&mut self) -> Result<Box<[Table]>>{
-        let items = self.read_u32_leb_128().wrap("parsing item count")?;
-        (0..items).map(|_| {
-            self.read_table_type()
-        }).collect()
+        self.read_vec(|_, s| { s.read_table_type().wrap("read table type") })
     }
 }
 
