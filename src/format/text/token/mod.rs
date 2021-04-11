@@ -15,4 +15,3 @@ pub enum Token {
     NaN,
     NaNx(u32),
 }
-

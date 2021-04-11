@@ -1,8 +1,8 @@
+use super::token::Token;
+use crate::err;
+use crate::error::{Result, ResultFrom};
 use std::io::Read;
 use std::iter::Iterator;
-use crate::error::{Result, ResultFrom};
-use crate::err;
-use super::token::Token;
 
 #[cfg(test)]
 mod test;
@@ -16,7 +16,7 @@ pub struct Tokenizer<R> {
     pos: u32,
 }
 
-impl <R : Read> Tokenizer<R> {
+impl<R: Read> Tokenizer<R> {
     #[allow(dead_code)]
     pub fn new(r: R) -> Result<Tokenizer<R>> {
         let mut tokenizer = Tokenizer {
@@ -24,7 +24,7 @@ impl <R : Read> Tokenizer<R> {
             current: 0,
             eof: false,
             line: 0,
-            pos: 0
+            pos: 0,
         };
         tokenizer.advance()?;
         Ok(tokenizer)
@@ -36,7 +36,7 @@ impl <R : Read> Tokenizer<R> {
         self.current = buf[0];
         if amount_read == 0 {
             if self.eof {
-                return err!("unexpected eof")
+                return err!("unexpected eof");
             } else {
                 self.eof = true;
             }
@@ -49,15 +49,15 @@ impl <R : Read> Tokenizer<R> {
         Ok(())
     }
 
-    fn is_whitespace(&self) -> bool  {
+    fn is_whitespace(&self) -> bool {
         matches!(self.current, b' ' | b'\t' | b'\n' | b'\r')
     }
 
     fn is_idchar(&self) -> bool {
-        matches!(self.current, 
+        matches!(self.current,
             b'0'..=b'9' | b'A'..=b'Z'  | b'a'..=b'z' | b'!' | b'#' |
             b'$' | b'%' | b'&' | b'\'' | b'*' | b'+' | b'/'  |
-            b':' | b'<' | b'=' | b'>'  | b'?' | b'@' | b'\\' | 
+            b':' | b'<' | b'=' | b'>'  | b'?' | b'@' | b'\\' |
             b'^' | b'_' | b'`' | b'|'  | b'~' | b'.'
         )
     }
@@ -66,7 +66,7 @@ impl <R : Read> Tokenizer<R> {
         match self.current {
             b'_' | b'0'..=b'9' => true,
             b'a'..=b'f' | b'A'..=b'F' => hex,
-            _ => false
+            _ => false,
         }
     }
 
@@ -74,7 +74,7 @@ impl <R : Read> Tokenizer<R> {
         match self.current {
             b'e' | b'E' => !hex,
             b'p' | b'P' => hex,
-            _ => false
+            _ => false,
         }
     }
 
@@ -84,7 +84,6 @@ impl <R : Read> Tokenizer<R> {
         }
         Ok(Token::Whitespace)
     }
-
 
     fn consume_line_comment(&mut self) -> Result<Token> {
         while self.current != b'\n' {
@@ -105,18 +104,18 @@ impl <R : Read> Tokenizer<R> {
                     if self.current == b';' {
                         depth += 1;
                     }
-                },
+                }
                 b';' => {
                     self.advance()?;
                     if self.current == b')' {
-                        depth -=1;
+                        depth -= 1;
                         if depth == 0 {
                             self.advance()?;
                             break;
                         }
                     }
-                },
-                _ =>  self.advance()?
+                }
+                _ => self.advance()?,
             }
         }
         Ok(Token::BlockComment)
@@ -131,7 +130,7 @@ impl <R : Read> Tokenizer<R> {
             if self.current == b'"' && prev != b'\\' {
                 let as_string = String::from_utf8(result).wrap("bad utf8")?;
                 self.advance()?;
-                return Ok(Token::String(as_string))
+                return Ok(Token::String(as_string));
             }
             result.push(self.current);
             prev = self.current;
@@ -158,15 +157,14 @@ impl <R : Read> Tokenizer<R> {
     fn consume_keyword(&mut self) -> Result<Token> {
         let result = self.consume_name()?;
         if result == "nan" {
-           return Ok(Token::NaN);
+            return Ok(Token::NaN);
         }
         if result == "inf" {
             return Ok(Token::Inf);
         }
-        if result.len() >5 && &result[0..6] == "nan:0x" {
+        if result.len() > 5 && &result[0..6] == "nan:0x" {
             let nanx = Self::interpret_whole_number(true, result[6..].into());
-            return Ok(Token::NaNx(nanx as u32))
-
+            return Ok(Token::NaNx(nanx as u32));
         }
         Ok(Token::Keyword(result))
     }
@@ -184,7 +182,6 @@ impl <R : Read> Tokenizer<R> {
             self.advance()?;
         }
         Ok(digit_bytes)
-
     }
 
     fn digit_val(digit_byte: u8) -> u8 {
@@ -192,7 +189,7 @@ impl <R : Read> Tokenizer<R> {
             b'0'..=b'9' => digit_byte - b'0',
             b'a'..=b'f' => 10u8 + digit_byte - b'a',
             b'A'..=b'F' => 10u8 + digit_byte - b'A',
-            _ => panic!("invalid digit")
+            _ => panic!("invalid digit"),
         }
     }
 
@@ -212,7 +209,6 @@ impl <R : Read> Tokenizer<R> {
     fn parse_whole_number(&mut self, hex: bool) -> Result<u64> {
         let digit_bytes = self.consume_digits(hex)?;
         Ok(Self::interpret_whole_number(hex, digit_bytes))
-   
     }
 
     fn parse_frac_number(&mut self, hex: bool) -> Result<f64> {
@@ -221,7 +217,9 @@ impl <R : Read> Tokenizer<R> {
         let mut result = 0f64;
         let exp_mult = if hex { 16 } else { 10 };
         for digit in digit_bytes.into_iter().rev() {
-            if digit == b'_' { continue; }
+            if digit == b'_' {
+                continue;
+            }
             let digit_val = Self::digit_val(digit);
             result += (digit_val) as f64 / exp as f64;
             exp *= exp_mult;
@@ -231,9 +229,9 @@ impl <R : Read> Tokenizer<R> {
 
     fn sign_info(&mut self) -> (bool, i64) {
         match self.current {
-            b'+'  => (true, 1),
-            b'-'  => (true, -1),
-            _ => (false, 1)
+            b'+' => (true, 1),
+            b'-' => (true, -1),
+            _ => (false, 1),
         }
     }
 
@@ -264,7 +262,7 @@ impl <R : Read> Tokenizer<R> {
 
         // read whole part while digit
         let whole = self.parse_whole_number(hex)?;
-        
+
         // read fraction part while digit
         if self.current == b'.' || self.is_exp(hex) {
             let frac = if self.current == b'.' {
@@ -277,16 +275,18 @@ impl <R : Read> Tokenizer<R> {
             let exp = if self.is_exp(hex) {
                 self.advance()?;
                 let (signed, exp_sign) = self.sign_info();
-                if signed { self.advance()? }
-                self.parse_whole_number(hex)? as f64 * exp_sign as f64 
+                if signed {
+                    self.advance()?
+                }
+                self.parse_whole_number(hex)? as f64 * exp_sign as f64
             } else {
                 0f64
             };
 
             let base = if hex { 16f64 } else { 10f64 };
-            let result = ((frac + whole as f64) * base.powf(exp)) as f64 ;
+            let result = ((frac + whole as f64) * base.powf(exp)) as f64;
             Ok(Token::Float(sign as f64 * result))
-        } else  if signed {
+        } else if signed {
             Ok(Token::Signed(whole as i64 * sign))
         } else {
             Ok(Token::Unsigned(whole))
@@ -313,22 +313,21 @@ impl <R : Read> Tokenizer<R> {
             b')' => {
                 self.advance()?;
                 Ok(Token::Close)
-            },
+            }
             b';' => self.consume_line_comment(),
-            _ => self.consume_other()
+            _ => self.consume_other(),
         }
     }
 }
 
-impl <R: Read> Iterator for Tokenizer<R> {
-    type Item=Result<Token>;
+impl<R: Read> Iterator for Tokenizer<R> {
+    type Item = Result<Token>;
 
     fn next(&mut self) -> Option<Result<Token>> {
         if self.eof {
             return None;
         }
         let token = self.next_token();
-        Some(token) 
-         
+        Some(token)
     }
 }

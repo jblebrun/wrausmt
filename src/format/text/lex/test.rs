@@ -1,5 +1,5 @@
-use super::Tokenizer;
 use super::super::token::Token;
+use super::Tokenizer;
 use crate::error::{Result, ResultFrom};
 
 macro_rules! expect_tokens {
@@ -16,7 +16,7 @@ macro_rules! expect_tokens {
 }
 
 #[cfg(test)]
-fn printout<T : AsRef<[u8]>>(to_parse: T) -> Result<()> {
+fn printout<T: AsRef<[u8]>>(to_parse: T) -> Result<()> {
     let tokenizer = Tokenizer::new(to_parse.as_ref())?;
 
     for token in tokenizer {
@@ -29,8 +29,7 @@ fn printout<T : AsRef<[u8]>>(to_parse: T) -> Result<()> {
 #[test]
 fn simple_parse() -> Result<()> {
     expect_tokens!(
-        "(foo) \"hello\" (5.6 -0xF 0xF) (; comment (; nested ;) more ;)\n(yay)"
-        ,
+        "(foo) \"hello\" (5.6 -0xF 0xF) (; comment (; nested ;) more ;)\n(yay)",
         Token::Open,
         Token::Keyword("foo".into()),
         Token::Close,
@@ -126,7 +125,7 @@ fn longer_test() -> Result<()> {
             Ok(t) => println!("{:?}", t),
             Err(e) => {
                 println!("ERR {:?}", e);
-                return Err(e)
+                return Err(e);
             }
         }
     }
