@@ -1,6 +1,7 @@
 use std::io::Read;
 use crate::{
-    module::{Import, Export, Function, index},
+    module::{Data, Elem, Export, Function, Global},
+    module::{Import, Table, Memory, Start, index},
     types::FunctionType,
     error::{ResultFrom, Result}
 };
@@ -13,6 +14,12 @@ use super::{
     funcs::ReadFuncs,
     leb128::ReadLeb128,
     ensure_consumed::EnsureConsumed,
+    tables::ReadTables,
+    mems::ReadMems,
+    globals::ReadGlobals,
+    start::ReadStart,
+    elems::ReadElems,
+    data::ReadData
 };
 
 pub enum Section {
@@ -22,12 +29,21 @@ pub enum Section {
     Types(Box<[FunctionType]>),
     Imports(Box<[Import]>),
     Funcs(Box<[index::Type]>),
+    Tables(Box<[Table]>),
+    Mems(Box<[Memory]>),
+    Globals(Box<[Global]>),
     Exports(Box<[Export]>),
+    Start(Option<Start>),
+    Elems(Box<[Elem]>),
     Code(Box<[Function]>),
+    Data(Box<[Data]>),
+    DataCount(u32),
 }
 
 /// Read and return the next section in a binary module being read by a std::io::Read
 /// If the end of the binary module has been reached, Section::Eof will be returned.
+///
+/// [Spec]: https://webassembly.github.io/spec/core/binary/modules.html#sections
 pub fn read_section<R:Read>(reader: &mut R) -> Result<Section> {
     let section_num = match reader.bytes().next() {
         Some(Ok(v)) => v,
@@ -43,8 +59,15 @@ pub fn read_section<R:Read>(reader: &mut R) -> Result<Section> {
         1 => Section::Types(section_reader.read_types_section().wrap("reading types")?),
         2 => Section::Imports(section_reader.read_imports_section().wrap("reading imports")?),
         3 => Section::Funcs(section_reader.read_funcs_section().wrap("reading funcs")?),
+        4 => Section::Tables(section_reader.read_tables_section().wrap("reading tables")?),
+        5 => Section::Mems(section_reader.read_mems_section().wrap("reading mems")?),
+        6 => Section::Globals(section_reader.read_globals_section().wrap("reading globals")?),
         7 => Section::Exports(section_reader.read_exports_section().wrap("reading exports")?),
+        8 => Section::Start(section_reader.read_start_section().wrap("reading start")?),
+        9 => Section::Elems(section_reader.read_elems_section().wrap("reading elems")?),
         10 => Section::Code(section_reader.read_code_section().wrap("reading code")?),
+        11 => Section::Data(section_reader.read_data_section().wrap("reading data")?),
+        12 => Section::DataCount(section_reader.read_data_count_section().wrap("reading data count")?),
         _ => { section_reader.read_custom_section().wrap("while skipping section")?; Section::Skip }
     };
     

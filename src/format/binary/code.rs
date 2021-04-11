@@ -25,6 +25,13 @@ pub trait ReadCode : ReadWasmValues {
            .collect()
     }
 
+    fn read_vec_exprs(&mut self) -> Result<Box<[Box<Expr>]>> {
+        let items = self.read_u32_leb_128().wrap("parsing item count")?;
+        (0..items)
+            .map(|_| self.read_expr())
+            .collect()
+    }
+
     /// code := size:u32 code:func
     /// func := (t*)*:vec(locals) e:expr
     /// The size is the size in bytes of the entire section, locals + exprs

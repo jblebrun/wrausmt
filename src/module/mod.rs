@@ -34,15 +34,15 @@ use super::types::{FunctionType, GlobalType, MemType, RefType, TableType, ValueT
 #[derive(Default, Debug, Clone)]
 pub struct Module {
     pub types: Box<[Type]>,
+    pub imports: Box<[Import]>,
     pub funcs: Box<[Function]>,
     pub tables: Box<[Table]>,
     pub mems: Box<[Memory]>,
     pub globals: Box<[Global]>,
+    pub exports: Box<[Export]>,
+    pub start: Option<Start>,
     pub elems: Box<[Elem]>,
     pub datas: Box<[Data]>,
-    pub start: Option<Start>,
-    pub imports: Box<[Import]>,
-    pub exports: Box<[Export]>
 }
 
 /// A module namespace for the various index types used in module type definitions. [Spec][Spec]
@@ -148,7 +148,7 @@ pub struct Global {
 #[derive(Debug, Clone)]
 pub struct Elem {
     pub typ: RefType,
-    pub init: Box<Expr>,
+    pub init: Box<[Box<Expr>]>,
     pub mode: ElemMode
 }
 
@@ -201,7 +201,7 @@ pub enum DataMode {
 /// initialized.  
 ///
 /// [Spec]: https://webassembly.github.io/spec/core/syntax/modules.html#start-function
-type Start = index::Func;
+pub type Start = index::Func;
 
 /// A set of exports that become accessible to the host environment once the module has been
 /// instantiated.

@@ -1,6 +1,5 @@
 use crate::{
     module::{Import, ImportDesc},
-    types::{Limits, MemType, GlobalType, TableType},
     error::{Result, ResultFrom},
     err
 };
@@ -37,35 +36,6 @@ pub trait ReadImports : ReadWasmValues {
             })
 
         }).collect()
-    }
-
-    fn read_memory_type(&mut self) -> Result<MemType> {
-        Ok(MemType {
-            limits: self.read_limits().wrap("parsing limits")?
-        })
-    }
-
-
-    fn read_table_type(&mut self) -> Result<TableType> {
-        Ok(TableType {
-            reftype: self.read_ref_type().wrap("parsing reftype")?,
-            limits: self.read_limits().wrap("parsing limits")?
-        })
-    }
-
-    fn read_global_type(&mut self) -> Result<GlobalType> {
-        Ok(GlobalType {
-            valtype: self.read_value_type().wrap("parsing value")?,
-            mutable: self.read_bool().wrap("parsing mutable")?,
-        })
-    }
-
-    fn read_limits(&mut self) -> Result<Limits> {
-        let has_upper = self.read_bool().wrap("parsing has upper")?;
-        Ok(Limits {
-            lower: self.read_u32_leb_128().wrap("parsing lower")?,
-            upper: if has_upper { Some(self.read_u32_leb_128().wrap("parsing upper")?) } else { None }
-        })
     }
 }
 

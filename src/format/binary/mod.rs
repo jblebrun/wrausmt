@@ -9,6 +9,12 @@ mod funcs;
 mod custom;
 mod ensure_consumed;
 mod section;
+mod mems;
+mod globals;
+mod start;
+mod elems;
+mod data;
+mod tables;
 
 use std::io::Read;
 use crate::{
@@ -53,11 +59,20 @@ fn parse_inner<R:Read>(reader: &mut R, module: &mut Module) -> Result<()> {
             Ok(Section::Types(t)) => module.types = t,
             Ok(Section::Imports(i)) => module.imports = i,
             Ok(Section::Funcs(f)) => functypes = f,
+            Ok(Section::Tables(t)) => module.tables = t,
+            Ok(Section::Mems(m)) => module.mems = m,
+            Ok(Section::Globals(g)) => module.globals = g,
             Ok(Section::Exports(e)) => module.exports = e,
+            Ok(Section::Start(s)) => module.start = s,
+            Ok(Section::Elems(e)) => module.elems = e,
             Ok(Section::Code(c)) => {
                 module.funcs = c;
                 resolve_functypes(module.funcs.as_mut(), &functypes)?
 
+            },
+            Ok(Section::Data(d)) => module.datas = d,
+            Ok(Section::DataCount(_)) => {
+                // Validate data count
             },
             Err(e) => return Err(e)
         }
