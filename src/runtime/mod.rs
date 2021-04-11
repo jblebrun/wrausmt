@@ -1,6 +1,7 @@
 pub mod error;
 mod exec;
-pub mod function;
+pub mod function_instance;
+pub mod module_instance;
 pub mod stack;
 pub mod store;
 pub mod values;
@@ -10,10 +11,11 @@ use super::{
     error::{Result, ResultFrom},
     module::Module,
 };
+use crate::runtime::module_instance::ModuleInstance;
 use std::rc::Rc;
 use {
     stack::{Frame, Stack, StackEntry},
-    store::{Export, ExternalVal, FuncAddr, ModuleInstance, Store},
+    store::{Export, ExternalVal, FuncAddr, Store},
     values::Value,
 };
 
