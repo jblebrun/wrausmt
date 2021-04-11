@@ -1,30 +1,30 @@
-mod leb128;
-mod values;
-mod imports;
-mod exports;
 mod code;
 mod countread;
-mod types;
-mod funcs;
 mod custom;
-mod ensure_consumed;
-mod section;
-mod mems;
-mod globals;
-mod start;
-mod elems;
 mod data;
+mod elems;
+mod ensure_consumed;
+mod exports;
+mod funcs;
+mod globals;
+mod imports;
+mod leb128;
+mod mems;
+mod section;
+mod start;
 mod tables;
+mod types;
+mod values;
 
-use std::io::Read;
-use crate::{
-    module::{Function, Module, index},
-    error::Result,
-    err
-};
 use super::error::ParseError;
+use crate::{
+    err,
+    error::Result,
+    module::{index, Function, Module},
+};
 use countread::CountRead;
 use section::{read_section, Section};
+use std::io::Read;
 use values::ReadWasmValues;
 
 fn resolve_functypes(funcs: &mut [Function], functypes: &[index::Func]) -> Result<()> {
@@ -41,10 +41,9 @@ fn resolve_functypes(funcs: &mut [Function], functypes: &[index::Func]) -> Resul
     Ok(())
 }
 
-
 /// Inner parse method accepts a mutable module, so that the outer parse method
 /// can return partial module results (useful for debugging).
-fn parse_inner<R:Read>(reader: &mut R, module: &mut Module) -> Result<()> {
+fn parse_inner<R: Read>(reader: &mut R, module: &mut Module) -> Result<()> {
     reader.read_magic()?;
     reader.read_version()?;
 
@@ -68,13 +67,12 @@ fn parse_inner<R:Read>(reader: &mut R, module: &mut Module) -> Result<()> {
             Ok(Section::Code(c)) => {
                 module.funcs = c;
                 resolve_functypes(module.funcs.as_mut(), &functypes)?
-
-            },
+            }
             Ok(Section::Data(d)) => module.datas = d,
             Ok(Section::DataCount(_)) => {
                 // Validate data count
-            },
-            Err(e) => return Err(e)
+            }
+            Err(e) => return Err(e),
         }
     }
     Ok(())
@@ -83,17 +81,16 @@ fn parse_inner<R:Read>(reader: &mut R, module: &mut Module) -> Result<()> {
 /// Attempt to interpret the data in the provided std::io:Read as a WASM binary module.
 /// If an error occurs, a ParseError will be returned containing the portion of the
 /// module that was successfully decoded.
-pub fn parse<R>(src: &mut R) -> std::result::Result<Module, ParseError> where R : Read {
+pub fn parse<R>(src: &mut R) -> std::result::Result<Module, ParseError>
+where
+    R: Read,
+{
     let reader = &mut CountRead::new(src);
-    
+
     let mut module = Module::default();
 
     match parse_inner(reader, &mut module) {
         Ok(()) => Ok(module),
-        Err(e) => Err(ParseError::new(e, reader.consumed(), module))
+        Err(e) => Err(ParseError::new(e, reader.consumed(), module)),
     }
 }
-
-
-
-

@@ -1,12 +1,12 @@
 //! The values that WebAssembly programs can manipulate. [Spec][Spec]
-//! 
+//!
 //! WebAssembly computations manipulate values of either the four basic number types, i.e.,
-//! integers and floating-point data of 32 or 64 bit width each, or of reference type. 
+//! integers and floating-point data of 32 or 64 bit width each, or of reference type.
 //!
 //! In most places of the semantics, values of different types can occur. In order to avoid ambiguities,
 //! values are therefore represented with an abstract syntax that makes their type explicit. It is
 //! convenient to reuse the same notation as for the const instructions and ref.null producing
-//! them. 
+//! them.
 //!
 //! References other than null are represented with additional administrative instructions. They
 //! either are function references, pointing to a specific function address, or external references
@@ -15,12 +15,12 @@
 //!
 //! [Spec]: https://webassembly.github.io/spec/core/syntax/values.html#values
 
-use std::convert::TryFrom;
 use crate::{
     err,
     error::Error,
-    types::{ValueType, NumType, RefType}
+    types::{NumType, RefType, ValueType},
 };
+use std::convert::TryFrom;
 
 /// A value that a WebAssembly program can manipulate. [Spec][Spec]
 ///
@@ -28,7 +28,7 @@ use crate::{
 #[derive(PartialEq, Debug, Clone, Copy)]
 pub enum Value {
     Num(Num),
-    Ref(Ref)
+    Ref(Ref),
 }
 
 /// A numeric value that a WebAssembly program can manipulate. [Spec][Spec]
@@ -94,11 +94,11 @@ macro_rules! froms {
             fn try_from(val: Value) -> Result<$ty, Self::Error> {
                 match val {
                     Value::Num(Num::$name(v)) => Ok(v),
-                    _ => err!("couldn't convert")
+                    _ => err!("couldn't convert"),
                 }
             }
         }
-    }
+    };
 }
 
 froms! { u32, I32 }

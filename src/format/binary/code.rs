@@ -1,15 +1,12 @@
-use std::io::{Read, Write};
-use super::{
-    ensure_consumed::EnsureConsumed, 
-    values::ReadWasmValues
-};
+use super::{ensure_consumed::EnsureConsumed, values::ReadWasmValues};
 use crate::{
-    module::Function,
-    types::ValueType,
+    err,
     error::{Result, ResultFrom},
     instructions::*,
-    err,
+    module::Function,
+    types::ValueType,
 };
+use std::io::{Read, Write};
 
 /// Read the Code section of a binary module.
 /// codesec := section vec(code)
@@ -17,13 +14,13 @@ use crate::{
 /// func := (t*)*:vec(locals) e:expr
 /// locals := n:u32 t:type
 /// expr := (instr)*
-pub trait ReadCode : ReadWasmValues {
+pub trait ReadCode: ReadWasmValues {
     fn read_code_section(&mut self) -> Result<Box<[Function]>> {
-        self.read_vec(|_, s| { s.read_func().wrap("reading func") })
+        self.read_vec(|_, s| s.read_func().wrap("reading func"))
     }
 
     fn read_vec_exprs(&mut self) -> Result<Box<[Box<Expr>]>> {
-        self.read_vec(|_, s| { s.read_expr().wrap("reading expr") })
+        self.read_vec(|_, s| s.read_expr().wrap("reading expr"))
     }
 
     /// code := size:u32 code:func
@@ -36,7 +33,7 @@ pub trait ReadCode : ReadWasmValues {
             // The types are parsed earlier and will be set on the returned values.
             functype: 0,
             locals: code_reader.read_locals().wrap("parsing locals")?,
-            body: code_reader.read_expr().wrap("parsing code")?
+            body: code_reader.read_expr().wrap("parsing code")?,
         };
         code_reader.ensure_consumed()?;
         Ok(function)
@@ -71,14 +68,14 @@ pub trait ReadCode : ReadWasmValues {
     /// Returns 0 if EOF was reached while parsing an opcode.
     /// Returns 1 if a full instruction was parsed.
     /// Returns Err result otherwise.
-    fn read_inst<W : Write>(&mut self, out: &mut W) -> Result<usize> {
+    fn read_inst<W: Write>(&mut self, out: &mut W) -> Result<usize> {
         let mut opcode_buf = [0u8; 1];
         let cnt = self.read(&mut opcode_buf).wrap("parsing opcode")?;
         if cnt == 0 {
-            return Ok(0)
+            return Ok(0);
         }
         let opcode = opcode_buf[0];
-        
+
         // Assume success, write out the opcode. Validation occurs later.
         out.write(&opcode_buf).wrap("writing opcode")?;
 
@@ -100,30 +97,33 @@ pub trait ReadCode : ReadWasmValues {
             F32Const => self.read_1_arg(out)?,
             I32Add => (),
             I32Sub => (),
-            _ => return err!("unknown opcode 0x{:x?}", opcode)
+            _ => return err!("unknown opcode 0x{:x?}", opcode),
         }
         Ok(1)
     }
 
     /// Clarity method: use to read a single LEB128 argument for an instruction.
-    fn read_1_arg<W : Write>(&mut self, out: &mut W) -> Result<()> {
+    fn read_1_arg<W: Write>(&mut self, out: &mut W) -> Result<()> {
         self.emit_read_u32_leb_128(out).wrap("parsing arg 1/1")
     }
 
     /// Clarity method: use to read a two successive LEB128 arguments for an instruction.
-    fn read_2_args<W : Write>(&mut self, out: &mut W) -> Result<()> {
+    fn read_2_args<W: Write>(&mut self, out: &mut W) -> Result<()> {
         self.emit_read_u32_leb_128(out).wrap("parsing arg 1/2")?;
         self.emit_read_u32_leb_128(out).wrap("arsing arg 2/2")
     }
 
     /// Read one LEB128 value and emit it to the provided writer.
-    fn emit_read_u32_leb_128<W : Write>(&mut self, out: &mut W) -> Result<()> {
+    fn emit_read_u32_leb_128<W: Write>(&mut self, out: &mut W) -> Result<()> {
         out.write(
-            &self.read_u32_leb_128().wrap("reading leb 128")?.to_le_bytes()
-        ).wrap("writing leb 128")?;
+            &self
+                .read_u32_leb_128()
+                .wrap("reading leb 128")?
+                .to_le_bytes(),
+        )
+        .wrap("writing leb 128")?;
         Ok(())
     }
 }
 
-impl <I:ReadWasmValues> ReadCode for I {}
-
+impl<I: ReadWasmValues> ReadCode for I {}

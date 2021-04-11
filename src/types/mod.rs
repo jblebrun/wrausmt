@@ -1,8 +1,8 @@
 //! The representations of WASM types used by the various components of [wrausment][Spec].
 //!
 //! Various entities in WebAssembly are classified by types. Types are checked during validation,
-//! instantiation, and possibly execution. 
-//! 
+//! instantiation, and possibly execution.
+//!
 //! [Spec]: https://webassembly.github.io/spec/core/syntax/types.html
 use std::boxed::Box;
 
@@ -13,13 +13,18 @@ use std::boxed::Box;
 /// types f32 and f64 classify 32 and 64 bit floating-point data, respectively. They correspond to
 /// the respective binary floating-point representations, also known as single and double
 /// precision, as defined by the IEEE 754-2019 standard (Section 3.3).
-/// 
+///
 /// Number types are transparent, meaning that their bit patterns can be observed. Values of number
 /// type can be stored in memories.
 ///
 /// [Spec]: https://webassembly.github.io/spec/core/syntax/types.html#number-types
 #[derive(Debug, Copy, Clone)]
-pub enum NumType { I32, I64, F32, F64 }
+pub enum NumType {
+    I32,
+    I64,
+    F32,
+    F64,
+}
 
 /// Reference types classify first-class references to objects in the runtime store. [Spec][Spec]
 ///
@@ -27,23 +32,29 @@ pub enum NumType { I32, I64, F32, F64 }
 /// function types.  
 ///
 /// The type externref denotes the infinite union of all references to objects
-/// owned by the embedder and that can be passed into WebAssembly under this type. 
+/// owned by the embedder and that can be passed into WebAssembly under this type.
 ///
 /// Reference types are opaque, meaning that neither their size nor their bit pattern can be
 /// observed. Values of reference type can be stored in tables.
 ///
 /// [Spec]: https://webassembly.github.io/spec/core/syntax/types.html#reference-types
 #[derive(Debug, Copy, Clone)]
-pub enum RefType { Func, Extern }
+pub enum RefType {
+    Func,
+    Extern,
+}
 
 /// Value types classify the individual values that WebAssembly code can compute with and the
 /// values that a variable accepts. [Spec][Spec]
-/// 
+///
 /// They are either [number types][NumType] or [reference types][RefType].
 ///
 /// [Spec]: https://webassembly.github.io/spec/core/syntax/types.html#value-types
 #[derive(Debug, Copy, Clone)]
-pub enum ValueType { Num(NumType), Ref(RefType) }
+pub enum ValueType {
+    Num(NumType),
+    Ref(RefType),
+}
 
 /// Result types classify the result of executing instructions or functions, which is a sequence of
 /// values, written with brackets. [Spec][Spec]
@@ -62,7 +73,7 @@ pub type ParamsType = ResultType;
 #[derive(Debug, Clone)]
 pub struct FunctionType {
     pub params: Box<ParamsType>,
-    pub result: Box<ResultType>
+    pub result: Box<ResultType>,
 }
 
 /// Limits classify the size range of resizeable storage associated with [memory types][MemType]
@@ -72,7 +83,7 @@ pub struct FunctionType {
 #[derive(Debug, Clone)]
 pub struct Limits {
     pub lower: u32,
-    pub upper: Option<u32>
+    pub upper: Option<u32>,
 }
 
 /// Memory types classify linear memories and their size range. [Spec][Spec]
@@ -97,9 +108,8 @@ pub struct TableType {
     pub limits: Limits,
 
     /// The [RefType] contained by this table type.
-    pub reftype: RefType
+    pub reftype: RefType,
 }
-
 
 /// Global types classify global variables, which hold a value and can either be mutable or
 /// immutable. [Spec][Spec]
@@ -109,9 +119,8 @@ pub struct TableType {
 pub struct GlobalType {
     /// If true, the type refers to a mutable global value.
     pub mutable: bool,
-    pub valtype: ValueType
+    pub valtype: ValueType,
 }
-
 
 impl From<NumType> for ValueType {
     fn from(nt: NumType) -> ValueType {

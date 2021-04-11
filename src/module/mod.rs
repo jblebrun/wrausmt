@@ -1,32 +1,32 @@
-//! Definitions for a WASM Module. 
-//! 
+//! Definitions for a WASM Module.
+//!
 //! [From Spec][Spec]:
 //!  > WebAssembly programs are organized into modules, which are the unit of deployment, loading,
 //!  > and compilation. A module collects definitions for types, functions, tables, memories, and
 //!  > globals. In addition, it can declare imports and exports and provide initialization in the
 //!  > form of data and element segments, or a start function.
 //!
-//! 
+//!
 //! The organizaton of this structure matches definition of a module as described in the [WASM
 //! Spec][Spec]. The documentation for most
 //! items is quoted directly from this spec.
 //!
 //! The types described in the spec are mapped pretty closely to Rust struct, enum, and type
-//! declarations, as appropriate. The type `vec(T)` maps to a [Box<T>]. To avoid confusion with the 
+//! declarations, as appropriate. The type `vec(T)` maps to a [Box<T>]. To avoid confusion with the
 //! Rust standard library's vector type, a Vec type is not defined here.
 //!
 //! [Spec]: https://webassembly.github.io/spec/core/syntax/modules.html
-use crate::instructions::Expr;
 use super::types::{FunctionType, GlobalType, MemType, RefType, TableType, ValueType};
+use crate::instructions::Expr;
 
 /// The struct containing all of the information relevant to one WASM module. [Spec][Spec]
-/// 
+///
 /// The [Module] is the core representation of a WASM module that can be loaded in to the
 /// runtime. This also serves as the output representation for the two parsers. Both the binary and
 /// the text format parsers will generate this module struct as the canonical output of their
 /// parsing of an input format.
 ///
-/// Each of the vectors – and thus the entire module – may be empty. 
+/// Each of the vectors – and thus the entire module – may be empty.
 ///
 /// See the documentation for the contained type of each field for more information.
 ///
@@ -67,7 +67,7 @@ pub mod index {
     /// The index space for memories includes respective imports declared in the same module. The
     /// indices of these imports precede the indices of other definitions in the same index space.
     pub type Mem = u32;
-    
+
     /// The index space for globals includes respective imports declared in the same module. The
     /// indices of these imports precede the indices of other definitions in the same index space.
     pub type Global = u32;
@@ -87,7 +87,7 @@ pub mod index {
 }
 
 /// The types component of a module defines a vector of function types. All function types used in
-/// a module must be defined in this component. They are referenced by type indices. 
+/// a module must be defined in this component. They are referenced by type indices.
 /// [Spec](https://webassembly.github.io/spec/core/syntax/modules.html#types)
 pub type Type = FunctionType;
 
@@ -107,7 +107,7 @@ pub struct Function {
 
     /// The body is an instruction sequence that upon termination must produce a stack matching the
     /// function type's result type.
-    pub body: Box<Expr>
+    pub body: Box<Expr>,
 }
 
 /// The tables component of a module defines a vector of tables described by their table type.
@@ -149,7 +149,7 @@ pub struct Global {
 pub struct Elem {
     pub typ: RefType,
     pub init: Box<[Box<Expr>]>,
-    pub mode: ElemMode
+    pub mode: ElemMode,
 }
 
 /// A mode identifying the element segment as passive, active, or declarative.
@@ -165,8 +165,11 @@ pub struct Elem {
 #[derive(Debug, Clone)]
 pub enum ElemMode {
     Passive,
-    Active { idx: index::Table, offset: Box<Expr> },
-    Declarative
+    Active {
+        idx: index::Table,
+        offset: Box<Expr>,
+    },
+    Declarative,
 }
 
 /// The datas component of a module defines a vector of data segments. [Spec][Spec]
@@ -178,7 +181,7 @@ pub enum ElemMode {
 #[derive(Debug, Clone)]
 pub struct Data {
     pub init: Box<Expr>,
-    pub mode: DataMode
+    pub mode: DataMode,
 }
 
 /// A mode identifying the data segment as passive or active.
@@ -209,12 +212,12 @@ pub type Start = index::Func;
 #[derive(Debug, Clone)]
 pub struct Export {
     pub name: String,
-    pub desc: ExportDesc
+    pub desc: ExportDesc,
 }
 
 /// The type of exportable definition defined by an [Export].
 /// [Spec](https://webassembly.github.io/spec/core/syntax/modules.html#exports)
-/// 
+///
 /// Exportable definitions are functions, tables, memories, and globals, which are referenced
 /// through a respective descriptor.
 #[derive(Debug, Clone)]
@@ -222,19 +225,19 @@ pub enum ExportDesc {
     Func(index::Type),
     Table(index::Type),
     Memory(index::Mem),
-    Global(index::Global)
+    Global(index::Global),
 }
 
 /// A set of imports that are required for instantiation of the module.
 /// [Spec](https://webassembly.github.io/spec/core/syntax/modules.html#imports)
 ///
 /// Each import is labeled by a two-level name space, consisting of a module name
-/// and a name for an entity within that module. 
+/// and a name for an entity within that module.
 #[derive(Debug, Clone)]
 pub struct Import {
     pub module_name: String,
     pub name: String,
-    pub desc: ImportDesc
+    pub desc: ImportDesc,
 }
 
 /// The type of importable definition defined by an [Import].
@@ -250,5 +253,5 @@ pub enum ImportDesc {
     Func(index::Type),
     Table(TableType),
     Memory(MemType),
-    Global(GlobalType)
+    Global(GlobalType),
 }

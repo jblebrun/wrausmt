@@ -7,13 +7,10 @@ pub struct ArgumentCountError {
 }
 
 impl ArgumentCountError {
-    pub fn new(
-        expected: usize, 
-        got: usize
-    ) -> ArgumentCountError { 
-        ArgumentCountError { expected, got } 
+    pub fn new(expected: usize, got: usize) -> ArgumentCountError {
+        ArgumentCountError { expected, got }
     }
-} 
+}
 
 impl std::error::Error for ArgumentCountError {}
 
@@ -22,5 +19,3 @@ impl fmt::Display for ArgumentCountError {
         write!(f, "expected {} args but got {}", self.expected, self.got)
     }
 }
-
-

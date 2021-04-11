@@ -11,7 +11,6 @@ macro_rules! opcodes {
     }
 }
 
-
 pub type Expr = [u8];
 
 opcodes! {
@@ -28,7 +27,7 @@ opcodes! {
     Return = 0x0F,
     Call = 0x10,
     CallIndirect = 0x11,
-    
+
     // Parametric
     Drop = 0x1A,
     Select = 0x1B,
@@ -61,7 +60,7 @@ opcodes! {
     I32Load8u = 0x2D,
     I32Load16s = 0x2E,
     I32Load16u = 0x2F,
-    
+
     I64Load8s = 0x30,
     I64Load8u = 0x31,
     I64Load16s = 0x32,
@@ -73,7 +72,7 @@ opcodes! {
     I64Store = 0x37,
     F32Store = 0x38,
     F64Store = 0x39,
-    
+
     I32store8 = 0x3A,
     I32store16 = 0x3B,
     I64Store8 = 0x3C,
@@ -83,7 +82,7 @@ opcodes! {
     MemorySize = 0x3F,
     MemoryGrow = 0x40,
     // Also extended, see below
-    
+
     // Numeric
     I32Const = 0x41,
     I64Const = 0x42,
@@ -120,7 +119,7 @@ opcodes! {
     F32Gt = 0x5E,
     F32Le = 0x5F,
     F32Ge = 0x60,
-    
+
     F64Eq = 0x61,
     F64Ne = 0x62,
     F64Lt = 0x63,
@@ -215,14 +214,14 @@ opcodes! {
     F32ConvertI32U = 0xB3,
     F32ConvertI64S = 0xB4,
     F32ConvertI64U = 0xB5,
-    
+
     F32DemoteF64 = 0xB6,
 
     F64ConvertI32S = 0xB7,
     F64ConvertI32U = 0xB8,
     F64ConvertI64S = 0xB9,
     F64ConvertI64U = 0xBA,
-    
+
     F64PromoteF32 = 0xBB,
 
     I32ReinterpretF32 = 0xBC,

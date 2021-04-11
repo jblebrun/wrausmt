@@ -1,8 +1,8 @@
-use std::rc::Rc;
+use super::values::{Num, Value};
 use super::ModuleInstance;
 use crate::error::Result;
 use std::cell::RefCell;
-use super::values::{Value, Num};
+use std::rc::Rc;
 
 /// Contains the information needed for a function that's executing.
 /// local contains the values of params and local variables of the
@@ -12,21 +12,18 @@ use super::values::{Value, Num};
 #[derive(Debug)]
 pub struct Frame {
     pub locals: RefCell<Box<[Value]>>,
-    pub module: Rc<ModuleInstance>
+    pub module: Rc<ModuleInstance>,
 }
 
 impl Frame {
     pub fn dummy() -> Frame {
         Frame {
-            locals: RefCell::new(Box::new([])), 
-            module: Rc::new(ModuleInstance::empty())
+            locals: RefCell::new(Box::new([])),
+            module: Rc::new(ModuleInstance::empty()),
         }
     }
 
-    pub fn new(
-        module: &Rc<ModuleInstance>,
-        locals: Box<[Value]>
-    ) -> Frame {
+    pub fn new(module: &Rc<ModuleInstance>, locals: Box<[Value]>) -> Frame {
         Frame {
             locals: RefCell::new(locals),
             module: module.clone(),
@@ -41,11 +38,10 @@ pub enum StackEntry {
 
     /// A label entry, used for flow control.
     Label { arity: u32, continuation: Rc<[u8]> },
-    
-    /// An activation entry, used for function calls.
-    Activation { arity: u32, frame: Rc<Frame> }
-}
 
+    /// An activation entry, used for function calls.
+    Activation { arity: u32, frame: Rc<Frame> },
+}
 
 /// The runtime stack for the WASM machine. It contains
 /// the values used as operands to instructions, context for
@@ -60,7 +56,9 @@ impl Default for Stack {
 }
 
 impl Stack {
-    pub fn new() -> Stack { Stack(vec![]) }
+    pub fn new() -> Stack {
+        Stack(vec![])
+    }
 
     pub fn push(&mut self, entry: StackEntry) {
         self.0.push(entry);
@@ -77,7 +75,7 @@ impl Stack {
         // it's Some(Value(_))?
         match self.0.pop() {
             Some(StackEntry::Value(val)) => Ok(val),
-            _ => Err("Stack assertion".into())
+            _ => Err("Stack assertion".into()),
         }
     }
 }
@@ -89,7 +87,7 @@ macro_rules! intostack {
                 StackEntry::Value($res)
             }
         }
-    }
+    };
 }
 
 intostack! { u32, v, Value::Num(Num::I32(v))}
@@ -98,5 +96,3 @@ intostack! { f32, v, Value::Num(Num::F32(v))}
 intostack! { f64, v, Value::Num(Num::F64(v))}
 intostack! { Value, v, v }
 intostack! { &Value, v, *v }
-
-

@@ -1,22 +1,19 @@
-use std::rc::Rc;
+use super::{error::ArgumentCountError, values::Value};
 use crate::{
-    module::{Module, Function, ExportDesc},
-    error::{Result, ErrorFrom},
+    err,
+    error::{ErrorFrom, Result},
+    module::{ExportDesc, Function, Module},
     types::FunctionType,
-    err
 };
-use super::{
-    error::ArgumentCountError,
-    values::Value,
-};
+use std::rc::Rc;
 
 /// The WASM Store as described in the specification.
 #[derive(Debug)]
 pub struct Store {
     // FunctionInstance contain Functions, and thus the code
-    // to run. They will be used by execution threads, so 
+    // to run. They will be used by execution threads, so
     // are stored as Rc.
-    pub funcs: Vec<Rc<FunctionInstance>>
+    pub funcs: Vec<Rc<FunctionInstance>>,
 }
 
 impl Default for Store {
@@ -42,22 +39,19 @@ pub enum ExternalVal {
 pub struct ModuleInstance {
     types: Box<[FunctionType]>,
     exports: Box<[Export]>,
-    func_offset: u32
+    func_offset: u32,
 }
 
 impl ModuleInstance {
     pub fn empty() -> ModuleInstance {
-        ModuleInstance { 
-            types: Box::new([]), 
-            exports: Box::new([]), 
-            func_offset: 0 
+        ModuleInstance {
+            types: Box::new([]),
+            exports: Box::new([]),
+            func_offset: 0,
         }
-
     }
     pub fn resolve(&self, name: &str) -> Option<&Export> {
-        let found = self.exports.iter().find(|e| {
-            e.name == name
-        });
+        let found = self.exports.iter().find(|e| e.name == name);
 
         found
     }
@@ -66,26 +60,24 @@ impl ModuleInstance {
 #[derive(Debug)]
 pub struct Export {
     pub name: String,
-    pub addr: ExternalVal 
+    pub addr: ExternalVal,
 }
 
 impl Store {
     pub fn new() -> Store {
-        Store {
-            funcs: vec![]
-        }
+        Store { funcs: vec![] }
     }
 
     pub fn func(&self, addr: FuncAddr) -> Result<Rc<FunctionInstance>> {
         if self.funcs.len() < addr as usize {
-            return err!("No function at addr {}", addr)
+            return err!("No function at addr {}", addr);
         }
 
         Ok(self.funcs[addr as usize].clone())
     }
 
     /// Load the provided module into this store.
-    /// The module will be consumed by this call, and 
+    /// The module will be consumed by this call, and
     /// ModuleInstance representing it will be returned.
     pub fn load(&mut self, module: Module) -> Rc<ModuleInstance> {
         // Calculate the address offset for this module.
@@ -97,7 +89,7 @@ impl Store {
         let memory_offset = 0;
         let global_offset = 0;
 
-        let mod_inst = Rc::new(ModuleInstance { 
+        let mod_inst = Rc::new(ModuleInstance {
             // Take the module types from the module for the instance.
             types: module.types,
 
@@ -106,27 +98,27 @@ impl Store {
             // Convert the module exports into runtime exports;
             // this means converting the index values into address
             // values.
-            exports: module.exports
+            exports: module
+                .exports
                 .into_vec()
                 .into_iter()
-                .map(|e| {
-                    Export {
-                        name: e.name,
-                        addr: match e.desc {
-                            ExportDesc::Func(idx) => ExternalVal::Func(idx + func_offset),
-                            ExportDesc::Table(idx) => ExternalVal::Table(idx + table_offset),
-                            ExportDesc::Memory(idx) => ExternalVal::Memory(idx + memory_offset), 
-                            ExportDesc::Global(idx) => ExternalVal::Global(idx + global_offset),
-                        }
-                    }
-                }).collect()
+                .map(|e| Export {
+                    name: e.name,
+                    addr: match e.desc {
+                        ExportDesc::Func(idx) => ExternalVal::Func(idx + func_offset),
+                        ExportDesc::Table(idx) => ExternalVal::Table(idx + table_offset),
+                        ExportDesc::Memory(idx) => ExternalVal::Memory(idx + memory_offset),
+                        ExportDesc::Global(idx) => ExternalVal::Global(idx + global_offset),
+                    },
+                })
+                .collect(),
         });
 
         // Append created functions into the store.
         for f in module.funcs.into_vec() {
             self.funcs.push(Rc::new(FunctionInstance {
                 module_instance: mod_inst.clone(),
-                code: f
+                code: f,
             }));
         }
 
@@ -152,12 +144,8 @@ impl FunctionInstance {
     pub fn validate_args(&self, args: &[Value]) -> Result<()> {
         let params_arity = self.functype().params.len();
         if params_arity != args.len() {
-             return Err(ArgumentCountError::new(
-                    params_arity, 
-                    args.len()
-            ).wrap(""))
+            return Err(ArgumentCountError::new(params_arity, args.len()).wrap(""));
         }
         Ok(())
-        
     }
 }

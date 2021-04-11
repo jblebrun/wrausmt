@@ -1,20 +1,20 @@
-pub mod function;
-pub mod store;
-pub mod stack;
 pub mod error;
-pub mod values;
 mod exec;
+pub mod function;
+pub mod stack;
+pub mod store;
+pub mod values;
 
-use std::rc::Rc;
 use super::{
+    err,
+    error::{Result, ResultFrom},
     module::Module,
-    error::{ResultFrom, Result},
-    err
 };
+use std::rc::Rc;
 use {
+    stack::{Frame, Stack, StackEntry},
+    store::{Export, ExternalVal, FuncAddr, ModuleInstance, Store},
     values::Value,
-    stack::{Stack, StackEntry, Frame},
-    store::{Export, ExternalVal, ModuleInstance, Store, FuncAddr},
 };
 
 #[derive(Debug)]
@@ -41,7 +41,7 @@ impl Runtime {
         Runtime {
             store: Store::new(),
             stack: Stack::new(),
-            current_frame: None
+            current_frame: None,
         }
     }
 
@@ -49,14 +49,11 @@ impl Runtime {
         self.store.load(module)
     }
 
-    pub fn invoke(
-        &mut self,
-        addr: FuncAddr,
-    ) -> Result<()> {
+    pub fn invoke(&mut self, addr: FuncAddr) -> Result<()> {
         // 1. Assert S.funcaddr exists
         // 2. Let funcinst = S.funcs[funcaddr]
         let funcinst = self.store.func(addr)?;
-        
+
         // 3. Let [tn_1] -> [tm_2] be the function type.
         // 4. Let t* be the list of locals.
         // 5. Let instr* end be the code body
@@ -81,18 +78,18 @@ impl Runtime {
         self.current_frame = Some(frame.clone());
 
         // 10. Push activation w/ arity m onto the stack.
-        self.stack.push( StackEntry::Activation { 
+        self.stack.push(StackEntry::Activation {
             arity: funcinst.functype().result.len() as u32,
-            frame 
+            frame,
         });
 
         // 11. Let L be the Label with continuation at function end.
         // 12. Enter the instruction sequence with the label.
-        
+
         // Impl TODO: label-only stack for convenience?
-        self.stack.push ( StackEntry::Label {
+        self.stack.push(StackEntry::Label {
             arity: funcinst.functype().result.len() as u32,
-            continuation: Rc::new([])
+            continuation: Rc::new([]),
         });
 
         self.enter(&funcinst.code.body)
@@ -100,38 +97,49 @@ impl Runtime {
 
     /// Invocation of a function by the host.
     pub fn call(
-        &mut self, 
-        mod_instance: Rc<ModuleInstance>, 
+        &mut self,
+        mod_instance: Rc<ModuleInstance>,
         name: &str,
         vals: &[Value],
     ) -> Result<Value> {
         let funcaddr = match mod_instance.resolve(name) {
-            Some(Export { name: _, addr: ExternalVal::Func(addr)}) => Ok(addr),
-            _ => err!("Method not found in module: {}", name)
+            Some(Export {
+                name: _,
+                addr: ExternalVal::Func(addr),
+            }) => Ok(addr),
+            _ => err!("Method not found in module: {}", name),
         }?;
-        
+
         // 1. Assert S.funcaddr exists
         // 2. Let funcinst = S.funcs[funcaddr]
-        let funcinst = self.store.func(*funcaddr).wrap(&format!("for name {}", name))?;
+        let funcinst = self
+            .store
+            .func(*funcaddr)
+            .wrap(&format!("for name {}", name))?;
 
         // 3. Let [tn_1] -> [tm_2] be the function type.
         // 4. If the length of vals is different then the number of vals provided, fail.
         // 5. For each value type, if not matching declared type, fail.
-        funcinst.validate_args(vals).wrap(&format!("for {}", name))?;
+        funcinst
+            .validate_args(vals)
+            .wrap(&format!("for {}", name))?;
 
         // 6. Let F be a dummy frame. (Represents a dummy "caller" for the function to invoke).
-        // 7. Push F to the stack. 
+        // 7. Push F to the stack.
         let dummy_frame = Rc::new(Frame::dummy());
-        self.stack.push(StackEntry::Activation { arity: 0, frame: dummy_frame});
+        self.stack.push(StackEntry::Activation {
+            arity: 0,
+            frame: dummy_frame,
+        });
 
         // 8. Push the values to the stack.
         for val in vals {
             self.stack.push(val.into());
         }
-        
+
         // 9. Invoke the function.
         self.invoke(*funcaddr)?;
-         
+
         // assume single result for now
         let result = self.stack.pop().unwrap();
 
@@ -146,7 +154,7 @@ impl Runtime {
 
         match result {
             StackEntry::Value(val) => Ok(val),
-            _ => err!("Bad stack type {:?}", result)
+            _ => err!("Bad stack type {:?}", result),
         }
     }
 }
