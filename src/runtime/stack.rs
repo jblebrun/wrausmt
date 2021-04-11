@@ -9,20 +9,13 @@ use std::rc::Rc;
 /// function.
 /// module contains a module instance for the module defining the function,
 /// which can be used to resolve additional function calls, externals, etc.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Frame {
     pub locals: RefCell<Box<[Value]>>,
     pub module: Rc<ModuleInstance>,
 }
 
 impl Frame {
-    pub fn dummy() -> Frame {
-        Frame {
-            locals: RefCell::new(Box::new([])),
-            module: Rc::new(ModuleInstance::empty()),
-        }
-    }
-
     pub fn new(module: &Rc<ModuleInstance>, locals: Box<[Value]>) -> Frame {
         Frame {
             locals: RefCell::new(locals),
@@ -46,20 +39,10 @@ pub enum StackEntry {
 /// The runtime stack for the WASM machine. It contains
 /// the values used as operands to instructions, context for
 /// active functions, and labels for flow control operations.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Stack(Vec<StackEntry>);
 
-impl Default for Stack {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl Stack {
-    pub fn new() -> Stack {
-        Stack(vec![])
-    }
-
     pub fn push(&mut self, entry: StackEntry) {
         self.0.push(entry);
     }

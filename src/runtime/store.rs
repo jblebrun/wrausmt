@@ -8,18 +8,12 @@ use crate::{
 use std::rc::Rc;
 
 /// The WASM Store as described in the specification.
-#[derive(Debug)]
+#[derive(Default, Debug)]
 pub struct Store {
     // FunctionInstance contain Functions, and thus the code
     // to run. They will be used by execution threads, so
     // are stored as Rc.
     pub funcs: Vec<Rc<FunctionInstance>>,
-}
-
-impl Default for Store {
-    fn default() -> Self {
-        Self::new()
-    }
 }
 
 pub type FuncAddr = u32;
