@@ -19,7 +19,7 @@ use {
     values::Value,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 /// Contains all of the runtime state for the WASM interpreter.
 pub struct Runtime {
     /// The Store of the runtime, as described by the spec.
@@ -32,19 +32,9 @@ pub struct Runtime {
     current_frame: Option<Rc<Frame>>,
 }
 
-impl Default for Runtime {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl Runtime {
-    pub fn new() -> Runtime {
-        Runtime {
-            store: Store::new(),
-            stack: Stack::new(),
-            current_frame: None,
-        }
+    pub fn new() -> Self {
+        Runtime::default()
     }
 
     pub fn load(&mut self, module: Module) -> Rc<ModuleInstance> {
@@ -128,7 +118,7 @@ impl Runtime {
 
         // 6. Let F be a dummy frame. (Represents a dummy "caller" for the function to invoke).
         // 7. Push F to the stack.
-        let dummy_frame = Rc::new(Frame::dummy());
+        let dummy_frame = Rc::new(Frame::default());
         self.stack.push(StackEntry::Activation {
             arity: 0,
             frame: dummy_frame,
