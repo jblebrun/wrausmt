@@ -22,6 +22,11 @@ pub struct ModuleInstance {
     pub exports: Box<[ExportInstance]>,
 
     pub func_offset: u32,
+    pub func_count: usize,
+
+    pub table_offset: u32,
+    pub mem_offset: u32,
+    pub global_offset: u32,
 }
 
 impl ModuleInstance {

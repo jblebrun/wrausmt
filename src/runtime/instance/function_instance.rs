@@ -5,6 +5,8 @@ use crate::runtime::instance::ModuleInstance;
 use crate::runtime::Value;
 use crate::types::FunctionType;
 use std::rc::Rc;
+use std::cell::RefCell;
+use crate::error;
 
 /// A function instance is the runtime representation of a function. [Spec][Spec]
 ///
@@ -15,7 +17,8 @@ use std::rc::Rc;
 /// [Spec]: https://webassembly.github.io/spec/core/exec/runtime.html#function-instances
 #[derive(Debug)]
 pub struct FunctionInstance {
-    pub module_instance: Rc<ModuleInstance>,
+    pub functype: FunctionType,
+    pub module_instance: RefCell<Option<Rc<ModuleInstance>>>,
     pub code: Function,
 }
 
@@ -34,15 +37,23 @@ struct HostFunc {
 }
 
 impl FunctionInstance {
-    pub fn functype(&self) -> &FunctionType {
-        &self.module_instance.types[self.code.functype as usize]
+    pub fn new(func: Function, types: &[FunctionType]) -> FunctionInstance {
+        FunctionInstance {
+            functype: types[func.functype as usize].clone(),
+            module_instance: RefCell::new(None),
+            code: func,
+        }
     }
 
     pub fn validate_args(&self, args: &[Value]) -> Result<()> {
-        let params_arity = self.functype().params.len();
+        let params_arity = self.functype.params.len();
         if params_arity != args.len() {
             return Err(ArgumentCountError::new(params_arity, args.len())).wrap("");
         }
         Ok(())
+    }
+
+    pub fn module_instance(&self) -> Result<Rc<ModuleInstance>> {
+        self.module_instance.borrow().clone().ok_or_else(|| error!("no module instance"))
     }
 }

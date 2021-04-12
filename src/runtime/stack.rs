@@ -90,11 +90,11 @@ impl Stack {
 }
 
 impl ActivationFrame {
-    pub fn new(arity: u32, module: &Rc<ModuleInstance>, locals: Box<[Value]>) -> Self {
+    pub fn new(arity: u32, module: Rc<ModuleInstance>, locals: Box<[Value]>) -> Self {
         ActivationFrame {
             arity,
             locals: RefCell::new(locals),
-            module: module.clone(),
+            module,
         }
     }
 }
