@@ -4,6 +4,42 @@ use crate::error::Result;
 use std::cell::RefCell;
 use std::rc::Rc;
 
+/// Besides the store, most instructions interact with an implicit stack.
+/// [Spec][Spec]
+///
+///  The stack contains three kinds of entries:
+///
+///    Values: the operands of instructions.
+///    Labels: active structured control instructions that can be targeted by branches.
+///    Activations: the call frames of active function calls.
+///
+/// These entries can occur on the stack in any order during the execution of a
+/// program.
+///
+/// It is possible to model the WebAssembly semantics using separate stacks for
+/// operands, control constructs, and calls. However, because the stacks are
+/// interdependent, additional book keeping about associated stack heights would
+/// be required. For the purpose of this specification, an interleaved
+/// representation is simpler.
+/// TODO - Consider tracking three separate stacks.
+///
+/// [Spec]: https://webassembly.github.io/spec/core/exec/runtime.html#stack
+#[derive(Debug, Default)]
+pub struct Stack(Vec<StackEntry>);
+
+/// Stack entries are described by abstract syntax as follows.
+#[derive(Debug)]
+pub enum StackEntry {
+    /// A normal value entry used by operation.
+    Value(Value),
+
+    /// A label entry, used for flow control.
+    Label { arity: u32, continuation: Rc<[u8]> },
+
+    /// An activation entry, used for function calls.
+    Activation { arity: u32, frame: Rc<Frame> },
+}
+
 /// Contains the information needed for a function that's executing.
 /// local contains the values of params and local variables of the
 /// function.
@@ -23,24 +59,6 @@ impl Frame {
         }
     }
 }
-/// A single entry on the runtime stack.
-#[derive(Debug)]
-pub enum StackEntry {
-    /// A normal value entry used by operation.
-    Value(Value),
-
-    /// A label entry, used for flow control.
-    Label { arity: u32, continuation: Rc<[u8]> },
-
-    /// An activation entry, used for function calls.
-    Activation { arity: u32, frame: Rc<Frame> },
-}
-
-/// The runtime stack for the WASM machine. It contains
-/// the values used as operands to instructions, context for
-/// active functions, and labels for flow control operations.
-#[derive(Debug, Default)]
-pub struct Stack(Vec<StackEntry>);
 
 impl Stack {
     pub fn push(&mut self, entry: StackEntry) {

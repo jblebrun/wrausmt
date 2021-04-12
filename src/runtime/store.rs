@@ -1,5 +1,7 @@
-use super::module_instance::ModuleInstance;
-use crate::runtime::function_instance::FunctionInstance;
+use super::instance::export_instance::ExternalVal;
+use super::instance::ExportInstance;
+use super::instance::FunctionInstance;
+use super::ModuleInstance;
 use crate::{
     err,
     error::Result,
@@ -7,7 +9,44 @@ use crate::{
 };
 use std::rc::Rc;
 
-/// The WASM Store as described in the specification.
+/// Function instances, table instances, memory instances, and global instances,
+/// element instances, and data instances in the store are referenced with
+/// abstract addresses. These are simply indices into the respective store
+/// component. In addition, an embedder may supply an uninterpreted set of host
+/// addresses.
+/// [Spec]: https://webassembly.github.io/spec/core/exec/runtime.html#addresses
+pub mod addr {
+    pub type FuncAddr = u32;
+    pub type TableAddr = u32;
+    pub type MemoryAddr = u32;
+    pub type GlobalAddr = u32;
+    pub type ElemAddr = u32;
+    pub type DataAddr = u32;
+    pub type ExternAddr = u32;
+}
+
+/// The WebAssembly Store as described in [the specification][Spec].
+///
+/// The store represents all global state that can be manipulated by WebAssembly
+/// programs. It consists of the runtime representation of all instances of
+/// functions, tables, memories, and globals, element segments, and data segments
+/// that have been allocated during the life time of the abstract machine. 1
+///
+/// It is an invariant of the semantics that no element or data instance is
+/// addressed from anywhere else but the owning module instances.
+/// Syntactically, the store is defined as a record listing the existing
+/// instances of each category:
+///
+///   store := {
+///     funcs [FunctionInstance]*,
+///     tables [TableInstance]*,
+///     mems [MemoryInstance]*,
+///     globals [GlobalInstance]*,
+///     elems [ElemInstance]*,
+///     data [DataInstance]*,
+///   }
+///
+/// [Spec]: https://webassembly.github.io/spec/core/exec/runtime.html#store
 #[derive(Default, Debug)]
 pub struct Store {
     // FunctionInstance contain Functions, and thus the code
@@ -16,31 +55,12 @@ pub struct Store {
     pub funcs: Vec<Rc<FunctionInstance>>,
 }
 
-pub type FuncAddr = u32;
-pub type TableAddr = u32;
-pub type MemoryAddr = u32;
-pub type GlobalAddr = u32;
-
-#[derive(Debug)]
-pub enum ExternalVal {
-    Func(FuncAddr),
-    Table(TableAddr),
-    Memory(MemoryAddr),
-    Global(GlobalAddr),
-}
-
-#[derive(Debug)]
-pub struct Export {
-    pub name: String,
-    pub addr: ExternalVal,
-}
-
 impl Store {
     pub fn new() -> Store {
         Store { funcs: vec![] }
     }
 
-    pub fn func(&self, addr: FuncAddr) -> Result<Rc<FunctionInstance>> {
+    pub fn func(&self, addr: addr::FuncAddr) -> Result<Rc<FunctionInstance>> {
         if self.funcs.len() < addr as usize {
             return err!("No function at addr {}", addr);
         }
@@ -74,7 +94,7 @@ impl Store {
                 .exports
                 .into_vec()
                 .into_iter()
-                .map(|e| Export {
+                .map(|e| ExportInstance {
                     name: e.name,
                     addr: match e.desc {
                         ExportDesc::Func(idx) => ExternalVal::Func(idx + func_offset),

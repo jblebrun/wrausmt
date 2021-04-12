@@ -1,4 +1,4 @@
-name: Rust Tests
+name: Wrausmt Core
 
 on: [pull_request]
 
