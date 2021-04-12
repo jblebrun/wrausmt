@@ -1,21 +1,21 @@
 pub mod error;
 mod exec;
-pub mod function_instance;
-pub mod module_instance;
+mod instance;
 pub mod stack;
 pub mod store;
 pub mod values;
 
-use super::{
+use crate::{
     err,
     error::{Result, ResultFrom},
     module::Module,
 };
-use crate::runtime::module_instance::ModuleInstance;
 use std::rc::Rc;
 use {
+    instance::{ExportInstance, ExternalVal, ModuleInstance},
     stack::{Frame, Stack, StackEntry},
-    store::{Export, ExternalVal, FuncAddr, Store},
+    store::addr,
+    store::Store,
     values::Value,
 };
 
@@ -41,7 +41,7 @@ impl Runtime {
         self.store.load(module)
     }
 
-    pub fn invoke(&mut self, addr: FuncAddr) -> Result<()> {
+    pub fn invoke(&mut self, addr: addr::FuncAddr) -> Result<()> {
         // 1. Assert S.funcaddr exists
         // 2. Let funcinst = S.funcs[funcaddr]
         let funcinst = self.store.func(addr)?;
@@ -95,7 +95,7 @@ impl Runtime {
         vals: &[Value],
     ) -> Result<Value> {
         let funcaddr = match mod_instance.resolve(name) {
-            Some(Export {
+            Some(ExportInstance {
                 name: _,
                 addr: ExternalVal::Func(addr),
             }) => Ok(addr),
