@@ -11,6 +11,8 @@ use crate::types::ValueType;
 ///
 /// It is an invariant of the semantics that the value has a type equal to the
 /// value type of globaltype.
+///
+/// [Spec]: https://webassembly.github.io/spec/core/exec/runtime.html#global-instances
 #[allow(dead_code)]
 pub struct GlobalInstance {
     pub typ: ValueType,

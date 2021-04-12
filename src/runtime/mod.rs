@@ -1,6 +1,6 @@
 pub mod error;
 mod exec;
-mod instance;
+pub mod instance;
 pub mod stack;
 pub mod store;
 pub mod values;
@@ -13,7 +13,7 @@ use crate::{
 use std::rc::Rc;
 use {
     instance::{ExportInstance, ExternalVal, ModuleInstance},
-    stack::{Frame, Stack, StackEntry},
+    stack::{ActivationFrame, Label, Stack},
     store::addr,
     store::Store,
     values::Value,
@@ -27,9 +27,6 @@ pub struct Runtime {
 
     /// The runtime stack.
     stack: Stack,
-
-    /// The topmost frame in the stack, if there is one.
-    current_frame: Option<Rc<Frame>>,
 }
 
 impl Runtime {
@@ -63,25 +60,19 @@ impl Runtime {
         }
 
         // 9. Let F be the frame.
-        let locals = vals.into_boxed_slice();
-        let frame = Rc::new(Frame::new(&funcinst.module_instance, locals));
-
-        // Impl detail: store ref to current frame.
-        self.current_frame = Some(frame.clone());
-
         // 10. Push activation w/ arity m onto the stack.
-        self.stack.push(StackEntry::Activation {
-            arity: funcinst.functype().result.len() as u32,
-            frame,
-        });
+        self.stack.push_activation(ActivationFrame::new(
+            funcinst.functype().result.len() as u32,
+            &funcinst.module_instance,
+            vals.into_boxed_slice(),
+        ));
 
         // 11. Let L be the Label with continuation at function end.
         // 12. Enter the instruction sequence with the label.
 
-        // Impl TODO: label-only stack for convenience?
-        self.stack.push(StackEntry::Label {
+        self.stack.push_label(Label {
             arity: funcinst.functype().result.len() as u32,
-            continuation: Rc::new([]),
+            continuation: 0,
         });
 
         self.enter(&funcinst.code.body)
@@ -118,35 +109,25 @@ impl Runtime {
 
         // 6. Let F be a dummy frame. (Represents a dummy "caller" for the function to invoke).
         // 7. Push F to the stack.
-        let dummy_frame = Rc::new(Frame::default());
-        self.stack.push(StackEntry::Activation {
-            arity: 0,
-            frame: dummy_frame,
-        });
+        self.stack.push_activation(ActivationFrame::default());
 
         // 8. Push the values to the stack.
         for val in vals {
-            self.stack.push(val.into());
+            self.stack.push_value(*val);
         }
 
         // 9. Invoke the function.
         self.invoke(*funcaddr)?;
 
         // assume single result for now
-        let result = self.stack.pop().unwrap();
+        let result = self.stack.pop_value()?;
 
         // pop the label
-        self.stack.pop();
+        self.stack.pop_label()?;
 
         // pop the frame
-        self.stack.pop();
+        self.stack.pop_activation()?;
 
-        // clear current frame
-        self.current_frame = None;
-
-        match result {
-            StackEntry::Value(val) => Ok(val),
-            _ => err!("Bad stack type {:?}", result),
-        }
+        Ok(result)
     }
 }

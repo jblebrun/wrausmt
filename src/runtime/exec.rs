@@ -1,10 +1,9 @@
-use super::{stack::Frame, values::Value, Runtime};
+use super::{stack::ActivationFrame, values::Value, Runtime};
 use crate::{
-    err,
     error::{Error, Result, ResultFrom},
     instructions::*,
 };
-use std::{convert::TryFrom, convert::TryInto, rc::Rc};
+use std::{convert::TryFrom, convert::TryInto};
 
 struct InvocationContext<'l> {
     runtime: &'l mut Runtime,
@@ -44,7 +43,7 @@ impl<'l> ActivationContext for InvocationContext<'l> {
     }
 
     fn push_value(&mut self, val: Value) -> Result<()> {
-        self.runtime.stack.push(val.into());
+        self.runtime.stack.push_value(val);
         Ok(())
     }
 
@@ -62,11 +61,8 @@ impl<'l> ActivationContext for InvocationContext<'l> {
 }
 
 impl<'l> InvocationContext<'l> {
-    fn current_frame(&self) -> Result<Rc<Frame>> {
-        match &self.runtime.current_frame {
-            Some(frame) => Ok(frame.clone()),
-            _ => err!("no current frame"),
-        }
+    fn current_frame(&self) -> Result<&ActivationFrame> {
+        self.runtime.stack.peek_activation()
     }
 
     #[allow(non_upper_case_globals)]

@@ -14,6 +14,7 @@ use std::rc::Rc;
 /// abstract addresses. These are simply indices into the respective store
 /// component. In addition, an embedder may supply an uninterpreted set of host
 /// addresses.
+///
 /// [Spec]: https://webassembly.github.io/spec/core/exec/runtime.html#addresses
 pub mod addr {
     pub type FuncAddr = u32;
@@ -35,16 +36,14 @@ pub mod addr {
 /// It is an invariant of the semantics that no element or data instance is
 /// addressed from anywhere else but the owning module instances.
 /// Syntactically, the store is defined as a record listing the existing
-/// instances of each category:
+/// instances of each category
 ///
-///   store := {
-///     funcs [FunctionInstance]*,
-///     tables [TableInstance]*,
-///     mems [MemoryInstance]*,
-///     globals [GlobalInstance]*,
-///     elems [ElemInstance]*,
-///     data [DataInstance]*,
-///   }
+/// * [FunctionInstance](FunctionInstance)
+/// * [TableInstance](super::instance::TableInstance)
+/// * [MemInstance](super::instance::MemInstance)
+/// * [GlobalInstance](super::instance::GlobalInstance)
+/// * [ElemInstance](super::instance::ElemInstance)
+/// * [DataInstance](super::instance::DataInstance)
 ///
 /// [Spec]: https://webassembly.github.io/spec/core/exec/runtime.html#store
 #[derive(Default, Debug)]

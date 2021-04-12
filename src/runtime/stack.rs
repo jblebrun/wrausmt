@@ -1,5 +1,6 @@
-use super::values::{Num, Value};
+use super::values::Value;
 use super::ModuleInstance;
+use crate::error;
 use crate::error::Result;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -16,84 +17,84 @@ use std::rc::Rc;
 /// These entries can occur on the stack in any order during the execution of a
 /// program.
 ///
-/// It is possible to model the WebAssembly semantics using separate stacks for
-/// operands, control constructs, and calls. However, because the stacks are
-/// interdependent, additional book keeping about associated stack heights would
-/// be required. For the purpose of this specification, an interleaved
-/// representation is simpler.
-/// TODO - Consider tracking three separate stacks.
-///
 /// [Spec]: https://webassembly.github.io/spec/core/exec/runtime.html#stack
 #[derive(Debug, Default)]
-pub struct Stack(Vec<StackEntry>);
-
-/// Stack entries are described by abstract syntax as follows.
-#[derive(Debug)]
-pub enum StackEntry {
-    /// A normal value entry used by operation.
-    Value(Value),
-
-    /// A label entry, used for flow control.
-    Label { arity: u32, continuation: Rc<[u8]> },
-
-    /// An activation entry, used for function calls.
-    Activation { arity: u32, frame: Rc<Frame> },
+pub struct Stack {
+    pub value_stack: Vec<Value>,
+    pub label_stack: Vec<Label>,
+    pub activation_stack: Vec<ActivationFrame>,
 }
 
-/// Contains the information needed for a function that's executing.
-/// local contains the values of params and local variables of the
-/// function.
-/// module contains a module instance for the module defining the function,
-/// which can be used to resolve additional function calls, externals, etc.
+/// Labels carry an argument arity n and their associated branch target. [Spec][Spec]
+///
+/// The branch target is expressed syntactically as an instruction sequence. In the
+/// implementation, the continuation is represented as the index in the currently
+/// executing function that points to the beginning of that instruction sequence.
+///
+/// [Spec]: https://webassembly.github.io/spec/core/exec/runtime.html#labels
 #[derive(Debug, Default)]
-pub struct Frame {
+pub struct Label {
+    /// The number of arguments expected by the code for this label.
+    pub arity: u32,
+
+    /// the implementation of continuation here is an index into the set of
+    /// instructions for the currently executing function.
+    pub continuation: u32,
+}
+
+/// Activation frames carry the return arity n of the respective function, hold
+/// the values of its locals (including arguments) in the order corresponding to
+/// their static local indices, and a reference to the function’s own module
+/// instance:
+#[derive(Debug, Default)]
+pub struct ActivationFrame {
+    pub arity: u32,
     pub locals: RefCell<Box<[Value]>>,
     pub module: Rc<ModuleInstance>,
 }
 
-impl Frame {
-    pub fn new(module: &Rc<ModuleInstance>, locals: Box<[Value]>) -> Frame {
-        Frame {
+impl Stack {
+    pub fn push_value(&mut self, entry: Value) {
+        self.value_stack.push(entry);
+    }
+
+    pub fn push_label(&mut self, label: Label) {
+        self.label_stack.push(label);
+    }
+    pub fn push_activation(&mut self, activation: ActivationFrame) {
+        self.activation_stack.push(activation);
+    }
+
+    pub fn pop_value(&mut self) -> Result<Value> {
+        self.value_stack
+            .pop()
+            .ok_or_else(|| error!("value stack underflow"))
+    }
+    pub fn pop_label(&mut self) -> Result<Label> {
+        self.label_stack
+            .pop()
+            .ok_or_else(|| error!("label stack underflow"))
+    }
+
+    pub fn pop_activation(&mut self) -> Result<ActivationFrame> {
+        self.activation_stack
+            .pop()
+            .ok_or_else(|| error!("activation stack underflow"))
+    }
+
+    pub fn peek_activation(&self) -> Result<&ActivationFrame> {
+        self.activation_stack
+            .last()
+            .ok_or_else(|| error!("activation stack underflow"))
+    }
+}
+
+impl ActivationFrame {
+    pub fn new(arity: u32, module: &Rc<ModuleInstance>, locals: Box<[Value]>) -> Self {
+        ActivationFrame {
+            arity,
             locals: RefCell::new(locals),
             module: module.clone(),
         }
     }
 }
-
-impl Stack {
-    pub fn push(&mut self, entry: StackEntry) {
-        self.0.push(entry);
-    }
-
-    pub fn pop(&mut self) -> Option<StackEntry> {
-        self.0.pop()
-    }
-
-    pub fn pop_value(&mut self) -> Result<Value> {
-        // To investigate - in validated mode,
-        // is it possible to remove all checks here,
-        // and simply unwrap the popped value, assuming
-        // it's Some(Value(_))?
-        match self.0.pop() {
-            Some(StackEntry::Value(val)) => Ok(val),
-            _ => Err("Stack assertion".into()),
-        }
-    }
-}
-
-macro_rules! intostack {
-    ( $ty:ty, $id:ident, $res:expr ) => {
-        impl From<$ty> for StackEntry {
-            fn from($id: $ty) -> StackEntry {
-                StackEntry::Value($res)
-            }
-        }
-    };
-}
-
-intostack! { u32, v, Value::Num(Num::I32(v))}
-intostack! { u64, v, Value::Num(Num::I64(v))}
-intostack! { f32, v, Value::Num(Num::F32(v))}
-intostack! { f64, v, Value::Num(Num::F64(v))}
-intostack! { Value, v, v }
-intostack! { &Value, v, *v }
