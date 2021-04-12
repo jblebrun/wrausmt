@@ -11,6 +11,8 @@ use crate::{
     module::Module,
 };
 use std::rc::Rc;
+
+use self::instance::FunctionInstance;
 use {
     instance::{ExportInstance, ExternalVal, ModuleInstance},
     stack::{ActivationFrame, Label, Stack},
@@ -35,7 +37,29 @@ impl Runtime {
     }
 
     pub fn load(&mut self, module: Module) -> Rc<ModuleInstance> {
-        self.store.load(module)
+        let mut module_instance = ModuleInstance {
+            types: module.types,
+            ..ModuleInstance::default()
+        };
+
+        let func_insts: Vec<FunctionInstance> = module.funcs.into_vec().drain(..)
+            .map(|f| FunctionInstance::new(f, &module_instance.types))
+            .collect();
+
+        module_instance.func_count = func_insts.len();
+        module_instance.func_offset = self.store.alloc_funcs(func_insts);
+
+        let exports = module.exports.into_vec().drain(..)
+            .map(|e| ExportInstance::new(e, &module_instance))
+            .collect();
+
+        module_instance.exports = exports;
+
+        let rcinst = Rc::new(module_instance);
+
+        self.store.update_func_module_instance(&rcinst);
+
+        rcinst
     }
 
     pub fn invoke(&mut self, addr: addr::FuncAddr) -> Result<()> {
@@ -48,7 +72,7 @@ impl Runtime {
         // 5. Let instr* end be the code body
         // 6. Assert (due to validation) n values on the stack
         // 7. Pop val_n from the stack
-        let param_count = funcinst.functype().params.len();
+        let param_count = funcinst.functype.params.len();
         let mut vals: Vec<Value> = vec![];
         for _ in 0..param_count {
             vals.push(self.stack.pop_value()?);
@@ -62,8 +86,8 @@ impl Runtime {
         // 9. Let F be the frame.
         // 10. Push activation w/ arity m onto the stack.
         self.stack.push_activation(ActivationFrame::new(
-            funcinst.functype().result.len() as u32,
-            &funcinst.module_instance,
+            funcinst.functype.result.len() as u32,
+            funcinst.module_instance()?,
             vals.into_boxed_slice(),
         ));
 
@@ -71,7 +95,7 @@ impl Runtime {
         // 12. Enter the instruction sequence with the label.
 
         self.stack.push_label(Label {
-            arity: funcinst.functype().result.len() as u32,
+            arity: funcinst.functype.result.len() as u32,
             continuation: 0,
         });
 
