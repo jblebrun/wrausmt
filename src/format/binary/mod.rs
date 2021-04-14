@@ -20,7 +20,7 @@ use super::error::ParseError;
 use crate::{
     err,
     error::Result,
-    module::{index, Function, Module, section::Section},
+    module::{index, Function, Module, Section},
 };
 use countread::CountRead;
 use section::read_section;

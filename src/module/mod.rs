@@ -16,8 +16,6 @@
 //! Rust standard library's vector type, a Vec type is not defined here.
 //!
 //! [Spec]: https://webassembly.github.io/spec/core/syntax/modules.html
-pub mod section;
-
 use super::types::{FunctionType, GlobalType, MemType, RefType, TableType, ValueType};
 use crate::instructions::Expr;
 
@@ -256,4 +254,25 @@ pub enum ImportDesc {
     Table(TableType),
     Memory(MemType),
     Global(GlobalType),
+}
+
+/// This enum is useful when parsing, and expecting a function to return the contents of one of the
+/// section types.
+#[derive(Debug)]
+pub enum Section {
+    Eof,
+    Skip,
+    Custom(Box<[u8]>),
+    Types(Box<[FunctionType]>),
+    Imports(Box<[Import]>),
+    Funcs(Box<[index::Type]>),
+    Tables(Box<[Table]>),
+    Mems(Box<[Memory]>),
+    Globals(Box<[Global]>),
+    Exports(Box<[Export]>),
+    Start(Option<Start>),
+    Elems(Box<[Elem]>),
+    Code(Box<[Function]>),
+    Data(Box<[Data]>),
+    DataCount(u32),
 }
