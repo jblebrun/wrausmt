@@ -16,6 +16,8 @@
 //! Rust standard library's vector type, a Vec type is not defined here.
 //!
 //! [Spec]: https://webassembly.github.io/spec/core/syntax/modules.html
+pub mod section;
+
 use super::types::{FunctionType, GlobalType, MemType, RefType, TableType, ValueType};
 use crate::instructions::Expr;
 
