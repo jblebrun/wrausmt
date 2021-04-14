@@ -5,30 +5,10 @@ use super::{
     types::ReadTypes,
 };
 use crate::{
+    module::section::Section,
     error::{Result, ResultFrom},
-    module::{index, Import, Memory, Start, Table},
-    module::{Data, Elem, Export, Function, Global},
-    types::FunctionType,
 };
 use std::io::Read;
-
-pub enum Section {
-    Eof,
-    Skip,
-    Custom(Box<[u8]>),
-    Types(Box<[FunctionType]>),
-    Imports(Box<[Import]>),
-    Funcs(Box<[index::Type]>),
-    Tables(Box<[Table]>),
-    Mems(Box<[Memory]>),
-    Globals(Box<[Global]>),
-    Exports(Box<[Export]>),
-    Start(Option<Start>),
-    Elems(Box<[Elem]>),
-    Code(Box<[Function]>),
-    Data(Box<[Data]>),
-    DataCount(u32),
-}
 
 /// Read and return the next section in a binary module being read by a std::io::Read
 /// If the end of the binary module has been reached, Section::Eof will be returned.

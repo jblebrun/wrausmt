@@ -20,10 +20,10 @@ use super::error::ParseError;
 use crate::{
     err,
     error::Result,
-    module::{index, Function, Module},
+    module::{index, Function, Module, section::Section},
 };
 use countread::CountRead;
-use section::{read_section, Section};
+use section::read_section;
 use std::io::Read;
 use values::ReadWasmValues;
 
