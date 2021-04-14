@@ -5,7 +5,7 @@ use super::{
     types::ReadTypes,
 };
 use crate::{
-    module::section::Section,
+    module::Section,
     error::{Result, ResultFrom},
 };
 use std::io::Read;

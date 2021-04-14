@@ -3,7 +3,7 @@ mod token;
 
 use crate::err;
 use crate::error::{Result, ResultFrom};
-use crate::module::section::Section;
+use crate::module::Section;
 use lex::Tokenizer;
 use std::io::Read;
 use token::Token;
@@ -13,6 +13,8 @@ pub struct Parser<R: Read> {
     current: Token,
 }
 
+// Recursive descent parsing. So far, the grammar for the text format seems to be LL(1),
+// so recursive descent works out really nicely.
 impl<R: Read> Parser<R> {
     pub fn parse(r: R) -> Result<Vec<Section>> {
         let mut parser = Parser::new(r)?;
@@ -48,6 +50,10 @@ impl<R: Read> Parser<R> {
         Ok(())
     }
 
+
+    /// Attempt to parse the current token stream as a WebAssembly module.
+    /// On success, a vector of sections is returned. They can be organized into a
+    /// module object.
     fn parse_module(&mut self) -> Result<Vec<Section>> {
         if self.current != Token::Open {
             return err!("Invalid start token {:?}", self.current);
@@ -112,6 +118,9 @@ impl<R: Read> Parser<R> {
             "import" => self.parse_import_section(),
             "export" => self.parse_export_section(),
             "global" => self.parse_global_section(),
+            "start" => self.parse_start_section(),
+            "elem" => self.parse_elem_section(),
+            "data" => self.parse_data_section(),
             _ => err!("unknown section name {}", name)
         }
     }
@@ -122,6 +131,8 @@ impl<R: Read> Parser<R> {
     }
 
     fn parse_func_section(&mut self) -> Result<Option<Section>> {
+        // Note to self: functions may also end up returning types, imports, and exports,
+        // if they are defined inline.
         self.consume_expression()?; 
         Ok(Some(Section::Funcs(Box::new([]))))
     }   
@@ -149,5 +160,20 @@ impl<R: Read> Parser<R> {
     fn parse_global_section(&mut self) -> Result<Option<Section>> {
         self.consume_expression()?; 
         Ok(Some(Section::Globals(Box::new([]))))
+    }
+    
+    fn parse_start_section(&mut self) -> Result<Option<Section>> {
+        self.consume_expression()?; 
+        Ok(Some(Section::Start(None)))
+    }
+    
+    fn parse_elem_section(&mut self) -> Result<Option<Section>> {
+        self.consume_expression()?; 
+        Ok(Some(Section::Elems(Box::new([]))))
+    }
+
+    fn parse_data_section(&mut self) -> Result<Option<Section>> {
+        self.consume_expression()?; 
+        Ok(Some(Section::Data(Box::new([]))))
     }
 }
