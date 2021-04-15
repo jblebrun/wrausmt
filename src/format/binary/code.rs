@@ -57,7 +57,8 @@ pub trait ReadCode: ReadWasmValues {
     }
 
     /// Read the instructions from one function in the code section.
-    /// The code is stored in the module as raw bytes, with LEB128 numbers
+    /// The code is stored in the module as raw bytes, mostly following the 
+    /// same structure that it has in the binary module ,but with LEB128 numbers
     /// converted to little-endian format.
     /// expr := (instr)*
     fn read_expr(&mut self) -> Result<Box<[u8]>> {
