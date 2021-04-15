@@ -2,6 +2,8 @@ use super::{stack::ActivationFrame, values::Value, Runtime};
 use crate::error::{Error, Result, ResultFrom};
 use std::{convert::TryFrom, convert::TryInto};
 use crate::instructions::opconsts::*;
+use crate::instructions::gentypes;
+use crate::instructions::Instruction;
 
 struct ExecutionContext<'l> {
     runtime: &'l mut Runtime,
@@ -70,47 +72,13 @@ impl<'l> ExecutionContext<'l> {
             println!("HANDLE OP 0x{:x}", op);
             self.pc += 1;
             match op {
-                Return => return Ok(()),
-                GlobalGet => {
-                    let idx = self.op_u32()?;
-                    // TODO - actual find a global
-                    self.push(idx)?;
-                }
-                LocalGet => {
-                    let idx = self.op_u32()?;
-                    let val = self.get_local(idx)?;
-                    self.push_value(val)?;
-                }
-                LocalSet => {
-                    let idx = self.op_u32()?;
-                    let val = self.pop_value()?;
-                    self.set_local(idx, val)?;
-                }
-                I32const => {
-                    let val = self.op_u32()?;
-                    self.push_value(val.into())?;
-                }
-                I32Add => {
-                    let a = self.pop::<u32>()?;
-                    let b = self.pop::<u32>()?;
-                    self.push(a + b)?;
-                }
-                I32Sub => {
-                    let a = self.pop::<u32>()?;
-                    let b = self.pop::<u32>()?;
-                    self.push(a - b)?;
-                }
-                I32Load => {
-                    let _align = self.op_u32()?;
-                    let _offset = self.op_u32()?;
-                    // TODO - actual load memory
-                }
-                I32Store => {
-                    let _align = self.op_u32()?;
-                    let _offset = self.op_u32()?;
-                    // TODO - actual store memory
-                }
-                End => return Ok(()),
+                Return => gentypes::Return::exec(self)?,
+                LocalGet => gentypes::LocalGet::exec(self)?,
+                LocalSet => gentypes::LocalSet::exec(self)?,
+                I32const => gentypes::I32const::exec(self)?,
+                I32Add => gentypes::I32Add::exec(self)?,
+                I32Sub => gentypes::I32Sub::exec(self)?,
+                End => gentypes::End::exec(self)?,
                 _ => panic!("not yet for {:x}", op),
             }
         }

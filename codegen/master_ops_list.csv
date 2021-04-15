@@ -16,8 +16,17 @@
 0xD0      ,ref.null                      ,(u32)
 0xD1      ,ref.is_null                   ,()
 0xD2      ,ref.func                      ,(u32)
+
 0x20      ,local.get                     ,(u32)
+| let i = _ec.op_u32()?;
+| let v = _ec.get_local(i)?;
+| _ec.push_value(v)?;
+
 0x21      ,local.set                     ,(u32)
+| let i = _ec.op_u32()?;
+| let v = _ec.pop_value()?;
+| _ec.set_local(i, v)?;
+
 0x22      ,local.tee                     ,(u32)
 0x23      ,global.get                    ,(u32)
 0x24      ,global.set                    ,(u32)
@@ -49,6 +58,9 @@
 0x3f      ,memory.size                   ,(d8)
 0x40      ,memory.grow                   ,(d8)
 0x41      ,i32const                      ,(u32)
+| let v = _ec.op_u32()?;
+| _ec.push_value(v.into())?;
+
 0x42      ,i64const                      ,(u64)
 0x43      ,f32const                      ,(f32)
 0x44      ,f64.const                     ,(f64)
@@ -90,7 +102,15 @@
 0x68      ,i32.ctz                       ,()
 0x69      ,i32.popcnt                    ,()
 0x6a      ,i32.add                       ,()
+| let r = _ec.pop::<u32>()?;
+| let l = _ec.pop::<u32>()?;
+| _ec.push(l + r)?; 
+
 0x6b      ,i32.sub                       ,()
+| let r = _ec.pop::<u32>()?;
+| let l = _ec.pop::<u32>()?;
+| _ec.push(r - l)?; 
+
 0x6c      ,i32.mul                       ,()
 0x6d      ,i32.div_s                     ,()
 0x6e      ,i32.div_u                     ,()
