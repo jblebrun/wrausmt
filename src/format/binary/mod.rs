@@ -22,8 +22,8 @@ use crate::{
     error::Result,
     module::{index, Function, Module, Section},
 };
+use section::SectionReader;
 use countread::CountRead;
-use section::read_section;
 use std::io::Read;
 use values::ReadWasmValues;
 
@@ -50,29 +50,27 @@ fn parse_inner<R: Read>(reader: &mut R, module: &mut Module) -> Result<()> {
     let mut functypes: Box<[index::Func]> = Box::new([]);
 
     loop {
-        let section = read_section(reader);
-        match section {
-            Ok(Section::Eof) => break,
-            Ok(Section::Skip) => (),
-            Ok(Section::Custom(_)) => (),
-            Ok(Section::Types(t)) => module.types = t,
-            Ok(Section::Imports(i)) => module.imports = i,
-            Ok(Section::Funcs(f)) => functypes = f,
-            Ok(Section::Tables(t)) => module.tables = t,
-            Ok(Section::Mems(m)) => module.mems = m,
-            Ok(Section::Globals(g)) => module.globals = g,
-            Ok(Section::Exports(e)) => module.exports = e,
-            Ok(Section::Start(s)) => module.start = s,
-            Ok(Section::Elems(e)) => module.elems = e,
-            Ok(Section::Code(c)) => {
+        match reader.read_section()? {
+            Section::Eof => break,
+            Section::Skip => (),
+            Section::Custom(_) => (),
+            Section::Types(t) => module.types = t,
+            Section::Imports(i) => module.imports = i,
+            Section::Funcs(f) => functypes = f,
+            Section::Tables(t) => module.tables = t,
+            Section::Mems(m) => module.mems = m,
+            Section::Globals(g) => module.globals = g,
+            Section::Exports(e) => module.exports = e,
+            Section::Start(s) => module.start = s,
+            Section::Elems(e) => module.elems = e,
+            Section::Code(c) => {
                 module.funcs = c;
                 resolve_functypes(module.funcs.as_mut(), &functypes)?
             }
-            Ok(Section::Data(d)) => module.datas = d,
-            Ok(Section::DataCount(_)) => {
+            Section::Data(d) => module.datas = d,
+            Section::DataCount(_) => {
                 // Validate data count
             }
-            Err(e) => return Err(e),
         }
     }
     Ok(())
