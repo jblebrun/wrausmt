@@ -7,6 +7,7 @@ use crate::{
     types::ValueType,
 };
 use std::io::{Read, Write};
+use crate::instructions::opconsts::*;
 
 /// Read the Code section of a binary module.
 /// codesec := section vec(code)
@@ -93,8 +94,8 @@ pub trait ReadCode: ReadWasmValues {
             GlobalGet => self.read_1_arg(out)?,
             I32Load => self.read_2_args(out)?,
             I32Store => self.read_2_args(out)?,
-            I32Const => self.read_1_arg(out)?,
-            F32Const => self.read_1_arg(out)?,
+            I32const => self.read_1_arg(out)?,
+            F32const => self.read_1_arg(out)?,
             I32Add => (),
             I32Sub => (),
             _ => return err!("unknown opcode 0x{:x?}", opcode),

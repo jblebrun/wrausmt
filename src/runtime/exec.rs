@@ -1,19 +1,17 @@
 use super::{stack::ActivationFrame, values::Value, Runtime};
-use crate::{
-    error::{Error, Result, ResultFrom},
-    instructions::*,
-};
+use crate::error::{Error, Result, ResultFrom};
 use std::{convert::TryFrom, convert::TryInto};
+use crate::instructions::opconsts::*;
 
-struct InvocationContext<'l> {
+struct ExecutionContext<'l> {
     runtime: &'l mut Runtime,
     body: &'l [u8],
     pc: usize,
 }
 
-trait ActivationContext {
+pub trait ExecutionContextActions {
     fn next_byte(&mut self) -> u8;
-    fn next_u32(&mut self) -> Result<u32>;
+    fn op_u32(&mut self) -> Result<u32>;
     fn get_local(&mut self, idx: u32) -> Result<Value>;
     fn set_local(&mut self, idx: u32, val: Value) -> Result<()>;
     fn push_value(&mut self, val: Value) -> Result<()>;
@@ -22,12 +20,12 @@ trait ActivationContext {
     fn pop<T: TryFrom<Value, Error = Error>>(&mut self) -> Result<T>;
 }
 
-impl<'l> ActivationContext for InvocationContext<'l> {
-    fn next_byte(&mut self) -> u8 {
+impl <'l> ExecutionContextActions for ExecutionContext<'l> {
+    fn next_byte(&mut self) -> u8{
         self.body[self.pc]
     }
 
-    fn next_u32(&mut self) -> Result<u32> {
+    fn op_u32(&mut self) -> Result<u32> {
         let result = u32::from_le_bytes(self.body[self.pc..self.pc + 4].try_into().wrap("idx")?);
         self.pc += 4;
         Ok(result)
@@ -60,36 +58,36 @@ impl<'l> ActivationContext for InvocationContext<'l> {
     }
 }
 
-impl<'l> InvocationContext<'l> {
+impl<'l> ExecutionContext<'l> {
+
     fn current_frame(&self) -> Result<&ActivationFrame> {
         self.runtime.stack.peek_activation()
     }
-
     #[allow(non_upper_case_globals)]
     pub fn run(&mut self) -> Result<()> {
         while self.pc < self.body.len() {
             let op = self.body[self.pc];
-            println!("HANDLE OP {}", op);
+            println!("HANDLE OP 0x{:x}", op);
             self.pc += 1;
             match op {
                 Return => return Ok(()),
                 GlobalGet => {
-                    let idx = self.next_u32()?;
+                    let idx = self.op_u32()?;
                     // TODO - actual find a global
                     self.push(idx)?;
                 }
                 LocalGet => {
-                    let idx = self.next_u32()?;
+                    let idx = self.op_u32()?;
                     let val = self.get_local(idx)?;
                     self.push_value(val)?;
                 }
                 LocalSet => {
-                    let idx = self.next_u32()?;
+                    let idx = self.op_u32()?;
                     let val = self.pop_value()?;
                     self.set_local(idx, val)?;
                 }
-                I32Const => {
-                    let val = self.next_u32()?;
+                I32const => {
+                    let val = self.op_u32()?;
                     self.push_value(val.into())?;
                 }
                 I32Add => {
@@ -103,13 +101,13 @@ impl<'l> InvocationContext<'l> {
                     self.push(a - b)?;
                 }
                 I32Load => {
-                    let _align = self.next_u32()?;
-                    let _offset = self.next_u32()?;
+                    let _align = self.op_u32()?;
+                    let _offset = self.op_u32()?;
                     // TODO - actual load memory
                 }
                 I32Store => {
-                    let _align = self.next_u32()?;
-                    let _offset = self.next_u32()?;
+                    let _align = self.op_u32()?;
+                    let _offset = self.op_u32()?;
                     // TODO - actual store memory
                 }
                 End => return Ok(()),
@@ -124,7 +122,7 @@ impl<'l> InvocationContext<'l> {
 impl Runtime {
     pub fn enter(&mut self, body: &[u8]) -> Result<()> {
         println!("EXECUTING {:x?}", body);
-        let mut ic = InvocationContext {
+        let mut ic = ExecutionContext {
             runtime: self,
             body,
             pc: 0,
