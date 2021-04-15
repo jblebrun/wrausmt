@@ -1,5 +1,5 @@
 pub mod error;
-mod exec;
+pub mod exec;
 pub mod instance;
 pub mod stack;
 pub mod store;
