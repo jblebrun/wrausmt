@@ -22,7 +22,7 @@ struct Instruction {
     opcode: String,
 
     /// The parseargs descriptor.
-    parseargs: String,
+    parse_args: String,
 
     /// The body of the execution function.
     body: String
@@ -36,7 +36,7 @@ impl Instruction {
             typename: typename(fields[1]),
             name: fields[1].to_string(),
             opcode: fields[0].to_string(),
-            parseargs: parse_args(fields[2]),
+            parse_args: parse_args(fields[2]),
             body: String::new()
         }
     }
@@ -104,15 +104,15 @@ pub fn parse() -> Result<()> {
     // Emit the file containing the lookup array.
     emit_exec_table(&insts)?;
 
+    // Emit the file containing the lookup array for instruction data, by opcode.
+    emit_instruction_data_table(&insts)?;
+
     Ok(())
 }   
 
 pub static CODE_HEADER: &str = &"
 use crate::runtime::exec::ExecutionContext;
 use crate::runtime::exec::ExecutionContextActions;
-use crate::instructions::Instruction;
-use crate::instructions::InstructionData;
-use crate::instructions::ParseArgs;
 use crate::error::Result;
 ";
 
@@ -141,6 +141,7 @@ fn emit_module() -> Result<()> {
         .open("src/generated/mod.rs")?;
     f.write_all(GEN_HEADER.as_bytes())?;
     f.write_all("pub mod exec_table;\n".as_bytes())?;
+    f.write_all("pub mod data_table;\n".as_bytes())?;
     f.write_all("pub mod instructions;\n".as_bytes())
 }
 
@@ -153,7 +154,6 @@ pub static GEN_HEADER: &str = &"
 
 pub static EXEC_TABLE_HEADER: &str = &"
 use crate::instructions::ExecFn;
-use crate::instructions::Instruction;
 use crate::instructions::unimpl;
 use crate::instructions::bad;
 use crate::generated::instructions;
@@ -179,38 +179,57 @@ fn emit_exec_table(insts: &HashMap<u32, Instruction>) -> Result<()> {
     Ok(())
 }
 
+pub static DATA_TABLE_HEADER: &str = &"
+use crate::instructions::InstructionData;
+use crate::instructions::ParseArgs;
+use crate::instructions::BAD_INSTRUCTION;
+
+pub static INSTRUCTION_DATA: &[&InstructionData] = &[
+";
+
+fn emit_instruction_data_table(insts: &HashMap<u32, Instruction>) -> Result<()> {
+    let mut f = OpenOptions::new()
+        .write(true).create(true).truncate(true)
+        .open("src/generated/data_table.rs")?;
+    
+    f.write_all(DATA_TABLE_HEADER.as_bytes())?;
+
+    for i in 0u32..256 {
+        f.write_all(data_table_item(insts.get(&i)).as_bytes())?;
+    }
+    
+    f.write_all("];\n".as_bytes())?;
+
+    Ok(())
+}
+
+fn data_table_item(inst: Option<&Instruction>) -> String {
+    match inst {
+        Some(i) => format!("  &InstructionData {{ opcode: {}, name: \"{}\", parse_args: {} }},\n", 
+            i.opcode,
+            i.name,
+            i.parse_args
+        ),
+        _ => "  &BAD_INSTRUCTION,\n".into()
+    }
+}
+
 /// Emit one time in the lookup table.
 fn exec_table_item(inst: Option<&Instruction>) -> String {
     match inst {
         None => "  bad,\n".into(),
         Some(i) if i.body.is_empty() => "  unimpl,\n".into(),
-        Some(i) => format!("  instructions::{}::exec,\n", i.typename)
+        Some(i) => format!("  instructions::{}_exec,\n", i.typename)
     }
 }
 
 fn code_item(inst: &Instruction) -> String {
-    format!(
-"pub struct {typename} {{ }}
-
-
-impl Instruction for {typename} {{
-  fn data() -> InstructionData {{
-    InstructionData {{
-      opcode: {opcode},
-      name: \"{name}\",
-      parse_args: ParseArgs::None,
-    }}
-  }}
-
-  fn exec(_ec: &mut ExecutionContext) -> Result<()> {{
-{body}    Ok(())
-  }}
-
+    format!("
+pub fn {typename}_exec(_ec: &mut ExecutionContext) -> Result<()> {{
+  {body}    Ok(())
 }}
 ",
     typename = inst.typename,
-    opcode = inst.opcode,
-    name = inst.name,
     body  = inst.body,
     )
 }
@@ -220,20 +239,12 @@ impl Instruction for {typename} {{
 /// punctuation symbol is converted to uppercase.
 pub fn typename(s: &str) -> String {
     let mut result = String::new();
-    let mut ucnext = true;
 
     for ch in s.as_bytes().iter().map(|c| *c as char) {
-        let include = !matches!(ch, '.' | '_');
-
-        if include {
-            if ucnext {
-                result.push(ch.to_ascii_uppercase());
-            } else {
-                result.push(ch);
-            }
+        match ch {
+            '.' | '_' => result.push('_'),
+            _ => result.push(ch)
         }
-
-        ucnext = !include;
     }
 
     result

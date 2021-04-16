@@ -1,7 +1,7 @@
 use super::{stack::ActivationFrame, values::Value, Runtime};
 use crate::error::{Error, Result, ResultFrom};
 use std::{convert::TryFrom, convert::TryInto};
-use crate::generated::exec_table::EXEC_TABLE;
+use crate::instructions::exec_method;
 
 pub struct ExecutionContext<'l> {
     runtime: &'l mut Runtime,
@@ -69,7 +69,7 @@ impl<'l> ExecutionContext<'l> {
             let op = self.body[self.pc];
             println!("HANDLE OP 0x{:x}", op);
             self.pc += 1;
-            EXEC_TABLE[op as usize](self).wrap(&format!("for opcode 0x{:x}", op))?;
+            exec_method(op, self)?;
         }
         Ok(())
     }

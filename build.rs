@@ -1,6 +1,3 @@
-use codegen::parse;
-
 fn main() {
-    println!("HELLO");
-    parse().unwrap();
+    codegen::parse().unwrap();
 }
