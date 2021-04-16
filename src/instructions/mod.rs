@@ -2,10 +2,8 @@ pub mod opconsts;
 pub mod gentypes;
 pub mod exec_table;
 
-use crate::runtime::exec::ExecutionContextActions;
 use crate::error::Result;
 
-use self::gentypes::LocalGet;
 
 pub type Expr = [u8];
 
@@ -14,12 +12,12 @@ enum ParseArgs {
     None,
     U32,
     U32U32,
-    VU32,
-    VU32U32,
+    Vu32,
+    Vu32U32,
     D8,
     U64,
-    F32,
-    F64,
+    F3,
+    F6,
     D8D8,
     U32D8
 }
@@ -40,15 +38,15 @@ use crate::runtime::exec::ExecutionContext;
 use crate::err;
 pub type ExecFn = fn(ec: &mut ExecutionContext) -> Result<()>;
 
-pub fn bad(ec: &mut ExecutionContext) -> Result<()> {
+pub fn bad(_ec: &mut ExecutionContext) -> Result<()> {
     err!("unknown oopcode")
 }
 
-pub fn unimpl(ec: &mut ExecutionContext) -> Result<()> {
+pub fn unimpl(_ec: &mut ExecutionContext) -> Result<()> {
     err!("not yet implemented")
 }
 
-static EXEC_TABLE: &[ExecFn] = &[
+pub static EXEC_TABLE: &[ExecFn] = &[
     bad,
     gentypes::Nop::exec,
 
