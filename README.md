@@ -21,31 +21,5 @@ local, and const instructions for i32 types.
 
 ### Rough TODO/Status list
 
-There will be a single WASM ops file that contains metadata about WASM
-operations, and code snippets to execute them given an "execution context". The
-plan is to use this file to generate tedious, repetitive code. I'm hoping that this
-will help in situations where I might want to refactor instruction
-organization, to avoid lots of tediuos code updating.
-
-* Binary parser 
-  * Most structure prsent and complete
-  * Many instructions not parsed yet.
-* Text parser 
-  * Lexer complete
-  * basic parsing section scaffold in placer.
-* Execution engine 
-  * Very rough structure present. 
-* Instruction implementations for parsing & execution
-  * Just a handful of instructions.
-* Memory implementation
-  * Not started
-* Host function implementation
-  * Not started
-* Module validation
-  * Not started
-* Spec test execution
-  * Not started
-
-
-
-
+* [TODO](./TODO.md)
+* [Other notes](./NOTES.md)
