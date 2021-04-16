@@ -8,7 +8,7 @@ use crate::err;
 
 pub type Expr = [u8];
 
-pub enum ParseArgs {
+pub enum Operands {
     None,
     U32,
     U32U32,
@@ -25,7 +25,7 @@ pub enum ParseArgs {
 pub struct InstructionData {
     pub opcode: u8,
     pub name: &'static str,
-    pub parse_args: ParseArgs
+    pub operands: Operands 
 }
 
 pub type ExecFn = fn(ec: &mut ExecutionContext) -> Result<()>;
@@ -41,7 +41,7 @@ pub fn unimpl(_ec: &mut ExecutionContext) -> Result<()> {
 pub const BAD_INSTRUCTION: InstructionData = InstructionData{
     opcode: 0, 
     name: "bad", 
-    parse_args: ParseArgs::None
+    operands: Operands::None, 
 };
 
 pub fn exec_method(opcode: u8, ec: &mut ExecutionContext) -> Result<()> {

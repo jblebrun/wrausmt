@@ -85,10 +85,10 @@ pub trait ReadCode: ReadWasmValues {
 
         // Handle any additional behavior
         #[allow(non_upper_case_globals)]
-        match instruction_data.parse_args {
-            ParseArgs::None => (),
-            ParseArgs::U32 => self.read_1_arg(out)?,
-            ParseArgs::U32U32 => self.read_2_args(out)?,
+        match instruction_data.operands {
+            Operands::None => (),
+            Operands::U32 => self.read_1_arg(out)?,
+            Operands::U32U32 => self.read_2_args(out)?,
             _ => return err!("unknown opcode 0x{:x?}", opcode),
         };
         Ok(1)
