@@ -4,10 +4,14 @@
 0x04      ,if                            ,Single
 0x05      ,else                          ,()
 0x0B      ,end                           ,()
+| // eventually pop label
+
 0x0C      ,br                            ,(u32)
 0x0D      ,br_if                         ,(u32)
 0x0E      ,br_table                      ,(vu32; u32)
 0x0F      ,return                        ,()
+| // eventually do returny things
+
 0x10      ,call                          ,(u32)
 0x11      ,call_indirect                 ,(u32)
 0x1A      ,drop                          ,()
@@ -201,21 +205,4 @@
 0xc3      ,i64.extend16_s                ,()
 0xc4      ,i64.extend32_s                ,()
 0xfc      ,extended                      ,()
-0x00      ,i32.trunc_sat_f32_s           ,()
-0x01      ,i32.trunc_sat_f32_u           ,()
-0x02      ,i32.trunc_sat_f64_s           ,()
-0x03      ,i32.trunc_sat_f64_u           ,()
-0x04      ,i64.trunc_sat_f32_s           ,()
-0x05      ,i64.trunc_sat_f32_u           ,()
-0x06      ,i64.trunc_sat_f64_s           ,()
-0x07      ,i64.trunc_sat_f64_u           ,()
-0x08      ,memory.init                   ,(u32; d8)
-0x09      ,data.drop                     ,(u32)
-0x0a      ,memory.copy                   ,(d8; d8)
-0x0b      ,memory.fill                   ,(d8)
-0x0c      ,table.init                    ,(u32; u32)
-0x0d      ,elem.drop                     ,(u32)
-0x0e      ,table.copy                    ,(u32; u32)
-0x0f      ,table.grow                    ,(u32)
-0x10      ,table.size                    ,(u32)
-0x11      ,table.fill                    ,(u32)
+

@@ -1,11 +1,9 @@
 use super::{stack::ActivationFrame, values::Value, Runtime};
 use crate::error::{Error, Result, ResultFrom};
 use std::{convert::TryFrom, convert::TryInto};
-use crate::instructions::opconsts::*;
-use crate::instructions::gentypes;
-use crate::instructions::Instruction;
+use crate::instructions::exec_table::EXEC_TABLE;
 
-struct ExecutionContext<'l> {
+pub struct ExecutionContext<'l> {
     runtime: &'l mut Runtime,
     body: &'l [u8],
     pc: usize,
@@ -71,16 +69,7 @@ impl<'l> ExecutionContext<'l> {
             let op = self.body[self.pc];
             println!("HANDLE OP 0x{:x}", op);
             self.pc += 1;
-            match op {
-                Return => gentypes::Return::exec(self)?,
-                LocalGet => gentypes::LocalGet::exec(self)?,
-                LocalSet => gentypes::LocalSet::exec(self)?,
-                I32const => gentypes::I32const::exec(self)?,
-                I32Add => gentypes::I32Add::exec(self)?,
-                I32Sub => gentypes::I32Sub::exec(self)?,
-                End => gentypes::End::exec(self)?,
-                _ => panic!("not yet for {:x}", op),
-            }
+            EXEC_TABLE[op as usize](self).wrap(&format!("for opcode 0x{:x}", op))?;
         }
         Ok(())
     }

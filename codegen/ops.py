@@ -11,8 +11,9 @@ impl Instruction for {typename} {{
     }}
   }}
 
-  fn exec<E:ExecutionContextActions>(_ec: &mut E) -> Result<()> {{
+  fn exec(_ec: &mut ExecutionContext) -> Result<()> {{
 {body}
+    Ok(())
   }}
 }}
 """
@@ -37,8 +38,8 @@ def parse_args_name(field):
         return "ParseArgs::U32U32"
     return "ParseArgs::None"
 
-def emit_rust_code(instr):
-    print(code_template.format(**instr))
+def emit_rust_code(instr, f):
+    f.write(code_template.format(**instr))
 
 def emit_const_table(instr):
     print("""
@@ -59,11 +60,8 @@ def instr(fields):
 def parse():
     f = open("codegen/master_ops_list.csv", "r")
     curinst = None
-    print("use crate::runtime::exec::ExecutionContextActions;")
-    print("use crate::instructions::Instruction;")
-    print("use crate::instructions::InstructionData;")
-    print("use crate::instructions::ParseArgs;")
-    print("use crate::error::Result;")
+
+    opcode_to_instr = {}
 
     for line in f:
         if line[0] == "|":
@@ -79,18 +77,50 @@ def parse():
 
         if fields[0] == "OPCODE": continue
 
-        if curinst is not None:
-            curinst["body"] += "   Ok(())"
-            emit_rust_code(curinst)
+        opnum = int(fields[0], 16)
         curinst = instr(fields)
+        
+        opcode_to_instr[opnum] = curinst
 
-        #print("{:<10},{:<30},{}".format(*fields))
-        #emit_rust_code(fields)
+    return opcode_to_instr
 
+def emit_instructions_code_file(insts):
+    f = open("src/instructions/gentypes.rs", "w")
+    f.write("use crate::runtime::exec::ExecutionContext;\n")
+    f.write("use crate::runtime::exec::ExecutionContextActions;\n")
+    f.write("use crate::instructions::Instruction;\n")
+    f.write("use crate::instructions::InstructionData;\n")
+    f.write("use crate::instructions::ParseArgs;\n")
+    f.write("use crate::error::Result;\n")
+    for inst in insts:
+        emit_rust_code(insts[inst], f)
+    f.close()
+
+def emit_exec_table(insts):
+    f = open("src/instructions/exec_table.rs", "w")
+    f.write("use crate::instructions::ExecFn;\n")
+    f.write("use crate::instructions::Instruction;\n")
+    f.write("use crate::instructions::unimpl;\n")
+    f.write("use crate::instructions::bad;\n")
+    f.write("use crate::instructions::gentypes;\n\n")
+    f.write("pub static EXEC_TABLE: &[ExecFn] = &[\n")
+    for i in range(0,256):
+        if i in insts:
+            if insts[i]["body"] == "":
+                f.write("  unimpl,\n")
+            else:
+                f.write("  gentypes::{typename}::exec,\n".format(**insts[i]))
+        else:
+            f.write("  bad,\n")
+    f.write("];\n")
+    f.close()
 
 if __name__ == "__main__":
-    parse()
+    insts = parse()
 
+    emit_instructions_code_file(insts)
+
+    emit_exec_table(insts)
 
 
 
