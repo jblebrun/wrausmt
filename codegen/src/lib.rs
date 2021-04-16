@@ -120,7 +120,7 @@ use crate::error::Result;
 fn emit_code_file(insts: &HashMap<u32, Instruction>) -> Result<()> {
     let mut f = OpenOptions::new()
         .write(true).create(true).truncate(true)
-        .open("src/generated/instructions.rs")?;
+        .open("src/instructions/generated/instructions.rs")?;
     println!("WRITING {} TO {:?}", insts.len(), f);
     f.write_all(GEN_HEADER.as_bytes())?;
     f.write_all(CODE_HEADER.as_bytes())?;
@@ -135,10 +135,10 @@ fn emit_code_file(insts: &HashMap<u32, Instruction>) -> Result<()> {
 }
 
 fn emit_module() -> Result<()> {
-    create_dir_all("src/generated")?;
+    create_dir_all("src/instructions/generated")?;
     let mut f = OpenOptions::new()
         .write(true).create(true).truncate(true)
-        .open("src/generated/mod.rs")?;
+        .open("src/instructions/generated/mod.rs")?;
     f.write_all(GEN_HEADER.as_bytes())?;
     f.write_all("pub mod exec_table;\n".as_bytes())?;
     f.write_all("pub mod data_table;\n".as_bytes())?;
@@ -156,7 +156,7 @@ pub static EXEC_TABLE_HEADER: &str = &"
 use crate::instructions::ExecFn;
 use crate::instructions::unimpl;
 use crate::instructions::bad;
-use crate::generated::instructions;
+use super::instructions;
 
 pub static EXEC_TABLE: &[ExecFn] = &[
 ";
@@ -166,7 +166,7 @@ pub static EXEC_TABLE: &[ExecFn] = &[
 fn emit_exec_table(insts: &HashMap<u32, Instruction>) -> Result<()> {
     let mut f = OpenOptions::new()
         .write(true).create(true).truncate(true)
-        .open("src/generated/exec_table.rs")?;
+        .open("src/instructions/generated/exec_table.rs")?;
 
     f.write_all(EXEC_TABLE_HEADER.as_bytes())?;
 
@@ -190,7 +190,7 @@ pub static INSTRUCTION_DATA: &[&InstructionData] = &[
 fn emit_instruction_data_table(insts: &HashMap<u32, Instruction>) -> Result<()> {
     let mut f = OpenOptions::new()
         .write(true).create(true).truncate(true)
-        .open("src/generated/data_table.rs")?;
+        .open("src/instructions/generated/data_table.rs")?;
     
     f.write_all(DATA_TABLE_HEADER.as_bytes())?;
 

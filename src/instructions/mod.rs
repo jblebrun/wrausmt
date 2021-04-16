@@ -1,6 +1,8 @@
+mod generated;
+
 use crate::error::{Result, ResultFrom};
-use crate::generated::exec_table::EXEC_TABLE;
-use crate::generated::data_table::INSTRUCTION_DATA;
+use generated::exec_table::EXEC_TABLE;
+use generated::data_table::INSTRUCTION_DATA;
 use crate::runtime::exec::ExecutionContext;
 use crate::err;
 
