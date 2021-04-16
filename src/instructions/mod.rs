@@ -8,6 +8,7 @@ use crate::err;
 
 pub type Expr = [u8];
 
+#[derive(PartialEq, Debug)]
 pub enum Operands {
     None,
     U32,
@@ -22,6 +23,7 @@ pub enum Operands {
     U32D8
 }
 
+#[derive(PartialEq, Debug)]
 pub struct InstructionData {
     pub opcode: u8,
     pub name: &'static str,
@@ -53,6 +55,7 @@ pub fn exec_method(opcode: u8, ec: &mut ExecutionContext) -> Result<()> {
 
 pub fn instruction_data<'l>(opcode: u8) -> Result<&'l InstructionData> {
     match INSTRUCTION_DATA.get(opcode as usize) {
+        Some(id) if id == &&BAD_INSTRUCTION => err!("invalid instruction {}", opcode), 
         Some(id) => Ok(id), 
         None => err!("unhandled opcode {}", opcode)
     }

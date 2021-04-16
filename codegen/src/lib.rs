@@ -224,6 +224,7 @@ fn exec_table_item(inst: Option<&Instruction>) -> String {
 
 fn code_item(inst: &Instruction) -> String {
     format!("
+#[allow(dead_code)]
 pub fn {typename}_exec(_ec: &mut ExecutionContext) -> Result<()> {{
   {body}    Ok(())
 }}
