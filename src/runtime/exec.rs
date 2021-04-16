@@ -1,7 +1,7 @@
 use super::{stack::ActivationFrame, values::Value, Runtime};
 use crate::error::{Error, Result, ResultFrom};
 use std::{convert::TryFrom, convert::TryInto};
-use crate::instructions::exec_table::EXEC_TABLE;
+use crate::generated::exec_table::EXEC_TABLE;
 
 pub struct ExecutionContext<'l> {
     runtime: &'l mut Runtime,

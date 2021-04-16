@@ -1,6 +1,4 @@
 pub mod opconsts;
-pub mod gentypes;
-pub mod exec_table;
 
 use crate::error::Result;
 
@@ -8,7 +6,7 @@ use crate::error::Result;
 pub type Expr = [u8];
 
 #[allow(dead_code)]
-enum ParseArgs {
+pub enum ParseArgs {
     None,
     U32,
     U32U32,
@@ -24,9 +22,9 @@ enum ParseArgs {
 
 #[allow(dead_code)]
 pub struct InstructionData {
-    opcode: u8,
-    name: &'static str,
-    parse_args: ParseArgs
+    pub opcode: u8,
+    pub name: &'static str,
+    pub parse_args: ParseArgs
 }
 
 pub trait Instruction {
@@ -45,9 +43,3 @@ pub fn bad(_ec: &mut ExecutionContext) -> Result<()> {
 pub fn unimpl(_ec: &mut ExecutionContext) -> Result<()> {
     err!("not yet implemented")
 }
-
-pub static EXEC_TABLE: &[ExecFn] = &[
-    bad,
-    gentypes::Nop::exec,
-
-];
