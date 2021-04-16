@@ -1,13 +1,17 @@
 0x01      ,nop                           ,()
 0x02      ,block                         ,(u32)
-0x03      ,loop                          ,Single
-0x04      ,if                            ,Single
+0x03      ,loop                          ,(u32)
+0x04      ,if                            ,(u32)
 0x05      ,else                          ,()
 0x0B      ,end                           ,()
+| // eventually pop label
+
 0x0C      ,br                            ,(u32)
 0x0D      ,br_if                         ,(u32)
 0x0E      ,br_table                      ,(vu32; u32)
 0x0F      ,return                        ,()
+| // eventually do returny things
+
 0x10      ,call                          ,(u32)
 0x11      ,call_indirect                 ,(u32)
 0x1A      ,drop                          ,()
@@ -16,8 +20,17 @@
 0xD0      ,ref.null                      ,(u32)
 0xD1      ,ref.is_null                   ,()
 0xD2      ,ref.func                      ,(u32)
+
 0x20      ,local.get                     ,(u32)
+| let i = _ec.op_u32()?;
+| let v = _ec.get_local(i)?;
+| _ec.push_value(v)?;
+
 0x21      ,local.set                     ,(u32)
+| let i = _ec.op_u32()?;
+| let v = _ec.pop_value()?;
+| _ec.set_local(i, v)?;
+
 0x22      ,local.tee                     ,(u32)
 0x23      ,global.get                    ,(u32)
 0x24      ,global.set                    ,(u32)
@@ -49,6 +62,9 @@
 0x3f      ,memory.size                   ,(d8)
 0x40      ,memory.grow                   ,(d8)
 0x41      ,i32const                      ,(u32)
+| let v = _ec.op_u32()?;
+| _ec.push_value(v.into())?;
+
 0x42      ,i64const                      ,(u64)
 0x43      ,f32const                      ,(f32)
 0x44      ,f64.const                     ,(f64)
@@ -90,7 +106,15 @@
 0x68      ,i32.ctz                       ,()
 0x69      ,i32.popcnt                    ,()
 0x6a      ,i32.add                       ,()
+| let r = _ec.pop::<u32>()?;
+| let l = _ec.pop::<u32>()?;
+| _ec.push(l + r)?; 
+
 0x6b      ,i32.sub                       ,()
+| let r = _ec.pop::<u32>()?;
+| let l = _ec.pop::<u32>()?;
+| _ec.push(r - l)?; 
+
 0x6c      ,i32.mul                       ,()
 0x6d      ,i32.div_s                     ,()
 0x6e      ,i32.div_u                     ,()
@@ -181,21 +205,4 @@
 0xc3      ,i64.extend16_s                ,()
 0xc4      ,i64.extend32_s                ,()
 0xfc      ,extended                      ,()
-0x00      ,i32.trunc_sat_f32_s           ,()
-0x01      ,i32.trunc_sat_f32_u           ,()
-0x02      ,i32.trunc_sat_f64_s           ,()
-0x03      ,i32.trunc_sat_f64_u           ,()
-0x04      ,i64.trunc_sat_f32_s           ,()
-0x05      ,i64.trunc_sat_f32_u           ,()
-0x06      ,i64.trunc_sat_f64_s           ,()
-0x07      ,i64.trunc_sat_f64_u           ,()
-0x08      ,memory.init                   ,(u32; d8)
-0x09      ,data.drop                     ,(u32)
-0x0a      ,memory.copy                   ,(d8; d8)
-0x0b      ,memory.fill                   ,(d8)
-0x0c      ,table.init                    ,(u32; u32)
-0x0d      ,elem.drop                     ,(u32)
-0x0e      ,table.copy                    ,(u32; u32)
-0x0f      ,table.grow                    ,(u32)
-0x10      ,table.size                    ,(u32)
-0x11      ,table.fill                    ,(u32)
+

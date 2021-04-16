@@ -1,53 +1,62 @@
-pub mod opconsts;
+mod generated;
 
-use crate::types::{NumType, ValueType};
-use crate::runtime::exec::ExecutionContextActions;
-use crate::error::Result;
+use crate::error::{Result, ResultFrom};
+use generated::exec_table::EXEC_TABLE;
+use generated::data_table::INSTRUCTION_DATA;
+use crate::runtime::exec::ExecutionContext;
+use crate::err;
 
 pub type Expr = [u8];
 
-#[allow(dead_code)]
-enum ParseArgs {
+#[derive(PartialEq, Debug)]
+pub enum Operands {
     None,
-    // A u32 with special interpretation
-    BlockType,
-    // A vector of u32 + one u32
-    BrTable,
-    Single(ValueType),
-    Double(ValueType),
-    // For the select vector type
-    Vector,
-    Single0,
-    DiscardByte,
-    Discard2Byte,
+    U32,
+    U32U32,
+    Vu32,
+    Vu32U32,
+    D8,
+    U64,
+    F32,
+    F64,
+    D8D8,
+    U32D8
 }
 
-#[allow(dead_code)]
-struct InstructionData {
-    opcode: u8,
-    name: &'static str,
-    parse_args: ParseArgs
+#[derive(PartialEq, Debug)]
+pub struct InstructionData {
+    pub opcode: u8,
+    pub name: &'static str,
+    pub operands: Operands 
 }
 
-trait Instruction {
-    fn data() -> InstructionData;
-    fn exec<E:ExecutionContextActions>(ec: &mut E) -> Result<()>;
+pub type ExecFn = fn(ec: &mut ExecutionContext) -> Result<()>;
+
+pub fn bad(_ec: &mut ExecutionContext) -> Result<()> {
+    err!("unknown opcode")
 }
 
-struct LocalGet { }
+pub fn unimpl(_ec: &mut ExecutionContext) -> Result<()> {
+    err!("not yet implemented")
+}
 
-impl Instruction for LocalGet {
-    fn data() -> InstructionData {
-        InstructionData {
-            opcode: 0x20,
-            name: "local.get",
-            parse_args: ParseArgs::Single(ValueType::Num(NumType::I32))
-        }
+pub const BAD_INSTRUCTION: InstructionData = InstructionData{
+    opcode: 0, 
+    name: "bad", 
+    operands: Operands::None, 
+};
+
+pub fn exec_method(opcode: u8, ec: &mut ExecutionContext) -> Result<()> {
+    match EXEC_TABLE.get(opcode as usize) {
+        Some(ef) => ef(ec).wrap(&format!("while executing 0x{:x}", opcode)),
+        None => err!("unhandled opcode {}", opcode)
     }
+}
 
-    fn exec<E:ExecutionContextActions>(ec: &mut E) -> Result<()> {
-        let idx = ec.op_u32()?;
-        let val = ec.get_local(idx)?;
-        ec.push_value(val)
+pub fn instruction_data<'l>(opcode: u8) -> Result<&'l InstructionData> {
+    match INSTRUCTION_DATA.get(opcode as usize) {
+        Some(id) if id == &&BAD_INSTRUCTION => err!("invalid instruction {}", opcode), 
+        Some(id) => Ok(id), 
+        None => err!("unhandled opcode {}", opcode)
     }
 }
