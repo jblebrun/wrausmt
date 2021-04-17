@@ -30,6 +30,7 @@ pub enum Token {
     LineComment,
     BlockComment,
     Keyword(String),
+    Reserved(String),
     Unsigned(u64),
     Signed(i64),
     Float(f64),

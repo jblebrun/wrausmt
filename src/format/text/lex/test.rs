@@ -3,7 +3,7 @@ use super::Tokenizer;
 use crate::error::{Result, ResultFrom};
 
 macro_rules! expect_tokens {
-    ( $to_parse:expr, $($t:expr),* ) => {
+    ( $to_parse:expr, $($t:expr),* $(; $m:expr)? ) => {
         let mut tokenizer = Tokenizer::new($to_parse.as_bytes())?;
         $(
             let rtok = tokenizer.next();
@@ -13,6 +13,14 @@ macro_rules! expect_tokens {
                 None => panic!("expected token, got eof")
             }
         )*
+
+        $(
+            match tokenizer.next() {
+                Some(Ok(t)) => panic!("expected err, containing \"{}\", got {:?}", $m, t),
+                Some(Err(Error::Wrapped(m, _))) | Some(Err(Error::Error(m))) => assert_eq!(m, $m),
+                None => panic!("expected err containing \"{}\", got eof", $m)
+            }
+        )?
         let end = tokenizer.next();
         assert!(end.is_none(), "Expected none, got {:?}", end);
     }
@@ -55,6 +63,23 @@ fn simple_parse() -> Result<()> {
     );
     Ok(())
 }
+
+#[test]
+fn reserved_tokens() -> Result<()> {
+    expect_tokens!(
+        "600 700 7f00(hello)",
+        Token::Unsigned(600u64),
+        Token::Whitespace,
+        Token::Unsigned(700u64),
+        Token::Whitespace,
+        Token::Reserved("7f00".into()),
+        Token::Open,
+        Token::Keyword("hello".into()),
+        Token::Close
+    );
+    Ok(())
+}
+
 
 #[test]
 fn bare_string() -> Result<()> {

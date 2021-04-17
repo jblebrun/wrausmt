@@ -11,6 +11,8 @@ mod test;
 pub struct Tokenizer<R> {
     inner: R,
     current: u8,
+    current_reserved: Vec<u8>,
+    last_reserved: Vec<u8>,
     eof: bool,
     context: TokenContext,
 }
@@ -21,6 +23,8 @@ impl<R: Read> Tokenizer<R> {
         let mut tokenizer = Tokenizer {
             inner: r,
             current: 0,
+            current_reserved: vec![],
+            last_reserved: vec![],
             eof: false,
             context: TokenContext::default(),
         };
@@ -32,6 +36,12 @@ impl<R: Read> Tokenizer<R> {
         let mut buf = [0u8; 1];
         let amount_read = self.inner.read(&mut buf).wrap("reading")?;
         self.current = buf[0];
+        if self.is_idchar() {
+            self.current_reserved.push(self.current);
+        } else {
+            self.last_reserved.clear();
+            std::mem::swap(&mut self.current_reserved, &mut self.last_reserved);
+        }
         if amount_read == 0 {
             if self.eof {
                 return err!("unexpected eof");
@@ -286,6 +296,13 @@ impl<R: Read> Tokenizer<R> {
             Ok(Token::Float(sign as f64 * result))
         } else if signed {
             Ok(Token::Signed(whole as i64 * sign))
+        } else if self.is_idchar() {
+            while self.is_idchar() {
+                self.advance()?;
+            }
+            let reserved_bytes = std::mem::replace(&mut self.last_reserved, vec![]);
+            let reserved_string = String::from_utf8(reserved_bytes).wrap("convert reserved utf8")?;
+            Ok(Token::Reserved(reserved_string))
         } else {
             Ok(Token::Unsigned(whole))
         }
