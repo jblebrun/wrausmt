@@ -1,4 +1,4 @@
-use super::token::Token;
+use super::token::{FileToken, Token, TokenContext};
 use crate::err;
 use crate::error::{Result, ResultFrom};
 use std::io::Read;
@@ -12,8 +12,7 @@ pub struct Tokenizer<R> {
     inner: R,
     current: u8,
     eof: bool,
-    line: u32,
-    pos: u32,
+    context: TokenContext,
 }
 
 impl<R: Read> Tokenizer<R> {
@@ -23,8 +22,7 @@ impl<R: Read> Tokenizer<R> {
             inner: r,
             current: 0,
             eof: false,
-            line: 0,
-            pos: 0,
+            context: TokenContext::default(),
         };
         tokenizer.advance()?;
         Ok(tokenizer)
@@ -41,10 +39,10 @@ impl<R: Read> Tokenizer<R> {
                 self.eof = true;
             }
         } else if self.current == b'\n' {
-            self.line += 1;
-            self.pos = 0;
+            self.context.line += 1;
+            self.context.pos = 0;
         } else {
-            self.pos += 1;
+            self.context.pos += 1;
         }
         Ok(())
     }
@@ -321,13 +319,14 @@ impl<R: Read> Tokenizer<R> {
 }
 
 impl<R: Read> Iterator for Tokenizer<R> {
-    type Item = Result<Token>;
+    type Item = Result<FileToken>;
 
-    fn next(&mut self) -> Option<Result<Token>> {
+    fn next(&mut self) -> Option<Result<FileToken>> {
         if self.eof {
             return None;
         }
-        let token = self.next_token();
+        let token = self.next_token()
+            .map(|t| self.context.token(t));
         Some(token)
     }
 }
