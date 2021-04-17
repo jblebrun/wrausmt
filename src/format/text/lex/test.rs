@@ -1,4 +1,4 @@
-use super::super::token::Token;
+use super::super::token::{FileToken, Token};
 use super::Tokenizer;
 use crate::error::{Result, ResultFrom};
 
@@ -6,9 +6,12 @@ macro_rules! expect_tokens {
     ( $to_parse:expr, $($t:expr),* ) => {
         let mut tokenizer = Tokenizer::new($to_parse.as_bytes())?;
         $(
-            let tok = tokenizer.next().unwrap()?;
-            assert_eq!(tok, $t);
-            println!("OK: {:?}", tok);
+            let rtok = tokenizer.next();
+            match rtok {
+                Some(Ok(FileToken { token: tok, context: _ })) => assert_eq!(tok, $t),
+                Some(Err(e)) => panic!("expected token, get {:?}", e),
+                None => panic!("expected token, got eof")
+            }
         )*
         let end = tokenizer.next();
         assert!(end.is_none(), "Expected none, got {:?}", end);

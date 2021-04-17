@@ -6,11 +6,11 @@ use crate::error::{Result, ResultFrom};
 use crate::module::Section;
 use lex::Tokenizer;
 use std::io::Read;
-use token::Token;
+use token::{FileToken, Token};
 
 pub struct Parser<R: Read> {
     tokenizer: Tokenizer<R>,
-    current: Token,
+    current: FileToken,
 }
 
 // Recursive descent parsing. So far, the grammar for the text format seems to be LL(1),
@@ -25,16 +25,16 @@ impl<R: Read> Parser<R> {
     fn new(r: R) -> Result<Parser<R>> {
         Ok(Parser {
             tokenizer: Tokenizer::new(r)?,
-            current: Token::Start,
+            current: FileToken::default(),
         })
     }
 
     fn next(&mut self) -> Result<()> {
-        if self.current == Token::Eof {
+        if self.current.token == Token::Eof {
             panic!("EOF")
         }
         match self.tokenizer.next() {
-            None => self.current = Token::Eof,
+            None => self.current.token = Token::Eof,
             Some(Ok(t)) => self.current = t,
             Some(Err(e)) => return Err(e),
         }
@@ -44,7 +44,7 @@ impl<R: Read> Parser<R> {
     // Advance to the next token, skipping all whitespace and comments.
     fn advance(&mut self) -> Result<()> {
         self.next()?;
-        while self.current.ignorable() {
+        while self.current.token.ignorable() {
             self.next()?;
         }
         Ok(())
@@ -55,18 +55,18 @@ impl<R: Read> Parser<R> {
     /// On success, a vector of sections is returned. They can be organized into a
     /// module object.
     fn parse_module(&mut self) -> Result<Vec<Section>> {
-        if self.current != Token::Open {
+        if self.current.token != Token::Open {
             return err!("Invalid start token {:?}", self.current);
         }
         self.advance()?;
 
         // Modules usually start with "(module". However, this is optional, and a module file can
         // be a list of top-levelo sections.
-        if self.current.is_keyword("module") {
+        if self.current.token.is_keyword("module") {
             self.advance()?;
         }
 
-        if self.current != Token::Open {
+        if self.current.token != Token::Open {
             return err!("Invalid start token {:?}", self.current);
         }
         self.advance()?;
@@ -77,7 +77,7 @@ impl<R: Read> Parser<R> {
             result.push(s);
 
             self.advance()?;
-            match self.current {
+            match self.current.token {
                 Token::Open => (),
                 Token::Close => break,
                 _ => return err!("Invalid start token {:?}", self.current),
@@ -92,7 +92,7 @@ impl<R: Read> Parser<R> {
      let mut depth = 1;
         while depth > 0 {
             self.advance()?;
-            match self.current {
+            match self.current.token {
                 Token::Open => depth += 1,
                 Token::Close => depth -= 1,
                 _ => (),
@@ -106,7 +106,7 @@ impl<R: Read> Parser<R> {
 
     // Parser should be located at the token immediately following a '('
     fn parse_section(&mut self) -> Result<Option<Section>> {
-        let name = self.current.expect_keyword()
+        let name = self.current.token.expect_keyword()
             .wrap("parsing section name")?
             .clone();
 
