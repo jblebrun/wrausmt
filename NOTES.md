@@ -18,7 +18,7 @@ argument. Is there a better way?
 
 ### Clean, consistent way of representing variable length immutable arrays.
 
-Right now, for many structure fields that store some array of things where the array may be of any size (but won't chagne once it's stored), I'm using a `Box<[T]>`. 
+Right now, for many structure fields that store some array of things where the array may be of any size (but won't change once it's stored), I'm using a `Box<[T]>`. 
 
 * Would it be more idiomatic to use a `Vec<T>`? I avoided this because `Vec<T>`
   implies potential mutability to me. 

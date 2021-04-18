@@ -54,6 +54,6 @@ impl FunctionInstance {
     }
 
     pub fn module_instance(&self) -> Result<Rc<ModuleInstance>> {
-        self.module_instance.borrow().clone().ok_or_else(|| error!("no module instance"))
+        self.module_instance.borrow().clone().ok_or_else(|| error!("no module instance on function"))
     }
 }
