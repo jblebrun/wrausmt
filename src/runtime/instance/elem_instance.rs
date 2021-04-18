@@ -7,7 +7,7 @@ use crate::types::RefType;
 /// It holds a vector of references and their common type.
 ///
 /// [Spec]: https://webassembly.github.io/spec/core/exec/runtime.html#element-instances
-#[allow(dead_code)]
+#[derive(Debug)]
 pub struct ElemInstance {
     pub elemtype: RefType,
     pub elems: Box<[Ref]>,

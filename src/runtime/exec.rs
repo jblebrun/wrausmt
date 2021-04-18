@@ -1,7 +1,8 @@
-use super::{stack::ActivationFrame, values::Value, Runtime};
+use super::{stack::ActivationFrame, values::Value, values::Ref, Runtime};
 use crate::error::{Error, Result, ResultFrom};
 use std::{convert::TryFrom, convert::TryInto};
 use crate::instructions::exec_method;
+use crate::err;
 
 pub struct ExecutionContext<'l> {
     runtime: &'l mut Runtime,
@@ -85,5 +86,18 @@ impl Runtime {
             pc: 0,
         };
         ic.run()
+    }
+
+    pub fn eval_expr(&mut self, body: &[u8]) -> Result<Value> {
+        self.enter(body)?;
+        self.stack.pop_value()
+    }
+
+    pub fn eval_ref_expr(&mut self, body: &[u8]) -> Result<Ref> {
+        self.enter(body)?;
+        match self.stack.pop_value()? {
+            Value::Ref(r) => Ok(r),
+            _ => err!("non-ref result for expression")
+        }
     }
 }

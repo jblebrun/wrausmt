@@ -10,7 +10,7 @@ use super::ModuleInstance;
 /// instance, or global instances in the shared store.
 ///
 /// [Spec]: https://webassembly.github.io/spec/core/exec/runtime.html#external-values
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum ExternalVal {
     Func(addr::FuncAddr),
     Table(addr::TableAddr),
@@ -23,7 +23,7 @@ pub enum ExternalVal {
 /// It defines the export’s name and the associated external value.
 ///
 /// [Spec]: https://webassembly.github.io/spec/core/exec/runtime.html#export-instances
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ExportInstance {
     pub name: String,
     pub addr: ExternalVal,

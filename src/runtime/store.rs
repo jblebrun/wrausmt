@@ -1,4 +1,4 @@
-use super::instance::{FunctionInstance, MemInstance, TableInstance};
+use super::instance::{ElemInstance, FunctionInstance, GlobalInstance, MemInstance, TableInstance};
 use crate::{
     error,
     error::Result,
@@ -47,13 +47,11 @@ pub struct Store {
     pub funcs: Vec<Rc<FunctionInstance>>,
     pub tables: Vec<Rc<TableInstance>>,
     pub mems: Vec<Rc<MemInstance>>,
+    pub globals: Vec<Rc<GlobalInstance>>,
+    pub elems: Vec<Rc<ElemInstance>>,
 }
 
 impl Store {
-    pub fn new() -> Store {
-        Self::default()
-    }
-
     pub fn func(&self, addr: addr::FuncAddr) -> Result<Rc<FunctionInstance>> {
         self.funcs
             .get(addr as usize)
@@ -96,4 +94,23 @@ impl Store {
         let count = self.mems.len()-base_addr;
         (count, base_addr as addr::MemoryAddr)
     }
+
+    pub fn alloc_globals<I>(&mut self, globals: I) -> (usize, addr::GlobalAddr)
+        where I : Iterator<Item=GlobalInstance> 
+    {
+        let base_addr = self.globals.len();
+        self.globals.extend(globals.map(Rc::new));
+        let count = self.globals.len()-base_addr;
+        (count, base_addr as addr::MemoryAddr)
+    }
+
+    pub fn alloc_elems<I>(&mut self, elems: I) -> (usize, addr::ElemAddr)
+        where I : Iterator<Item=ElemInstance> 
+    {
+        let base_addr = self.elems.len();
+        self.elems.extend(elems.map(Rc::new));
+        let count = self.elems.len()-base_addr;
+        (count, base_addr as addr::ElemAddr)
+    }
+
 }
