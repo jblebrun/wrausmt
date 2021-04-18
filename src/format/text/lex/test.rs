@@ -8,7 +8,7 @@ macro_rules! expect_tokens {
         $(
             let rtok = tokenizer.next();
             match rtok {
-                Some(Ok(FileToken { token: tok, context: _ })) => assert_eq!(tok, $t),
+                Some(Ok(FileToken { token, location: _ })) => assert_eq!(token, $t),
                 Some(Err(e)) => panic!("expected token, get {:?}", e),
                 None => panic!("expected token, got eof")
             }
