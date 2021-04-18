@@ -1,5 +1,5 @@
-use super::token::{FileToken, Token, TokenContext};
-use crate::err;
+use super::token::{FileToken, Token};
+use crate::{err, format::Location};
 use crate::error::{Result, ResultFrom};
 mod num;
 mod chars;
@@ -20,7 +20,7 @@ pub struct Tokenizer<R> {
     inner: R,
     current: u8,
     eof: bool,
-    context: TokenContext,
+    location: Location,
 }
 
 fn keyword_or_reserved(idchars: String) -> Token {
@@ -38,7 +38,7 @@ impl<R: Read> Tokenizer<R> {
             inner: r,
             current: 0,
             eof: false,
-            context: TokenContext::default(),
+            location: Location::default(),
         };
         tokenizer.advance()?;
         Ok(tokenizer)
@@ -78,10 +78,9 @@ impl<R: Read> Tokenizer<R> {
                 self.eof = true;
             }
         } else if self.current == b'\n' {
-            self.context.line += 1;
-            self.context.pos = 0;
+            self.location.nextline();
         } else {
-            self.context.pos += 1;
+            self.location.nextchar();
         }
         Ok(())
     }
@@ -194,7 +193,7 @@ impl<R: Read> Iterator for Tokenizer<R> {
             return None;
         }
         let token = self.next_token()
-            .map(|t| self.context.token(t));
+            .map(|t| self.location.token(t));
         Some(token)
     }
 }

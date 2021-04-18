@@ -7,7 +7,6 @@
 /// The code is organized into modules that implement various sub-aspects of the binary parsing
 /// task as traits on [std::io::Read].
 mod code;
-mod countread;
 mod custom;
 mod data;
 mod elems;
@@ -23,6 +22,7 @@ mod start;
 mod tables;
 mod types;
 mod values;
+mod tokenizer;
 
 use super::error::ParseError;
 use crate::{
@@ -31,7 +31,6 @@ use crate::{
     module::{index, Function, Module, Section},
 };
 use section::SectionReader;
-use countread::CountRead;
 use std::io::Read;
 use values::ReadWasmValues;
 
@@ -93,12 +92,12 @@ pub fn parse<R>(src: &mut R) -> std::result::Result<Module, ParseError>
 where
     R: Read,
 {
-    let reader = &mut CountRead::new(src);
+    let tokenizer = &mut tokenizer::Tokenizer::new(src);
 
     let mut module = Module::default();
 
-    match parse_inner(reader, &mut module) {
+    match parse_inner(tokenizer, &mut module) {
         Ok(()) => Ok(module),
-        Err(e) => Err(ParseError::new(e, reader.consumed(), module)),
+        Err(e) => Err(ParseError::new(e, tokenizer.location(), module)),
     }
 }

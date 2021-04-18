@@ -1,24 +1,18 @@
 use crate::error;
 use crate::error::Result;
+use crate::format::Location;
 
 /// A [Token] along with context about its location in the source file.
 #[derive(Debug, Default, PartialEq)]
 pub struct FileToken {
     pub token: Token,
-    pub context: TokenContext,
+    pub location: Location,
 }
 
-/// The location of a token in a source file, represented as a `line` and `pos` (column). 
-#[derive(Debug, Default, PartialEq, Clone, Copy)]
-pub struct TokenContext {
-    pub line: u32,
-    pub pos: u32
-}
-
-impl TokenContext {
+impl Location {
     /// Create a new [FileToken] from the given [TokenContext] for the provided [Token].
     pub fn token(self, token: Token) -> FileToken {
-        FileToken { token, context: self }
+        FileToken { token, location: self }
     }
 }
 

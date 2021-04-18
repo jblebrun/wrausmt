@@ -1,15 +1,16 @@
 use crate::error::Error;
 use crate::module::Module;
+use crate::format::Location;
 
 #[derive(Debug)]
 pub struct ParseError {
     cause: Error,
-    location: usize,
+    location: Location,
     module: Module,
 }
 
 impl ParseError {
-    pub fn new(cause: Error, location: usize, module: Module) -> Self {
+    pub fn new(cause: Error, location: Location, module: Module) -> Self {
         ParseError {
             cause,
             location,
@@ -22,7 +23,7 @@ impl std::fmt::Display for ParseError {
     fn fmt<'l>(&'l self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "Error parsing binary module at {}\nContents so far:{:?}",
+            "Error parsing binary module at {:?}\nContents so far:{:?}",
             self.location, self.module
         )
     }
