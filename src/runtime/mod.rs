@@ -13,7 +13,7 @@ use crate::{
 use std::rc::Rc;
 
 use {
-    instance::{ExportInstance, ExternalVal, FunctionInstance, ModuleInstance, TableInstance},
+    instance::{ExportInstance, ExternalVal, FunctionInstance, MemInstance, ModuleInstance, TableInstance},
     stack::{ActivationFrame, Label, Stack},
     store::addr,
     store::Store,
@@ -75,7 +75,11 @@ impl Runtime {
         module_instance.table_count = count;
         module_instance.table_offset = offset;
 
-        // (Alloc 4.) Allocate mems (TODO)
+        // (Alloc 4.) Allocate mem
+        let mem_insts = module.mems.into_vec().into_iter().map(MemInstance::new);
+        let (count, offset) = self.store.alloc_mems(mem_insts);
+        module_instance.mem_count = count;
+        module_instance.mem_offset = offset;
 
         // (Alloc 5.) Globals (TODO)
 

@@ -13,8 +13,20 @@ use crate::types::MemType;
 /// divided by page size, never exceeds the maximum size of memtype, if present.
 ///
 /// [Spec]: https://webassembly.github.io/spec/core/exec/runtime.html#memory-instances
-#[allow(dead_code)]
+#[derive(Default, Debug)]
 pub struct MemInstance {
     pub memtype: MemType,
-    pub data: Box<[u8]>,
+    pub data: Vec<u8>,
+}
+
+const PAGE_SIZE: usize = 65536;
+
+impl MemInstance {
+    /// Create a new [MemInstance] for the provided [MemType].
+    /// As per the [Spec][Spec], the meory is initialized to `n` pages of `0`s,
+    /// where `n` is the lower value of the [Limits] in the provided [MemType].
+    pub fn new(memtype: MemType) -> MemInstance {
+        let data = vec![0u8; memtype.limits.lower as usize * PAGE_SIZE];
+        MemInstance { memtype, data }
+    }
 }
