@@ -13,8 +13,19 @@ use crate::types::TableType;
 /// the element vector never exceeds the maximum size of tabletype if present.
 ///
 /// [Spec]: https://webassembly.github.io/spec/core/exec/runtime.html#table-instances
-#[allow(dead_code)]
+#[derive(Debug)]
 pub struct TableInstance {
     pub tabletype: TableType,
     pub elem: Box<[Ref]>,
 }
+
+impl TableInstance {
+    pub fn new(tabletype: TableType) -> TableInstance {
+        let elem: Box<[Ref]> = 
+            std::iter::repeat(tabletype.reftype.default())
+            .take(tabletype.limits.lower as usize)
+            .collect();
+        TableInstance { tabletype, elem }
+    }
+}
+

@@ -1,4 +1,4 @@
-use super::instance::{FunctionInstance, ModuleInstance};
+use super::instance::{FunctionInstance, TableInstance};
 use crate::{
     error,
     error::Result,
@@ -44,15 +44,13 @@ pub mod addr {
 /// [Spec]: https://webassembly.github.io/spec/core/exec/runtime.html#store
 #[derive(Default, Debug)]
 pub struct Store {
-    // FunctionInstance contain Functions, and thus the code
-    // to run. They will be used by execution threads, so
-    // are stored as Rc.
     pub funcs: Vec<Rc<FunctionInstance>>,
+    pub tables: Vec<Rc<TableInstance>>,
 }
 
 impl Store {
     pub fn new() -> Store {
-        Store { funcs: vec![] }
+        Self::default()
     }
 
     pub fn func(&self, addr: addr::FuncAddr) -> Result<Rc<FunctionInstance>> {
@@ -62,24 +60,27 @@ impl Store {
             .ok_or_else(|| error!("no function at addr {}", addr))
     }
 
-    /// Update the [FunctionInstancs][FunctionInstance] in this store for the provided modules.
-    pub fn update_func_module_instance(&mut self, module_instance: &Rc<ModuleInstance>) {
-        let count = module_instance.func_count;
-        let start = module_instance.func_offset as usize;
-        let end = start + count;
-        for i in start..end  {
-            self.funcs[i].module_instance.replace(Some(module_instance.clone()));
-        }
-    }
-
     // Allocate a collection of functions.
     // Functions will be allocated in a contiguous block.
     // Returns the value of the first allocated fuction.
-    pub fn alloc_funcs(&mut self, funcs: Vec<FunctionInstance>) -> addr::FuncAddr {
+    pub fn alloc_funcs<I>(&mut self, funcs: I) -> (usize, addr::FuncAddr)
+        where I : Iterator<Item=Rc<FunctionInstance>>
+    {
         let base_addr = self.funcs.len();
-        for f in funcs {
-            self.funcs.push(Rc::new(f));
-        }
-        base_addr as addr::FuncAddr
+        self.funcs.extend(funcs);
+        let count = self.funcs.len()-base_addr;
+        (count, base_addr as addr::FuncAddr)
+    }
+
+    // Allocate a collection of tables.
+    // Tables will be allocated in a contiguous block.
+    // Returns the value of the first allocated tables.
+    pub fn alloc_tables<I>(&mut self, tables: I) -> (usize, addr::TableAddr) 
+        where I : Iterator<Item=TableInstance>
+    {
+        let base_addr = self.tables.len();
+        self.tables.extend(tables.map(Rc::new));
+        let count = self.tables.len()-base_addr;
+        (count, base_addr as addr::TableAddr)
     }
 }

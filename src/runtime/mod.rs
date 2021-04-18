@@ -12,9 +12,8 @@ use crate::{
 };
 use std::rc::Rc;
 
-use self::instance::FunctionInstance;
 use {
-    instance::{ExportInstance, ExternalVal, ModuleInstance},
+    instance::{ExportInstance, ExternalVal, FunctionInstance, ModuleInstance, TableInstance},
     stack::{ActivationFrame, Label, Stack},
     store::addr,
     store::Store,
@@ -22,7 +21,7 @@ use {
 };
 
 #[derive(Debug, Default)]
-/// Contains all of the runtime state for the WASM interpreter.
+/// Contains all of the runtime state for the WebAssembly interpreter.
 pub struct Runtime {
     /// The Store of the runtime, as described by the spec.
     store: Store,
@@ -36,28 +35,73 @@ impl Runtime {
         Runtime::default()
     }
 
+    /// The load method allocates and instantiates the provided [Module].
     pub fn load(&mut self, module: Module) -> Rc<ModuleInstance> {
+        // TODO Resolve imports
+        for import in module.imports.iter() {
+            println!("NEED TO RESOLVE {}:{}", import.module_name, import.name);
+        }
+        self.instantiate(module)
+    }
+
+    /// Instntiation (and allocation) of the provided module, roughly following the
+    /// specification. Allocation and instantiation are described as two independent
+    /// [Allocation](https://webassembly.github.io/spec/core/exec/modules.html#alloc-module)
+    /// [Instantiation](https://webassembly.github.io/spec/core/exec/modules.html#instantiate-module)
+    fn instantiate(&mut self, module: Module) -> Rc<ModuleInstance> {
+        // (Instantiate 1-4.) TODO Validate module
+
         let mut module_instance = ModuleInstance {
             types: module.types,
             ..ModuleInstance::default()
         };
 
-        let func_insts: Vec<FunctionInstance> = module.funcs.into_vec().drain(..)
-            .map(|f| FunctionInstance::new(f, &module_instance.types))
+        // (Alloc 2.) Allocate functions
+        // https://webassembly.github.io/spec/core/exec/modules.html#functions
+        let new_func_inst = |f| Rc::new(FunctionInstance::new(f, &module_instance.types));
+        // We hold onto these so we can update the module instance at the end.
+        let func_insts: Vec<Rc<FunctionInstance>> = module.funcs
+            .into_vec()
+            .into_iter()
+            .map(new_func_inst)
+            .collect();
+        let (func_count, func_offset) = self.store.alloc_funcs(func_insts.iter().cloned());
+        module_instance.func_count = func_count;
+        module_instance.func_offset = func_offset;
+
+        // (Alloc 3.) Allocate tables
+        let table_insts = module.tables.into_vec().into_iter().map(TableInstance::new);
+        let (count, offset) = self.store.alloc_tables(table_insts);
+        module_instance.table_count = count;
+        module_instance.table_offset = offset;
+
+        // (Alloc 4.) Allocate mems (TODO)
+
+        // (Alloc 5.) Globals (TODO)
+
+        // (Alloc 6.) Elements
+
+        // (Alloc 7.) Data
+
+        // (Alloc 18.) Allocate exports.
+        let new_export_inst = |e| ExportInstance::new(e, &module_instance);
+        let exports = module.exports
+            .into_vec()
+            .into_iter()
+            .map(new_export_inst)
             .collect();
 
-        module_instance.func_count = func_insts.len();
-        module_instance.func_offset = self.store.alloc_funcs(func_insts);
-
-        let exports = module.exports.into_vec().drain(..)
-            .map(|e| ExportInstance::new(e, &module_instance))
-            .collect();
-
+        // (Alloc 19) Collect exports
         module_instance.exports = exports;
 
         let rcinst = Rc::new(module_instance);
 
-        self.store.update_func_module_instance(&rcinst);
+        // As noted in the specification for module allocation: functions are defined before the
+        // final [ModuleInstance] is available, so now we pass the completed instance to the store
+        // so it can update the value.
+        for f in func_insts {
+            f.module_instance.replace(Some(rcinst.clone()));
+        }
 
         rcinst
     }
