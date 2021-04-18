@@ -22,6 +22,23 @@ impl TokenContext {
     }
 }
 
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum Sign {
+    Unspecified,
+    Negative,
+    Positive,
+}
+
+impl <IC:Into<char>> From<IC> for Sign {
+    fn from(ch: IC) -> Sign {
+        match ch.into() {
+            '+' => Sign::Positive,
+            '-' => Sign::Negative,
+            _ => Sign::Unspecified 
+        }
+    }
+}
+
 /// An enum of all of the possible lexical tokens that can occur in a WebAssembly text file.
 #[derive(Debug, PartialEq)]
 pub enum Token {
@@ -30,6 +47,7 @@ pub enum Token {
     LineComment,
     BlockComment,
     Keyword(String),
+    Reserved(String),
     Unsigned(u64),
     Signed(i64),
     Float(f64),
@@ -37,9 +55,9 @@ pub enum Token {
     Id(String),
     Open,
     Close,
-    Inf,
-    NaN,
-    NaNx(u32),
+    Inf(Sign),
+    NaN(Sign),
+    NaNx(Sign, u32),
     Eof
 }
 
