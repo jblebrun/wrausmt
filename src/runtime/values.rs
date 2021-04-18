@@ -51,6 +51,26 @@ pub enum Ref {
     Extern(u64),
 }
 
+impl RefType {
+    pub fn default(&self) -> Ref {
+        match &self {
+            RefType::Func => Ref::Func(0),
+            RefType::Extern => Ref::Extern(0)
+        }
+    }
+}
+
+impl NumType {
+    pub fn default(&self) -> Num {
+        match &self {
+            NumType::I32 => Num::I32(0),
+            NumType::I64 => Num::I64(0),
+            NumType::F32 => Num::F32(0f32),
+            NumType::F64 => Num::F64(0f64),
+        }
+    }
+}
+
 impl ValueType {
     /// Provide the default/zero [Value] for the corresponding [ValueType]. [Spec][Spec]
     ///
@@ -60,12 +80,8 @@ impl ValueType {
     /// [Spec]: https://webassembly.github.io/spec/core/exec/runtime.html#values
     pub fn default(&self) -> Value {
         match &self {
-            ValueType::Num(NumType::I32) => Value::Num(Num::I32(0)),
-            ValueType::Num(NumType::I64) => Value::Num(Num::I64(0)),
-            ValueType::Num(NumType::F32) => Value::Num(Num::F32(0f32)),
-            ValueType::Num(NumType::F64) => Value::Num(Num::F64(0f64)),
-            ValueType::Ref(RefType::Func) => Value::Ref(Ref::Func(0)),
-            ValueType::Ref(RefType::Extern) => Value::Ref(Ref::Extern(0)),
+            ValueType::Num(n) => Value::Num(n.default()),
+            ValueType::Ref(r) => Value::Ref(r.default()),
         }
     }
 }
