@@ -80,7 +80,7 @@ pub struct FunctionType {
 /// and [table types][TableType]. [Spec][Spec]
 ///
 /// [Spec]: https://webassembly.github.io/spec/core/syntax/types.html#limits
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct Limits {
     pub lower: u32,
     pub upper: Option<u32>,
@@ -92,7 +92,7 @@ pub struct Limits {
 /// given in units of page size.
 ///
 /// [Spec]: https://webassembly.github.io/spec/core/syntax/types.html#memory-types
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct MemType {
     pub limits: Limits,
 }
