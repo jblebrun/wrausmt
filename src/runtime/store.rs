@@ -1,4 +1,4 @@
-use super::instance::{FunctionInstance, TableInstance};
+use super::instance::{FunctionInstance, MemInstance, TableInstance};
 use crate::{
     error,
     error::Result,
@@ -46,6 +46,7 @@ pub mod addr {
 pub struct Store {
     pub funcs: Vec<Rc<FunctionInstance>>,
     pub tables: Vec<Rc<TableInstance>>,
+    pub mems: Vec<Rc<MemInstance>>,
 }
 
 impl Store {
@@ -82,5 +83,17 @@ impl Store {
         self.tables.extend(tables.map(Rc::new));
         let count = self.tables.len()-base_addr;
         (count, base_addr as addr::TableAddr)
+    }
+
+    // Allocate a collection of mems.
+    // Mems will be allocated in a contiguous block.
+    // Returns the value of the first allocated mems.
+    pub fn alloc_mems<I>(&mut self, mems: I) -> (usize, addr::MemoryAddr) 
+        where I : Iterator<Item=MemInstance>
+    {
+        let base_addr = self.mems.len();
+        self.mems.extend(mems.map(Rc::new));
+        let count = self.mems.len()-base_addr;
+        (count, base_addr as addr::MemoryAddr)
     }
 }

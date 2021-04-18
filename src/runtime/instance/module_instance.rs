@@ -28,6 +28,11 @@ pub struct ModuleInstance {
     pub table_count: usize,
 
     pub mem_offset: u32,
+    pub mem_count: usize,
+
+    pub elems_offset: u32,
+    pub elem_count: usize,
+
     pub global_offset: u32,
 }
 
