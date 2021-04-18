@@ -16,7 +16,7 @@ use crate::types::FunctionType;
 /// module instance have different names.
 ///
 /// [Spec]: https://webassembly.github.io/spec/core/exec/runtime.html#module-instances
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct ModuleInstance {
     pub types: Box<[FunctionType]>,
     pub exports: Box<[ExportInstance]>,
@@ -30,10 +30,11 @@ pub struct ModuleInstance {
     pub mem_offset: u32,
     pub mem_count: usize,
 
-    pub elems_offset: u32,
+    pub elem_offset: u32,
     pub elem_count: usize,
 
     pub global_offset: u32,
+    pub global_count: usize,
 }
 
 impl ModuleInstance {
@@ -41,5 +42,14 @@ impl ModuleInstance {
         let found = self.exports.iter().find(|e| e.name == name);
 
         found
+    }
+
+    pub fn copy_for_init(&self) -> ModuleInstance {
+        ModuleInstance {
+            // TODO - globals and extern funcs
+            func_offset: self.func_offset,
+            func_count: self.func_count,
+            ..ModuleInstance::default()
+        }
     }
 }

@@ -12,8 +12,10 @@ use crate::{
 };
 use std::rc::Rc;
 
+use self::instance::GlobalInstance;
+
 use {
-    instance::{ExportInstance, ExternalVal, FunctionInstance, MemInstance, ModuleInstance, TableInstance},
+    instance::{ExportInstance, ExternalVal, ElemInstance, FunctionInstance, MemInstance, ModuleInstance, TableInstance},
     stack::{ActivationFrame, Label, Stack},
     store::addr,
     store::Store,
@@ -36,7 +38,7 @@ impl Runtime {
     }
 
     /// The load method allocates and instantiates the provided [Module].
-    pub fn load(&mut self, module: Module) -> Rc<ModuleInstance> {
+    pub fn load(&mut self, module: Module) -> Result<Rc<ModuleInstance>> {
         // TODO Resolve imports
         for import in module.imports.iter() {
             println!("NEED TO RESOLVE {}:{}", import.module_name, import.name);
@@ -48,7 +50,7 @@ impl Runtime {
     /// specification. Allocation and instantiation are described as two independent
     /// [Allocation](https://webassembly.github.io/spec/core/exec/modules.html#alloc-module)
     /// [Instantiation](https://webassembly.github.io/spec/core/exec/modules.html#instantiate-module)
-    fn instantiate(&mut self, module: Module) -> Rc<ModuleInstance> {
+    fn instantiate(&mut self, module: Module) -> Result<Rc<ModuleInstance>> {
         // (Instantiate 1-4.) TODO Validate module
 
         let mut module_instance = ModuleInstance {
@@ -81,7 +83,45 @@ impl Runtime {
         module_instance.mem_count = count;
         module_instance.mem_offset = offset;
 
-        // (Alloc 5.) Globals (TODO)
+        // (Instantiation 5-10.) Generate global and elem init values
+        // (Instantiation 5.) Create the module instance for global initialization
+        let init_module_instance = Rc::new(module_instance.copy_for_init());
+       
+        // (Instantiation 6-7.) Create a frame with the instance, push it.
+        let init_frame = ActivationFrame::new(0, init_module_instance, Box::new([]));
+        self.stack.push_activation(init_frame);
+
+        // (Instantiation 8.) Get global init vals and allocate globals.
+        let global_insts: Vec<GlobalInstance> = module.globals
+            .iter()
+            .map(|g| {
+                let val = self.eval_expr(&g.init)?;
+                Ok(GlobalInstance { typ: g.typ.valtype, val })
+            })
+            .collect::<Result<_>>()?;
+        let (count, offset) = self.store.alloc_globals(global_insts.into_iter());
+        module_instance.global_count = count;
+        module_instance.global_offset = offset;
+
+        // (Instantian 9.) Get elem init vals
+        let elem_insts: Vec<ElemInstance> = module.elems
+            .iter()
+            .map(|e| {
+                let elems = e.init.iter()
+                    .map(|ei| self.eval_ref_expr(&ei))
+                    .collect::<Result<_>>()?;
+                Ok(ElemInstance { elemtype: e.typ, elems })
+            })
+            .collect::<Result<_>>()?;
+        let (count, offset) = self.store.alloc_elems(elem_insts.into_iter());
+        module_instance.elem_count = count;
+        module_instance.elem_offset = offset;
+            
+        self.stack.pop_activation()?;
+
+        // (Alloc 5.) Globals
+
+
 
         // (Alloc 6.) Elements
 
@@ -107,7 +147,7 @@ impl Runtime {
             f.module_instance.replace(Some(rcinst.clone()));
         }
 
-        rcinst
+        Ok(rcinst)
     }
 
     pub fn invoke(&mut self, addr: addr::FuncAddr) -> Result<()> {

@@ -13,7 +13,7 @@ use crate::types::ValueType;
 /// value type of globaltype.
 ///
 /// [Spec]: https://webassembly.github.io/spec/core/exec/runtime.html#global-instances
-#[allow(dead_code)]
+#[derive(Debug)]
 pub struct GlobalInstance {
     pub typ: ValueType,
     pub val: Value,
