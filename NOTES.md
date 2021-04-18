@@ -31,3 +31,28 @@ Right now, for many structure fields that store some array of things where the a
 
 Investigate idea of creating structs for instructions + operands, and storing
 them as raw bytes in function instantiations. This would require some usage of `unsafe`, but might be a pretty cool strategy, basically sliding a window over the array of bytes that changes shape as it goes.
+
+
+### Branching conditionals
+
+Is it preferable stylewise to use match, or if-else trees? For example:
+
+```
+match x  {
+  x if x > 20 => ...,
+  x if x > 10 => ...,
+  x if x > 5 => ...,
+  _ => ...
+}
+```
+
+vs
+
+```
+if x > 20 { ...  }
+else if x > 10 { ... }
+else if x > 5 { ... }
+else { ... }
+```
+
+The former feels nicer to me, but I've heard indication that it's considered an anti-pattern.
