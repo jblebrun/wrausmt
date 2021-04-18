@@ -76,8 +76,10 @@ fn parse_inner<R: Read>(reader: &mut R, module: &mut Module) -> Result<()> {
                 resolve_functypes(module.funcs.as_mut(), &functypes)?
             }
             Section::Data(d) => module.datas = d,
-            Section::DataCount(_) => {
-                // Validate data count
+            Section::DataCount(c) => {
+                if module.datas.len() != c as usize {
+                    return err!("data count mismatch")
+                }
             }
         }
     }
