@@ -46,10 +46,10 @@ pub mod addr {
 #[derive(Default, Debug)]
 pub struct Store {
     pub funcs: Vec<Rc<FunctionInstance>>,
-    pub tables: Vec<Rc<TableInstance>>,
-    pub mems: Vec<Rc<MemInstance>>,
-    pub globals: Vec<Rc<GlobalInstance>>,
-    pub elems: Vec<Rc<ElemInstance>>,
+    pub tables: Vec<TableInstance>,
+    pub mems: Vec<MemInstance>,
+    pub globals: Vec<GlobalInstance>,
+    pub elems: Vec<ElemInstance>,
 }
 
 impl Store {
@@ -86,7 +86,7 @@ impl Store {
         where I : Iterator<Item=TableInstance>
     {
         let base_addr = self.tables.len();
-        self.tables.extend(tables.map(Rc::new));
+        self.tables.extend(tables);
         let count = self.tables.len()-base_addr;
         (count, base_addr as addr::TableAddr)
     }
@@ -98,7 +98,7 @@ impl Store {
         where I : Iterator<Item=MemInstance>
     {
         let base_addr = self.mems.len();
-        self.mems.extend(mems.map(Rc::new));
+        self.mems.extend(mems);
         let count = self.mems.len()-base_addr;
         (count, base_addr as addr::MemoryAddr)
     }
@@ -107,7 +107,7 @@ impl Store {
         where I : Iterator<Item=GlobalInstance> 
     {
         let base_addr = self.globals.len();
-        self.globals.extend(globals.map(Rc::new));
+        self.globals.extend(globals);
         let count = self.globals.len()-base_addr;
         (count, base_addr as addr::MemoryAddr)
     }
@@ -116,7 +116,7 @@ impl Store {
         where I : Iterator<Item=ElemInstance> 
     {
         let base_addr = self.elems.len();
-        self.elems.extend(elems.map(Rc::new));
+        self.elems.extend(elems);
         let count = self.elems.len()-base_addr;
         (count, base_addr as addr::ElemAddr)
     }
