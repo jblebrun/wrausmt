@@ -15,6 +15,10 @@ impl Location {
 
     /// Advance the location to the next position.
     pub fn nextchar(&mut self) {
-        self.pos = 0;
+        self.pos += 1;
+    }
+
+    pub fn advanceby(&mut self, amt: usize) {
+        self.pos += amt as u32;
     }
 }
