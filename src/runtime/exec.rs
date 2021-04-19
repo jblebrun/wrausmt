@@ -1,4 +1,4 @@
-use super::{stack::ActivationFrame, values::Value, values::Ref, Runtime};
+use super::{ActivationFrame, values::Value, values::Ref, Runtime};
 use crate::error::{Error, Result, ResultFrom};
 use std::{convert::TryFrom, convert::TryInto};
 use crate::instructions::exec_method;
@@ -15,10 +15,12 @@ pub trait ExecutionContextActions {
     fn op_u32(&mut self) -> Result<u32>;
     fn get_local(&mut self, idx: u32) -> Result<Value>;
     fn set_local(&mut self, idx: u32, val: Value) -> Result<()>;
+    fn get_global(&mut self, idx: u32) -> Result<Value>;
     fn push_value(&mut self, val: Value) -> Result<()>;
     fn push<T: Into<Value>>(&mut self, val: T) -> Result<()>;
     fn pop_value(&mut self) -> Result<Value>;
     fn pop<T: TryFrom<Value, Error = Error>>(&mut self) -> Result<T>;
+    fn call(&mut self, idx: u32) -> Result<()>;
 }
 
 impl <'l> ExecutionContextActions for ExecutionContext<'l> {
@@ -41,6 +43,11 @@ impl <'l> ExecutionContextActions for ExecutionContext<'l> {
         Ok(())
     }
 
+    fn get_global(&mut self, idx: u32) -> Result<Value> {
+        let gaddr = idx + self.current_frame()?.module.global_offset;
+        self.runtime.store.global(gaddr)
+    }
+
     fn push_value(&mut self, val: Value) -> Result<()> {
         self.runtime.stack.push_value(val);
         Ok(())
@@ -57,6 +64,11 @@ impl <'l> ExecutionContextActions for ExecutionContext<'l> {
     fn pop<T: TryFrom<Value, Error = Error>>(&mut self) -> Result<T> {
         self.pop_value()?.try_into()
     }
+
+    fn call(&mut self, idx: u32) -> Result<()> {
+        let faddr = idx + self.current_frame()?.module.func_offset;
+        self.runtime.invoke(faddr)
+    }
 }
 
 impl<'l> ExecutionContext<'l> {
@@ -71,6 +83,7 @@ impl<'l> ExecutionContext<'l> {
             println!("HANDLE OP 0x{:x}", op);
             self.pc += 1;
             exec_method(op, self)?;
+            println!("FINISHED OP 0x{:x}", op);
         }
         Ok(())
     }
@@ -78,7 +91,7 @@ impl<'l> ExecutionContext<'l> {
 
 /// Implementation of instruction implementation for this runtime.
 impl Runtime {
-    pub fn enter(&mut self, body: &[u8]) -> Result<()> {
+    pub fn enter(&mut self, body: &[u8])-> Result<()> {
         println!("EXECUTING {:x?}", body);
         let mut ic = ExecutionContext {
             runtime: self,

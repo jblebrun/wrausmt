@@ -1,4 +1,5 @@
 use super::instance::{ElemInstance, FunctionInstance, GlobalInstance, MemInstance, TableInstance};
+use super::values::Value;
 use crate::{
     error,
     error::Result,
@@ -57,6 +58,13 @@ impl Store {
             .get(addr as usize)
             .cloned()
             .ok_or_else(|| error!("no function at addr {}", addr))
+    }
+
+    pub fn global(&self, addr: addr::GlobalAddr) -> Result<Value> {
+        self.globals
+            .get(addr as usize)
+            .ok_or_else(|| error!("no global at {}", addr))
+            .map(|g| g.val)
     }
 
     // Allocate a collection of functions.

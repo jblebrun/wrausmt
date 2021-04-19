@@ -57,7 +57,8 @@ fn parse_inner<R: Read>(reader: &mut R, module: &mut Module) -> Result<()> {
     let mut functypes: Box<[index::Func]> = Box::new([]);
 
     loop {
-        match reader.read_section()? {
+        let section = reader.read_section()?;
+        match section {
             Section::Eof => break,
             Section::Skip => (),
             Section::Custom(_) => (),

@@ -8,8 +8,10 @@ pub trait EmitCode: Write + std::fmt::Debug {
         self.write_all(CODE_HEADER.as_bytes())?;
 
         for (_, inst) in insts.iter() {
-            let code = code_item(inst);
-            self.write_all(code.as_bytes())?;
+            if !inst.body.is_empty() {
+                let code = code_item(inst);
+               self.write_all(code.as_bytes())?;
+            }
         }
 
         Ok(())
@@ -29,7 +31,7 @@ fn code_item(inst: &Instruction) -> String {
         "
 #[allow(dead_code)]
 pub fn {typename}_exec(_ec: &mut ExecutionContext) -> Result<()> {{
-  {body}    Ok(())
+  {body}    
 }}
 ",
         typename = inst.typename,
