@@ -35,12 +35,11 @@ impl <'l> ExecutionContextActions for ExecutionContext<'l> {
     }
 
     fn get_local(&mut self, idx: u32) -> Result<Value> {
-        Ok(self.current_frame()?.locals.borrow()[idx as usize])
+        Ok(self.current_frame()?.locals[idx as usize])
     }
 
     fn set_local(&mut self, idx: u32, val: Value) -> Result<()> {
-        self.current_frame()?.locals.borrow_mut()[idx as usize] = val;
-        Ok(())
+        self.runtime.stack.mut_activation()?.set_local(idx, val)
     }
 
     fn get_global(&mut self, idx: u32) -> Result<Value> {
@@ -72,10 +71,10 @@ impl <'l> ExecutionContextActions for ExecutionContext<'l> {
 }
 
 impl<'l> ExecutionContext<'l> {
-
     fn current_frame(&self) -> Result<&ActivationFrame> {
         self.runtime.stack.peek_activation()
     }
+
     #[allow(non_upper_case_globals)]
     pub fn run(&mut self) -> Result<()> {
         while self.pc < self.body.len() {
