@@ -32,7 +32,7 @@ pub struct Stack {
 /// executing function that points to the beginning of that instruction sequence.
 ///
 /// [Spec]: https://webassembly.github.io/spec/core/exec/runtime.html#labels
-#[derive(Debug, Default)]
+#[derive(Debug, PartialEq, Default)]
 pub struct Label {
     /// The number of arguments expected by the code for this label.
     pub arity: u32,
@@ -61,6 +61,7 @@ impl Stack {
     pub fn push_label(&mut self, label: Label) {
         self.label_stack.push(label);
     }
+
     pub fn push_activation(&mut self, activation: ActivationFrame) {
         self.activation_stack.push(activation);
     }
@@ -80,6 +81,11 @@ impl Stack {
         self.activation_stack
             .pop()
             .ok_or_else(|| error!("activation stack underflow"))
+    }
+
+    pub fn peek_label(&self) -> Result<&Label> {
+        self.label_stack.last()
+            .ok_or_else(|| error!("label stack underflow"))
     }
 
     pub fn peek_activation(&self) -> Result<&ActivationFrame> {

@@ -36,3 +36,18 @@ fn locals() -> Result<()> {
 
     Ok(())
 }
+
+#[test]
+fn callandglobal() -> Result<()> {
+    let mut runtime = Runtime::new();
+
+    let mut f = File::open("testdata/callandglobal.wasm").wrap("load file")?;
+    let test_mod = parse(&mut f).wrap("parse error")?;
+    println!("MODULE {:x?}", test_mod);
+
+    let mod_inst = runtime.load(test_mod)?;
+    let res = runtime.call(mod_inst, "test", &[100u32.into()])?;
+    assert_eq!(res, (100u32 + 100u32 + 0x77).into());
+
+    Ok(())
+}

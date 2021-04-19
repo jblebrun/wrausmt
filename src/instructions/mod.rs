@@ -69,11 +69,6 @@ pub fn unimpl(_ec: &mut ExecutionContext) -> Result<()> {
     err!("not yet implemented")
 }
 
-
-
-
-
-
 pub const BAD_INSTRUCTION: InstructionData = InstructionData{
     opcode: 0, 
     name: "bad", 

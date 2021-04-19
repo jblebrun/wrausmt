@@ -121,8 +121,6 @@ impl Runtime {
 
         // (Alloc 5.) Globals
 
-
-
         // (Alloc 6.) Elements
 
         // (Alloc 7.) Data
@@ -166,7 +164,7 @@ impl Runtime {
             vals.push(self.stack.pop_value()?);
         }
 
-        // 8. Let val0* be the list of zero values (other locals). TODO
+        // 8. Let val0* be the list of zero values (other locals). 
         for localtype in funcinst.code.locals.iter() {
             vals.push(localtype.default());
         }
@@ -181,13 +179,23 @@ impl Runtime {
 
         // 11. Let L be the Label with continuation at function end.
         // 12. Enter the instruction sequence with the label.
-
-        self.stack.push_label(Label {
+        let label = Label {
             arity: funcinst.functype.result.len() as u32,
-            continuation: 0,
-        });
+            continuation: funcinst.code.body.len() as u32,
+        };
+        
+        self.stack.push_label(label);
 
-        self.enter(&funcinst.code.body)
+        self.enter(&funcinst.code.body)?;
+        
+        // Due to validation, this shouould be equal to label.
+        // TODO - validation.
+        self.stack.pop_label()?;
+        
+        // Due to validation, this should be equal to the frame above.
+        self.stack.pop_activation()?;
+
+        Ok(())
     }
 
     /// Invocation of a function by the host.
@@ -234,12 +242,22 @@ impl Runtime {
         // assume single result for now
         let result = self.stack.pop_value()?;
 
-        // pop the label
-        self.stack.pop_label()?;
-
-        // pop the frame
+        // pop the dummy frame
+        // due to validation, this will be the one we pushed above.
         self.stack.pop_activation()?;
 
+        // Since we don't do validation yet, do some checking here to make sure things seem ok.
+        if let Ok(v) = self.stack.pop_value() {
+            return err!("values still on stack {:?}", v)
+        }
+
+        if let Ok(l) = self.stack.peek_label() {
+            return err!("labels still on stack {:?}", l)
+        }
+
+        if let Ok(f) = self.stack.peek_activation() {
+            return err!("frames still on stack {:?}", f)
+        }
         Ok(result)
     }
 }
