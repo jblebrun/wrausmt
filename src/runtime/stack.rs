@@ -2,7 +2,6 @@ use super::values::Value;
 use super::ModuleInstance;
 use crate::error;
 use crate::error::Result;
-use std::cell::RefCell;
 use std::rc::Rc;
 
 /// Besides the store, most instructions interact with an implicit stack.
@@ -49,7 +48,7 @@ pub struct Label {
 #[derive(Debug, Default)]
 pub struct ActivationFrame {
     pub arity: u32,
-    pub locals: RefCell<Box<[Value]>>,
+    pub locals: Box<[Value]>,
     pub module: Rc<ModuleInstance>,
 }
 
@@ -93,14 +92,25 @@ impl Stack {
             .last()
             .ok_or_else(|| error!("activation stack underflow"))
     }
+
+    pub fn mut_activation(&mut self) -> Result<&mut ActivationFrame> {
+        self.activation_stack
+            .last_mut()
+            .ok_or_else(|| error!("activation stack underflow"))
+    }
 }
 
 impl ActivationFrame {
     pub fn new(arity: u32, module: Rc<ModuleInstance>, locals: Box<[Value]>) -> Self {
         ActivationFrame {
             arity,
-            locals: RefCell::new(locals),
+            locals,
             module,
         }
+    }
+
+    pub fn set_local(&mut self, idx: u32, val: Value) -> Result<()> {
+        *self.locals.get_mut(idx as usize).ok_or_else(|| error!("no such local"))? = val;
+        Ok(())
     }
 }
