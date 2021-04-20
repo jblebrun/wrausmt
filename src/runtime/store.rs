@@ -67,6 +67,12 @@ impl Store {
             .map(|g| g.val)
     }
 
+    pub fn mem(&mut self, addr: addr::MemoryAddr) -> Result<&mut MemInstance> {
+        self.mems
+            .get_mut(addr as usize)
+            .ok_or_else(|| error!("no mem at {}", addr))
+    }
+
     // Allocate a collection of functions.
     // Functions will be allocated in a contiguous block.
     // Returns the value of the first allocated fuction.

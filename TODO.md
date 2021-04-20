@@ -1,12 +1,12 @@
 ## Rough task list
 
-* Add token location (line, pos) to text parser tokens
-* Proper module instantiation
-* Proper function invocation
-* Proper block handling
-* Memories
+* Generate instruction name tables
+* Add better execution tracing & control
+* Memories 
+  * handle i64 and other types with generic func
+* Control instructions
 * Tables
-* Implement more instructions
+* Implement more math instructions
 * Extended instructions generator
 * Host Functions
 * Validation
