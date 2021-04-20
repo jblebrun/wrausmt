@@ -5,6 +5,9 @@
 * Memories 
   * handle i64 and other types with generic func
 * Control instructions
+  * loop
+  * block/br
+  * if
 * Tables
 * Implement more math instructions
 * Extended instructions generator
@@ -13,5 +16,6 @@
 * WASM test suite parser
 * Pass WASM test suite
 * Benchmarks
+* Binary format emitter (from module)
 
 
