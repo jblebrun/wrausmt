@@ -46,6 +46,12 @@
 0x25      ,table.get                     ,(u32)
 0x26      ,table.set                     ,(u32)
 0x28      ,i32.load                      ,(u32; u32)
+| let _a = _ec.op_u32()?;
+| let o = _ec.op_u32()?;
+| let b = _ec.pop::<u32>()?;
+| let n = _ec.get_mem(b + o)?;
+| _ec.push(n)
+
 0x29      ,i64.load                      ,(u32; u32)
 0x2a      ,f32.load                      ,(u32; u32)
 0x2b      ,f64.load                      ,(u32; u32)
@@ -60,6 +66,12 @@
 0x34      ,i64.load32_s                  ,(u32; u32)
 0x35      ,i64.load32_u                  ,(u32; u32)
 0x36      ,i32.store                     ,(u32; u32)
+| let _a = _ec.op_u32()?;
+| let o = _ec.op_u32()?;
+| let v = _ec.pop::<u32>()?;
+| let b = _ec.pop::<u32>()?;
+| _ec.set_mem(b + o, v)
+
 0x37      ,i64.store                     ,(u32; u32)
 0x38      ,f32.store                     ,(u32; u32)
 0x39      ,f64.store                     ,(u32; u32)

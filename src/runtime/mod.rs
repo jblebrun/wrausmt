@@ -20,6 +20,7 @@ use {
     store::addr,
     store::Store,
     values::Value,
+    values::Num,
 };
 
 #[derive(Debug, Default)]
@@ -201,7 +202,7 @@ impl Runtime {
     /// Invocation of a function by the host.
     pub fn call(
         &mut self,
-        mod_instance: Rc<ModuleInstance>,
+        mod_instance: &Rc<ModuleInstance>,
         name: &str,
         vals: &[Value],
     ) -> Result<Value> {
@@ -240,7 +241,11 @@ impl Runtime {
         self.invoke(*funcaddr)?;
 
         // assume single result for now
-        let result = self.stack.pop_value()?;
+        let result = if funcinst.functype.params.len() > 0 {
+            self.stack.pop_value()?
+        } else {
+            Value::Num(Num::I32(0))
+        };
 
         // pop the dummy frame
         // due to validation, this will be the one we pushed above.

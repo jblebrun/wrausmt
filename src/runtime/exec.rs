@@ -1,4 +1,4 @@
-use super::{ActivationFrame, values::Value, values::Ref, Runtime};
+use super::{ActivationFrame, values::Value, values::Num, values::Ref, Runtime};
 use crate::error::{Error, Result, ResultFrom};
 use std::{convert::TryFrom, convert::TryInto};
 use crate::instructions::exec_method;
@@ -15,6 +15,8 @@ pub trait ExecutionContextActions {
     fn op_u32(&mut self) -> Result<u32>;
     fn get_local(&mut self, idx: u32) -> Result<Value>;
     fn set_local(&mut self, idx: u32, val: Value) -> Result<()>;
+    fn set_mem(&mut self, offset: u32, val: u32) -> Result<()>;
+    fn get_mem(&mut self, offset: u32) -> Result<Num>;
     fn get_global(&mut self, idx: u32) -> Result<Value>;
     fn push_value(&mut self, val: Value) -> Result<()>;
     fn push<T: Into<Value>>(&mut self, val: T) -> Result<()>;
@@ -40,6 +42,24 @@ impl <'l> ExecutionContextActions for ExecutionContext<'l> {
 
     fn set_local(&mut self, idx: u32, val: Value) -> Result<()> {
         self.runtime.stack.mut_activation()?.set_local(idx, val)
+    }
+
+    fn set_mem(&mut self, offset: u32, val: u32) -> Result<()> {
+        let o = offset as usize;
+        let bs = val.to_le_bytes();
+        let m = self.runtime.store.mem(0)?;
+        m.data[o..o+4].clone_from_slice(&bs);
+        Ok(())
+    }
+
+    fn get_mem(&mut self, offset: u32) -> Result<Num> {
+        let o = offset as usize;
+        let db: [u8; 4] = self.runtime.store
+            .mem(0)?
+            .data[o..o+4]
+            .try_into().wrap("mem")?;
+        let val = u32::from_le_bytes(db);
+        Ok(Num::I32(val))
     }
 
     fn get_global(&mut self, idx: u32) -> Result<Value> {
