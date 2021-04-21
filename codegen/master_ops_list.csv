@@ -46,40 +46,88 @@
 0x25      ,table.get                     ,(u32)
 0x26      ,table.set                     ,(u32)
 0x28      ,i32.load                      ,(u32; u32)
-| let _a = _ec.op_u32()?;
-| let o = _ec.op_u32()?;
-| let b = _ec.pop::<u32>()?;
-| let n = _ec.get_mem(b + o)?;
-| _ec.push(n)
+| let v = _ec.get_mem_i32()?;
+| _ec.push(v)
 
 0x29      ,i64.load                      ,(u32; u32)
+| let v = _ec.get_mem_i64()?;
+| _ec.push(v)
+
 0x2a      ,f32.load                      ,(u32; u32)
+| let v = _ec.get_mem_f32()?;
+| _ec.push(v)
+
 0x2b      ,f64.load                      ,(u32; u32)
+| let v = _ec.get_mem_f64()?;
+| _ec.push(v)
+
 0x2c      ,i32.load8_s                   ,(u32; u32)
+| let v = _ec.get_mem_i32_8s()?;
+| _ec.push(v as i32)
+
 0x2d      ,i32.load8_u                   ,(u32; u32)
+| let v = _ec.get_mem_i32_8u()?;
+| _ec.push(v as u32)
+
 0x2e      ,i32.load16_s                  ,(u32; u32)
+| let v = _ec.get_mem_i32_16s()?;
+| _ec.push(v as i32)
+
 0x2f      ,i32.load16_u                  ,(u32; u32)
+| let v = _ec.get_mem_i32_16u()?;
+| _ec.push(v as u32)
+
 0x30      ,i64.load8_s                   ,(u32; u32)
+| let v = _ec.get_mem_i64_8s()?;
+| _ec.push(v as i64)
+
 0x31      ,i64.load8_u                   ,(u32; u32)
+| let v = _ec.get_mem_i64_8u()?;
+| _ec.push(v as i64)
+
 0x32      ,i64.load16_s                  ,(u32; u32)
+| let v = _ec.get_mem_i64_16s()?;
+| _ec.push(v as i64)
+
 0x33      ,i64.load16_u                  ,(u32; u32)
+| let v = _ec.get_mem_i64_16u()?;
+| _ec.push(v as i64)
+
 0x34      ,i64.load32_s                  ,(u32; u32)
+| let v = _ec.get_mem_i64_32s()?;
+| _ec.push(v as i64)
+
 0x35      ,i64.load32_u                  ,(u32; u32)
+| let v = _ec.get_mem_i64_32u()?;
+| _ec.push(v as i64)
+
 0x36      ,i32.store                     ,(u32; u32)
-| let _a = _ec.op_u32()?;
-| let o = _ec.op_u32()?;
-| let v = _ec.pop::<u32>()?;
-| let b = _ec.pop::<u32>()?;
-| _ec.set_mem(b + o, v)
+| _ec.set_mem_i32()
 
 0x37      ,i64.store                     ,(u32; u32)
+| _ec.set_mem_i64()
+
 0x38      ,f32.store                     ,(u32; u32)
+| _ec.set_mem_f32()
+
 0x39      ,f64.store                     ,(u32; u32)
+| _ec.set_mem_f64()
+
 0x3a      ,i32.store8                    ,(u32; u32)
+| _ec.set_mem_i32_8()
+
 0x3b      ,i32.store16                   ,(u32; u32)
+| _ec.set_mem_i32_16()
+
 0x3c      ,i64.store8                    ,(u32; u32)
+| _ec.set_mem_i64_8()
+
 0x3D      ,i64.store16                   ,(u32; u32)
+| _ec.set_mem_i64_16()
+
 0x3E      ,i64.store32                   ,(u32; u32)
+| _ec.set_mem_i64_32()
+
 0x3f      ,memory.size                   ,(d8)
 0x40      ,memory.grow                   ,(d8)
 0x41      ,i32const                      ,(u32)

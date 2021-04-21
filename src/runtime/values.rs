@@ -91,16 +91,16 @@ impl ValueType {
 /// This makes it convenient to convert from the rust primitive type to either the value subtype
 /// ([Num] or [Ref]), or the containing [Value] type that can hold either.
 macro_rules! froms {
-    ( $ty:ty, $name:ident ) => {
+    ( $ty:ty, $sty:ty, $name:ident ) => {
         impl From<$ty> for Num {
             fn from(v: $ty) -> Num {
-                Num::$name(v as $ty)
+                Num::$name(v as $sty)
             }
         }
 
         impl From<$ty> for Value {
             fn from(v: $ty) -> Value {
-                Value::Num(Num::$name(v as $ty))
+                Value::Num(Num::$name(v as $sty))
             }
         }
 
@@ -109,18 +109,20 @@ macro_rules! froms {
 
             fn try_from(val: Value) -> Result<$ty, Self::Error> {
                 match val {
-                    Value::Num(Num::$name(v)) => Ok(v),
-                    _ => err!("couldn't convert"),
+                    Value::Num(Num::$name(v)) => Ok(v as $ty),
+                    _ => err!("couldn't convert {:?} {}", val, stringify!($name)),
                 }
             }
         }
     };
 }
 
-froms! { u32, I32 }
-froms! { u64, I64 }
-froms! { f32, F32 }
-froms! { f64, F64 }
+froms! { u32, u32, I32 }
+froms! { u64, u64, I64 }
+froms! { i32, u32, I32 }
+froms! { i64, u64, I64 }
+froms! { f32, f32, F32 }
+froms! { f64, f64, F64 }
 
 impl From<Num> for Value {
     fn from(n: Num) -> Value {

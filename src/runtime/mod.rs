@@ -240,12 +240,15 @@ impl Runtime {
         // 9. Invoke the function.
         self.invoke(*funcaddr)?;
 
+        println!("FUNC TYPE {:?}", funcinst.functype);
+
         // assume single result for now
-        let result = if funcinst.functype.params.len() > 0 {
-            self.stack.pop_value()?
+        let result = if funcinst.functype.result.len() > 0 {
+            self.stack.pop_value().wrap(&format!("popping result for {}", name))?
         } else {
             Value::Num(Num::I32(0))
         };
+        println!("RESULT: {:?}", result);
 
         // pop the dummy frame
         // due to validation, this will be the one we pushed above.
@@ -264,5 +267,22 @@ impl Runtime {
             return err!("frames still on stack {:?}", f)
         }
         Ok(result)
+    }
+}
+
+#[macro_export]
+macro_rules! runner {
+    ( $runtime:expr, $mod_inst:expr ) => {
+        macro_rules! exec_method {
+            ( $cmd:expr ) => {
+                $runtime.call(&$mod_inst, $cmd, &[]);
+            };
+            ( $cmd:expr, $v1:expr ) => {
+                $runtime.call(&$mod_inst, $cmd, &[$v1.into()]);
+            };
+            ( $cmd:expr, $v1:expr, $v2:expr ) => {
+                $runtime.call(&$mod_inst, $cmd, &[$v1.into(), $v2.into()]);
+            }
+        }
     }
 }
