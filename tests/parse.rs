@@ -7,6 +7,8 @@ fn basic_parse() -> Result<()> {
 
     let sections = Parser::parse(f)?;
 
-    println!("SECTIONS: {:?}", sections);
+    for section in sections {
+        println!("SECTION: {:?}", section);
+    }
     Ok(())
 }

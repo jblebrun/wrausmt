@@ -1,18 +1,20 @@
 (module
   (type (;0;) (func))
   (type (;1;) (func (param i32) (result i32)))
+  (type (;2;) (func (param i32) ))
   (import "env" "__stack_pointer" (global (;0;) (mut i32)))
   (import "env" "__memory_base" (global (;1;) i32))
   (import "env" "__table_base" (global (;2;) i32))
   (import "env" "memory" (memory (;0;) 0))
-  (func (;0;) (type 0)
+  (func (;0;) (type 2) (param i32)
+    local.get $foo
     call 1)
-  (func (;1;) (type 0))
-  (func (;2;) (type 1) (param i32) (result i32)
+  (func (type 0))
+  (func (;2;) (type 1) (param $foo i32) (result i32)
     (local i32)
     i32.const 600
     local.set 1
-    local.get 0
+    local.get $foo 
     local.get 1
     i32.sub
     return)
