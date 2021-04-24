@@ -9,6 +9,16 @@ pattern that's not quite working:
 })
 ```
 
+### Type sharing / Abstract Syntax
+
+`To what extent do I want to keep typing separate between the parsers and runtime? Many of the types are pretty similar, so it makes sense to share them. Currently, the text parser uses a number of definitions from the common "types" module. 
+
+It might be nice to eventually define unqiue types for the parser, so that it could be put into its own crate.
+
+### Id management
+
+The text format supports named IDs as a convenience. These don't appear in the abstract syntax, but it may be nice to track these at runtime for informational purposes during debugging/error reporting.
+
 ### Method accepting closure to self.
 
 In the binary parser, I created a [`read_vec` helper](src/format/binary/values.rs#74) to wrap the pattern of reading a vector encoded in the binary format. I pass the method a closure which reads the items of the vector inside of a mapping created by read_vec. Calling read_vec results in a mutable borrow of self, but since we often want to call another self method inside of the closure, this doesn't work; the closure has already borrowed `self`, so we can't call `read_vec`.
