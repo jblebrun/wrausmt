@@ -1,5 +1,5 @@
 use std::io::Read;
-use super::{Expr, Index, Parser};
+use super::{Expr, Field, Index, Parser};
 use crate::{error::Result, types::RefType};
 
 #[derive(Debug)]
@@ -38,8 +38,18 @@ pub struct ElemField {
 }
 
 impl<R: Read> Parser<R> {
-    pub fn parse_elem_section(&mut self) -> Result<Option<ElemField>> {
+    pub fn parse_elem_field(&mut self) -> Result<Option<Field>> {
+        if !self.at_expr_start("elem")? {
+            return Ok(None)
+        }
         self.consume_expression()?; 
-        Ok(None)
+        Ok(Some(Field::Elem(ElemField {
+            id: None,
+            mode: ModeEntry::Passive,
+            elemlist: ElemList {
+                reftype: RefType::Func,
+                items: vec![]
+            }
+        })))
     }
 }
