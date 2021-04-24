@@ -2,15 +2,13 @@ use std::io::Read;
 use super::{Expr, Field, Parser, elem::ElemList};
 use crate::{error::Result, types::{Limits, RefType, TableType}};
 
-#[derive(Debug)]
-#[allow(dead_code)]
+#[derive(Debug, PartialEq)]
 pub enum TableElems {
     Elem(ElemList),
     Expr(Vec<Expr>),
 }
 
-#[derive(Debug)]
-#[allow(dead_code)]
+#[derive(Debug, PartialEq)]
 // Table may either be an import, or declaring a new table,
 // in which case the contents may include initializer element segments.
 pub enum TableContents {
@@ -18,7 +16,7 @@ pub enum TableContents {
     Import(String),
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 // table :: = (table id? <tabletype>)
 // Abbreviations:
 // inline imports/exports

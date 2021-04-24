@@ -5,8 +5,8 @@ use crate::{
 };
 use std::io::Read;
 
-#[derive(Debug)]
 // global := (global <id>? <globaltype> <expr>)
+#[derive(Debug, PartialEq)]
 pub struct GlobalField {
     id: Option<String>,
     globaltype: GlobalType,

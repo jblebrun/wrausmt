@@ -5,17 +5,17 @@ use super::Field;
 use super::Expr;
 use crate::error::Result;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct DataInit {
     memidx: Index,
     offset: Expr
 }
 
-#[derive(Debug)]
 // data := (data id? <datastring>)
 //       | (data id? <memuse> (offset <expr>) <datastring>)
 // datastring := bytestring
 // memuse := (memory <memidx>)
+#[derive(Debug, PartialEq)]
 pub struct DataField {
     id: Option<String>,
     data: Vec<u8>,

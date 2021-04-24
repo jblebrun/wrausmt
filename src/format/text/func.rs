@@ -2,16 +2,15 @@ use std::io::Read;
 use super::{Expr, Field, Parser, TypeUse};
 use crate::{error::Result, types::ValueType};
 
-#[derive(Debug)]
 // local := (local id? <valtype>)
+#[derive(Debug, PartialEq)]
 pub struct Local {
     id: Option<String>,
     vtype: ValueType
 }
 
-#[derive(Debug)]
-#[allow(dead_code)]
 // Function fields may define a new function, or they may be an inline import.
+#[derive(Debug, PartialEq)]
 pub enum FuncContents {
     Inline{locals: Vec<Local>, body: Expr},
     Import(String)
@@ -23,13 +22,13 @@ impl Default for FuncContents {
     }
 }
 
-#[derive(Debug, Default)]
 // func := (func id? <typeuse> <local>* <instr>*)
 // instr := sequence of instr, or folded expressions
 //
 // Abbreviations:
 // func := (func id? (export  <name>)*  ...)
 // func := (func id? (import <modname> <name>) <typeuse>)
+#[derive(Debug, PartialEq, Default)]
 pub struct FuncField {
     id: Option<String>,
     exports: Vec<String>,

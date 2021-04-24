@@ -2,8 +2,8 @@ use std::io::Read;
 use super::{Field, Index, Parser};
 use crate::error::Result;
 
-#[derive(Debug)]
 // start := (start <funcidx>)
+#[derive(Debug, PartialEq)]
 pub struct StartField {
     idx: Index
 }

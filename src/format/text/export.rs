@@ -2,7 +2,7 @@ use std::io::Read;
 use super::{Field, Parser, TypeUse};
 use crate::{error::Result, types::{GlobalType, MemType, TableType}};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 #[allow(dead_code)]
 pub enum ExportDesc {
     Func(TypeUse),
@@ -11,8 +11,8 @@ pub enum ExportDesc {
     Global(GlobalType),
 }
 
-#[derive(Debug)]
 // export := (export <name> <exportdesc>)
+#[derive(Debug, PartialEq)]
 pub struct ExportField {
     name: String,
     exportdesc: ExportDesc

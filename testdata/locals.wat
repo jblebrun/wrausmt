@@ -1,13 +1,14 @@
 (module
-  (type (;0;) (func))
+  (type $void (func))
   (type (;1;) (func (param i32) (result i32)))
-  (type (;2;) (func (param i32) ))
+  (type (;2;) (func (param $x i32) ))
+  (type (;3;) (func (param funcref) ))
+  (type (;4;) (func (param externref) ))
   (import "env" "__stack_pointer" (global (;0;) (mut i32)))
   (import "env" "__memory_base" (global (;1;) i32))
   (import "env" "__table_base" (global (;2;) i32))
   (import "env" "memory" (memory (;0;) 0))
-  (func (;0;) (type 2) (param i32)
-    local.get $foo
+  (func (;0;) (type 2) (param i32) 
     call 1)
   (func (type 0))
   (func (;2;) (type 1) (param $foo i32) (result i32)

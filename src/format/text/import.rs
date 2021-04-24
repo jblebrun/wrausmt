@@ -2,8 +2,7 @@ use std::io::Read;
 use super::{Field, Parser, TypeUse};
 use crate::{error::Result, types::{GlobalType, MemType, TableType}};
 
-#[derive(Debug)]
-#[allow(dead_code)]
+#[derive(Debug, PartialEq)]
 pub enum ImportDesc {
     Func(TypeUse),
     Table(TableType),
@@ -17,7 +16,7 @@ impl Default for ImportDesc {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, PartialEq, Default)]
 pub struct ImportField {
     modname: String,
     name: String,
