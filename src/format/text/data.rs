@@ -1,6 +1,7 @@
 use std::io::Read;
 use super::Parser;
 use super::Index;
+use super::Field;
 use super::Expr;
 use crate::error::Result;
 
@@ -22,8 +23,15 @@ pub struct DataField {
 }
 
 impl<R: Read> Parser<R> {
-    pub fn parse_data_section(&mut self) -> Result<Option<DataField>> {
+    pub fn parse_data_field(&mut self) -> Result<Option<Field>> {
+        if !self.at_expr_start("data")? {
+            return Ok(None)
+        }
         self.consume_expression()?; 
-        Ok(None)
+        Ok(Some(Field::Data(DataField {
+            id: None,
+            data: vec![],
+            init: None
+        })))
     }
 }

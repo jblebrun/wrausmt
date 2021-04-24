@@ -13,7 +13,7 @@ mod elem;
 mod data;
 
 use crate::{err, types::ValueType};
-use crate::error::{Result, ResultFrom};
+use crate::error::Result;
 use lex::Tokenizer;
 use std::io::Read;
 use token::{FileToken, Token};
@@ -23,6 +23,8 @@ use self::{data::DataField, elem::ElemField, export::ExportField, func::FuncFiel
 pub struct Parser<R: Read> {
     tokenizer: Tokenizer<R>,
     current: FileToken,
+    // 1 token of lookahead
+    next: FileToken,
 }
 
 // Recursive descent parsing. So far, the grammar for the text format seems to be LL(1),
@@ -32,6 +34,7 @@ impl<R: Read> Parser<R> {
     pub fn parse(r: R) -> Result<Vec<Field>> {
         let mut parser = Parser::new(r)?;
         parser.advance()?;
+        parser.advance()?;
         parser.parse_module()
     }
 
@@ -39,30 +42,50 @@ impl<R: Read> Parser<R> {
         Ok(Parser {
             tokenizer: Tokenizer::new(r)?,
             current: FileToken::default(),
+            next: FileToken::default(),
         })
     }
 
+    // Updates the lookahead token to the next value
+    // provided by the tokenizer.
     fn next(&mut self) -> Result<()> {
-        if self.current.token == Token::Eof {
-            panic!("EOF")
+        if self.next.token == Token::Eof {
+            return err!("Attempted to advance past EOF")
         }
+        
         match self.tokenizer.next() {
-            None => self.current.token = Token::Eof,
-            Some(Ok(t)) => self.current = t,
+            None => self.next.token = Token::Eof,
+            Some(Ok(t)) => self.next = t,
             Some(Err(e)) => return Err(e),
         }
         Ok(())
     }
 
     // Advance to the next token, skipping all whitespace and comments.
-    fn advance(&mut self) -> Result<()> {
+    // Returns the current token to be owned by caller.
+    fn advance(&mut self) -> Result<Token> {
+        let out: Token = std::mem::take(&mut self.current.token);
+        self.current = std::mem::take(&mut self.next);
         self.next()?;
-        while self.current.token.ignorable() {
+        while self.next.token.ignorable() {
             self.next()?;
         }
-        Ok(())
+        Ok(out)
     }
 
+    fn at_expr_start(&mut self, name: &str) -> Result<bool> {
+        if self.current.token != Token::Open {
+            return Ok(false) 
+        }
+        match &self.next.token {
+            Token::Keyword(k) if k == name => {
+                self.advance()?;
+                self.advance()?;
+                Ok(true) 
+            }
+            _ => Ok(false)
+        }
+    }
 
     /// Attempt to parse the current token stream as a WebAssembly module.
     /// On success, a vector of sections is returned. They can be organized into a
@@ -79,23 +102,16 @@ impl<R: Read> Parser<R> {
             self.advance()?;
         }
 
-        if self.current.token != Token::Open {
-            return err!("Invalid start token {:?}", self.current);
-        }
-        self.advance()?;
-
         // section*
         let mut result: Vec<Field> = vec![];
         while let Some(s) = self.parse_section()? {
             result.push(s);
 
-            self.advance()?;
             match self.current.token {
                 Token::Open => (),
                 Token::Close => break,
                 _ => return err!("Invalid start token {:?}", self.current),
             }
-            self.advance()?;
         }
 
         Ok(result)
@@ -104,7 +120,6 @@ impl<R: Read> Parser<R> {
     fn consume_expression(&mut self) -> Result<()> {
      let mut depth = 1;
         while depth > 0 {
-            self.advance()?;
             match self.current.token {
                 Token::Open => depth += 1,
                 Token::Close => depth -= 1,
@@ -113,31 +128,25 @@ impl<R: Read> Parser<R> {
             if depth == 0 {
                 break;
             }
+            self.advance()?;
         }
+        self.advance()?;
         Ok(())
     }
 
     // Parser should be located at the token immediately following a '('
     fn parse_section(&mut self) -> Result<Option<Field>> {
-        let name = self.current.token.expect_keyword()
-            .wrap("parsing section name")?
-            .clone();
-
-        match name.as_ref() {
-            // TODO - is there a cleaner way to map the inner result
-            // than the double map construct?
-            "type" => self.parse_type_field().map(|f| f.map(|f| f.into())),
-            "func" => self.parse_func_field().map(|f| f.map(|f| f.into())),
-            "table" => self.parse_table_section().map(|f| f.map(|f| f.into())),
-            "memory" => self.parse_memory_section().map(|f| f.map(|f| f.into())),
-            "import" => self.parse_import_section().map(|f| f.map(|f| f.into())),
-            "export" => self.parse_export_section().map(|f| f.map(|f| f.into())),
-            "global" => self.parse_global_section().map(|f| f.map(|f| f.into())),
-            "start" => self.parse_start_section().map(|f| f.map(|f| f.into())),
-            "elem" => self.parse_elem_section().map(|f| f.map(|f| f.into())),
-            "data" => self.parse_data_section().map(|f| f.map(|f| f.into())),
-            _ => err!("unknown section name {}", name)
-        }
+        if let Some(f) = self.parse_type_field()? { return Ok(Some(f)) }
+        if let Some(f) = self.parse_func_field()? { return Ok(Some(f)) }
+        if let Some(f) = self.parse_table_field()? { return Ok(Some(f)) }
+        if let Some(f) = self.parse_memory_field()? { return Ok(Some(f)) }
+        if let Some(f) = self.parse_import_field()? { return Ok(Some(f)) }
+        if let Some(f) = self.parse_export_field()? { return Ok(Some(f)) }
+        if let Some(f) = self.parse_global_field()? { return Ok(Some(f)) }
+        if let Some(f) = self.parse_start_field()? { return Ok(Some(f)) }
+        if let Some(f) = self.parse_elem_field()? { return Ok(Some(f)) }
+        if let Some(f) = self.parse_data_field()? { return Ok(Some(f)) }
+        return err!("no section found at {:?} {:?}", self.current, self.next)
     }
 }
 
@@ -154,27 +163,6 @@ pub enum Field {
     Elem(ElemField),
     Data(DataField),
 }
-
-macro_rules! from_field {
-    ( $n:ident, $nf:ident ) => {
-        impl From<$nf> for Field {
-            fn from(f: $nf) -> Self {
-                Field::$n(f)
-            }
-        }
-    }
-}
-
-from_field! { Type, TypeField }
-from_field! { Func, FuncField }
-from_field! { Table, TableField }
-from_field! { Memory, MemoryField }
-from_field! { Import, ImportField }
-from_field! { Export, ExportField }
-from_field! { Global, GlobalField }
-from_field! { Start, StartField }
-from_field! { Elem, ElemField }
-from_field! { Data, DataField }
 
 #[derive(Debug)]
 #[allow(dead_code)]

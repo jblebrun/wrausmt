@@ -1,5 +1,5 @@
 use std::io::Read;
-use super::{Parser, TypeUse};
+use super::{Field, Parser, TypeUse};
 use crate::{error::Result, types::{GlobalType, MemType, TableType}};
 
 #[derive(Debug)]
@@ -19,11 +19,14 @@ pub struct ExportField {
 }
 
 impl<R: Read> Parser<R> {
-    pub fn parse_export_section(&mut self) -> Result<Option<ExportField>> {
+    pub fn parse_export_field(&mut self) -> Result<Option<Field>> {
+        if !self.at_expr_start("export")? {
+            return Ok(None)
+        }
         self.consume_expression()?; 
-        Ok(Some(ExportField {
+        Ok(Some(Field::Export(ExportField {
             name: "name".into(),
             exportdesc: ExportDesc::Func(TypeUse::default())
-        }))
+        })))
     }
 }

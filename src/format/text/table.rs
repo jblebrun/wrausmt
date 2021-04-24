@@ -1,6 +1,6 @@
 use std::io::Read;
-use super::{Expr, Parser, elem::ElemList};
-use crate::{error::Result, types::TableType};
+use super::{Expr, Field, Parser, elem::ElemList};
+use crate::{error::Result, types::{Limits, RefType, TableType}};
 
 #[derive(Debug)]
 #[allow(dead_code)]
@@ -31,8 +31,16 @@ pub struct TableField {
 }
 
 impl<R: Read> Parser<R> {
-    pub fn parse_table_section(&mut self) -> Result<Option<TableField>> {
+    pub fn parse_table_field(&mut self) -> Result<Option<Field>> {
+        if !self.at_expr_start("table")? {
+            return Ok(None)
+        }
         self.consume_expression()?; 
-        Ok(None)
+        Ok(Some(Field::Table(TableField {
+            id: None,
+            exports: vec![],
+            tabletype: TableType { limits: Limits::default(), reftype: RefType::Func },
+            contents: TableContents::Inline{ elems: None}
+        })))
     }
 }

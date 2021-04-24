@@ -1,5 +1,5 @@
 use std::io::Read;
-use super::{Expr, Parser, TypeUse};
+use super::{Expr, Field, Parser, TypeUse};
 use crate::{error::Result, types::ValueType};
 
 #[derive(Debug)]
@@ -39,8 +39,11 @@ pub struct FuncField {
 
 impl<R: Read> Parser<R> {
     // func := (func id? (export <name>)* (import <modname> <name>) <typeuse>)
-    pub fn parse_func_field(&mut self) -> Result<Option<FuncField>> {
+    pub fn parse_func_field(&mut self) -> Result<Option<Field>> {
+        if !self.at_expr_start("func")? {
+            return Ok(None)
+        }
         self.consume_expression()?; 
-        Ok(Some(FuncField::default()))
+        Ok(Some(Field::Func(FuncField::default())))
     }   
 }

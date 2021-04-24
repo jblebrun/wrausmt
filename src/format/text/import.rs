@@ -1,5 +1,5 @@
 use std::io::Read;
-use super::{Parser, TypeUse};
+use super::{Field, Parser, TypeUse};
 use crate::{error::Result, types::{GlobalType, MemType, TableType}};
 
 #[derive(Debug)]
@@ -26,8 +26,11 @@ pub struct ImportField {
 }
 
 impl<R: Read> Parser<R> {
-    pub fn parse_import_section(&mut self) -> Result<Option<ImportField>> {
+    pub fn parse_import_field(&mut self) -> Result<Option<Field>> {
+        if !self.at_expr_start("import")? {
+            return Ok(None)
+        }
         self.consume_expression()?; 
-        Ok(Some(ImportField::default()))
+        Ok(Some(Field::Import(ImportField::default())))
     }
 }

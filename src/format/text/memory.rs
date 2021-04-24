@@ -1,5 +1,5 @@
 use std::io::Read;
-use super::Parser;
+use super::{Field, Parser};
 use crate::{error::Result, types::MemType};
     
 #[derive(Debug)]
@@ -26,8 +26,15 @@ pub struct MemoryField {
 }
 
 impl<R: Read> Parser<R> {
-    pub fn parse_memory_section(&mut self) -> Result<Option<MemoryField>> {
+    pub fn parse_memory_field(&mut self) -> Result<Option<Field>> {
+        if !self.at_expr_start("memory")? {
+            return Ok(None)
+        }
         self.consume_expression()?; 
-        Ok(None)
+        Ok(Some(Field::Memory(MemoryField {
+            id: None,
+            exports: vec![],
+            contents: MemoryContents::Import("foo".into())
+        })))
     }
 }

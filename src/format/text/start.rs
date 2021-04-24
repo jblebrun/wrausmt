@@ -1,5 +1,5 @@
 use std::io::Read;
-use super::{Index, Parser};
+use super::{Field, Index, Parser};
 use crate::error::Result;
 
 #[derive(Debug)]
@@ -9,8 +9,11 @@ pub struct StartField {
 }
 
 impl<R: Read> Parser<R> {
-    pub fn parse_start_section(&mut self) -> Result<Option<StartField>> {
+    pub fn parse_start_field(&mut self) -> Result<Option<Field>> {
+        if !self.at_expr_start("start")? {
+            return Ok(None)
+        } 
         self.consume_expression()?; 
-        Ok(None)
+        Ok(Some(Field::Start(StartField { idx:Index::Numeric(42) })))
     }
 }
