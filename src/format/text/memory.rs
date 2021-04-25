@@ -2,8 +2,7 @@ use std::io::Read;
 use super::{Field, Parser};
 use crate::{error::Result, types::MemType};
     
-#[derive(Debug)]
-#[allow(dead_code)]
+#[derive(Debug, PartialEq)]
 pub enum MemoryContents {
     // standard
     Inline(MemType),
@@ -13,12 +12,12 @@ pub enum MemoryContents {
     Import(String)
 }
 
-#[derive(Debug)]
 // memory := (memory id? <memtype>)
 //
 // Abbreviations:
 // Inline import/export
 // Inline data segments
+#[derive(Debug, PartialEq)]
 pub struct MemoryField {
     id: Option<String>,
     exports: Vec<String>,

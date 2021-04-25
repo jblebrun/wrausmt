@@ -1,18 +1,18 @@
 mod lex;
 mod token;
 
-mod typefield;
-mod func;
-mod table;
-mod memory;
-mod import;
-mod export;
-mod global;
-mod start;
-mod elem;
-mod data;
+pub mod typefield;
+pub mod func;
+pub mod table;
+pub mod memory;
+pub mod import;
+pub mod export;
+pub mod global;
+pub mod start;
+pub mod elem;
+pub mod data;
 
-use crate::{err, types::ValueType};
+use crate::{err, types::{NumType, RefType, ValueType}};
 use crate::error::Result;
 use lex::Tokenizer;
 use std::io::Read;
@@ -87,6 +87,47 @@ impl<R: Read> Parser<R> {
         }
     }
 
+    fn expect_close(&mut self) -> Result<()> {
+        match self.current.token {
+            Token::Close => {
+                self.advance()?;
+                Ok(())
+            },
+            _ => err!("expected close, not {:?}", self.current)
+        }
+    }
+
+    fn try_id(&mut self) -> Result<Option<String>> {
+       let id =  match &self.current.token {
+           // TODO - don't clone id?
+            Token::Id(id) => Some(id.clone()),
+            _ => None
+        };
+
+       if id.is_some() {
+           self.advance()?;
+       }
+
+       Ok(id)
+    }
+
+    fn expect_valtype(&mut self) -> Result<ValueType> {
+        let result = match &self.current.token {
+            Token::Keyword(kw) => match kw.as_str() {
+                "func" | "funcref" => ValueType::Ref(RefType::Func),
+                "extern" | "externref" => ValueType::Ref(RefType::Extern),
+                "i32" => ValueType::Num(NumType::I32),
+                "i64" => ValueType::Num(NumType::I64),
+                "f32" => ValueType::Num(NumType::F32),
+                "f64" => ValueType::Num(NumType::F64),
+                _ => return err!("{} is not a value type", kw) 
+            }
+            _ => return err!("{:?} is not a value type", self.current.token)
+        };
+        self.advance()?;
+        Ok(result)
+    }
+
     /// Attempt to parse the current token stream as a WebAssembly module.
     /// On success, a vector of sections is returned. They can be organized into a
     /// module object.
@@ -150,7 +191,7 @@ impl<R: Read> Parser<R> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Field {
     Type(TypeField),
     Func(FuncField),
@@ -164,31 +205,84 @@ pub enum Field {
     Data(DataField),
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 #[allow(dead_code)]
 enum Index {
    Numeric(u32),
    Named(String)
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq)]
 pub struct Expr {
 }
 
 // param := (param id? valtype)
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct FParam {
-    id: Option<String>,
-    typ: ValueType,
+    pub id: Option<String>,
+    pub valuetype: ValueType,
 }
 
-// param := (result valtype)
-#[derive(Debug)]
+#[macro_export]
+macro_rules! fparam {
+    ( $pid:literal; $vt:ident ) => {
+        wrausmt::fparam! { Some($pid.to_string()); $vt }
+    };
+    ( $id:expr; Func ) => {
+        FParam{ id: $id, valuetype: wrausmt::types::RefType::Func.into() }
+    };
+    ( $id:expr; Extern ) => {
+        FParam{ id: $id, valuetype: wrausmt::types::RefType::Extern.into() }
+    };
+    ( $id:expr; $vt:ident ) => {
+        FParam{ id: $id, valuetype: wrausmt::types::NumType::$vt.into() }
+    };
+    ( $vt:ident ) => {
+        wrausmt::fparam! { None; $vt }
+    }
+}
+
+#[macro_export]
+macro_rules! fresult {
+    ( $vt:ident ) => {
+        FResult{ valuetype: wrausmt::types::NumType::$vt.into() }
+    }
+}
+
+// result := (result valtype)
+#[derive(Debug, PartialEq)]
 pub struct FResult {
-    typ: ValueType,
+    pub valuetype: ValueType,
 }
 
-#[derive(Debug, Default)]
+impl <R: Read> Parser<R> {
+    fn try_parse_fresult(&mut self) -> Result<Option<FResult>> {
+        if !self.at_expr_start("result")? {
+            return Ok(None);
+        }
+        
+        let valuetype = self.expect_valtype()?;
+        
+        self.expect_close()?;
+
+        Ok(Some(FResult { valuetype }))
+    }
+    fn try_parse_fparam(&mut self) -> Result<Option<FParam>> {
+        if !self.at_expr_start("param")? {
+            return Ok(None);
+        }
+
+        let id = self.try_id()?;
+        
+        let valuetype = self.expect_valtype()?;
+        
+        self.expect_close()?;
+
+        Ok(Some(FParam { id, valuetype }))
+    }
+}
+
+#[derive(Debug, PartialEq, Default)]
 pub struct TypeUse {
     params: Vec<FParam>,
     result: Vec<FResult>

@@ -2,24 +2,24 @@ use std::io::Read;
 use super::{Expr, Field, Index, Parser};
 use crate::{error::Result, types::RefType};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct TableUse {
     tableidx: Index
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct TablePosition {
     tableuse: TableUse,
     offset: Expr
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct ElemList {
     reftype: RefType,
     items: Vec<Expr>
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 #[allow(dead_code)]
 enum ModeEntry {
     Passive,
@@ -30,7 +30,7 @@ enum ModeEntry {
 // elem := (elem <id>? <elemlist>)
 //       | (elem <id>? <tableuse> (offset <expr>) <elemlist>)
 //       | (elem <id>? declare <elemlist>)
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct ElemField {
     id: Option<String>,
     mode: ModeEntry,

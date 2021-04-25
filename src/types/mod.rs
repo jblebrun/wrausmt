@@ -18,7 +18,7 @@ use std::boxed::Box;
 /// type can be stored in memories.
 ///
 /// [Spec]: https://webassembly.github.io/spec/core/syntax/types.html#number-types
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum NumType {
     I32,
     I64,
@@ -38,7 +38,7 @@ pub enum NumType {
 /// observed. Values of reference type can be stored in tables.
 ///
 /// [Spec]: https://webassembly.github.io/spec/core/syntax/types.html#reference-types
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum RefType {
     Func,
     Extern,
@@ -50,7 +50,7 @@ pub enum RefType {
 /// They are either [number types][NumType] or [reference types][RefType].
 ///
 /// [Spec]: https://webassembly.github.io/spec/core/syntax/types.html#value-types
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum ValueType {
     Num(NumType),
     Ref(RefType),
@@ -70,7 +70,7 @@ pub type ParamsType = ResultType;
 /// of results. They are also used to classify the inputs and outputs of instructions. [Spec][Spec]
 ///
 /// [Spec]: https://webassembly.github.io/spec/core/syntax/types.html#funcion-types
-#[derive(Debug, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct FunctionType {
     pub params: Box<ParamsType>,
     pub result: Box<ResultType>,
@@ -80,7 +80,7 @@ pub struct FunctionType {
 /// and [table types][TableType]. [Spec][Spec]
 ///
 /// [Spec]: https://webassembly.github.io/spec/core/syntax/types.html#limits
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq)]
 pub struct Limits {
     pub lower: u32,
     pub upper: Option<u32>,
@@ -92,7 +92,7 @@ pub struct Limits {
 /// given in units of page size.
 ///
 /// [Spec]: https://webassembly.github.io/spec/core/syntax/types.html#memory-types
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq)]
 pub struct MemType {
     pub limits: Limits,
 }
@@ -103,7 +103,7 @@ pub struct MemType {
 /// The limits are given in numbers of entries.
 ///
 /// [Spec]: https://webassembly.github.io/spec/core/syntax/types.html#table-types
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct TableType {
     pub limits: Limits,
 
@@ -115,7 +115,7 @@ pub struct TableType {
 /// immutable. [Spec][Spec]
 ///
 /// [Spec]: https://webassembly.github.io/spec/core/syntax/types.html#global-types
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct GlobalType {
     /// If true, the type refers to a mutable global value.
     pub mutable: bool,
