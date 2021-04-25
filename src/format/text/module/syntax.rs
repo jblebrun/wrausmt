@@ -38,7 +38,7 @@ pub enum Field {
 
 #[derive(Debug, PartialEq, Default)]
 pub struct TypeUse {
-    pub typeidx: Index,
+    pub typeidx: Option<Index>,
     pub params: Vec<FParam>,
     pub results: Vec<FResult>
 }

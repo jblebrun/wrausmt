@@ -11,7 +11,7 @@
   (func $init (type 2) (param i32) 
     call 1)
   (func (type $void))
-  (func $foo (type 1) (param $foo i32) (result i32)
+  (func $foo (param $foo i32) (result i32)
     (local i32)
     i32.const 600
     local.set 1
