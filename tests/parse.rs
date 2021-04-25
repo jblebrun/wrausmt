@@ -10,7 +10,7 @@ fn basic_parse() -> Result<()> {
 
     let tokenizer = Tokenizer::new(f)?;
     let mut parser = Parser::new(tokenizer)?;
-    let module = parser.parse_module()?;
+    let module = parser.try_module()?.unwrap();
 
     for field in &module.fields {
         println!("Field {:?}", field);

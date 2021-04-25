@@ -5,7 +5,7 @@ use super::syntax::{
 };
 use crate::err;
 use crate::error::{Result, ResultFrom};
-use crate::format::text::{Parser, Token};
+use crate::format::text::Parser;
 use crate::types::{GlobalType, Limits, RefType, TableType, ValueType};
 use std::io::Read;
 
@@ -14,11 +14,10 @@ impl<R: Read> Parser<R> {
     /// Attempt to parse the current token stream as a WebAssembly module.
     /// On success, a vector of sections is returned. They can be organized into a
     /// module object.
-    pub fn parse_module(&mut self) -> Result<Module> {
-        if self.current.token != Token::Open {
-            return err!("Invalid start token {:?}", self.current);
+    pub fn try_module(&mut self) -> Result<Option<Module>> {
+        if !self.try_expr_start("module")? {
+            return Ok(None)
         }
-        self.advance()?;
 
         // Modules usually start with "(module". However, this is optional, and a module file can
         // be a list of top-levelo sections.
@@ -27,82 +26,45 @@ impl<R: Read> Parser<R> {
         }
 
         // section*
-        let mut result: Vec<Field> = vec![];
-        while let Some(s) = self.parse_section()? {
-            result.push(s);
+        let fields = self.zero_or_more(Self::try_field)?;
 
-            match self.current.token {
-                Token::Open => (),
-                Token::Close => break,
-                _ => return err!("Invalid start token {:?}", self.current),
-            }
-        }
+        self.expect_close()?;
 
-        Ok(Module {
+        Ok(Some(Module {
             id: None,
-            fields: result,
-        })
+            fields,
+        }))
     }
 
     // Parser should be located at the token immediately following a '('
-    fn parse_section(&mut self) -> Result<Option<Field>> {
-        if let Some(f) = self.parse_type_field()? {
-            return Ok(Some(f));
-        }
-        if let Some(f) = self.parse_func_field()? {
-            return Ok(Some(f));
-        }
-        if let Some(f) = self.parse_table_field()? {
-            return Ok(Some(f));
-        }
-        if let Some(f) = self.parse_memory_field()? {
-            return Ok(Some(f));
-        }
-        if let Some(f) = self.parse_import_field()? {
-            return Ok(Some(f));
-        }
-        if let Some(f) = self.parse_export_field()? {
-            return Ok(Some(f));
-        }
-        if let Some(f) = self.parse_global_field()? {
-            return Ok(Some(f));
-        }
-        if let Some(f) = self.parse_start_field()? {
-            return Ok(Some(f));
-        }
-        if let Some(f) = self.parse_elem_field()? {
-            return Ok(Some(f));
-        }
-        if let Some(f) = self.parse_data_field()? {
-            return Ok(Some(f));
-        }
-        return err!("no section found at {:?} {:?}", self.current, self.next);
+    fn try_field(&mut self) -> Result<Option<Field>> {
+        self.first_of(&[
+            Self::try_type_field,
+            Self::try_type_field,
+            Self::try_func_field,
+            Self::try_table_field,
+            Self::try_memory_field,
+            Self::try_import_field,
+            Self::try_export_field,
+            Self::try_global_field,
+            Self::try_start_field,
+            Self::try_elem_field,
+            Self::try_data_field,
+        ])
     }
 
-    pub fn parse_type_field(&mut self) -> Result<Option<Field>> {
-        if !self.at_expr_start("type")? {
+    pub fn try_type_field(&mut self) -> Result<Option<Field>> {
+        if !self.try_expr_start("type")? {
             return Ok(None);
         }
 
         let id = self.try_id()?;
 
-        let mut result = TypeField {
-            id,
-            params: vec![],
-            results: vec![],
-        };
+        self.expect_expr_start("func")?;
 
-        if !self.at_expr_start("func")? {
-            return err!("Unexpected stuff in type");
-        }
+        let params = self.zero_or_more_groups(Self::try_parse_fparam)?;
 
-        while let Some(fparams) = self.try_parse_fparam().wrap("parsing params")? {
-            result.params.extend(fparams);
-        }
-
-        while let Some(fresults) = self.try_parse_fresult().wrap("parsing results")? {
-            result.results.extend(fresults);
-        }
+        let results = self.zero_or_more_groups(Self::try_parse_fresult)?;
 
         // Close (func
         self.expect_close().wrap("ending type")?;
@@ -110,41 +72,31 @@ impl<R: Read> Parser<R> {
         // Close (type
         self.expect_close().wrap("ending type")?;
 
-        Ok(Some(Field::Type(result)))
+        Ok(Some(Field::Type(TypeField { id, params, results })))
     }
 
     // func := (func id? (export <name>)* (import <modname> <name>) <typeuse>)
-    pub fn parse_func_field(&mut self) -> Result<Option<Field>> {
-        if !self.at_expr_start("func")? {
+    pub fn try_func_field(&mut self) -> Result<Option<Field>> {
+        if !self.try_expr_start("func")? {
             return Ok(None);
         }
 
         let id = self.try_id()?;
 
-        let mut exports: Vec<String> = vec![];
-
-        while let Ok(Some(export)) = self.try_inline_export() {
-            exports.push(export);
-        }
+        let exports = self.zero_or_more(Self::try_inline_export)?;
 
         let import = self.try_inline_import()?;
 
         let typeuse = self.parse_type_use()?;
 
         let contents = if let Some((modname, name)) = import {
-            self.expect_close()
-                .wrap("unexpected content in inline func import")?;
+            self.expect_close()?;
             FuncContents::Import { modname, name }
         } else {
-            let mut locals: Vec<Local> = vec![];
-            while let Some(more_locals) = self.try_locals()? {
-                locals.extend(more_locals);
-            }
+            let locals = self.zero_or_more_groups(Self::try_locals)?;
+            
             self.consume_expression()?;
-            FuncContents::Inline {
-                locals,
-                body: Expr {},
-            }
+            FuncContents::Inline { locals, body: Expr {}, }
         };
 
         Ok(Some(Field::Func(FuncField {
@@ -156,32 +108,26 @@ impl<R: Read> Parser<R> {
     }
 
     fn try_locals(&mut self) -> Result<Option<Vec<Local>>> {
-        if !self.at_expr_start("local")? {
+        if !self.try_expr_start("local")? {
             return Ok(None);
         }
         let id = self.try_id()?;
 
         // Id specified, only one local in this group.
-        if id.is_some() {
+        let result = if id.is_some() {
             let valtype = self.expect_valtype()?;
-            self.expect_close()?;
-            return Ok(Some(vec![Local { id, valtype }]));
-        }
-
-        // No id, any number of locals in this group.
-        let mut result: Vec<Local> = vec![];
-
-        while let Ok(Some(valtype)) = self.try_valtype() {
-            result.push(Local { id: None, valtype })
-        }
+            vec![Local { id, valtype }]
+        } else {
+            // No id, any number of locals in this group.
+            self.zero_or_more(Self::try_valtype_as_local)?
+        };
 
         self.expect_close()?;
-
         Ok(Some(result))
     }
 
-    pub fn parse_table_field(&mut self) -> Result<Option<Field>> {
-        if !self.at_expr_start("table")? {
+    pub fn try_table_field(&mut self) -> Result<Option<Field>> {
+        if !self.try_expr_start("table")? {
             return Ok(None);
         }
         self.consume_expression()?;
@@ -196,8 +142,8 @@ impl<R: Read> Parser<R> {
         })))
     }
 
-    pub fn parse_memory_field(&mut self) -> Result<Option<Field>> {
-        if !self.at_expr_start("memory")? {
+    pub fn try_memory_field(&mut self) -> Result<Option<Field>> {
+        if !self.try_expr_start("memory")? {
             return Ok(None);
         }
         self.consume_expression()?;
@@ -208,16 +154,16 @@ impl<R: Read> Parser<R> {
         })))
     }
 
-    pub fn parse_import_field(&mut self) -> Result<Option<Field>> {
-        if !self.at_expr_start("import")? {
+    pub fn try_import_field(&mut self) -> Result<Option<Field>> {
+        if !self.try_expr_start("import")? {
             return Ok(None);
         }
         self.consume_expression()?;
         Ok(Some(Field::Import(ImportField::default())))
     }
 
-    pub fn parse_export_field(&mut self) -> Result<Option<Field>> {
-        if !self.at_expr_start("export")? {
+    pub fn try_export_field(&mut self) -> Result<Option<Field>> {
+        if !self.try_expr_start("export")? {
             return Ok(None);
         }
         self.consume_expression()?;
@@ -227,8 +173,8 @@ impl<R: Read> Parser<R> {
         })))
     }
 
-    pub fn parse_global_field(&mut self) -> Result<Option<Field>> {
-        if !self.at_expr_start("global")? {
+    pub fn try_global_field(&mut self) -> Result<Option<Field>> {
+        if !self.try_expr_start("global")? {
             return Ok(None);
         }
 
@@ -243,8 +189,8 @@ impl<R: Read> Parser<R> {
         })))
     }
 
-    pub fn parse_start_field(&mut self) -> Result<Option<Field>> {
-        if !self.at_expr_start("start")? {
+    pub fn try_start_field(&mut self) -> Result<Option<Field>> {
+        if !self.try_expr_start("start")? {
             return Ok(None);
         }
         self.consume_expression()?;
@@ -253,8 +199,8 @@ impl<R: Read> Parser<R> {
         })))
     }
 
-    pub fn parse_elem_field(&mut self) -> Result<Option<Field>> {
-        if !self.at_expr_start("elem")? {
+    pub fn try_elem_field(&mut self) -> Result<Option<Field>> {
+        if !self.try_expr_start("elem")? {
             return Ok(None);
         }
         self.consume_expression()?;
@@ -268,8 +214,8 @@ impl<R: Read> Parser<R> {
         })))
     }
 
-    pub fn parse_data_field(&mut self) -> Result<Option<Field>> {
-        if !self.at_expr_start("data")? {
+    pub fn try_data_field(&mut self) -> Result<Option<Field>> {
+        if !self.try_expr_start("data")? {
             return Ok(None);
         }
         self.consume_expression()?;
@@ -284,35 +230,22 @@ impl<R: Read> Parser<R> {
     // := (type <typeidx>)
     //  | (type <typeidx>) (param <id>? <type>)* (result <type>)*
     fn parse_type_use(&mut self) -> Result<TypeUse> {
-        if !self.at_expr_start("type")? {
-            return err!("Expected type use");
-        }
+        self.expect_expr_start("type")?;
 
         let typeidx = self.parse_index()?;
 
         self.expect_close()?;
 
-        let mut result = TypeUse {
-            typeidx,
-            params: vec![],
-            results: vec![],
-        };
+        let params = self.zero_or_more_groups(Self::try_parse_fparam)?;
+        let results = self.zero_or_more_groups(Self::try_parse_fresult)?;
 
-        while let Some(fparams) = self.try_parse_fparam().wrap("parsing params")? {
-            result.params.extend(fparams);
-        }
-
-        while let Some(fresults) = self.try_parse_fresult().wrap("parsing results")? {
-            result.results.extend(fresults);
-        }
-
-        Ok(result)
+        Ok(TypeUse { typeidx, params, results })
     }
 
     // Try to parse an inline export for a func, table, global, or memory.
     // := (export <name>)
     fn try_inline_export(&mut self) -> Result<Option<String>> {
-        if !self.at_expr_start("export")? {
+        if !self.try_expr_start("export")? {
             return Ok(None);
         }
 
@@ -324,7 +257,7 @@ impl<R: Read> Parser<R> {
     // Try to parse an inline import for a func, table, global, or memory.
     // := (import <modname> <name>)
     fn try_inline_import(&mut self) -> Result<Option<(String, String)>> {
-        if !self.at_expr_start("import")? {
+        if !self.try_expr_start("import")? {
             return Ok(None);
         }
 
@@ -338,7 +271,7 @@ impl<R: Read> Parser<R> {
     // := (param $id <valtype>)
     //  | (param <valtype>*)
     fn try_parse_fparam(&mut self) -> Result<Option<Vec<FParam>>> {
-        if !self.at_expr_start("param")? {
+        if !self.try_expr_start("param")? {
             return Ok(None);
         }
 
@@ -350,31 +283,33 @@ impl<R: Read> Parser<R> {
         }
 
         // No id, any number of params in this group.
-        let mut result: Vec<FParam> = vec![];
+        let result = self.zero_or_more(Self::try_valtype_as_fparam)?;
 
-        while let Ok(Some(valuetype)) = self.try_valtype() {
-            result.push(FParam {
-                id: None,
-                valuetype,
-            })
-        }
         self.expect_close()?;
 
         Ok(Some(result))
     }
 
+    fn try_valtype_as_fparam(&mut self) -> Result<Option<FParam>> {
+       Ok(self.try_valtype()?.map(|valuetype| FParam { id:None, valuetype }))
+    }
+    
+    fn try_valtype_as_fresult(&mut self) -> Result<Option<FResult>> {
+       Ok(self.try_valtype()?.map(|valuetype| FResult { valuetype }))
+    }
+    
+    fn try_valtype_as_local(&mut self) -> Result<Option<Local>> {
+       Ok(self.try_valtype()?.map(|valtype| Local { id:None, valtype }))
+    }
+
     // Try to parse a function result.
     // := (result <valtype>*)
     fn try_parse_fresult(&mut self) -> Result<Option<Vec<FResult>>> {
-        if !self.at_expr_start("result")? {
+        if !self.try_expr_start("result")? {
             return Ok(None);
         }
 
-        let mut result: Vec<FResult> = vec![];
-
-        while let Ok(Some(valuetype)) = self.try_valtype() {
-            result.push(FResult { valuetype })
-        }
+        let result = self.zero_or_more(Self::try_valtype_as_fresult)?;
 
         self.expect_close()?;
 

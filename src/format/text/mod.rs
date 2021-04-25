@@ -3,8 +3,11 @@ pub mod token;
 
 pub mod module;
 
-use crate::{err, types::{NumType, RefType, ValueType}};
 use crate::error::Result;
+use crate::{
+    err, error,
+    types::{NumType, RefType, ValueType},
+};
 use lex::Tokenizer;
 use std::io::Read;
 use token::{FileToken, Token};
@@ -15,6 +18,9 @@ pub struct Parser<R: Read> {
     // 1 token of lookahead
     next: FileToken,
 }
+
+type ParseFn<S, T> = fn(&mut S) -> Result<Option<T>>;
+type ParseGroupFn<S, T> = fn(&mut S) -> Result<Option<Vec<T>>>;
 
 // Implementation for the basic token-handling methods.
 impl<R: Read> Parser<R> {
@@ -33,7 +39,7 @@ impl<R: Read> Parser<R> {
     // provided by the tokenizer.
     fn next(&mut self) -> Result<()> {
         if self.next.token == Token::Eof {
-            return err!("Attempted to advance past EOF")
+            return err!("Attempted to advance past EOF");
         }
 
         match self.tokenizer.next() {
@@ -57,18 +63,25 @@ impl<R: Read> Parser<R> {
         Ok(out)
     }
 
-    fn at_expr_start(&mut self, name: &str) -> Result<bool> {
+    fn try_expr_start(&mut self, name: &str) -> Result<bool> {
         if self.current.token != Token::Open {
-            return Ok(false) 
+            return Ok(false);
         }
         match &self.next.token {
             Token::Keyword(k) if k == name => {
                 self.advance()?;
                 self.advance()?;
-                Ok(true) 
+                Ok(true)
             }
-            _ => Ok(false)
+            _ => Ok(false),
         }
+    }
+
+    fn expect_expr_start(&mut self, name: &str) -> Result<()> {
+        if !self.try_expr_start(name)? {
+            return err!("expected expression start ({}", name);
+        }
+        Ok(())
     }
 
     fn expect_close(&mut self) -> Result<()> {
@@ -76,8 +89,8 @@ impl<R: Read> Parser<R> {
             Token::Close => {
                 self.advance()?;
                 Ok(())
-            },
-            _ => err!("expected close, not {:?}", self.current)
+            }
+            _ => err!("expected close, not {:?}", self.current),
         }
     }
 
@@ -87,8 +100,8 @@ impl<R: Read> Parser<R> {
                 let data = std::mem::take(data);
                 self.advance()?;
                 Ok(data)
-            },
-            _ => err!("expected string, not {:?}", self.current)
+            }
+            _ => err!("expected string, not {:?}", self.current),
         }
     }
 
@@ -98,8 +111,8 @@ impl<R: Read> Parser<R> {
                 let id = std::mem::take(id);
                 self.advance()?;
                 Ok(Some(id))
-            },
-            _ => Ok(None)
+            }
+            _ => Ok(None),
         }
     }
 
@@ -110,16 +123,13 @@ impl<R: Read> Parser<R> {
                 self.advance()?;
                 Ok(Some(val))
             }
-            _ => Ok(None)
+            _ => Ok(None),
         }
     }
 
     fn expect_valtype(&mut self) -> Result<ValueType> {
-        match self.try_valtype() {
-            Ok(Some(vt)) => Ok(vt),
-            Ok(None) => err!("expected value type"),
-            Err(e) => Err(e)
-        }
+        self.try_valtype()?
+            .ok_or_else(|| error!("expected value type"))
     }
 
     fn try_valtype(&mut self) -> Result<Option<ValueType>> {
@@ -131,9 +141,9 @@ impl<R: Read> Parser<R> {
                 "i64" => Some(ValueType::Num(NumType::I64)),
                 "f32" => Some(ValueType::Num(NumType::F32)),
                 "f64" => Some(ValueType::Num(NumType::F64)),
-                _ => None
-            }
-            _ => None
+                _ => None,
+            },
+            _ => None,
         };
         if result.is_some() {
             self.advance()?;
@@ -156,5 +166,40 @@ impl<R: Read> Parser<R> {
         }
         self.advance()?;
         Ok(())
+    }
+
+    /// Attempts to parse a series of items using the provided parse method.
+    /// The parse method should return 0 or 1 of the item type.
+    /// Returns the results as a vector of items.
+    fn zero_or_more<T>(&mut self, parse: ParseFn<Self, T>) -> Result<Vec<T>> {
+        let mut result: Vec<T> = vec![];
+        while let Some(t) = parse(self)? {
+            result.push(t);
+        }
+        Ok(result)
+    }
+
+    /// Attempts to parse a series of items using the provided parse method.
+    /// The parse method should return 0 or more of the item type.
+    /// Returns the results as a flattened vector of items.
+    fn zero_or_more_groups<T>(&mut self, parse: ParseGroupFn<Self, T>) -> Result<Vec<T>> {
+        let mut result: Vec<T> = vec![];
+        while let Some(t) = parse(self)? {
+            result.extend(t);
+        }
+        Ok(result)
+    }
+
+    /// Returns the first successful parse result from the provided list of 
+    /// parse methods, otherwise none.
+    fn first_of<T>(&mut self, parsers: &[ParseFn<Self,T>]) -> Result<Option<T>> {
+        for parse in parsers {
+            match parse(self) {
+                Err(e) => return Err(e),
+                Ok(Some(t)) => return Ok(Some(t)),
+                Ok(None) => (),
+            }
+        }
+        Ok(None)
     }
 }
