@@ -240,15 +240,12 @@ impl Runtime {
         // 9. Invoke the function.
         self.invoke(*funcaddr)?;
 
-        println!("FUNC TYPE {:?}", funcinst.functype);
-
         // assume single result for now
         let result = if funcinst.functype.result.len() > 0 {
             self.stack.pop_value().wrap(&format!("popping result for {}", name))?
         } else {
             Value::Num(Num::I32(0))
         };
-        println!("RESULT: {:?}", result);
 
         // pop the dummy frame
         // due to validation, this will be the one we pushed above.
