@@ -1,5 +1,6 @@
 ## Rough task list
 
+* Improve error structuring
 * Generate instruction name tables
 * Add better execution tracing & control
 * Memories 

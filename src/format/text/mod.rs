@@ -13,7 +13,7 @@ pub mod elem;
 pub mod data;
 
 use crate::{err, types::{NumType, RefType, ValueType}};
-use crate::error::Result;
+use crate::error::{Result, ResultFrom};
 use lex::Tokenizer;
 use std::io::Read;
 use token::{FileToken, Token};
@@ -70,6 +70,7 @@ impl<R: Read> Parser<R> {
         while self.next.token.ignorable() {
             self.next()?;
         }
+        println!("TOKEN IS NOW {:?}", self.current.token);
         Ok(out)
     }
 
@@ -97,6 +98,17 @@ impl<R: Read> Parser<R> {
         }
     }
 
+    fn expect_string(&mut self) -> Result<String> {
+        match self.current.token {
+            Token::String(ref mut data) => {
+                let data = std::mem::take(data);
+                self.advance()?;
+                Ok(data)
+            },
+            _ => err!("expected string, not {:?}", self.current)
+        }
+    }
+
     fn try_id(&mut self) -> Result<Option<String>> {
         match self.current.token {
             Token::Id(ref mut id) => {
@@ -108,20 +120,41 @@ impl<R: Read> Parser<R> {
         }
     }
 
+    fn try_unsigned(&mut self) -> Result<Option<u64>> {
+        match self.current.token {
+            Token::Unsigned(ref mut val) => {
+                let val = std::mem::take(val);
+                self.advance()?;
+                Ok(Some(val))
+            }
+            _ => Ok(None)
+        }
+    }
+
     fn expect_valtype(&mut self) -> Result<ValueType> {
+        match self.try_valtype() {
+            Ok(Some(vt)) => Ok(vt),
+            Ok(None) => err!("expected value type"),
+            Err(e) => Err(e)
+        }
+    }
+
+    fn try_valtype(&mut self) -> Result<Option<ValueType>> {
         let result = match &self.current.token {
             Token::Keyword(kw) => match kw.as_str() {
-                "func" | "funcref" => ValueType::Ref(RefType::Func),
-                "extern" | "externref" => ValueType::Ref(RefType::Extern),
-                "i32" => ValueType::Num(NumType::I32),
-                "i64" => ValueType::Num(NumType::I64),
-                "f32" => ValueType::Num(NumType::F32),
-                "f64" => ValueType::Num(NumType::F64),
-                _ => return err!("{} is not a value type", kw) 
+                "func" | "funcref" => Some(ValueType::Ref(RefType::Func)),
+                "extern" | "externref" => Some(ValueType::Ref(RefType::Extern)),
+                "i32" => Some(ValueType::Num(NumType::I32)),
+                "i64" => Some(ValueType::Num(NumType::I64)),
+                "f32" => Some(ValueType::Num(NumType::F32)),
+                "f64" => Some(ValueType::Num(NumType::F64)),
+                _ => None
             }
-            _ => return err!("{:?} is not a value type", self.current.token)
+            _ => None
         };
-        self.advance()?;
+        if result.is_some() {
+            self.advance()?;
+        }
         Ok(result)
     }
 
@@ -209,6 +242,10 @@ enum Index {
    Named(String)
 }
 
+impl Default for Index {
+    fn default() -> Self { Self::Numeric(0) }
+}
+
 #[derive(Debug, Default, PartialEq)]
 pub struct Expr {
 }
@@ -277,10 +314,67 @@ impl <R: Read> Parser<R> {
 
         Ok(Some(FParam { id, valuetype }))
     }
+    fn parse_index(&mut self) -> Result<Index> {
+        if let Some(id) = self.try_id()? {
+            return Ok(Index::Named(id))
+        }
+
+        if let Some(val) = self.try_unsigned()? {
+            return Ok(Index::Numeric(val as u32))
+        }
+        
+        err!("No index found")
+    }
+   fn parse_type_use(&mut self) -> Result<TypeUse> {
+        if !self.at_expr_start("type")? {
+            return err!("Expected type use")
+        }
+
+        let typeidx = self.parse_index()?;
+
+        self.expect_close()?;
+        
+        let mut result = TypeUse {
+            typeidx,
+            params: vec![],
+            results: vec![]
+        };
+
+        while let Some(fparam) = self.try_parse_fparam().wrap("parsing params")? {
+            result.params.push(fparam);
+        }
+
+        while let Some(fresult) = self.try_parse_fresult().wrap("parsing results")? {
+            result.results.push(fresult);
+        }
+
+        Ok(result)
+    }
+    fn try_inline_export(&mut self) -> Result<Option<String>> {
+        if !self.at_expr_start("export")? {
+            return Ok(None)
+        }
+
+        let data = self.expect_string()?;
+
+        Ok(Some(data))
+    }
+
+    fn try_inline_import(&mut self) -> Result<Option<(String, String)>> {
+        if !self.at_expr_start("import")? {
+            return Ok(None)
+        }
+
+        let modname = self.expect_string()?;
+        let name = self.expect_string()?;
+
+        Ok(Some((modname, name)))
+    } 
 }
 
 #[derive(Debug, PartialEq, Default)]
 pub struct TypeUse {
+    typeidx: Index,
     params: Vec<FParam>,
-    result: Vec<FResult>
+    results: Vec<FResult>
 }
