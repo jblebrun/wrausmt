@@ -252,6 +252,8 @@ impl<R: Read> Parser<R> {
 
         let data = self.expect_string()?;
 
+        self.expect_close()?;
+
         Ok(Some(data))
     }
 
@@ -264,6 +266,8 @@ impl<R: Read> Parser<R> {
 
         let modname = self.expect_string()?;
         let name = self.expect_string()?;
+
+        self.expect_close()?;
 
         Ok(Some((modname, name)))
     }
