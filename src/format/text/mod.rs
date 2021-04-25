@@ -1,24 +1,13 @@
-mod lex;
+pub mod lex;
 pub mod token;
 
-pub mod typefield;
-pub mod func;
-pub mod table;
-pub mod memory;
-pub mod import;
-pub mod export;
-pub mod global;
-pub mod start;
-pub mod elem;
-pub mod data;
+pub mod module;
 
 use crate::{err, types::{NumType, RefType, ValueType}};
-use crate::error::{Result, ResultFrom};
+use crate::error::Result;
 use lex::Tokenizer;
 use std::io::Read;
 use token::{FileToken, Token};
-
-use self::{data::DataField, elem::ElemField, export::ExportField, func::FuncField, global::GlobalField, import::ImportField, memory::MemoryField, start::StartField, table::TableField, typefield::TypeField};
 
 pub struct Parser<R: Read> {
     tokenizer: Tokenizer<R>,
@@ -27,23 +16,17 @@ pub struct Parser<R: Read> {
     next: FileToken,
 }
 
-// Recursive descent parsing. So far, the grammar for the text format seems to be LL(1),
-// so recursive descent works out really nicely.
-// TODO - return an iterator of fields instead?
+// Implementation for the basic token-handling methods.
 impl<R: Read> Parser<R> {
-    pub fn parse(r: R) -> Result<Vec<Field>> {
-        let mut parser = Parser::new(r)?;
-        parser.advance()?;
-        parser.advance()?;
-        parser.parse_module()
-    }
-
-    fn new(r: R) -> Result<Parser<R>> {
-        Ok(Parser {
-            tokenizer: Tokenizer::new(r)?,
+    pub fn new(tokenizer: Tokenizer<R>) -> Result<Parser<R>> {
+        let mut p = Parser {
+            tokenizer,
             current: FileToken::default(),
             next: FileToken::default(),
-        })
+        };
+        p.advance()?;
+        p.advance()?;
+        Ok(p)
     }
 
     // Updates the lookahead token to the next value
@@ -158,36 +141,6 @@ impl<R: Read> Parser<R> {
         Ok(result)
     }
 
-    /// Attempt to parse the current token stream as a WebAssembly module.
-    /// On success, a vector of sections is returned. They can be organized into a
-    /// module object.
-    fn parse_module(&mut self) -> Result<Vec<Field>> {
-        if self.current.token != Token::Open {
-            return err!("Invalid start token {:?}", self.current);
-        }
-        self.advance()?;
-
-        // Modules usually start with "(module". However, this is optional, and a module file can
-        // be a list of top-levelo sections.
-        if self.current.token.is_keyword("module") {
-            self.advance()?;
-        }
-
-        // section*
-        let mut result: Vec<Field> = vec![];
-        while let Some(s) = self.parse_section()? {
-            result.push(s);
-
-            match self.current.token {
-                Token::Open => (),
-                Token::Close => break,
-                _ => return err!("Invalid start token {:?}", self.current),
-            }
-        }
-
-        Ok(result)
-    }
-
     fn consume_expression(&mut self) -> Result<()> {
         let mut depth = 1;
         while depth > 0 {
@@ -204,209 +157,4 @@ impl<R: Read> Parser<R> {
         self.advance()?;
         Ok(())
     }
-
-    // Parser should be located at the token immediately following a '('
-    fn parse_section(&mut self) -> Result<Option<Field>> {
-        if let Some(f) = self.parse_type_field()? { return Ok(Some(f)) }
-        if let Some(f) = self.parse_func_field()? { return Ok(Some(f)) }
-        if let Some(f) = self.parse_table_field()? { return Ok(Some(f)) }
-        if let Some(f) = self.parse_memory_field()? { return Ok(Some(f)) }
-        if let Some(f) = self.parse_import_field()? { return Ok(Some(f)) }
-        if let Some(f) = self.parse_export_field()? { return Ok(Some(f)) }
-        if let Some(f) = self.parse_global_field()? { return Ok(Some(f)) }
-        if let Some(f) = self.parse_start_field()? { return Ok(Some(f)) }
-        if let Some(f) = self.parse_elem_field()? { return Ok(Some(f)) }
-        if let Some(f) = self.parse_data_field()? { return Ok(Some(f)) }
-        return err!("no section found at {:?} {:?}", self.current, self.next)
-    }
-}
-
-#[derive(Debug, PartialEq)]
-pub enum Field {
-    Type(TypeField),
-    Func(FuncField),
-    Table(TableField),
-    Memory(MemoryField),
-    Import(ImportField),
-    Export(ExportField),
-    Global(GlobalField),
-    Start(StartField),
-    Elem(ElemField),
-    Data(DataField),
-}
-
-#[derive(Debug, PartialEq)]
-/// Represents one index usage point. 
-/// It may be named ($id) or numeric.
-enum Index {
-    Numeric(u32),
-    Named(String)
-}
-
-impl Default for Index {
-    fn default() -> Self { Self::Numeric(0) }
-}
-
-#[derive(Debug, Default, PartialEq)]
-pub struct Expr {
-}
-
-// param := (param id? valtype)
-#[derive(Debug, PartialEq)]
-pub struct FParam {
-    pub id: Option<String>,
-    pub valuetype: ValueType,
-}
-
-#[macro_export]
-macro_rules! fparam {
-    ( $pid:literal; $vt:ident ) => {
-        wrausmt::fparam! { Some($pid.to_string()); $vt }
-    };
-    ( $id:expr; Func ) => {
-        FParam{ id: $id, valuetype: wrausmt::types::RefType::Func.into() }
-    };
-    ( $id:expr; Extern ) => {
-        FParam{ id: $id, valuetype: wrausmt::types::RefType::Extern.into() }
-    };
-    ( $id:expr; $vt:ident ) => {
-        FParam{ id: $id, valuetype: wrausmt::types::NumType::$vt.into() }
-    };
-    ( $vt:ident ) => {
-        wrausmt::fparam! { None; $vt }
-    }
-}
-
-#[macro_export]
-macro_rules! fresult {
-    ( $vt:ident ) => {
-        FResult{ valuetype: wrausmt::types::NumType::$vt.into() }
-    }
-}
-
-// result := (result valtype)
-#[derive(Debug, PartialEq)]
-pub struct FResult {
-    pub valuetype: ValueType,
-}
-
-impl <R: Read> Parser<R> {
-    // Try to parse a function result. 
-    // := (result <valtype>*)
-    fn try_parse_fresult(&mut self) -> Result<Option<Vec<FResult>>> {
-        if !self.at_expr_start("result")? {
-            return Ok(None);
-        }
-
-        let mut result: Vec<FResult> = vec![];
-
-        while let Ok(Some(valuetype)) = self.try_valtype() {
-            result.push(FResult{valuetype})
-        }
-
-        self.expect_close()?;
-
-        Ok(Some(result))
-    }
-
-    // Try to parse a function parameter. 
-    // := (param $id <valtype>)
-    //  | (param <valtype>*)
-    fn try_parse_fparam(&mut self) -> Result<Option<Vec<FParam>>> {
-        if !self.at_expr_start("param")? {
-            return Ok(None);
-        }
-
-        let id = self.try_id()?;
-        if id.is_some() {
-            let valuetype = self.expect_valtype()?;
-            self.expect_close()?;
-            return Ok(Some(vec![FParam { id, valuetype }]))
-        }
-
-        // No id, any number of params in this group.
-        let mut result: Vec<FParam> = vec![];
-
-        while let Ok(Some(valuetype)) = self.try_valtype() {
-            result.push(FParam{id:None, valuetype})
-        }
-        self.expect_close()?;
-
-        Ok(Some(result))
-    }
-
-    // parse an index usage. It can be either a number or a named identifier.
-    fn parse_index(&mut self) -> Result<Index> {
-        if let Some(id) = self.try_id()? {
-            return Ok(Index::Named(id))
-        }
-
-        if let Some(val) = self.try_unsigned()? {
-            return Ok(Index::Numeric(val as u32))
-        }
-
-        err!("No index found")
-    }
-
-
-    // Try to parse one "type use" section, in an import or function.
-    // := (type <typeidx>)
-    //  | (type <typeidx>) (param <id>? <type>)* (result <type>)*
-    fn parse_type_use(&mut self) -> Result<TypeUse> {
-        if !self.at_expr_start("type")? {
-            return err!("Expected type use")
-        }
-
-        let typeidx = self.parse_index()?;
-
-        self.expect_close()?;
-
-        let mut result = TypeUse {
-            typeidx,
-            params: vec![],
-            results: vec![]
-        };
-
-        while let Some(fparams) = self.try_parse_fparam().wrap("parsing params")? {
-            result.params.extend(fparams);
-        }
-
-        while let Some(fresults) = self.try_parse_fresult().wrap("parsing results")? {
-            result.results.extend(fresults);
-        }
-
-        Ok(result)
-    }
-
-    // Try to parse an inline export for a func, table, global, or memory.
-    // := (export <name>)
-    fn try_inline_export(&mut self) -> Result<Option<String>> {
-        if !self.at_expr_start("export")? {
-            return Ok(None)
-        }
-
-        let data = self.expect_string()?;
-
-        Ok(Some(data))
-    }
-
-    // Try to parse an inline import for a func, table, global, or memory.
-    // := (import <modname> <name>)
-    fn try_inline_import(&mut self) -> Result<Option<(String, String)>> {
-        if !self.at_expr_start("import")? {
-            return Ok(None)
-        }
-
-        let modname = self.expect_string()?;
-        let name = self.expect_string()?;
-
-        Ok(Some((modname, name)))
-    } 
-}
-
-#[derive(Debug, PartialEq, Default)]
-pub struct TypeUse {
-    typeidx: Index,
-    params: Vec<FParam>,
-    results: Vec<FResult>
 }

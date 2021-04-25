@@ -79,6 +79,7 @@ pub trait SectionReader : ReadWasmValues + ReadCode  {
             .ensure_consumed()
             .wrap(&format!("Section {}", section_num))?;
 
+
         Ok(section)
     }
 }
