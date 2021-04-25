@@ -98,17 +98,14 @@ impl<R: Read> Parser<R> {
     }
 
     fn try_id(&mut self) -> Result<Option<String>> {
-       let id =  match &self.current.token {
-           // TODO - don't clone id?
-            Token::Id(id) => Some(id.clone()),
-            _ => None
-        };
-
-       if id.is_some() {
-           self.advance()?;
-       }
-
-       Ok(id)
+        match self.current.token {
+            Token::Id(ref mut id) => {
+                let id = std::mem::take(id);
+                self.advance()?;
+                Ok(Some(id))
+            },
+            _ => Ok(None)
+        }
     }
 
     fn expect_valtype(&mut self) -> Result<ValueType> {
