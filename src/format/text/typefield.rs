@@ -47,12 +47,12 @@ impl<R: Read> Parser<R> {
             return err!("Unexpected stuff in type")
         }
 
-        while let Some(fparam) = self.try_parse_fparam().wrap("parsing params")? {
-            result.params.push(fparam);
+        while let Some(fparams) = self.try_parse_fparam().wrap("parsing params")? {
+            result.params.extend(fparams);
         }
         
-        while let Some(fresult) = self.try_parse_fresult().wrap("parsing results")? {
-            result.results.push(fresult);
+        while let Some(fresults) = self.try_parse_fresult().wrap("parsing results")? {
+            result.results.extend(fresults);
         }
 
         // Close (func

@@ -9,12 +9,6 @@ pub struct FileToken {
     pub location: Location,
 }
 
-impl Location {
-    /// Create a new [FileToken] from the given [TokenContext] for the provided [Token].
-    pub fn token(self, token: Token) -> FileToken {
-        FileToken { token, location: self }
-    }
-}
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Sign {
@@ -56,7 +50,7 @@ pub enum Token {
 }
 
 impl Default for Token {
-    /// Returns a default token of [Token::start].
+    /// Returns a default token of [Token::Start].
     fn default() -> Token { Token::Start }
 }
 
@@ -85,5 +79,12 @@ impl Token {
     pub fn expect_keyword(&self) -> Result<&String> {
         self.try_keyword()
             .ok_or_else(|| error!("expected keyword, got {:?}", self))
+    }
+}
+
+impl Location {
+    /// Create a new [FileToken] from this [Location] for the provided [Token].
+    pub fn token(self, token: Token) -> FileToken {
+        FileToken { token, location: self }
     }
 }
