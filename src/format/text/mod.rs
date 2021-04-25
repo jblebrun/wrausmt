@@ -1,5 +1,5 @@
 mod lex;
-mod token;
+pub mod token;
 
 pub mod typefield;
 pub mod func;
@@ -52,7 +52,7 @@ impl<R: Read> Parser<R> {
         if self.next.token == Token::Eof {
             return err!("Attempted to advance past EOF")
         }
-        
+
         match self.tokenizer.next() {
             None => self.next.token = Token::Eof,
             Some(Ok(t)) => self.next = t,
@@ -189,7 +189,7 @@ impl<R: Read> Parser<R> {
     }
 
     fn consume_expression(&mut self) -> Result<()> {
-     let mut depth = 1;
+        let mut depth = 1;
         while depth > 0 {
             match self.current.token {
                 Token::Open => depth += 1,
@@ -236,10 +236,11 @@ pub enum Field {
 }
 
 #[derive(Debug, PartialEq)]
-#[allow(dead_code)]
+/// Represents one index usage point. 
+/// It may be named ($id) or numeric.
 enum Index {
-   Numeric(u32),
-   Named(String)
+    Numeric(u32),
+    Named(String)
 }
 
 impl Default for Index {
@@ -290,30 +291,51 @@ pub struct FResult {
 }
 
 impl <R: Read> Parser<R> {
-    fn try_parse_fresult(&mut self) -> Result<Option<FResult>> {
+    // Try to parse a function result. 
+    // := (result <valtype>*)
+    fn try_parse_fresult(&mut self) -> Result<Option<Vec<FResult>>> {
         if !self.at_expr_start("result")? {
             return Ok(None);
         }
-        
-        let valuetype = self.expect_valtype()?;
-        
+
+        let mut result: Vec<FResult> = vec![];
+
+        while let Ok(Some(valuetype)) = self.try_valtype() {
+            result.push(FResult{valuetype})
+        }
+
         self.expect_close()?;
 
-        Ok(Some(FResult { valuetype }))
+        Ok(Some(result))
     }
-    fn try_parse_fparam(&mut self) -> Result<Option<FParam>> {
+
+    // Try to parse a function parameter. 
+    // := (param $id <valtype>)
+    //  | (param <valtype>*)
+    fn try_parse_fparam(&mut self) -> Result<Option<Vec<FParam>>> {
         if !self.at_expr_start("param")? {
             return Ok(None);
         }
 
         let id = self.try_id()?;
-        
-        let valuetype = self.expect_valtype()?;
-        
+        if id.is_some() {
+            let valuetype = self.expect_valtype()?;
+            self.expect_close()?;
+            return Ok(Some(vec![FParam { id, valuetype }]))
+        }
+
+        // No id, any number of params in this group.
+        let mut result: Vec<FParam> = vec![];
+
+        while let Ok(Some(valuetype)) = self.try_valtype() {
+            result.push(FParam{id:None, valuetype})
+        }
         self.expect_close()?;
 
-        Ok(Some(FParam { id, valuetype }))
+        Ok(Some(result))
     }
+
+    // parse an index usage. It can be either a number or a named identifier.
     fn parse_index(&mut self) -> Result<Index> {
         if let Some(id) = self.try_id()? {
             return Ok(Index::Named(id))
@@ -322,10 +344,15 @@ impl <R: Read> Parser<R> {
         if let Some(val) = self.try_unsigned()? {
             return Ok(Index::Numeric(val as u32))
         }
-        
+
         err!("No index found")
     }
-   fn parse_type_use(&mut self) -> Result<TypeUse> {
+
+
+    // Try to parse one "type use" section, in an import or function.
+    // := (type <typeidx>)
+    //  | (type <typeidx>) (param <id>? <type>)* (result <type>)*
+    fn parse_type_use(&mut self) -> Result<TypeUse> {
         if !self.at_expr_start("type")? {
             return err!("Expected type use")
         }
@@ -333,23 +360,26 @@ impl <R: Read> Parser<R> {
         let typeidx = self.parse_index()?;
 
         self.expect_close()?;
-        
+
         let mut result = TypeUse {
             typeidx,
             params: vec![],
             results: vec![]
         };
 
-        while let Some(fparam) = self.try_parse_fparam().wrap("parsing params")? {
-            result.params.push(fparam);
+        while let Some(fparams) = self.try_parse_fparam().wrap("parsing params")? {
+            result.params.extend(fparams);
         }
 
-        while let Some(fresult) = self.try_parse_fresult().wrap("parsing results")? {
-            result.results.push(fresult);
+        while let Some(fresults) = self.try_parse_fresult().wrap("parsing results")? {
+            result.results.extend(fresults);
         }
 
         Ok(result)
     }
+
+    // Try to parse an inline export for a func, table, global, or memory.
+    // := (export <name>)
     fn try_inline_export(&mut self) -> Result<Option<String>> {
         if !self.at_expr_start("export")? {
             return Ok(None)
@@ -360,6 +390,8 @@ impl <R: Read> Parser<R> {
         Ok(Some(data))
     }
 
+    // Try to parse an inline import for a func, table, global, or memory.
+    // := (import <modname> <name>)
     fn try_inline_import(&mut self) -> Result<Option<(String, String)>> {
         if !self.at_expr_start("import")? {
             return Ok(None)

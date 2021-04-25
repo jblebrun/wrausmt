@@ -1,4 +1,4 @@
-//! Functions to emit the table of [InstructionData] items.
+//! Functions to emit the table of wrausmt::instruction::InstructionData items.
 
 use std::collections::HashMap;
 use std::io::Write;
@@ -14,7 +14,8 @@ pub static INSTRUCTION_DATA: &[&InstructionData] = &[
 ";
 
 pub trait EmitDataTable : Write {
-    /// Emit the code for the table of [InstructionData] items, in opcode order.
+    /// Emit the code for the table of [InstructionData][wrausmt::instruction::InstructionData]
+    /// items, in opcode order.
     fn emit_instruction_data_table(&mut self, insts: &HashMap<u32, Instruction>) -> Result<()> {
         self.write_all(DATA_TABLE_HEADER.as_bytes())?;
 
