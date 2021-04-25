@@ -19,6 +19,9 @@
     local.get 1
     i32.sub
     return)
+  (func $inline-export (export "fooexport") (result i32)
+    i32.const 45)
+  (func $inline-import (import "mod" "fooimport") (type 1) (param $go i32) (result i32))
   (global (;3;) i32 (i32.const 0))
   (export "__post_instantiate" (func 0))
   (export "test" (func 2))
