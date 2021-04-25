@@ -8,10 +8,10 @@
   (import "env" "__memory_base" (global (;1;) i32))
   (import "env" "__table_base" (global (;2;) i32))
   (import "env" "memory" (memory (;0;) 0))
-  (func (;0;) (type 2) (param i32) 
+  (func $init (type 2) (param i32) 
     call 1)
-  (func (type 0))
-  (func (;2;) (type 1) (param $foo i32) (result i32)
+  (func (type $void))
+  (func $foo (type 1) (param $foo i32) (result i32)
     (local i32)
     i32.const 600
     local.set 1
