@@ -21,9 +21,10 @@ impl<R: Read> Parser<R> {
 
         // Modules usually start with "(module". However, this is optional, and a module file can
         // be a list of top-levelo sections.
-        if self.current.token.is_keyword("module") {
+        let id = if self.current.token.is_keyword("module") {
             self.advance()?;
-        }
+            self.try_id()? 
+        } else { None };
 
         // section*
         let fields = self.zero_or_more(Self::try_field)?;
@@ -31,7 +32,7 @@ impl<R: Read> Parser<R> {
         self.expect_close()?;
 
         Ok(Some(Module {
-            id: None,
+            id,
             fields,
         }))
     }
@@ -230,11 +231,11 @@ impl<R: Read> Parser<R> {
     // := (type <typeidx>)
     //  | (type <typeidx>) (param <id>? <type>)* (result <type>)*
     fn parse_type_use(&mut self) -> Result<TypeUse> {
-        self.expect_expr_start("type")?;
-
-        let typeidx = self.parse_index()?;
-
-        self.expect_close()?;
+        let typeidx = if self.try_expr_start("type")? {
+            let idx = self.parse_index()?;
+            self.expect_close()?;
+            Some(idx) 
+        } else { None };
 
         let params = self.zero_or_more_groups(Self::try_parse_fparam)?;
         let results = self.zero_or_more_groups(Self::try_parse_fresult)?;
