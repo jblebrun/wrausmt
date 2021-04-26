@@ -1,142 +1,142 @@
 0x01      ,nop                           ,()
-0x02      ,block                         ,(u32)
-0x03      ,loop                          ,(u32)
-0x04      ,if                            ,(u32)
+0x02      ,block                         ,(Block)
+0x03      ,loop                          ,(Block)
+0x04      ,if                            ,(Block)
 0x05      ,else                          ,()
 0x0B      ,end                           ,()
 | // eventually pop label
 | Ok(())
 
-0x0C      ,br                            ,(u32)
-0x0D      ,br_if                         ,(u32)
-0x0E      ,br_table                      ,(vu32; u32)
+0x0C      ,br                            ,(Br)
+0x0D      ,br_if                         ,(Br)
+0x0E      ,br_table                      ,(BrTable)
 0x0F      ,return                        ,()
 | // eventually do returny things
 | Ok(())
 
-0x10      ,call                          ,(u32)
+0x10      ,call                          ,(Call)
 | let i = _ec.op_u32()?;
 | _ec.call(i)
 
-0x11      ,call_indirect                 ,(u32)
+0x11      ,call_indirect                 ,(CallIndirect)
 0x1A      ,drop                          ,()
 0x1B      ,select                        ,()
-0x1C      ,selectt                       ,(vu32)
-0xD0      ,ref.null                      ,(u32)
+0x1C      ,selectt                       ,(SelectT)
+0xD0      ,ref.null                      ,(HeapType)
 0xD1      ,ref.is_null                   ,()
-0xD2      ,ref.func                      ,(u32)
+0xD2      ,ref.func                      ,(FuncIndex)
 
-0x20      ,local.get                     ,(u32)
+0x20      ,local.get                     ,(LocalIndex)
 | let i = _ec.op_u32()?;
 | let v = _ec.get_local(i)?;
 | _ec.push_value(v)
 
-0x21      ,local.set                     ,(u32)
+0x21      ,local.set                     ,(LocalIndex)
 | let i = _ec.op_u32()?;
 | let v = _ec.pop_value()?;
 | _ec.set_local(i, v)
 
-0x22      ,local.tee                     ,(u32)
-0x23      ,global.get                    ,(u32)
+0x22      ,local.tee                     ,(LocalIndex)
+0x23      ,global.get                    ,(GlobalIndex)
 | let i = _ec.op_u32()?;
 | let v = _ec.get_global(i)?;
 | _ec.push_value(v)
 
-0x24      ,global.set                    ,(u32)
-0x25      ,table.get                     ,(u32)
-0x26      ,table.set                     ,(u32)
-0x28      ,i32.load                      ,(u32; u32)
+0x24      ,global.set                    ,(GlobalIndex)
+0x25      ,table.get                     ,(TableIndex)
+0x26      ,table.set                     ,(TableIndex)
+0x28      ,i32.load                      ,(Memargs)
 | let v = _ec.get_mem_i32()?;
 | _ec.push(v)
 
-0x29      ,i64.load                      ,(u32; u32)
+0x29      ,i64.load                      ,(Memargs)
 | let v = _ec.get_mem_i64()?;
 | _ec.push(v)
 
-0x2a      ,f32.load                      ,(u32; u32)
+0x2a      ,f32.load                      ,(Memargs)
 | let v = _ec.get_mem_f32()?;
 | _ec.push(v)
 
-0x2b      ,f64.load                      ,(u32; u32)
+0x2b      ,f64.load                      ,(Memargs)
 | let v = _ec.get_mem_f64()?;
 | _ec.push(v)
 
-0x2c      ,i32.load8_s                   ,(u32; u32)
+0x2c      ,i32.load8_s                   ,(Memargs)
 | let v = _ec.get_mem_i32_8s()?;
 | _ec.push(v as i32)
 
-0x2d      ,i32.load8_u                   ,(u32; u32)
+0x2d      ,i32.load8_u                   ,(Memargs)
 | let v = _ec.get_mem_i32_8u()?;
 | _ec.push(v as u32)
 
-0x2e      ,i32.load16_s                  ,(u32; u32)
+0x2e      ,i32.load16_s                  ,(Memargs)
 | let v = _ec.get_mem_i32_16s()?;
 | _ec.push(v as i32)
 
-0x2f      ,i32.load16_u                  ,(u32; u32)
+0x2f      ,i32.load16_u                  ,(Memargs)
 | let v = _ec.get_mem_i32_16u()?;
 | _ec.push(v as u32)
 
-0x30      ,i64.load8_s                   ,(u32; u32)
+0x30      ,i64.load8_s                   ,(Memargs)
 | let v = _ec.get_mem_i64_8s()?;
 | _ec.push(v as i64)
 
-0x31      ,i64.load8_u                   ,(u32; u32)
+0x31      ,i64.load8_u                   ,(Memargs)
 | let v = _ec.get_mem_i64_8u()?;
 | _ec.push(v as i64)
 
-0x32      ,i64.load16_s                  ,(u32; u32)
+0x32      ,i64.load16_s                  ,(Memargs)
 | let v = _ec.get_mem_i64_16s()?;
 | _ec.push(v as i64)
 
-0x33      ,i64.load16_u                  ,(u32; u32)
+0x33      ,i64.load16_u                  ,(Memargs)
 | let v = _ec.get_mem_i64_16u()?;
 | _ec.push(v as i64)
 
-0x34      ,i64.load32_s                  ,(u32; u32)
+0x34      ,i64.load32_s                  ,(Memargs)
 | let v = _ec.get_mem_i64_32s()?;
 | _ec.push(v as i64)
 
-0x35      ,i64.load32_u                  ,(u32; u32)
+0x35      ,i64.load32_u                  ,(Memargs)
 | let v = _ec.get_mem_i64_32u()?;
 | _ec.push(v as i64)
 
-0x36      ,i32.store                     ,(u32; u32)
+0x36      ,i32.store                     ,(Memargs)
 | _ec.set_mem_i32()
 
-0x37      ,i64.store                     ,(u32; u32)
+0x37      ,i64.store                     ,(Memargs)
 | _ec.set_mem_i64()
 
-0x38      ,f32.store                     ,(u32; u32)
+0x38      ,f32.store                     ,(Memargs)
 | _ec.set_mem_f32()
 
-0x39      ,f64.store                     ,(u32; u32)
+0x39      ,f64.store                     ,(Memargs)
 | _ec.set_mem_f64()
 
-0x3a      ,i32.store8                    ,(u32; u32)
+0x3a      ,i32.store8                    ,(Memargs)
 | _ec.set_mem_i32_8()
 
-0x3b      ,i32.store16                   ,(u32; u32)
+0x3b      ,i32.store16                   ,(Memargs)
 | _ec.set_mem_i32_16()
 
-0x3c      ,i64.store8                    ,(u32; u32)
+0x3c      ,i64.store8                    ,(Memargs)
 | _ec.set_mem_i64_8()
 
-0x3D      ,i64.store16                   ,(u32; u32)
+0x3D      ,i64.store16                   ,(Memargs)
 | _ec.set_mem_i64_16()
 
-0x3E      ,i64.store32                   ,(u32; u32)
+0x3E      ,i64.store32                   ,(Memargs)
 | _ec.set_mem_i64_32()
 
-0x3f      ,memory.size                   ,(d8)
-0x40      ,memory.grow                   ,(d8)
-0x41      ,i32const                      ,(u32)
+0x3f      ,memory.size                   ,(MemIndex)
+0x40      ,memory.grow                   ,(MemIndex)
+0x41      ,i32const                      ,(I32)
 | let v = _ec.op_u32()?;
 | _ec.push_value(v.into())
 
-0x42      ,i64const                      ,(u64)
-0x43      ,f32const                      ,(f32)
-0x44      ,f64.const                     ,(f64)
+0x42      ,i64const                      ,(I64)
+0x43      ,f32const                      ,(F32)
+0x44      ,f64.const                     ,(F64)
 0x45      ,i32.eqz                       ,()
 0x46      ,i32.eq                        ,()
 0x47      ,i32.ne                        ,()

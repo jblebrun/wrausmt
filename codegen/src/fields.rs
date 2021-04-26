@@ -9,20 +9,11 @@ pub fn typename(s: &str) -> String {
 }
 
 /// Convert the operand format in the instruction table to the 
-pub fn operands(field: &str) -> &str {
-    match field {
-        "()" => "Operands::None",
-        "(u32)" => "Operands::U32",
-        "(u32; u32)" => "Operands::U32U32",
-        "(vu32)" => "Operands::Vu32",
-        "(vu32; u32)" => "Operands::Vu32U32",
-        "(d8)" => "Operands::D8",
-        "(u64)" => "Operands::U64",
-        "(f32)" => "Operands::F32",
-        "(f64)" => "Operands::F64",
-        "(d8; d8)" => "Operands::D8D8",
-        "(u32; d8)" => "Operands::U32D8",
-        _ => panic!("unknown operands {}", field)
+pub fn operands(field: &str) -> String {
+    let trimmed = field.trim_matches(&['(',')'][..]);
+    match trimmed {
+        "" => "Operands::None".to_owned(),
+        operand => format!("Operands::{}", operand)
     }
 }
 
