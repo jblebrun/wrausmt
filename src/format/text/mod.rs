@@ -3,7 +3,7 @@ pub mod token;
 
 pub mod module;
 
-use crate::error::Result;
+use crate::{error::Result, types::Limits};
 use crate::{
     err, error,
     types::{NumType, RefType, ValueType},
@@ -194,6 +194,12 @@ impl<R: Read> Parser<R> {
             self.advance()?;
         }
         Ok(result)
+    }
+
+    pub fn expect_limits(&mut self) -> Result<Limits> {
+        let lower = self.expect_integer()? as u32;
+        let upper = self.try_integer()?.map(|l| l as u32);
+        Ok(Limits { lower, upper })
     }
 
     pub fn expect_reftype(&mut self) -> Result<RefType> {

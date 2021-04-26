@@ -139,7 +139,8 @@ pub struct FuncField {
     pub id: Option<String>,
     pub exports: Vec<String>,
     pub typeuse: TypeUse,
-    pub contents: FuncContents
+    pub locals: Vec<Local>,
+    pub body: Expr,
 }
 
 impl std::fmt::Debug for FuncField {
@@ -156,8 +157,11 @@ impl std::fmt::Debug for FuncField {
         
         write!(f, "{:?}", self.typeuse)?;
 
-        write!(f, "\n{:?}", self.contents)?;
-        write!(f, ")")
+        for local in &self.locals {
+            write!(f, " {:?}", local)?;
+        }
+        write!(f, "\n{:?}", self.body)?;
+        write!(f, "\n)")
     }
 }
 
@@ -174,19 +178,6 @@ impl std::fmt::Debug for Local {
             Some(id) => write!(f, "(local {} {:?})", id, self.valtype),
             None => write!(f, "(local {:?})", self.valtype)
         }
-    }
-}
-
-// Function fields may define a new function, or they may be an inline import.
-#[derive(Debug, PartialEq)]
-pub enum FuncContents {
-    Inline{locals: Vec<Local>, body: Expr},
-    Import{modname: String, name: String}
-}
-
-impl Default for FuncContents {
-    fn default() -> Self { 
-        FuncContents::Inline{locals: vec![], body: Expr::default() } 
     }
 }
 
@@ -279,7 +270,11 @@ pub struct ImportField {
 
 impl fmt::Debug for ImportField {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "(import {} {} {:?})", self.modname, self.name, self.desc)
+        write!(f, "(import")?;
+        if let Some(id) = &self.id {
+            write!(f, " {}", id)?;
+        }
+        write!(f, " \"{}\" \"{}\" {:?})", self.modname, self.name, self.desc)
     }
 }
 
