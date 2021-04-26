@@ -18,13 +18,16 @@ impl<R: Read> Parser<R> {
         if !self.try_expr_start("module")? {
             return Ok(None)
         }
+        self.try_module_rest()
+    }
 
-        // Modules usually start with "(module". However, this is optional, and a module file can
-        // be a list of top-levelo sections.
-        let id = if self.current.token.is_keyword("module") {
-            self.advance()?;
-            self.try_id()? 
-        } else { None };
+    /// This is split away as a convenience for spec test parsing, so that we can 
+    /// parse the module expression header, and then check for binary/quote modules 
+    /// first, before attempting a normal module parse.
+    pub fn try_module_rest(&mut self) -> Result<Option<Module>> {
+        println!("PARSING MODULE!");
+
+        let id = self.try_id()?;
 
         // section*
         let fields = self.zero_or_more(Self::try_field)?;

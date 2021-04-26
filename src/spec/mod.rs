@@ -1,1 +1,2 @@
-mod format;
+#[allow(dead_code)]
+pub mod format;
