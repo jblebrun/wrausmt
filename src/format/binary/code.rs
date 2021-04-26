@@ -78,7 +78,12 @@ pub trait ReadCode: ReadWasmValues {
         let mut opcode_buf = [0u8; 1];
         self.read_exact(&mut opcode_buf).wrap("parsing opcode")?;
 
-        let opcode = opcode_buf[0];
+        // 0xFC instructions are shifted into the normal opcode
+        // table starting at 0xE0.
+        let opcode = if opcode_buf[0] == 0xFC {
+            self.read_exact(&mut opcode_buf).wrap("parsing secondary opcode")?;
+            opcode_buf[0] + 0xE0
+        } else { opcode_buf[0] };
 
         // Assume success, write out the opcode. Validation occurs later.
         out.write(&opcode_buf).wrap("writing opcode")?;

@@ -45,10 +45,8 @@ impl Instruction {
     }
 }
 
-
-/// Read master_ops_list.csv and emit functions, function tables, and data tables.
-pub fn parse() -> io::Result<()> {
-    let f = fs::File::open("codegen/master_ops_list.csv")?;
+fn read_instruction_list(file: &str) -> io::Result<HashMap<u32, Instruction>> {
+    let f = fs::File::open(file)?;
     let buf_reader = io::BufReader::new(f);
 
     // The result containig a map of all instructions parsed.
@@ -96,6 +94,22 @@ pub fn parse() -> io::Result<()> {
             println!("OPCDOE FOR {} IS {}", oldinst.opcode, opcode);
             insts.insert(opcode, oldinst);
         }
+    }
+
+    Ok(insts)
+}
+
+/// Read master_ops_list.csv and emit functions, function tables, and data tables.
+pub fn parse() -> io::Result<()> {
+
+    let mut insts = read_instruction_list("codegen/master_ops_list.csv")?;
+
+    let secondary_instructions = read_instruction_list("codegen/master_secondary_ops_list.csv")?;
+
+    // There's plenty of room in the primary opcode space, so we put secondary instructions in 
+    // there starting at 0xE0
+    for (k,v) in secondary_instructions.into_iter() {
+        insts.insert(k+0xE0,  v);
     }
 
     fs::create_dir_all("src/instructions/generated")?;
