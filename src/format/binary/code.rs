@@ -94,9 +94,11 @@ pub trait ReadCode: ReadWasmValues {
         #[allow(non_upper_case_globals)]
         match instruction_data.operands {
             Operands::None => (),
-            Operands::U32 => self.read_1_arg(out)?,
-            Operands::U32U32 => self.read_2_args(out)?,
-            _ => return err!("unknown opcode 0x{:x?}", opcode),
+            Operands::FuncIndex | Operands::LocalIndex | Operands::GlobalIndex |
+            Operands::TableIndex | Operands::MemIndex | Operands::Br | Operands::I32 |
+            Operands::Block | Operands::HeapType | Operands::Call => self.read_1_arg(out)?,
+            Operands::Memargs => self.read_2_args(out)?,
+            _ => return err!("unsupported operands {:x?} for {:x}", instruction_data.operands, opcode),
         };
 
         if matches!(opcode, 0x02 | 0x03 | 0x04) {

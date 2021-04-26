@@ -39,7 +39,7 @@ impl Instruction {
             typename: fields::typename(fields[1]),
             name: fields[1].to_string(),
             opcode: fields[0].to_string(),
-            operands: fields::operands(fields[2]).into(),
+            operands: fields::operands(fields[2]),
             body: String::new()
         }
     }
