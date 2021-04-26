@@ -14,7 +14,7 @@
 | // eventually do returny things
 | Ok(())
 
-0x10      ,call                          ,(Call)
+0x10      ,call                          ,(FuncIndex)
 | let i = _ec.op_u32()?;
 | _ec.call(i)
 
@@ -128,14 +128,14 @@
 0x3E      ,i64.store32                   ,(Memargs)
 | _ec.set_mem_i64_32()
 
-0x3f      ,memory.size                   ,(MemIndex)
-0x40      ,memory.grow                   ,(MemIndex)
-0x41      ,i32const                      ,(I32)
+0x3f      ,memory.size                   ,(MemorySize)
+0x40      ,memory.grow                   ,(MemoryGrow)
+0x41      ,i32.const                      ,(I32)
 | let v = _ec.op_u32()?;
 | _ec.push_value(v.into())
 
-0x42      ,i64const                      ,(I64)
-0x43      ,f32const                      ,(F32)
+0x42      ,i64.const                      ,(I64)
+0x43      ,f32.const                      ,(F32)
 0x44      ,f64.const                     ,(F64)
 0x45      ,i32.eqz                       ,()
 0x46      ,i32.eq                        ,()

@@ -43,7 +43,6 @@ pub enum Operands {
     Block,
     Br,
     BrTable,
-    Call,
     CallIndirect,
     SelectT,
     HeapType,
@@ -58,6 +57,8 @@ pub enum Operands {
     F32, 
     F64,
     MemoryInit,
+    MemorySize,
+    MemoryGrow,
     DataIndex,
     MemoryCopy,
     MemoryFill,
@@ -103,3 +104,15 @@ pub fn instruction_data<'l>(opcode: u8) -> Result<&'l InstructionData> {
         None => err!("unhandled opcode {}", opcode)
     }
 }
+
+// TODO - would it be significantly more performant to build a hash map here?
+// Or maybe just a two-tiered lookup.
+pub fn instruction_by_name(name: &str) -> Option<&'static InstructionData> {
+    for item in INSTRUCTION_DATA {
+        if item.name == name {
+            return Some(&item);
+        }
+    }
+    None
+}
+

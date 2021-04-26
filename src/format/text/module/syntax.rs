@@ -355,8 +355,38 @@ impl fmt::Debug for ExportField {
     }
 }
 
-#[derive(Debug, Default, PartialEq)]
+#[derive(Default, PartialEq)]
 pub struct Expr {
+    pub instr: Vec<Instruction>
+}
+
+impl fmt::Debug for Expr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for i in &self.instr {
+            writeln!(f, "{:?}", i)?; 
+        }
+        Ok(())
+    }
+}
+
+#[derive(PartialEq)]
+pub struct Instruction {
+    pub name: String,
+    pub operands: Operands
+}
+
+#[derive(PartialEq, Debug)]
+pub enum Operands {
+    None,
+    Index(Index),
+    Memargs(u32, u32),
+    Number(u64),
+}
+
+impl std::fmt::Debug for Instruction {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "({} {:?})", self.name, self.operands)
+    }
 }
 
 // start := (start <funcidx>)
