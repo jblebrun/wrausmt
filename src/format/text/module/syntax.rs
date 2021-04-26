@@ -3,6 +3,7 @@
 //! [Spec]: https://webassembly.github.io/spec/core/text/modules.html#modules
 
 use crate::types::{GlobalType, ValueType, TableType, MemType, RefType};
+use std::fmt;
 
 #[derive(Debug, PartialEq)]
 /// Represents one index usage point. It may be named ($id) or numeric. [Spec]
@@ -11,6 +12,19 @@ use crate::types::{GlobalType, ValueType, TableType, MemType, RefType};
 pub enum Index {
     Numeric(u32),
     Named(String)
+}
+
+impl Default for Index {
+    fn default() -> Self { Self::Numeric(0) }
+}
+
+impl fmt::Display for Index {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match &self {
+            Self::Numeric(val) => f.write_str(&val.to_string()),
+            Self::Named(val) => f.write_str(val)
+        }
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -36,36 +50,82 @@ pub enum Field {
     Data(DataField),
 }
 
-#[derive(Debug, PartialEq, Default)]
+#[derive(PartialEq, Default)]
 pub struct TypeUse {
     pub typeidx: Option<Index>,
     pub params: Vec<FParam>,
     pub results: Vec<FResult>
 }
 
-impl Default for Index {
-    fn default() -> Self { Self::Numeric(0) }
+impl std::fmt::Debug for TypeUse {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if let Some(typeidx) = &self.typeidx {
+            write!(f, "(type {})", typeidx)?;
+        }
+
+        for param in &self.params {
+            write!(f, " {:?}", param)?;
+        }
+        
+        for result in &self.results {
+            write!(f, " {:?}", result)?;
+        }
+        Ok(())
+    }
 }
+
 // param := (param id? valtype)
-#[derive(Debug, PartialEq)]
+#[derive(PartialEq)]
 pub struct FParam {
     pub id: Option<String>,
     pub valuetype: ValueType,
 }
 
+impl std::fmt::Debug for FParam {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self.id {
+            Some(id) => write!(f, "(param {} {:?})", id, self.valuetype),
+            None => write!(f, "(param {:?})", self.valuetype)
+        }
+    }
+}
+
 // result := (result valtype)
-#[derive(Debug, PartialEq)]
+#[derive(PartialEq)]
 pub struct FResult {
     pub valuetype: ValueType,
 }
 
+impl std::fmt::Debug for FResult {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "(result {:?})", self.valuetype)
+    }
+}
+
 // type := (type id? <functype>)
 // functype := (func <param>* <result>*)
-#[derive(Debug, PartialEq, Default)]
+#[derive(PartialEq, Default)]
 pub struct TypeField {
     pub id: Option<String>,
     pub params: Vec<FParam>,
     pub results: Vec<FResult>
+}
+
+impl std::fmt::Debug for TypeField {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if let Some(id) = &self.id {
+            write!(f, "(type {})", id)?;
+        }
+
+        for param in &self.params {
+            write!(f, " {:?}", param)?;
+        }
+        
+        for result in &self.results {
+            write!(f, " {:?}", result)?;
+        }
+        Ok(())
+    }
 }
 
 // func := (func id? <typeuse> <local>* <instr>*)
@@ -74,7 +134,7 @@ pub struct TypeField {
 // Abbreviations:
 // func := (func id? (export  <name>)*  ...)
 // func := (func id? (import <modname> <name>) <typeuse>)
-#[derive(Debug, PartialEq)]
+#[derive(PartialEq)]
 pub struct FuncField {
     pub id: Option<String>,
     pub exports: Vec<String>,
@@ -82,11 +142,39 @@ pub struct FuncField {
     pub contents: FuncContents
 }
 
+impl std::fmt::Debug for FuncField {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "(func ")?;
+
+        if let Some(id) = &self.id {
+            write!(f, "{}", id)?;
+        }
+
+        for export in &self.exports {
+            write!(f, "(export {})", export)?;
+        }
+        
+        write!(f, "{:?}", self.typeuse)?;
+
+        write!(f, "\n{:?}", self.contents)?;
+        write!(f, ")")
+    }
+}
+
 // local := (local id? <valtype>)
-#[derive(Debug, PartialEq)]
+#[derive(PartialEq)]
 pub struct Local {
     pub id: Option<String>,
     pub valtype: ValueType
+}
+
+impl std::fmt::Debug for Local {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self.id {
+            Some(id) => write!(f, "(local {} {:?})", id, self.valtype),
+            None => write!(f, "(local {:?})", self.valtype)
+        }
+    }
 }
 
 // Function fields may define a new function, or they may be an inline import.
@@ -151,11 +239,20 @@ pub struct MemoryField {
 }
 
 // global := (global <id>? <globaltype> <expr>)
-#[derive(Debug, PartialEq)]
+#[derive(PartialEq)]
 pub struct GlobalField {
     pub id: Option<String>,
     pub globaltype: GlobalType,
     pub init: Expr,
+}
+
+impl fmt::Debug for GlobalField {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match &self.id {
+            Some(id) => write!(f, "(global {} {:?} {:?})", id, self.globaltype, self.init),
+            None => write!(f, "(global {:?} {:?})", self.globaltype, self.init)
+        }
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -172,12 +269,18 @@ impl Default for ImportDesc {
     }
 }
 
-#[derive(Debug, PartialEq, Default)]
+#[derive(PartialEq, Default)]
 pub struct ImportField {
     pub modname: String,
     pub name: String,
     pub id: Option<String>,
     pub desc: ImportDesc
+}
+
+impl fmt::Debug for ImportField {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "(import {} {} {:?})", self.modname, self.name, self.desc)
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -190,10 +293,16 @@ pub enum ExportDesc {
 }
 
 // export := (export <name> <exportdesc>)
-#[derive(Debug, PartialEq)]
+#[derive(PartialEq)]
 pub struct ExportField {
     pub name: String,
     pub exportdesc: ExportDesc
+}
+
+impl fmt::Debug for ExportField {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "(export {} {:?})", self.name, self.exportdesc)
+    }
 }
 
 #[derive(Debug, Default, PartialEq)]

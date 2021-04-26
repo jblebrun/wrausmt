@@ -1,4 +1,5 @@
 use wrausmt::format::text::Parser;
+use wrausmt::format::text::token::Token;
 use wrausmt::format::text::lex::Tokenizer;
 use wrausmt::format::text::module::syntax::Field;
 use wrausmt::error::{Result, ResultFrom};
@@ -12,8 +13,11 @@ fn basic_parse() -> Result<()> {
     let mut parser = Parser::new(tokenizer)?;
     let module = parser.try_module()?.unwrap();
 
+    if parser.current.token != Token::Eof {
+        panic!("Incomplete parse {:?} {:?}",parser.current, parser.next); 
+    }
     for field in &module.fields {
-        println!("Field {:?}", field);
+        println!("Field {:#?}", field);
     }
 
     assert_eq!(module.fields[0], Field::Type(typefield! { "$void"; [] -> [] }));
