@@ -1,4 +1,4 @@
-use super::syntax::{DataField, ElemField, ElemList, ExportDesc, ExportField, Expr, FParam, FResult, Field, FuncField, FunctionType, GlobalField, ImportDesc, ImportField, Index, Local, MemoryField, ModeEntry, Module, StartField, TableField, TypeField, TypeUse};
+use super::{fields::ModuleBuilder, syntax::{DataField, ElemField, ElemList, ExportDesc, ExportField, Expr, FParam, FResult, Field, FuncField, FunctionType, GlobalField, ImportDesc, ImportField, Index, Local, MemoryField, ModeEntry, Module, StartField, TableField, TypeField, TypeUse}};
 use crate::error::{Result, ResultFrom};
 use crate::format::text::Parser;
 use crate::types::{GlobalType, Limits, RefType, TableType, ValueType};
@@ -21,16 +21,32 @@ impl<R: Read> Parser<R> {
     /// parse the module expression header, and then check for binary/quote modules
     /// first, before attempting a normal module parse.
     pub fn try_module_rest(&mut self) -> Result<Option<Module>> {
-        println!("PARSING MODULE!");
-
         let id = self.try_id()?;
 
-        // section*
-        let fields = self.zero_or_more(Self::try_field)?;
+        let mut module_builder = ModuleBuilder::new(id);
 
+        // section*
+        // As we parse each field, we populate the module.
+        // This is a fairly involved match tree, since many fields may generate
+        // multiple fields due to inline type defs or imports/exports.
+        for field in std::iter::from_fn(|| self.try_field().transpose()) {
+            match field? {
+                Field::Type(f) => module_builder.add_typefield(f),
+                Field::Func(f) => module_builder.add_funcfield(f),
+                Field::Table(f) => module_builder.add_tablefield(f),
+                Field::Memory(f) => module_builder.add_memoryfield(f),
+                Field::Import(f) => module_builder.add_importfield(f),
+                Field::Export(f) => module_builder.add_exportfield(f),
+                Field::Global(f) => module_builder.add_globalfield(f),
+                Field::Start(f) => module_builder.add_startfield(f),
+                Field::Elem(f) => module_builder.add_elemfield(f),
+                Field::Data(f) => module_builder.add_datafield(f),
+            }
+        }
+        
         self.expect_close()?;
 
-        Ok(Some(Module { id, fields }))
+        Ok(Some(module_builder.build()))
     }
 
     // Parser should be located at the token immediately following a '('
@@ -251,6 +267,7 @@ impl<R: Read> Parser<R> {
         self.consume_expression()?;
         Ok(Some(Field::Global(GlobalField {
             id: None,
+            exports: vec![],
             globaltype: GlobalType {
                 mutable: false,
                 valtype: ValueType::Ref(RefType::Func),

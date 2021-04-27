@@ -3,12 +3,12 @@
 //! [Spec]: https://webassembly.github.io/spec/core/text/modules.html#modules
 
 use crate::types::{GlobalType, ValueType, TableType, MemType, RefType};
-use std::fmt;
+use std::fmt::{self, Debug};
 
-#[derive(Debug, PartialEq)]
 /// Represents one index usage point. It may be named ($id) or numeric. [Spec]
 ///
 /// [Spec]: https://webassembly.github.io/spec/core/text/modules.html#indices
+#[derive(Debug, Clone, PartialEq)]
 pub enum Index {
     Numeric(u32),
     Named(String)
@@ -27,13 +27,53 @@ impl fmt::Display for Index {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Default, PartialEq)]
 /// A parsed text format module. [Spec]
 ///
 /// [Spec]: https://webassembly.github.io/spec/core/text/modules.html#modules
 pub struct Module {
     pub id: Option<String>,
-    pub fields: Vec<Field>
+    pub types: Vec<TypeField>,
+    pub funcs: Vec<FuncField>,
+    pub tables: Vec<TableField>,
+    pub memories: Vec<MemoryField>,
+    pub imports: Vec<ImportField>,
+    pub exports: Vec<ExportField>,
+    pub globals: Vec<GlobalField>,
+    pub start: Option<StartField>,
+    pub elems: Vec<ElemField>,
+    pub data: Vec<DataField>,
+}
+
+impl fmt::Debug for Module {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "(module")?;
+        macro_rules! print_all {
+            ( $v:expr ) => {
+                for i in $v {
+                    write!(f, "\n{:?}", i)?;
+                }
+            }
+        }
+        if let Some(id) = &self.id {
+            write!(f, "{:?}", id)?;
+        }
+
+        print_all!(&self.types);
+        print_all!(&self.funcs);
+        print_all!(&self.tables);
+        print_all!(&self.globals);
+        print_all!(&self.imports);
+        print_all!(&self.exports);
+        print_all!(&self.globals);
+        if let Some(st) = &self.start {
+            write!(f, "\n{:?}", st)?;
+        }
+        print_all!(&self.elems);
+        print_all!(&self.data);
+
+        write!(f, ")")
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -50,7 +90,7 @@ pub enum Field {
     Data(DataField),
 }
 
-#[derive(PartialEq, Default)]
+#[derive(PartialEq, Clone, Default)]
 pub struct FunctionType {
     pub params: Vec<FParam>,
     pub results: Vec<FResult>
@@ -80,10 +120,22 @@ impl std::fmt::Debug for FunctionType {
     }
 }
 
-#[derive(PartialEq, Default)]
+#[derive(PartialEq, Clone, Default)]
 pub struct TypeUse {
     pub typeidx: Option<Index>,
     pub functiontype: FunctionType
+}
+
+impl TypeUse {
+    pub fn get_inline_def(&self) -> Option<TypeField> {
+        match self.typeidx {
+            Some(_) => None,
+            None => Some(TypeField {
+                id: None,
+                functiontype: self.functiontype.anonymous(),
+            })
+        }
+    }
 }
 
 impl std::fmt::Debug for TypeUse {
@@ -97,7 +149,7 @@ impl std::fmt::Debug for TypeUse {
 }
 
 // param := (param id? valtype)
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone)]
 pub struct FParam {
     pub id: Option<String>,
     pub valuetype: ValueType,
@@ -134,8 +186,9 @@ pub struct TypeField {
 
 impl std::fmt::Debug for TypeField {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "(type")?;
         if let Some(id) = &self.id {
-            write!(f, "(type {})", id)?;
+            write!(f, " {}", id)?;
         }
 
         write!(f, " (func")?;
@@ -163,17 +216,17 @@ pub struct FuncField {
 
 impl std::fmt::Debug for FuncField {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "(func ")?;
+        write!(f, "(func")?;
 
         if let Some(id) = &self.id {
-            write!(f, "{}", id)?;
+            write!(f, " {}", id)?;
         }
 
         for export in &self.exports {
-            write!(f, "(export {})", export)?;
+            write!(f, " (export {})", export)?;
         }
         
-        write!(f, "{:?}", self.typeuse)?;
+        write!(f, " {:?}", self.typeuse)?;
 
         for local in &self.locals {
             write!(f, " {:?}", local)?;
@@ -234,6 +287,7 @@ pub struct MemoryField {
 #[derive(PartialEq)]
 pub struct GlobalField {
     pub id: Option<String>,
+    pub exports: Vec<String>,
     pub globaltype: GlobalType,
     pub init: Expr,
 }
