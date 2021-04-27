@@ -51,18 +51,24 @@ pub enum Field {
 }
 
 #[derive(PartialEq, Default)]
-pub struct TypeUse {
-    pub typeidx: Option<Index>,
+pub struct FunctionType {
     pub params: Vec<FParam>,
     pub results: Vec<FResult>
 }
 
-impl std::fmt::Debug for TypeUse {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if let Some(typeidx) = &self.typeidx {
-            write!(f, "(type {})", typeidx)?;
+impl FunctionType {
+    pub fn anonymous(&self) -> FunctionType {
+        FunctionType {
+            params: self.params.iter()
+                .map(|p| FParam{id:None, valuetype:p.valuetype})
+                .collect(),
+            results: self.results.clone(),
         }
+    }
+}
 
+impl std::fmt::Debug for FunctionType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for param in &self.params {
             write!(f, " {:?}", param)?;
         }
@@ -71,6 +77,22 @@ impl std::fmt::Debug for TypeUse {
             write!(f, " {:?}", result)?;
         }
         Ok(())
+    }
+}
+
+#[derive(PartialEq, Default)]
+pub struct TypeUse {
+    pub typeidx: Option<Index>,
+    pub functiontype: FunctionType
+}
+
+impl std::fmt::Debug for TypeUse {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if let Some(typeidx) = &self.typeidx {
+            write!(f, "(type {})", typeidx)?;
+        }
+
+        write!(f, " {:?}", self.functiontype)
     }
 }
 
@@ -91,7 +113,7 @@ impl std::fmt::Debug for FParam {
 }
 
 // result := (result valtype)
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone, Copy)]
 pub struct FResult {
     pub valuetype: ValueType,
 }
@@ -107,8 +129,7 @@ impl std::fmt::Debug for FResult {
 #[derive(PartialEq, Default)]
 pub struct TypeField {
     pub id: Option<String>,
-    pub params: Vec<FParam>,
-    pub results: Vec<FResult>
+    pub functiontype: FunctionType
 }
 
 impl std::fmt::Debug for TypeField {
@@ -117,14 +138,11 @@ impl std::fmt::Debug for TypeField {
             write!(f, "(type {})", id)?;
         }
 
-        for param in &self.params {
-            write!(f, " {:?}", param)?;
-        }
+        write!(f, " (func")?;
+
+        write!(f, " {:?}", self.functiontype)?;
         
-        for result in &self.results {
-            write!(f, " {:?}", result)?;
-        }
-        Ok(())
+        write!(f, "))")
     }
 }
 
