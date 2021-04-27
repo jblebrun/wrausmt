@@ -51,8 +51,10 @@ macro_rules! typefield {
     ( $id:expr; [$($pt:ident $($pid:literal)?),*] -> [$($rt:ident),*] ) => {
         wrausmt::format::text::module::syntax::TypeField {
             id: $id,
-            params: vec![$(wrausmt::fparam! { $($pid;)? $pt })*],
-            results: vec![$(wrausmt::fresult! { $rt })*],
+            functiontype: $crate::format::text::module::syntax::FunctionType {
+                params: vec![$(wrausmt::fparam! { $($pid;)? $pt })*],
+                results: vec![$(wrausmt::fresult! { $rt })*],
+            }
         }
     };
 }

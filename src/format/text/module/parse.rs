@@ -1,8 +1,4 @@
-use super::syntax::{
-    DataField, ElemField, ElemList, ExportDesc, ExportField, Expr, FParam, FResult, Field,
-    FuncField, GlobalField, ImportDesc, ImportField, Index, Local, MemoryContents, MemoryField,
-    ModeEntry, Module, StartField, TableContents, TableField, TypeField, TypeUse,
-};
+use super::syntax::{DataField, ElemField, ElemList, ExportDesc, ExportField, Expr, FParam, FResult, Field, FuncField, FunctionType, GlobalField, ImportDesc, ImportField, Index, Local, MemoryContents, MemoryField, ModeEntry, Module, StartField, TableContents, TableField, TypeField, TypeUse};
 use crate::error::{Result, ResultFrom};
 use crate::format::text::Parser;
 use crate::types::{GlobalType, Limits, RefType, TableType, ValueType};
@@ -63,9 +59,7 @@ impl<R: Read> Parser<R> {
 
         self.expect_expr_start("func")?;
 
-        let params = self.zero_or_more_groups(Self::try_parse_fparam)?;
-
-        let results = self.zero_or_more_groups(Self::try_parse_fresult)?;
+        let functiontype = self.try_function_type()?;
 
         // Close (func
         self.expect_close().wrap("ending type")?;
@@ -75,9 +69,15 @@ impl<R: Read> Parser<R> {
 
         Ok(Some(Field::Type(TypeField {
             id,
-            params,
-            results,
+            functiontype
         })))
+    }
+
+    pub fn try_function_type(&mut self) -> Result<FunctionType> {
+        Ok(FunctionType {
+            params: self.zero_or_more_groups(Self::try_parse_fparam)?,
+            results: self.zero_or_more_groups(Self::try_parse_fresult)?
+        })
     }
 
     // func := (func id? (export <name>)* (import <modname> <name>) <typeuse>)
@@ -307,13 +307,11 @@ impl<R: Read> Parser<R> {
             None
         };
 
-        let params = self.zero_or_more_groups(Self::try_parse_fparam)?;
-        let results = self.zero_or_more_groups(Self::try_parse_fresult)?;
+        let functiontype = self.try_function_type()?;
 
         Ok(TypeUse {
             typeidx,
-            params,
-            results,
+            functiontype
         })
     }
 
