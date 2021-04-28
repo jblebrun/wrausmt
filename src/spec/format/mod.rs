@@ -1,8 +1,8 @@
-use crate::{format::text::Parser, types::{NumType, RefType}};
+use crate::{format::text::parse::Parser, types::{NumType, RefType}};
 use crate::format::text::token::Token;
 use std::io::Read;
 use crate::error::Result;
-use crate::format::text::module::syntax as modulesyntax;
+use crate::format::text::syntax as modulesyntax;
 use crate::error;
 use crate::err;
 
