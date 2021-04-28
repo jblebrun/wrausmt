@@ -59,7 +59,7 @@ impl<R: Read> Parser<R> {
         while self.next.token.ignorable() {
             self.next()?;
         }
-        println!("TOKEN IS NOW {:?}", self.current.token);
+        //println!("TOKEN IS NOW {:?}", self.current.token);
         Ok(out)
     }
 
