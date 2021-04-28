@@ -1,4 +1,4 @@
-use super::syntax::{DataField, ElemField, ElemList, ExportDesc, ExportField, Expr, FParam, FResult, Field, FuncField, FunctionType, GlobalField, ImportDesc, ImportField, Index, Local, MemoryContents, MemoryField, ModeEntry, Module, StartField, TableContents, TableField, TypeField, TypeUse};
+use super::syntax::{DataField, ElemField, ElemList, ExportDesc, ExportField, Expr, FParam, FResult, Field, FuncField, FunctionType, GlobalField, ImportDesc, ImportField, Index, Local, MemoryField, ModeEntry, Module, StartField, TableField, TypeField, TypeUse};
 use crate::error::{Result, ResultFrom};
 use crate::format::text::Parser;
 use crate::types::{GlobalType, Limits, RefType, TableType, ValueType};
@@ -144,7 +144,7 @@ impl<R: Read> Parser<R> {
                 limits: Limits::default(),
                 reftype: RefType::Func,
             },
-            contents: TableContents::Inline { elems: None },
+            elems: None
         })))
     }
 
@@ -156,7 +156,8 @@ impl<R: Read> Parser<R> {
         Ok(Some(Field::Memory(MemoryField {
             id: None,
             exports: vec![],
-            contents: MemoryContents::Import("foo".into()),
+            memtype: MemType::default(),
+            init: vec![]
         })))
     }
 
@@ -238,7 +239,7 @@ impl<R: Read> Parser<R> {
         println!("COMPLETED EXPORTFIELD");
         Ok(Some(Field::Export(ExportField {
             name: "name".into(),
-            exportdesc: ExportDesc::Func(TypeUse::default()),
+            exportdesc: ExportDesc::Func(Index::Numeric(0)),
         })))
     }
 
