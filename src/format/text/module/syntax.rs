@@ -206,14 +206,6 @@ pub enum TableElems {
 }
 
 #[derive(Debug, PartialEq)]
-// Table may either be an import, or declaring a new table,
-// in which case the contents may include initializer element segments.
-pub enum TableContents {
-    Inline{elems: Option<TableElems>},
-    Import(String),
-}
-
-#[derive(Debug, PartialEq)]
 // table :: = (table id? <tabletype>)
 // Abbreviations:
 // inline imports/exports
@@ -222,17 +214,7 @@ pub struct TableField {
     pub id: Option<String>,
     pub exports: Vec<String>,
     pub tabletype: TableType,
-    pub contents: TableContents
-}
-
-#[derive(Debug, PartialEq)]
-pub enum MemoryContents {
-    // standard
-    Inline(MemType),
-    // inline init
-    Initialized(Vec<u8>),
-    // inline import
-    Import(String)
+    pub elems: Option<TableElems>
 }
 
 // memory := (memory id? <memtype>)
@@ -244,7 +226,8 @@ pub enum MemoryContents {
 pub struct MemoryField {
     pub id: Option<String>,
     pub exports: Vec<String>,
-    pub contents: MemoryContents,
+    pub memtype: MemType,
+    pub init: Vec<u8>
 }
 
 // global := (global <id>? <globaltype> <expr>)
@@ -299,10 +282,10 @@ impl fmt::Debug for ImportField {
 #[derive(Debug, PartialEq)]
 #[allow(dead_code)]
 pub enum ExportDesc {
-    Func(TypeUse),
-    Table(TableType),
-    Mem(MemType),
-    Global(GlobalType),
+    Func(Index),
+    Table(Index),
+    Mem(Index),
+    Global(Index),
 }
 
 // export := (export <name> <exportdesc>)
