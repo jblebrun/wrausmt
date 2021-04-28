@@ -1,4 +1,4 @@
-use wrausmt::format::text::Parser;
+use wrausmt::format::text::parse::Parser;
 use wrausmt::format::text::token::Token;
 use wrausmt::format::text::lex::Tokenizer;
 use wrausmt::error::{Result, ResultFrom};
