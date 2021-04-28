@@ -1,7 +1,4 @@
-use super::syntax::{
-    DataField, ElemField, ExportDesc, ExportField, FuncField, GlobalField, ImportDesc, ImportField,
-    Index, MemoryField, Module, StartField, TableField, TypeField
-};
+use super::syntax::{DataField, ElemField, ExportDesc, ExportField, FuncField, FunctionType, GlobalField, ImportDesc, ImportField, Index, MemoryField, Module, StartField, TableField, TypeField};
 
 pub struct ModuleBuilder {
     module: Module
@@ -26,12 +23,19 @@ impl ModuleBuilder {
         self.module.types.push(typefield);
     }
 
+    pub fn add_inline_typeuse(&mut self, functiontype: FunctionType) {
+        if self.module.types.iter().position(|t| t.functiontype == functiontype).is_none() {
+            self.module.types.push(TypeField {
+                id: None,
+                functiontype
+            })
+        }
+    }
+
     pub fn add_funcfield(&mut self, f: FuncField) {
         // type use may define new type
         if let Some(inline_typefield) = f.typeuse.get_inline_def() {
-            if !self.module.types.contains(&inline_typefield) {
-                self.module.types.push(inline_typefield);
-            }
+            self.add_inline_typeuse(inline_typefield)
         }
         // export field may define new exports.
         let funcidx = self.module.funcs.len() as u32;
@@ -74,9 +78,7 @@ impl ModuleBuilder {
         // Function import may define a new type.
         if let ImportDesc::Func(tu) = &f.desc {
             if let Some(inline_typefield) = tu.get_inline_def() {
-                if !self.module.types.contains(&inline_typefield) {
-                    self.module.types.push(inline_typefield);
-                }
+                self.add_inline_typeuse(inline_typefield)
             }
         }
         self.module.imports.push(f);

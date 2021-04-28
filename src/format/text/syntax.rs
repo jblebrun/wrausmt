@@ -127,13 +127,10 @@ pub struct TypeUse {
 }
 
 impl TypeUse {
-    pub fn get_inline_def(&self) -> Option<TypeField> {
+    pub fn get_inline_def(&self) -> Option<FunctionType> {
         match self.typeidx {
             Some(_) => None,
-            None => Some(TypeField {
-                id: None,
-                functiontype: self.functiontype.anonymous(),
-            })
+            None => Some(self.functiontype.anonymous())
         }
     }
 }
