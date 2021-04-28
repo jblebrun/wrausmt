@@ -151,6 +151,17 @@ impl<R: Read> Parser<R> {
             _ => Ok(None),
         }
     }
+    
+    pub fn take_keyword_if(&mut self, pred: fn(&str) -> bool) -> Result<Option<String>> {
+        match self.current.token {
+            Token::Keyword(ref mut id) if pred(id) => {
+                let id = std::mem::take(id);
+                self.advance()?;
+                Ok(Some(id))
+            },
+            _ => Ok(None)
+        }
+    }
 
     pub fn peek_next_keyword(&self) -> Result<Option<&str>> {
         match &self.next.token {
@@ -259,7 +270,7 @@ impl<R: Read> Parser<R> {
     }
 
     pub fn expect_integer(&mut self) -> Result<u64> {
-        self.try_integer()?.ok_or_else(|| error!("Expected integer token {:?}", self.current.token))
+        self.try_integer()?.ok_or_else(|| error!("Expected integer token at {:?}", self.current))
     }
 
     pub fn try_float(&mut self) -> Result<Option<f64>> {

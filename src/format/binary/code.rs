@@ -101,8 +101,11 @@ pub trait ReadCode: ReadWasmValues {
             Operands::None => (),
             Operands::FuncIndex | Operands::LocalIndex | Operands::GlobalIndex |
             Operands::TableIndex | Operands::MemIndex | Operands::Br | Operands::I32 |
-            Operands::Block | Operands::HeapType | Operands::Call => self.read_1_arg(out)?,
-            Operands::Memargs => self.read_2_args(out)?,
+            Operands::Block | Operands::HeapType => self.read_u32_arg(out)?,
+            Operands::Memargs => { self.read_u32_arg(out)?; self.read_u32_arg(out)? },
+            Operands::MemorySize | Operands::MemoryGrow | 
+            Operands::MemoryInit | Operands::MemoryFill => { self.read_byte()?; },
+            Operands::MemoryCopy => { self.read_byte()?; self.read_byte()?; }
             _ => return err!("unsupported operands {:x?} for {:x}", instruction_data.operands, opcode),
         };
 
@@ -114,14 +117,8 @@ pub trait ReadCode: ReadWasmValues {
     }
 
     /// Clarity method: use to read a single LEB128 argument for an instruction.
-    fn read_1_arg<W: Write>(&mut self, out: &mut W) -> Result<()> {
+    fn read_u32_arg<W: Write>(&mut self, out: &mut W) -> Result<()> {
         self.emit_read_u32_leb_128(out).wrap("parsing arg 1/1")
-    }
-
-    /// Clarity method: use to read a two successive LEB128 arguments for an instruction.
-    fn read_2_args<W: Write>(&mut self, out: &mut W) -> Result<()> {
-        self.emit_read_u32_leb_128(out).wrap("parsing arg 1/2")?;
-        self.emit_read_u32_leb_128(out).wrap("arsing arg 2/2")
     }
 
     /// Read one LEB128 value and emit it to the provided writer.
