@@ -30,10 +30,10 @@ impl<R: Read> Parser<R> {
                     Operands::GlobalIndex => { 
                         syntax::Operands::Index(self.parse_index()?)
                     }
-                    Operands::I32 | Operands::I64 | 
-                    Operands::F32 | Operands::F64 => { 
-                        syntax::Operands::Number(self.expect_number()?)
-                    }, 
+                    Operands::I32 => syntax::Operands::I32(self.expect_number()? as u32),
+                    Operands::I64 => syntax::Operands::I64(self.expect_number()? as u64),
+                    Operands::F32 => syntax::Operands::F32(self.expect_number()? as f32),
+                    Operands::F64 => syntax::Operands::F64(self.expect_number()? as f64),
                     Operands::Memargs => { 
                         let align = self.try_align()?.unwrap_or(0);
                         let offset = self.try_offset()?.unwrap_or(0); 
@@ -41,7 +41,7 @@ impl<R: Read> Parser<R> {
                     },
                     _ => return err!("Unimplemented operands type {:?}", data.operands)
                 };
-                Ok(Some(Instruction{name, operands}))
+                Ok(Some(Instruction{name, opcode: data.opcode, operands}))
             },
             None => err!("bad instruction name {}", name)
         }

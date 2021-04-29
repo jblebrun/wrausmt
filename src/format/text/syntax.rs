@@ -369,6 +369,7 @@ impl fmt::Debug for Expr {
 #[derive(PartialEq)]
 pub struct Instruction {
     pub name: String,
+    pub opcode: u8,
     pub operands: Operands
 }
 
@@ -377,7 +378,10 @@ pub enum Operands {
     None,
     Index(Index),
     Memargs(u32, u32),
-    Number(u64),
+    I32(u32),
+    I64(u64),
+    F32(f32),
+    F64(f64)
 }
 
 impl std::fmt::Debug for Instruction {

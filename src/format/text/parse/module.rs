@@ -256,12 +256,38 @@ impl<R: Read> Parser<R> {
             return Ok(None);
         }
 
-        self.consume_expression()?;
-        println!("COMPLETED EXPORTFIELD");
+        let name = self.expect_string()?;
+
+        let exportdesc = self.expect_exportdesc()?;
+
+        self.expect_close()?;
+
         Ok(Some(Field::Export(ExportField {
-            name: "name".into(),
-            exportdesc: ExportDesc::Func(Index::Numeric(0)),
+            name,
+            exportdesc,
         })))
+    }
+
+    fn expect_exportdesc(&mut self) -> Result<ExportDesc> {
+        if self.try_expr_start("func")? {
+            let index = self.parse_index()?;
+            self.expect_close()?;
+            Ok(ExportDesc::Func(index))
+        } else if self.try_expr_start("table")? {
+            let index = self.parse_index()?;
+            self.expect_close()?;
+            Ok(ExportDesc::Table(index))
+        } else if self.try_expr_start("memory")? {
+            let index = self.parse_index()?;
+            self.expect_close()?;
+            Ok(ExportDesc::Mem(index))
+        } else if self.try_expr_start("global")? {
+            let index = self.parse_index()?;
+            self.expect_close()?;
+            Ok(ExportDesc::Global(index))
+        } else {
+            err!("no valid importdesc found")
+        }
     }
 
     pub fn try_global_field(&mut self) -> Result<Option<Field>> {
