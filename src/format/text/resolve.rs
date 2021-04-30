@@ -40,12 +40,12 @@ macro_rules! index_resolver {
     ( $it:ty, $ic:ident, $src:expr  ) => {
         impl Resolve<Index<Resolved, $it>> for Index<Unresolved, $it> {
             fn resolve(self, $ic: &IdentifierContext) -> Result<Index<Resolved, $it>> {
-                let value = if self.name.is_empty() {
-                    self.value
+                let value = if self.name().is_empty() {
+                    self.value()
                 } else {
                     // TODO - how to handle the different index types?
-                    let value = $src.get(&self.name)
-                        .ok_or_else(|| error!("id not found {}", self.name))?;
+                    let value = $src.get(self.name())
+                        .ok_or_else(|| error!("id not found {}", self.name()))?;
                     *value
                 };
                 Ok(self.resolved(value))

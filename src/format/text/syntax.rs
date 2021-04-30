@@ -4,53 +4,8 @@
 
 use crate::types::{GlobalType, ValueType, TableType, MemType, RefType};
 use std::{collections::HashMap, fmt::{self, Debug}, marker::PhantomData};
-
-/// ResolvedState is used to track whether or not the symbolic indices in the module have been
-/// resolved into the proper numeric values. This needs to happen in a second pass after the
-/// initial parse, since index usage may occur before the index has been defined.
-///
-pub trait ResolvedState : Debug {}
-
-/// A module parameterized by the [Resolved] type will have undergone index resolution, and should
-/// be safe to compile further.
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct Resolved {}
-impl ResolvedState for Resolved {}
-
-/// A module parameterized by the [Resolved] type will have undergone index resolution, and must be
-/// compiled before it can be used by the runtime.
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct Unresolved {}
-impl ResolvedState for Unresolved {}
-
-pub trait IndexSpace {}
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct FuncIndex {}
-impl IndexSpace for FuncIndex {}
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct TypeIndex {}
-impl IndexSpace for TypeIndex {}
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct TableIndex {}
-impl IndexSpace for TableIndex {}
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct GlobalIndex {}
-impl IndexSpace for GlobalIndex {}
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct MemoryIndex {}
-impl IndexSpace for MemoryIndex {}
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct DataIndex {}
-impl IndexSpace for DataIndex {}
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct ElemIndex {}
-impl IndexSpace for ElemIndex {}
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct LocalIndex {}
-impl IndexSpace for LocalIndex {}
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct LabelIndex {}
-impl IndexSpace for LabelIndex {}
+pub use super::indices::{Resolved, ResolvedState, Unresolved};
+pub use super::indices::{IndexSpace, FuncIndex, TypeIndex, TableIndex, GlobalIndex, MemoryIndex, DataIndex, ElemIndex, LocalIndex, LabelIndex};
 
 /// Represents one index usage point. It may be named ($id) or numeric. [Spec]
 ///
@@ -61,13 +16,22 @@ impl IndexSpace for LabelIndex {}
 /// [Spec]: https://webassembly.github.io/spec/core/text/modules.html#indices
 #[derive(Clone, Default, PartialEq)]
 pub struct Index<R:ResolvedState, S:IndexSpace> {
-    pub name: String,
-    pub value: u32,
+    name: String,
+    value: u32,
     resolvedmarker: PhantomData<R>,
     indexmarker: PhantomData<S>,
 }
 
+impl <S:IndexSpace> From<Index<Resolved, S>> for u32  {
+    fn from(idx: Index<Resolved, S>) -> u32 {
+        idx.value()
+    }
+}
+
 impl <R:ResolvedState, S:IndexSpace> Index<R, S> {
+    pub fn name(&self) -> &str { &self.name }
+    pub fn value(&self) -> u32 { self.value }
+
     pub fn named(name: String, value: u32) -> Self {
         Index {
             name, 

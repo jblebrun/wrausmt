@@ -1,4 +1,4 @@
-use super::syntax::{self, Index, Resolved};
+use super::syntax::{self, Resolved};
 use crate::{module, types::{FunctionType, ValueType}};
 use crate::error::{Result, ResultFrom};
 use crate::error;
@@ -22,10 +22,10 @@ impl From<syntax::Local> for ValueType {
 impl From<syntax::ExportDesc<Resolved>> for module::ExportDesc {
     fn from(ast: syntax::ExportDesc<Resolved>) -> module::ExportDesc {
        match ast {
-            syntax::ExportDesc::Func(idx) => module::ExportDesc::Func(idx.value),
-            syntax::ExportDesc::Table(idx) => module::ExportDesc::Table(idx.value),
-            syntax::ExportDesc::Mem(idx) => module::ExportDesc::Memory(idx.value),
-            syntax::ExportDesc::Global(idx) => module::ExportDesc::Func(idx.value)
+            syntax::ExportDesc::Func(idx) => module::ExportDesc::Func(idx.value()),
+            syntax::ExportDesc::Table(idx) => module::ExportDesc::Table(idx.value()),
+            syntax::ExportDesc::Mem(idx) => module::ExportDesc::Memory(idx.value()),
+            syntax::ExportDesc::Global(idx) => module::ExportDesc::Func(idx.value())
         }
     }
 }
@@ -46,19 +46,23 @@ fn compile_function_body(func: &syntax::FuncField<Resolved>) -> Result<Box<[u8]>
         // Emit opcode
         body.write(&[instr.opcode]).wrap("writing opcode")?;
         // Emit operands
-        match instr.operands {
+
+        let mut emitter = |v: u32| {
+            let bytes = &v.to_le_bytes()[..];
+            body.write(&bytes).wrap("writing index operand")?;
+            Result::Ok(())
+        };
+
+        match &instr.operands {
             syntax::Operands::None => (),
-            syntax::Operands::I32(n) |
-            syntax::Operands::FuncIndex(Index { value:n, .. }) |
-            syntax::Operands::TableIndex(Index { value:n, ..}) |
-            syntax::Operands::GlobalIndex(Index { value:n, ..}) | 
-            syntax::Operands::ElemIndex(Index { value:n, ..}) |
-            syntax::Operands::DataIndex(Index { value:n, ..}) |
-            syntax::Operands::LocalIndex(Index { value:n, ..}) |
-            syntax::Operands::LabelIndex(Index { value:n, ..}) => {
-                let bytes = &n.to_le_bytes()[..];
-                body.write(&bytes).wrap("writing index operand")?;
-            }
+            syntax::Operands::I32(n) => emitter(*n)?,
+            syntax::Operands::FuncIndex(idx) =>  emitter(idx.value())?,
+            syntax::Operands::TableIndex(idx) => emitter(idx.value())?,
+            syntax::Operands::GlobalIndex(idx) => emitter(idx.value())?,
+            syntax::Operands::ElemIndex(idx) => emitter(idx.value())?,
+            syntax::Operands::DataIndex(idx) => emitter(idx.value())?,
+            syntax::Operands::LocalIndex(idx) => emitter(idx.value())?,
+            syntax::Operands::LabelIndex(idx) => emitter(idx.value())?,
             _ => ()
         }
     }
@@ -74,7 +78,7 @@ fn compile_function(
 
     // Get the typeidx from the finalized list of types
     let functype = match &func.typeuse.typeidx {
-        Some(idx) => Ok(idx.value),
+        Some(idx) => Ok(idx.value()),
         None => {
             let inline_def = &func.typeuse.get_inline_def().unwrap().into();
             types.iter()
