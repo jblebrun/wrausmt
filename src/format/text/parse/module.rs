@@ -3,7 +3,7 @@ use crate::format::text::syntax::{DataField, ElemField, ElemList, ExportDesc, Ex
 use crate::err;
 use crate::error::{Result, ResultFrom};
 use super::Parser;
-use crate::types::{GlobalType, Limits, RefType, TableType, ValueType};
+use crate::types::{GlobalType, Limits, RefType, TableType};
 use crate::types::MemType;
 use std::io::Read;
 
@@ -295,15 +295,32 @@ impl<R: Read> Parser<R> {
             return Ok(None);
         }
 
-        self.consume_expression()?;
+        let id = self.try_id()?;
+
+        let exports = self.zero_or_more(Self::try_inline_export)?;
+
+        let import = self.try_inline_import()?;
+
+        let globaltype = self.expect_globaltype()?;
+
+        if let Some(import) = import {
+            self.expect_close()?;
+            return Ok(Some(Field::Import(ImportField{
+                id,
+                modname: import.0,
+                name: import.1,
+                desc: ImportDesc::Global(globaltype)
+            })))
+        }
+
+        let init = self.parse_instructions()?;
+
+        self.expect_close()?;
         Ok(Some(Field::Global(GlobalField {
-            id: None,
-            exports: vec![],
-            globaltype: GlobalType {
-                mutable: false,
-                valtype: ValueType::Ref(RefType::Func),
-            },
-            init: Expr::default(),
+            id,
+            exports,
+            globaltype,
+            init: Expr {instr:init}
         })))
     }
 
@@ -311,10 +328,12 @@ impl<R: Read> Parser<R> {
         if !self.try_expr_start("start")? {
             return Ok(None);
         }
-        self.consume_expression()?;
-        Ok(Some(Field::Start(StartField {
-            idx: Index::Numeric(42),
-        })))
+
+        let idx = self.parse_index()?;
+
+        self.expect_close()?;
+
+        Ok(Some(Field::Start(StartField { idx })))
     }
 
     pub fn try_elem_field(&mut self) -> Result<Option<Field>> {
