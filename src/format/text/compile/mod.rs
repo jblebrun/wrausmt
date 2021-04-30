@@ -1,7 +1,7 @@
-use super::syntax;
+use super::syntax::{self, Index, Resolved};
 use crate::{module, types::{FunctionType, ValueType}};
 use crate::error::{Result, ResultFrom};
-use crate::{err, error};
+use crate::error;
 use std::io::Write;
 
 impl From<syntax::FunctionType> for FunctionType {
@@ -19,26 +19,19 @@ impl From<syntax::Local> for ValueType {
     }
 }
 
-impl From<syntax::ExportDesc> for module::ExportDesc {
-    fn from(ast: syntax::ExportDesc) -> module::ExportDesc {
+impl From<syntax::ExportDesc<Resolved>> for module::ExportDesc {
+    fn from(ast: syntax::ExportDesc<Resolved>) -> module::ExportDesc {
        match ast {
-            syntax::ExportDesc::Func(idx) => module::ExportDesc::Func(index_val(idx).unwrap()),
-            syntax::ExportDesc::Table(idx) => module::ExportDesc::Table(index_val(idx).unwrap()),
-            syntax::ExportDesc::Mem(idx) => module::ExportDesc::Memory(index_val(idx).unwrap()),
-            syntax::ExportDesc::Global(idx) => module::ExportDesc::Func(index_val(idx).unwrap())
+            syntax::ExportDesc::Func(idx) => module::ExportDesc::Func(idx.value),
+            syntax::ExportDesc::Table(idx) => module::ExportDesc::Table(idx.value),
+            syntax::ExportDesc::Mem(idx) => module::ExportDesc::Memory(idx.value),
+            syntax::ExportDesc::Global(idx) => module::ExportDesc::Func(idx.value)
         }
     }
 }
 
-fn index_val(index: syntax::Index) -> Result<u32> {
-    match index {
-        syntax::Index::Numeric(n) => Ok(n),
-        _ => err!("only numeric indices right now")
-    }
-}
-
-impl From<syntax::ExportField> for module::Export {
-    fn from(ast: syntax::ExportField) -> module::Export {
+impl From<syntax::ExportField<Resolved>> for module::Export {
+    fn from(ast: syntax::ExportField<Resolved>) -> module::Export {
         module::Export {
             name: ast.name,
             desc: ast.exportdesc.into()
@@ -46,7 +39,7 @@ impl From<syntax::ExportField> for module::Export {
     }
 }
 
-fn compile_function_body(func: &syntax::FuncField) -> Result<Box<[u8]>> {
+fn compile_function_body(func: &syntax::FuncField<Resolved>) -> Result<Box<[u8]>> {
     let mut body: Vec<u8> = Vec::new();
 
     for instr in &func.body.instr {
@@ -56,7 +49,13 @@ fn compile_function_body(func: &syntax::FuncField) -> Result<Box<[u8]>> {
         match instr.operands {
             syntax::Operands::None => (),
             syntax::Operands::I32(n) |
-            syntax::Operands::Index(syntax::Index::Numeric(n)) => {
+            syntax::Operands::FuncIndex(Index { value:n, .. }) |
+            syntax::Operands::TableIndex(Index { value:n, ..}) |
+            syntax::Operands::GlobalIndex(Index { value:n, ..}) | 
+            syntax::Operands::ElemIndex(Index { value:n, ..}) |
+            syntax::Operands::DataIndex(Index { value:n, ..}) |
+            syntax::Operands::LocalIndex(Index { value:n, ..}) |
+            syntax::Operands::LabelIndex(Index { value:n, ..}) => {
                 let bytes = &n.to_le_bytes()[..];
                 body.write(&bytes).wrap("writing index operand")?;
             }
@@ -69,14 +68,13 @@ fn compile_function_body(func: &syntax::FuncField) -> Result<Box<[u8]>> {
 }
 
 fn compile_function(
-    func: syntax::FuncField,
+    func: syntax::FuncField<Resolved>,
     types: &[FunctionType],
 ) -> Result<module::Function> {
 
     // Get the typeidx from the finalized list of types
-    let functype = match func.typeuse.typeidx {
-        Some(syntax::Index::Numeric(idx)) => Ok(idx),
-        Some(syntax::Index::Named(_)) => err!("ids lookup not done"),
+    let functype = match &func.typeuse.typeidx {
+        Some(idx) => Ok(idx.value),
         None => {
             let inline_def = &func.typeuse.get_inline_def().unwrap().into();
             types.iter()
@@ -99,8 +97,7 @@ fn compile_function(
     })
 }
 
-pub fn compile(ast: syntax::Module) -> Result<module::Module> {
-
+pub fn compile(ast: syntax::Module<Resolved>) -> Result<module::Module> {
     let types: Box<[FunctionType]> = 
         ast.types.into_iter().map(|t| t.functiontype.into()).collect();
 

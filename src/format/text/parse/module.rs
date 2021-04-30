@@ -1,18 +1,18 @@
-use crate::format::text::module_builder::ModuleBuilder;
+use crate::format::text::{module_builder::ModuleBuilder, syntax::{IndexSpace, Resolved, Unresolved}};
 use crate::format::text::syntax::{DataField, ElemField, ElemList, ExportDesc, ExportField, Expr, FParam, FResult, Field, FuncField, FunctionType, GlobalField, ImportDesc, ImportField, Index, Local, MemoryField, ModeEntry, Module, StartField, TableField, TypeField, TypeUse};
 use crate::err;
 use crate::error::{Result, ResultFrom};
 use super::Parser;
 use crate::types::{GlobalType, Limits, RefType, TableType};
 use crate::types::MemType;
-use std::io::Read;
+use std::{collections::HashMap, io::Read};
 
 // Implementation for module-specific parsing functions.
 impl<R: Read> Parser<R> {
     /// Attempt to parse the current token stream as a WebAssembly module.
     /// On success, a vector of sections is returned. They can be organized into a
     /// module object.
-    pub fn try_module(&mut self) -> Result<Option<Module>> {
+    pub fn try_module(&mut self) -> Result<Option<Module<Resolved>>> {
         if !self.try_expr_start("module")? {
             return Ok(None);
         }
@@ -22,7 +22,7 @@ impl<R: Read> Parser<R> {
     /// This is split away as a convenience for spec test parsing, so that we can
     /// parse the module expression header, and then check for binary/quote modules
     /// first, before attempting a normal module parse.
-    pub fn try_module_rest(&mut self) -> Result<Option<Module>> {
+    pub fn try_module_rest(&mut self) -> Result<Option<Module<Resolved>>> {
         let id = self.try_id()?;
 
         let mut module_builder = ModuleBuilder::new(id);
@@ -48,12 +48,11 @@ impl<R: Read> Parser<R> {
         
         self.expect_close()?;
 
-        Ok(Some(module_builder.build()))
+        Ok(Some(module_builder.build()?))
     }
 
     // Parser should be located at the token immediately following a '('
-    fn try_field(&mut self) -> Result<Option<Field>> {
-        println!("TRY MODULE FIELD...");
+    fn try_field(&mut self) -> Result<Option<Field<Unresolved>>> {
         self.first_of(&[
             Self::try_type_field,
             Self::try_type_field,
@@ -69,7 +68,7 @@ impl<R: Read> Parser<R> {
         ])
     }
 
-    pub fn try_type_field(&mut self) -> Result<Option<Field>> {
+    pub fn try_type_field(&mut self) -> Result<Option<Field<Unresolved>>> {
         if !self.try_expr_start("type")? {
             return Ok(None);
         }
@@ -100,7 +99,7 @@ impl<R: Read> Parser<R> {
     }
 
     // func := (func id? (export <name>)* (import <modname> <name>) <typeuse>)
-    pub fn try_func_field(&mut self) -> Result<Option<Field>> {
+    pub fn try_func_field(&mut self) -> Result<Option<Field<Unresolved>>> {
         if !self.try_expr_start("func")? {
             return Ok(None);
         }
@@ -129,8 +128,23 @@ impl<R: Read> Parser<R> {
         self.expect_close().wrap("closing func")?;
         println!("FINISHED INSTRUCTIONS AT {:?} {:?}", self.current, self.next);
 
+        let mut idx = 0;
+        let mut localindices = HashMap::default(); 
+        for p in &typeuse.functiontype.params {
+            if let Some(id) = &p.id {
+               localindices.insert(id.to_owned(), idx);
+            }
+            idx += 1;
+        }
+        for l in &locals {
+            if let Some(id) = &l.id {
+               localindices.insert(id.to_owned(), idx);
+            }
+            idx += 1;
+        }
+
         Ok(Some(Field::Func(FuncField {
-            id, exports, typeuse, locals, body: Expr{instr},
+            id, exports, typeuse, locals, body: Expr{instr}, localindices
         })))
     }
 
@@ -153,7 +167,7 @@ impl<R: Read> Parser<R> {
         Ok(Some(result))
     }
 
-    pub fn try_table_field(&mut self) -> Result<Option<Field>> {
+    pub fn try_table_field(&mut self) -> Result<Option<Field<Unresolved>>> {
         if !self.try_expr_start("table")? {
             return Ok(None);
         }
@@ -169,7 +183,7 @@ impl<R: Read> Parser<R> {
         })))
     }
 
-    pub fn try_memory_field(&mut self) -> Result<Option<Field>> {
+    pub fn try_memory_field(&mut self) -> Result<Option<Field<Unresolved>>> {
         if !self.try_expr_start("memory")? {
             return Ok(None);
         }
@@ -187,7 +201,7 @@ impl<R: Read> Parser<R> {
     //             | (table <id>? <tabletype>)
     //             | (memory <id?> <memtype>)
     //             | (global <id?> <globaltype>)
-    pub fn try_import_field(&mut self) -> Result<Option<Field>> {
+    pub fn try_import_field(&mut self) -> Result<Option<Field<Unresolved>>> {
         if !self.try_expr_start("import")? {
             return Ok(None);
         }
@@ -207,7 +221,7 @@ impl<R: Read> Parser<R> {
         })))
     }
 
-    pub fn expect_importdesc(&mut self) -> Result<(Option<String>, ImportDesc)> {
+    pub fn expect_importdesc(&mut self) -> Result<(Option<String>, ImportDesc<Unresolved>)> {
         if self.try_expr_start("func")? {
             let id = self.try_id()?;
             let typeuse = self.parse_type_use()?;
@@ -251,7 +265,7 @@ impl<R: Read> Parser<R> {
         Ok(GlobalType { mutable, valtype })
     }
 
-    pub fn try_export_field(&mut self) -> Result<Option<Field>> {
+    pub fn try_export_field(&mut self) -> Result<Option<Field<Unresolved>>> {
         if !self.try_expr_start("export")? {
             return Ok(None);
         }
@@ -268,21 +282,21 @@ impl<R: Read> Parser<R> {
         })))
     }
 
-    fn expect_exportdesc(&mut self) -> Result<ExportDesc> {
+    fn expect_exportdesc(&mut self) -> Result<ExportDesc<Unresolved>> {
         if self.try_expr_start("func")? {
-            let index = self.parse_index()?;
+            let index = self.expect_index()?;
             self.expect_close()?;
             Ok(ExportDesc::Func(index))
         } else if self.try_expr_start("table")? {
-            let index = self.parse_index()?;
+            let index = self.expect_index()?;
             self.expect_close()?;
             Ok(ExportDesc::Table(index))
         } else if self.try_expr_start("memory")? {
-            let index = self.parse_index()?;
+            let index = self.expect_index()?;
             self.expect_close()?;
             Ok(ExportDesc::Mem(index))
         } else if self.try_expr_start("global")? {
-            let index = self.parse_index()?;
+            let index = self.expect_index()?;
             self.expect_close()?;
             Ok(ExportDesc::Global(index))
         } else {
@@ -290,7 +304,7 @@ impl<R: Read> Parser<R> {
         }
     }
 
-    pub fn try_global_field(&mut self) -> Result<Option<Field>> {
+    pub fn try_global_field(&mut self) -> Result<Option<Field<Unresolved>>> {
         if !self.try_expr_start("global")? {
             return Ok(None);
         }
@@ -324,19 +338,19 @@ impl<R: Read> Parser<R> {
         })))
     }
 
-    pub fn try_start_field(&mut self) -> Result<Option<Field>> {
+    pub fn try_start_field(&mut self) -> Result<Option<Field<Unresolved>>> {
         if !self.try_expr_start("start")? {
             return Ok(None);
         }
 
-        let idx = self.parse_index()?;
+        let idx = self.expect_index()?;
 
         self.expect_close()?;
 
         Ok(Some(Field::Start(StartField { idx })))
     }
 
-    pub fn try_elem_field(&mut self) -> Result<Option<Field>> {
+    pub fn try_elem_field(&mut self) -> Result<Option<Field<Unresolved>>> {
         if !self.try_expr_start("elem")? {
             return Ok(None);
         }
@@ -351,7 +365,7 @@ impl<R: Read> Parser<R> {
         })))
     }
 
-    pub fn try_data_field(&mut self) -> Result<Option<Field>> {
+    pub fn try_data_field(&mut self) -> Result<Option<Field<Unresolved>>> {
         if !self.try_expr_start("data")? {
             return Ok(None);
         }
@@ -366,9 +380,9 @@ impl<R: Read> Parser<R> {
     // Try to parse one "type use" section, in an import or function.
     // := (type <typeidx>)
     //  | (type <typeidx>) (param <id>? <type>)* (result <type>)*
-    fn parse_type_use(&mut self) -> Result<TypeUse> {
+    fn parse_type_use(&mut self) -> Result<TypeUse<Unresolved>> {
         let typeidx = if self.try_expr_start("type")? {
-            let idx = self.parse_index()?;
+            let idx = self.expect_index()?;
             self.expect_close()?;
             Some(idx)
         } else {
@@ -467,13 +481,13 @@ impl<R: Read> Parser<R> {
     }
 
     // parse an index usage. It can be either a number or a named identifier.
-    pub fn parse_index(&mut self) -> Result<Index> {
+    pub fn expect_index<I:IndexSpace>(&mut self) -> Result<Index<Unresolved, I>> {
         if let Some(id) = self.try_id()? {
-            return Ok(Index::Named(id));
+            return Ok(Index::named(id, 0));
         }
 
         if let Some(val) = self.try_unsigned()? {
-            return Ok(Index::Numeric(val as u32));
+            return Ok(Index::unnamed(val as u32));
         }
 
         err!("No index found")
