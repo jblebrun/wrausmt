@@ -1,5 +1,6 @@
 ## Rough task list
 
+* Make a macro to unify try/expect parser pattern
 * Improve error structuring
 * Generate instruction name tables
 * Add better execution tracing & control
@@ -18,5 +19,3 @@
 * Pass WASM test suite
 * Benchmarks
 * Binary format emitter (from module)
-
-

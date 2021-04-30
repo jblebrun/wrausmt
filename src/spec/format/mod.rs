@@ -1,4 +1,4 @@
-use crate::{format::text::parse::Parser, types::{NumType, RefType}};
+use crate::{format::text::{parse::Parser, syntax::Resolved}, types::{NumType, RefType}};
 use crate::format::text::token::Token;
 use std::io::Read;
 use crate::error::Result;
@@ -325,7 +325,7 @@ pub enum Cmd {
 ///   ( module <name>? quote <string>* )         ;; module quoted in text (may be malformed)
 #[derive(Debug)]
 pub enum Module {
-    Module(modulesyntax::Module),
+    Module(modulesyntax::Module<Resolved>),
     Binary(Vec<String>),
     Quote(Vec<String>)
 }

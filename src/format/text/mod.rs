@@ -6,3 +6,4 @@ pub mod syntax;
 pub mod module_builder;
 pub mod macros;
 pub mod compile;
+pub mod resolve;

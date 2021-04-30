@@ -1,4 +1,4 @@
-use crate::format::text::syntax;
+use crate::format::text::syntax::{self, Unresolved};
 use crate::{err, instructions::instruction_by_name, instructions::Operands};
 use crate::format::text::token::Token;
 use super::Parser;
@@ -7,12 +7,12 @@ use crate::format::text::syntax::Instruction;
 use crate::error::{Result, ResultFrom};
 
 impl<R: Read> Parser<R> {
-    pub fn parse_instructions(&mut self) -> Result<Vec<Instruction>> {
+    pub fn parse_instructions(&mut self) -> Result<Vec<Instruction<Unresolved>>> {
         self.zero_or_more_groups(Self::try_instruction)
     }
 
     /// Called at a point where we expect an instruction name keyword
-    fn try_plain_instruction(&mut self) -> Result<Option<Instruction>> {
+    fn try_plain_instruction(&mut self) -> Result<Option<Instruction<Unresolved>>> {
         let name = match self.try_keyword()? {
             None => return Ok(None),
             Some(kw) => kw
@@ -25,11 +25,13 @@ impl<R: Read> Parser<R> {
             Some(data) => {
                 let operands = match data.operands {
                     Operands::None | Operands::MemoryGrow => syntax::Operands::None,
-                    Operands::LocalIndex | Operands::MemIndex | Operands::FuncIndex | 
-                    Operands::TableIndex | Operands::DataIndex | Operands::ElemIndex |
-                    Operands::GlobalIndex => { 
-                        syntax::Operands::Index(self.parse_index()?)
-                    }
+                    Operands::FuncIndex => syntax::Operands::FuncIndex(self.expect_index()?),
+                    Operands::TableIndex => syntax::Operands::TableIndex(self.expect_index()?),
+                    Operands::GlobalIndex => syntax::Operands::GlobalIndex(self.expect_index()?),
+                    Operands::ElemIndex => syntax::Operands::ElemIndex(self.expect_index()?),
+                    Operands::DataIndex => syntax::Operands::DataIndex(self.expect_index()?),
+                    Operands::LocalIndex => syntax::Operands::LocalIndex(self.expect_index()?),
+                    Operands::Br => syntax::Operands::LabelIndex(self.expect_index()?),
                     Operands::I32 => syntax::Operands::I32(self.expect_number()? as u32),
                     Operands::I64 => syntax::Operands::I64(self.expect_number()? as u64),
                     Operands::F32 => syntax::Operands::F32(self.expect_number()? as f32),
@@ -47,7 +49,7 @@ impl<R: Read> Parser<R> {
         }
     }
 
-    fn try_plain_instructions(&mut self) -> Result<Option<Vec<Instruction>>> {
+    fn try_plain_instructions(&mut self) -> Result<Option<Vec<Instruction<Unresolved>>>> {
         let instr = self.zero_or_more(Self::try_plain_instruction)?;
         if instr.is_empty() {
             Ok(None)
@@ -83,14 +85,14 @@ impl<R: Read> Parser<R> {
     }
 
 
-    fn try_instruction(&mut self) -> Result<Option<Vec<Instruction>>> {
+    fn try_instruction(&mut self) -> Result<Option<Vec<Instruction<Unresolved>>>> {
         self.first_of(&[
             Self::try_folded_instruction,
             Self::try_plain_instructions
         ])
     }
 
-    fn try_folded_instruction(&mut self) -> Result<Option<Vec<Instruction>>> {
+    fn try_folded_instruction(&mut self) -> Result<Option<Vec<Instruction<Unresolved>>>> {
         if self.current.token != Token::Open {
             return Ok(None)
         }

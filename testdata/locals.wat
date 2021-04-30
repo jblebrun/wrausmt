@@ -8,7 +8,6 @@
   (import "env" "__memory_base" (global (;1;) i32))
   (import "env" "__table_base" (global (;2;) i32))
   (import "env" "memory" (memory (;0;) 0))
-  (func $inline-import (import "mod" "fooimport") (type 1) (param $go i32) (result f32))
   (func $init (type 2) (param i32) 
     call 2)
   (func (type $void))
@@ -16,16 +15,17 @@
     (local i32)
     i32.const 600
     local.set 1
-    local.get $foo 
     (i32.add (i32.const 2) (i32.const 4))
     local.get 1
     i32.sub
+    local.get 0
+    i32.add
     return)
   (func $inline-export (export "fooexport") (result i32)
     i32.const 45)
   ;; Inline type
   (global (;3;) i32 (i32.const 0))
   (export "__post_instantiate" (func 0))
-  (export "test" (func 2))
+  (export "test" (func $foo))
   (export "__dso_handle" (global 3))
   (export "__wasm_apply_data_relocs" (func 1)))
