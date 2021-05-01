@@ -1,9 +1,13 @@
-use wrausmt::{error::{Result, ResultFrom}, format::text::{lex::Tokenizer, parse::Parser}, spec::runner::run_spec_test};
+use wrausmt::format::text::lex::Tokenizer;
+use wrausmt::format::text::parse::Parser;
+use wrausmt::spec::runner::run_spec_test;
+
+type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
 fn parse_and_run(path: &str) -> Result<()> {
-    let f = std::fs::File::open(path).wrap(&format!("opening file {}", path))?;
+    let f = std::fs::File::open(path)?;
 
-    let tokenizer = Tokenizer::new(f).wrap("tokenizer")?;
+    let tokenizer = Tokenizer::new(f)?;
     let mut parser = Parser::new(tokenizer)?;
     let spectest = parser.parse_spec_test()?;
 

@@ -1,11 +1,13 @@
 use std::collections::HashMap;
 
-use super::{resolve::{IdentifierContext, Resolve}, syntax::{
+use super::{resolve::{IdentifierContext, Resolve, Result}, syntax::{
     DataField, ElemField, ExportDesc, ExportField, FuncField, FunctionType, GlobalField,
     ImportDesc, ImportField, Index, MemoryField, Module, Resolved, StartField, TableField,
     TypeField, Unresolved
 }};
-use crate::error::Result;
+
+
+
 
 /// A [ModuleBuilder] accepts the various [Field] items coming from the parse, and organizes them
 /// by sections into a [Module]. This [Module] is still just an abstract representation. ID

@@ -1,10 +1,14 @@
 //! Methods implementing index usage resolution.
 use std::collections::HashMap;
 
-use crate::error;
-use crate::error::Result;
 use super::syntax::{DataField, DataIndex, DataInit, ElemField, ElemIndex, ElemList, ExportDesc, ExportField, Expr, FuncField, FuncIndex, GlobalField, GlobalIndex, ImportDesc, ImportField, Index, Instruction, LabelIndex, LocalIndex, MemoryIndex, ModeEntry, Module, ModuleIdentifiers, Operands, Resolved, StartField, TableElems, TableField, TableIndex, TablePosition, TableUse, TypeIndex, TypeUse, Unresolved};
 
+#[derive(Debug)]
+pub enum ResolveError {
+    UnresolvedIndex(String)
+}
+
+pub type Result<T> = std::result::Result<T, ResolveError>;
 /// A structure to hold the currently resolvable set of identifiers.
 #[derive(Debug)]
 pub struct IdentifierContext<'a> {
@@ -45,7 +49,7 @@ macro_rules! index_resolver {
                 } else {
                     // TODO - how to handle the different index types?
                     let value = $src.get(self.name())
-                        .ok_or_else(|| error!("id not found {}", self.name()))?;
+                        .ok_or_else(|| ResolveError::UnresolvedIndex(self.name().to_owned()))?;
                     *value
                 };
                 Ok(self.resolved(value))

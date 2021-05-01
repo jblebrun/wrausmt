@@ -1,11 +1,12 @@
 use wrausmt::format::text::parse::Parser;
 use wrausmt::format::text::lex::Tokenizer;
-use wrausmt::error::{Result, ResultFrom};
+
+type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
 fn parse_and_print(path: &str) -> Result<()> {
-    let f = std::fs::File::open(path).wrap(&format!("opening file {}", path))?;
+    let f = std::fs::File::open(path)?;
 
-    let tokenizer = Tokenizer::new(f).wrap("tokenizer")?;
+    let tokenizer = Tokenizer::new(f)?;
     let mut parser = Parser::new(tokenizer)?;
     let spectest = parser.parse_spec_test()?;
 
