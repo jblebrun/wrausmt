@@ -1,10 +1,10 @@
 use crate::format::text::syntax::{self, Unresolved};
-use crate::{err, instructions::instruction_by_name, instructions::Operands};
+use crate::instructions::{instruction_by_name, Operands};
 use crate::format::text::token::Token;
 use super::Parser;
 use std::io::Read;
 use crate::format::text::syntax::Instruction;
-use crate::error::{Result, ResultFrom};
+use super::Result;
 
 impl<R: Read> Parser<R> {
     pub fn parse_instructions(&mut self) -> Result<Vec<Instruction<Unresolved>>> {
@@ -40,11 +40,11 @@ impl<R: Read> Parser<R> {
                         let offset = self.try_offset()?.unwrap_or(0); 
                         syntax::Operands::Memargs(align, offset)
                     },
-                    _ => return err!("Unimplemented operands type {:?}", data.operands)
+                    _ => panic!("Unimplemented operands type {:?}", data.operands)
                 };
                 Ok(Some(Instruction{name, opcode: data.opcode, operands}))
             },
-            None => err!("bad instruction name {}", name)
+            None => panic!("bad instruction name {}", name)
         }
     }
 
@@ -118,12 +118,12 @@ impl<R: Read> Parser<R> {
         // First one must be plain
         let first = match self.try_plain_instruction()? {
             Some(instr) => instr,
-            None => return err!("fold must start with plain instructin")
+            None => return Ok(None)
         };
 
         let mut rest = self.zero_or_more_groups(Self::try_folded_instruction)?;
 
-        self.expect_close().wrap("closing folded instruction")?;
+        self.expect_close()?;
 
         rest.push(first);
 

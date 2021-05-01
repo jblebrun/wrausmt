@@ -1,16 +1,14 @@
 use crate::{format::text::{parse::Parser, syntax::Resolved}, runtime::values::{Num, Ref, Value}, types::{NumType, RefType}};
 use crate::format::text::token::Token;
 use std::io::Read;
-use crate::error::Result;
 use crate::format::text::syntax as modulesyntax;
-use crate::error;
-use crate::err;
+use crate::format::text::parse::error::{ParseError, Result};
 
 impl <R:Read> Parser<R> {
     pub fn parse_spec_test(&mut self) -> Result<SpecTestScript> {
         let cmds = self.zero_or_more(Self::try_cmd)?;
         if self.current.token != Token::Eof {
-            return err!("Parsing failed at {:?} {:?}", self.current, self.next);
+            return Err(ParseError::Incomplete)
         }
         Ok(SpecTestScript { cmds })
     }
@@ -79,7 +77,7 @@ impl <R:Read> Parser<R> {
     }
 
     fn expect_action(&mut self) -> Result<Action> {
-        self.try_action()?.ok_or_else(|| error!("expected an action"))
+        self.try_action()?.ok_or_else(|| ParseError::unexpected("spec test action"))
     }
 
     fn try_invoke_action(&mut self) -> Result<Option<Action>> {
@@ -192,7 +190,7 @@ impl <R:Read> Parser<R> {
             return Ok(None)
         }
         
-        let module = self.try_spec_module()?.ok_or_else(|| error!("expected module"))?;
+        let module = self.try_spec_module()?.ok_or_else(|| ParseError::unexpected("spec module"))?;
 
         let failure = self.expect_string()?;
 
@@ -206,7 +204,7 @@ impl <R:Read> Parser<R> {
             return Ok(None)
         }
         
-        let module = self.try_spec_module()?.ok_or_else(|| error!("expected module"))?;
+        let module = self.try_spec_module()?.ok_or_else(|| ParseError::unexpected("spec module"))?;
 
         let failure = self.expect_string()?;
 
@@ -220,7 +218,7 @@ impl <R:Read> Parser<R> {
             return Ok(None)
         }
         
-        let module = self.try_spec_module()?.ok_or_else(|| error!("expected module"))?;
+        let module = self.try_spec_module()?.ok_or_else(|| ParseError::unexpected("spec module"))?;
 
         let failure = self.expect_string()?;
 

@@ -1,16 +1,13 @@
-use crate::{
-    error,
-    types::{NumType, RefType, ValueType},
-};
+use crate::types::{NumType, RefType, ValueType};
 use std::io::Read;
 use super::Parser;
-use crate::error::Result;
+use super::error::{ParseError, Result};
 use super::super::token::Token;
 
 impl<R: Read> Parser<R> {
     pub fn expect_valtype(&mut self) -> Result<ValueType> {
         self.try_valtype()?
-            .ok_or_else(|| error!("expected value type"))
+            .ok_or_else(|| ParseError::unexpected("value type"))
     }
 
     pub fn try_valtype(&mut self) -> Result<Option<ValueType>> {
@@ -34,7 +31,7 @@ impl<R: Read> Parser<R> {
 
     pub fn expect_reftype(&mut self) -> Result<RefType> {
         self.try_reftype()?
-            .ok_or_else(|| error!("expected reftype"))
+            .ok_or_else(|| ParseError::unexpected("value type"))
     }
 
     pub fn try_reftype(&mut self) -> Result<Option<RefType>> {

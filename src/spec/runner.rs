@@ -68,7 +68,7 @@ pub fn run_spec_test(script: SpecTestScript) -> Result<()> {
             Cmd::Module(m) => match m {
                 Module::Module(m) =>  {
                     println!("NORMAL MODULE");
-                    let compiled = compile(m)?;
+                    let compiled = compile(m);
                     module = Some(runtime.load(compiled)?);
                 },
                 Module::Binary(_) => println!("BINARY MODULE ACTION"),

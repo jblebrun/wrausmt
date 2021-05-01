@@ -1,7 +1,6 @@
 use crate::format::text::{module_builder::ModuleBuilder, syntax::{IndexSpace, Resolved, Unresolved}};
 use crate::format::text::syntax::{DataField, ElemField, ElemList, ExportDesc, ExportField, Expr, FParam, FResult, Field, FuncField, FunctionType, GlobalField, ImportDesc, ImportField, Index, Local, MemoryField, ModeEntry, Module, StartField, TableField, TypeField, TypeUse};
-use crate::err;
-use crate::error::{Result, ResultFrom};
+use super::error::{ParseError, Result};
 use super::Parser;
 use crate::types::{GlobalType, Limits, RefType, TableType};
 use crate::types::MemType;
@@ -80,10 +79,10 @@ impl<R: Read> Parser<R> {
         let functiontype = self.try_function_type()?;
 
         // Close (func
-        self.expect_close().wrap("ending type")?;
+        self.expect_close()?;
 
         // Close (type
-        self.expect_close().wrap("ending type")?;
+        self.expect_close()?;
 
         Ok(Some(Field::Type(TypeField {
             id,
@@ -125,7 +124,7 @@ impl<R: Read> Parser<R> {
         let locals = self.zero_or_more_groups(Self::try_locals)?;
 
         let instr = self.parse_instructions()?;
-        self.expect_close().wrap("closing func")?;
+        self.expect_close()?;
 
         let mut idx = 0;
         let mut localindices = HashMap::default(); 
@@ -210,7 +209,7 @@ impl<R: Read> Parser<R> {
 
         let (id, desc) = self.expect_importdesc()?;
 
-        self.expect_close().wrap("closing import field")?;
+        self.expect_close()?;
 
         Ok(Some(Field::Import(ImportField {
             id,
@@ -242,7 +241,7 @@ impl<R: Read> Parser<R> {
             self.expect_close()?;
             Ok((id, ImportDesc::Global(globaltype)))
         } else {
-            err!("no valid importdesc found")
+            Err(ParseError::unexpected("importdesc"))
         }
     }
 
@@ -258,7 +257,7 @@ impl<R: Read> Parser<R> {
         let valtype = self.expect_valtype()?;
 
         if mutable {
-            self.expect_close().wrap("closing mut")?;
+            self.expect_close()?;
         }
 
         Ok(GlobalType { mutable, valtype })
@@ -299,7 +298,7 @@ impl<R: Read> Parser<R> {
             self.expect_close()?;
             Ok(ExportDesc::Global(index))
         } else {
-            err!("no valid importdesc found")
+            Err(ParseError::unexpected("exportdesc"))
         }
     }
 
@@ -489,6 +488,6 @@ impl<R: Read> Parser<R> {
             return Ok(Index::unnamed(val as u32));
         }
 
-        err!("No index found")
+        Err(ParseError::unexpected("index"))
     }
 }

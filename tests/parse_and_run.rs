@@ -1,19 +1,20 @@
 use wrausmt::{format::text::parse::Parser, runtime::values::Value};
 use wrausmt::format::text::compile::compile;
 use wrausmt::format::text::lex::Tokenizer;
-use wrausmt::error::{Result, ResultFrom};
 use wrausmt::runtime::Runtime;
+
+type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
 #[test]
 fn simplefunc() -> Result<()> {
-    let f = std::fs::File::open("testdata/simplefunc.wat").wrap("opening file")?;
+    let f = std::fs::File::open("testdata/simplefunc.wat")?;
 
-    let tokenizer = Tokenizer::new(f).wrap("tokenizer")?;
+    let tokenizer = Tokenizer::new(f)?;
     let mut parser = Parser::new(tokenizer)?;
     let ast = parser.try_module()?.unwrap();
     
     println!("AST! {:?}", ast);
-    let module = compile(ast)?;
+    let module = compile(ast);
     
     println!("MODULE! {:?}", module);
 
@@ -29,14 +30,14 @@ fn simplefunc() -> Result<()> {
 
 #[test]
 fn locals() -> Result<()> {
-    let f = std::fs::File::open("testdata/locals.wat").wrap("opening file")?;
+    let f = std::fs::File::open("testdata/locals.wat")?;
 
-    let tokenizer = Tokenizer::new(f).wrap("tokenizer")?;
+    let tokenizer = Tokenizer::new(f)?;
     let mut parser = Parser::new(tokenizer)?;
     let ast = parser.try_module()?.unwrap();
     
     println!("AST! {:?}", ast);
-    let module = compile(ast)?;
+    let module = compile(ast);
     
     println!("MODULE! {:?}", module);
 

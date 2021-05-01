@@ -1,9 +1,8 @@
 use std::io::Read;
 use super::Parser;
 use super::super::token::Token;
-use crate::error::Result;
-use crate::error;
 use crate::types::Limits;
+use super::error::{Result, ParseError};
 
 impl<R: Read> Parser<R> {
     pub fn try_unsigned(&mut self) -> Result<Option<u64>> {
@@ -36,7 +35,7 @@ impl<R: Read> Parser<R> {
     }
 
     pub fn expect_number(&mut self) -> Result<u64> {
-        self.try_number()?.ok_or_else(|| error!("Expected number token {:?}", self.current.token))
+        self.try_number()?.ok_or_else(|| ParseError::unexpected("number token"))
     }
 
 
@@ -55,7 +54,7 @@ impl<R: Read> Parser<R> {
     }
 
     pub fn expect_integer(&mut self) -> Result<u64> {
-        self.try_integer()?.ok_or_else(|| error!("Expected integer token at {:?}", self.current))
+        self.try_number()?.ok_or_else(|| ParseError::unexpected("integer token"))
     }
 
     pub fn try_float(&mut self) -> Result<Option<f64>> {
@@ -70,7 +69,7 @@ impl<R: Read> Parser<R> {
     }
 
     pub fn expect_float(&mut self) -> Result<f64> {
-        self.try_float()?.ok_or_else(|| error!("Expected float token"))
+        self.try_float()?.ok_or_else(|| ParseError::unexpected("float token"))
     }
 
     pub fn expect_limits(&mut self) -> Result<Limits> {

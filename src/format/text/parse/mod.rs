@@ -1,9 +1,9 @@
 use super::lex::Tokenizer;
 use std::io::Read;
 use super::token::{FileToken, Token};
-use crate::{err, error, error::Result};
-use crate::error::ResultFrom;
+use error::{ParseError, Result};
 
+pub mod error;
 pub mod module;
 mod combinator;
 mod num;
@@ -45,13 +45,13 @@ impl<R: Read> Parser<R> {
     // provided by the tokenizer.
     fn next(&mut self) -> Result<()> {
         if self.next.token == Token::Eof {
-            return err!("Attempted to advance past EOF");
+            return Err(ParseError::Eof)
         }
 
         match self.tokenizer.next() {
             None => self.next.token = Token::Eof,
             Some(Ok(t)) => self.next = t,
-            Some(Err(e)) => return Err(e).wrap("getting next token"),
+            Some(Err(e)) => return Err(ParseError::Tokenizer(e)),
         }
         Ok(())
     }
@@ -97,7 +97,7 @@ impl<R: Read> Parser<R> {
 
     fn expect_expr_start(&mut self, name: &str) -> Result<()> {
         if !self.try_expr_start(name)? {
-            return err!("expected expression start ({}", name);
+            return Err(ParseError::unexpected("expression start"))
         }
         Ok(())
     }
@@ -108,7 +108,7 @@ impl<R: Read> Parser<R> {
                 self.advance()?;
                 Ok(())
             }
-            _ => err!("expected close, not {:?}", self.current),
+            _ => Err(ParseError::unexpected("expression close"))
         }
     }
 
@@ -124,7 +124,7 @@ impl<R: Read> Parser<R> {
     }
 
     pub fn expect_string(&mut self) -> Result<String> {
-        self.try_string()?.ok_or_else(|| error!("expected string"))
+        self.try_string()?.ok_or_else(|| ParseError::unexpected("string literal"))
     }
 
     pub fn try_id(&mut self) -> Result<Option<String>> {

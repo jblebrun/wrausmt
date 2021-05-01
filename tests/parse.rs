@@ -1,14 +1,15 @@
 use wrausmt::format::text::parse::Parser;
 use wrausmt::format::text::token::Token;
 use wrausmt::format::text::lex::Tokenizer;
-use wrausmt::error::{Result, ResultFrom};
 use wrausmt::typefield;
+
+type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
 #[test]
 fn basic_parse() -> Result<()> {
-    let f = std::fs::File::open("testdata/locals.wat").wrap("opening file")?;
+    let f = std::fs::File::open("testdata/locals.wat")?;
 
-    let tokenizer = Tokenizer::new(f).wrap("tokenizer")?;
+    let tokenizer = Tokenizer::new(f)?;
     let mut parser = Parser::new(tokenizer)?;
     let module = parser.try_module()?.unwrap();
 
