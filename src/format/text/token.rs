@@ -1,5 +1,3 @@
-use crate::error;
-use crate::error::Result;
 use crate::format::Location;
 
 /// A [Token] along with context about its location in the source file.
@@ -52,34 +50,6 @@ pub enum Token {
 impl Default for Token {
     /// Returns a default token of [Token::Start].
     fn default() -> Token { Token::Start }
-}
-
-impl Token {
-    /// Returns true if the token is ignorable (whitespace, start, or comment) by the parser.
-    pub fn ignorable(&self) -> bool {
-       matches!(self, Token::Start | Token::Whitespace | Token::LineComment | Token::BlockComment)
-    }
-
-    /// Returns true if the token is a [Token::Keyword] token containing the provided keyword.
-    pub fn is_keyword<S : Into<String> + PartialEq<String>>(&self, to_match: S) -> bool {
-        matches!(self, Token::Keyword(s) if to_match == s.into())
-    }
-
-    /// If the [Token] is a [Token::Keyword], this method returns a reference to the contained
-    /// [String], else [None].
-    pub fn try_keyword(&self) -> Option<&String> {
-        match &self {
-            Token::Keyword(s)  => Some(s),
-            _ => None
-        }
-    }
-
-    /// If the [Token] is a [Token::Keyword], this method returns a reference to the contained
-    /// [String], otherwise it returns an error result.
-    pub fn expect_keyword(&self) -> Result<&String> {
-        self.try_keyword()
-            .ok_or_else(|| error!("expected keyword, got {:?}", self))
-    }
 }
 
 impl Location {

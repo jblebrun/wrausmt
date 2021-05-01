@@ -17,6 +17,17 @@ pub struct Parser<R: Read> {
     pub next: FileToken,
 }
 
+trait Ignorable {
+    fn ignorable(&self) -> bool;
+}
+
+impl Ignorable for Token {
+    /// Returns true if the token is ignorable (whitespace, start, or comment) by the parser.
+    fn ignorable(&self) -> bool {
+       matches!(self, Token::Start | Token::Whitespace | Token::LineComment | Token::BlockComment)
+    }
+}
+
 // Implementation for the basic token-handling methods.
 impl<R: Read> Parser<R> {
     pub fn new(tokenizer: Tokenizer<R>) -> Result<Parser<R>> {
