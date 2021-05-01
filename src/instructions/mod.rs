@@ -41,6 +41,7 @@ pub struct InstructionData {
 pub enum Operands {
     None,
     Block,
+    If,
     Br,
     BrTable,
     CallIndirect,

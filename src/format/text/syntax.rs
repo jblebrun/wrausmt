@@ -2,7 +2,7 @@
 //!
 //! [Spec]: https://webassembly.github.io/spec/core/text/modules.html#modules
 
-use crate::types::{GlobalType, ValueType, TableType, MemType, RefType};
+use crate::types::{GlobalType, MemType, RefType, TableType, ValueType};
 use std::{collections::HashMap, fmt::{self, Debug}, marker::PhantomData};
 pub use super::indices::{Resolved, ResolvedState, Unresolved};
 pub use super::indices::{IndexSpace, FuncIndex, TypeIndex, TableIndex, GlobalIndex, MemoryIndex, DataIndex, ElemIndex, LocalIndex, LabelIndex};
@@ -417,6 +417,8 @@ pub struct Instruction<R:ResolvedState> {
 #[derive(PartialEq, Debug)]
 pub enum Operands<R:ResolvedState> {
     None,
+    Block(Option<String>, FunctionType, Expr<R>),
+    If(Option<String>, FunctionType, Expr<R>, Expr<R>),
     FuncIndex(Index<R, FuncIndex>),
     TableIndex(Index<R, TableIndex>),
     GlobalIndex(Index<R, GlobalIndex>),
@@ -431,9 +433,29 @@ pub enum Operands<R:ResolvedState> {
     F64(f64)
 }
 
+impl <R:ResolvedState> std::fmt::Display for Operands<R> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Operands::Block(id, ft, e) => {
+                writeln!(f, "{:?} {:?}", id, ft)?;
+                writeln!(f, "  {:?}", e)?;
+                write!(f, ")")
+            }
+            Operands::If(id, ft, th, el) => {
+                writeln!(f, "{:?} {:?}", id, ft)?;
+                writeln!(f, "  (then  {:?})", th)?;
+                writeln!(f, "  (else {:?})", el)?;
+                write!(f, ")")
+            }
+            o => write!(f, "{:?}", o)
+            
+        }
+    }
+}
+
 impl <R:ResolvedState> std::fmt::Debug for Instruction<R> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "({} {:?})", self.name, self.operands)
+        write!(f, "({}({:#x}) {})", self.name, self.opcode, self.operands)
     }
 }
 
