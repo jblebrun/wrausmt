@@ -5,7 +5,7 @@ use wrausmt::error::{Result, ResultFrom};
 fn parse_and_print(path: &str) -> Result<()> {
     let f = std::fs::File::open(path).wrap(&format!("opening file {}", path))?;
 
-    let tokenizer = Tokenizer::new(f)?;
+    let tokenizer = Tokenizer::new(f).wrap("tokenizer")?;
     let mut parser = Parser::new(tokenizer)?;
     let spectest = parser.parse_spec_test()?;
 

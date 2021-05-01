@@ -2,6 +2,7 @@ use super::lex::Tokenizer;
 use std::io::Read;
 use super::token::{FileToken, Token};
 use crate::{err, error, error::Result};
+use crate::error::ResultFrom;
 
 pub mod module;
 mod combinator;
@@ -39,7 +40,7 @@ impl<R: Read> Parser<R> {
         match self.tokenizer.next() {
             None => self.next.token = Token::Eof,
             Some(Ok(t)) => self.next = t,
-            Some(Err(e)) => return Err(e),
+            Some(Err(e)) => return Err(e).wrap("getting next token"),
         }
         Ok(())
     }

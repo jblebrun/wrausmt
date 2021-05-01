@@ -8,7 +8,7 @@ use wrausmt::runtime::Runtime;
 fn simplefunc() -> Result<()> {
     let f = std::fs::File::open("testdata/simplefunc.wat").wrap("opening file")?;
 
-    let tokenizer = Tokenizer::new(f)?;
+    let tokenizer = Tokenizer::new(f).wrap("tokenizer")?;
     let mut parser = Parser::new(tokenizer)?;
     let ast = parser.try_module()?.unwrap();
     
@@ -31,7 +31,7 @@ fn simplefunc() -> Result<()> {
 fn locals() -> Result<()> {
     let f = std::fs::File::open("testdata/locals.wat").wrap("opening file")?;
 
-    let tokenizer = Tokenizer::new(f)?;
+    let tokenizer = Tokenizer::new(f).wrap("tokenizer")?;
     let mut parser = Parser::new(tokenizer)?;
     let ast = parser.try_module()?.unwrap();
     
