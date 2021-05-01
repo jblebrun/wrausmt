@@ -1,12 +1,15 @@
+use self::error::LexError;
+
 use super::token::{FileToken, Token};
-use crate::{err, format::Location};
-use crate::error::{Result, ResultFrom};
+use crate::format::Location;
 mod num;
 mod chars;
+pub mod error;
 
 use std::io::Read;
 use std::iter::Iterator;
 use chars::CharChecks;
+use error::{Result, WithContext};
 
 #[cfg(test)]
 mod test;
@@ -49,17 +52,17 @@ impl<R: Read> Tokenizer<R> {
             return self.consume_whitespace();
         }
         match self.current {
-            b'"' => self.consume_string().wrap("while reading string literal"),
+            b'"' => self.consume_string().ctx("while reading string literal"),
             b'(' => self.consume_open_or_block_comment(),
             b')' => self.consume_close(), 
-            b';' => self.consume_line_comment().wrap("while consuming line comment"),
+            b';' => self.consume_line_comment().ctx("while consuming line comment"),
             b if b.is_idchar() => {
-                let idchars = self.consume_idchars().wrap("while reading next token")?;
+                let idchars = self.consume_idchars().ctx("while reading next token")?;
                 if idchars.as_bytes()[0] == b'$' { return Ok(Token::Id(idchars)) }
                 if let Some(n) = num::maybe_number(&idchars) { return Ok(n) }
                 Ok(keyword_or_reserved(idchars))
             }
-            _ => return err!("Invalid token start {}", self.current)
+            _ => Err(LexError::UnexpectedChar(self.current as char))
         }
     }
 
@@ -69,7 +72,7 @@ impl<R: Read> Tokenizer<R> {
     /// been reached, panic occurs; this should not be a reachable state.
     fn advance(&mut self) -> Result<()> {
         let mut buf = [0u8; 1];
-        let amount_read = self.inner.read(&mut buf).wrap("reading")?;
+        let amount_read = self.inner.read(&mut buf).ctx("reading")?;
         self.current = buf[0];
         if amount_read == 0 {
             if self.eof {
@@ -98,7 +101,7 @@ impl<R: Read> Tokenizer<R> {
     /// the start of the next line.
     fn consume_line_comment(&mut self) -> Result<Token> {
         if self.current != b';' {
-            return err!("unexpected char {}", self.current as char);
+            return Err(LexError::UnexpectedChar(self.current as char))
         }
         while self.current != b'\n' {
             self.advance()?;
@@ -146,7 +149,7 @@ impl<R: Read> Tokenizer<R> {
         loop {
             self.advance()?;
             if self.current == b'"' && prev != b'\\' {
-                let as_string = String::from_utf8(result).wrap("bad utf8")?;
+                let as_string = String::from_utf8(result).ctx("consuming string literal")?;
                 self.advance()?;
                 return Ok(Token::String(as_string));
             }
@@ -163,7 +166,7 @@ impl<R: Read> Tokenizer<R> {
             result.push(self.current);
             self.advance()?;
         }
-        String::from_utf8(result).wrap("utf8")
+        String::from_utf8(result).ctx("consuming idchars")
     }
 
     /// Handler for a '(' - if followed by ';, consumes a block comment and returns
@@ -172,7 +175,7 @@ impl<R: Read> Tokenizer<R> {
     fn consume_open_or_block_comment(&mut self) -> Result<Token> {
         self.advance()?;
         if self.current == b';' {
-            self.consume_block_comment().wrap("while parsing block comment")
+            self.consume_block_comment().ctx("while parsing block comment")
         } else {
             Ok(Token::Open)
         }

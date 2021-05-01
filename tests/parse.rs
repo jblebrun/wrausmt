@@ -8,7 +8,7 @@ use wrausmt::typefield;
 fn basic_parse() -> Result<()> {
     let f = std::fs::File::open("testdata/locals.wat").wrap("opening file")?;
 
-    let tokenizer = Tokenizer::new(f)?;
+    let tokenizer = Tokenizer::new(f).wrap("tokenizer")?;
     let mut parser = Parser::new(tokenizer)?;
     let module = parser.try_module()?.unwrap();
 

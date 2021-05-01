@@ -1,6 +1,6 @@
 use super::super::token::{FileToken, Token, Sign};
 use super::Tokenizer;
-use crate::error::{Result, ResultFrom};
+use crate::format::text::lex::error::{Result, WithContext};
 
 macro_rules! expect_tokens {
     ( $to_parse:expr, $($t:expr),* ) => {
@@ -114,7 +114,7 @@ fn seps() -> Result<()> {
 
 #[test]
 fn longer_test() -> Result<()> {
-    let mut f = std::fs::File::open("testdata/locals.wat").wrap("opening file")?;
+    let mut f = std::fs::File::open("testdata/locals.wat").ctx("opening file")?;
     let tokenizer = Tokenizer::new(&mut f)?;
 
     println!("here we go");
