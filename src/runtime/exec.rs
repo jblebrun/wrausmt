@@ -56,6 +56,7 @@ macro_rules! set_mem {
 pub trait ExecutionContextActions {
     fn next_byte(&mut self) -> u8;
     fn op_u32(&mut self) -> Result<u32>;
+    fn op_u64(&mut self) -> Result<u64>;
     fn get_local(&mut self, idx: u32) -> Result<Value>;
     fn set_local(&mut self, idx: u32, val: Value) -> Result<()>;
 
@@ -106,8 +107,16 @@ impl <'l> ExecutionContextActions for ExecutionContext<'l> {
         Ok(result)
     }
 
+    fn op_u64(&mut self) -> Result<u64> {
+        let result = u64::from_le_bytes(self.body[self.pc..self.pc + 8].try_into().wrap("idx")?);
+        self.pc += 8;
+        Ok(result)
+    }
+
     fn get_local(&mut self, idx: u32) -> Result<Value> {
-        Ok(self.current_frame()?.locals[idx as usize])
+        let v = self.current_frame()?.locals[idx as usize];
+        println!("GOT LOCAL {}: {:?}", idx, v);
+        Ok(v)
     }
 
     fn set_local(&mut self, idx: u32, val: Value) -> Result<()> {

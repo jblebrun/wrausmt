@@ -1,4 +1,4 @@
-use crate::{format::text::{parse::Parser, syntax::Resolved}, types::{NumType, RefType}};
+use crate::{format::text::{parse::Parser, syntax::Resolved}, runtime::values::{Num, Ref, Value}, types::{NumType, RefType}};
 use crate::format::text::token::Token;
 use std::io::Read;
 use crate::error::Result;
@@ -348,6 +348,34 @@ pub enum Const {
     Num(NumPat),
     RefNull(RefType),
     RefHost(u64),
+}
+
+impl From<Const> for Value {
+    fn from(c: Const) -> Value {
+        match c {
+            Const::Num(p) => p.into(),
+            Const::RefHost(h) => Value::Ref(Ref::Extern(h)),
+            Const::RefNull(t) => match t {
+                RefType::Func => Value::Ref(Ref::Func(0)),
+                RefType::Extern => Value::Ref(Ref::Extern(0)),
+            }
+        }
+    }
+}
+
+impl From<NumPat> for Value {
+    fn from(np: NumPat) -> Value {
+        match np {
+            NumPat::Num(t, v) => match t {
+                NumType::I32 => Value::Num(Num::I32(v as u32)),
+                NumType::I64 => Value::Num(Num::I64(v)),
+                NumType::F32 => Value::Num(Num::F32(v as f32)),
+                NumType::F64 => Value::Num(Num::F64(v as f64)),
+            }
+            NumPat::ArithmeticNaN => panic!("not yet"),
+            NumPat::CanonicalNaN => panic!("not yet")
+        }
+    }
 }
 
 /// assertion:

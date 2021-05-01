@@ -39,6 +39,18 @@ impl From<syntax::ExportField<Resolved>> for module::Export {
     }
 }
 
+fn emitter32(body: &mut Vec<u8>, v: u32) -> Result<()> {
+    let bytes = &v.to_le_bytes()[..];
+    body.write(&bytes).wrap("writing index operand")?;
+    Result::Ok(())
+}
+
+fn emitter64(body: &mut Vec<u8>, v: u64) -> Result<()> {
+    let bytes = &v.to_le_bytes()[..];
+    body.write(&bytes).wrap("writing index operand")?;
+    Result::Ok(())
+}
+
 fn compile_function_body(func: &syntax::FuncField<Resolved>) -> Result<Box<[u8]>> {
     let mut body: Vec<u8> = Vec::new();
 
@@ -47,22 +59,19 @@ fn compile_function_body(func: &syntax::FuncField<Resolved>) -> Result<Box<[u8]>
         body.write(&[instr.opcode]).wrap("writing opcode")?;
         // Emit operands
 
-        let mut emitter = |v: u32| {
-            let bytes = &v.to_le_bytes()[..];
-            body.write(&bytes).wrap("writing index operand")?;
-            Result::Ok(())
-        };
-
         match &instr.operands {
             syntax::Operands::None => (),
-            syntax::Operands::I32(n) => emitter(*n)?,
-            syntax::Operands::FuncIndex(idx) =>  emitter(idx.value())?,
-            syntax::Operands::TableIndex(idx) => emitter(idx.value())?,
-            syntax::Operands::GlobalIndex(idx) => emitter(idx.value())?,
-            syntax::Operands::ElemIndex(idx) => emitter(idx.value())?,
-            syntax::Operands::DataIndex(idx) => emitter(idx.value())?,
-            syntax::Operands::LocalIndex(idx) => emitter(idx.value())?,
-            syntax::Operands::LabelIndex(idx) => emitter(idx.value())?,
+            syntax::Operands::I32(n) => emitter32(&mut body, *n)?,
+            syntax::Operands::I64(n) => emitter64(&mut body, *n)?,
+            syntax::Operands::F32(n) => emitter32(&mut body, *n as u32)?,
+            syntax::Operands::F64(n) => emitter64(&mut body, *n as u64)?,
+            syntax::Operands::FuncIndex(idx) =>  emitter32(&mut body, idx.value())?,
+            syntax::Operands::TableIndex(idx) => emitter32(&mut body, idx.value())?,
+            syntax::Operands::GlobalIndex(idx) => emitter32(&mut body, idx.value())?,
+            syntax::Operands::ElemIndex(idx) => emitter32(&mut body, idx.value())?,
+            syntax::Operands::DataIndex(idx) => emitter32(&mut body, idx.value())?,
+            syntax::Operands::LocalIndex(idx) => emitter32(&mut body, idx.value())?,
+            syntax::Operands::LabelIndex(idx) => emitter32(&mut body, idx.value())?,
             _ => ()
         }
     }

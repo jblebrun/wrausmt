@@ -1,5 +1,7 @@
 ## Rough task list
 
+* Validate function params and return types
+
 * Make a macro to unify try/expect parser pattern
 * Improve error structuring
 * Generate instruction name tables

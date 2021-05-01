@@ -17,7 +17,7 @@ fn memoffset() -> Result<()> {
     for i in 0..10 {
         let v = 2.3f32 * i as f32;
         println!("WRITE {:?}", v);
-        exec_method!("put32_f", v, i*4)?;
+        exec_method!("put32_f", i*4, v)?;
     }
     for i in 0..10 {
         let v = 2.3f32 * i as f32;
@@ -29,7 +29,7 @@ fn memoffset() -> Result<()> {
 
     for i in 0..10 {
         let v = 2.3f64 * i as f64;
-        exec_method!("put64_f", v, i*8)?;
+        exec_method!("put64_f", i*8, v)?;
     }
     for i in 0..10 {
         let v = 2.3f64 * i as f64;

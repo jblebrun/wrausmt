@@ -56,7 +56,6 @@ impl ModuleBuilder {
             localindices: &empty,
             labelindices: &empty
         };
-        println!("RESOLVE WITH {:?}", ic);
         self.module.resolve(&ic)
     }
 
