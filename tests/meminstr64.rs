@@ -17,26 +17,33 @@ fn meminstr64_get() -> Result<()> {
 
     exec_method!("put64", 0x873646368176F5F3u64, 0)?;
     
-    let res1 = exec_method!("get64", 0)?;
-    assert_eq!(res1, 0x873646368176F5F3u64.into());
+    let mut res1 = exec_method!("get64", 0)?;
+    let v1: u64 = res1.remove(0).try_into()?;
+    assert_eq!(v1, 0x873646368176F5F3u64.into());
 
-    let res1 = exec_method!("get64_8u", 0)?;
-    assert_eq!(res1, 0xF3u64.into());
+    let mut res1 = exec_method!("get64_8u", 0)?;
+    let v1: u64 = res1.remove(0).try_into()?;
+    assert_eq!(v1, 0xF3u64.into());
     
-    let res1: u64 = exec_method!("get64_8s", 0)?.try_into()?;
-    assert_eq!(res1, ((0xF3-0x100) as u64).into());
+    let mut res1 = exec_method!("get64_8s", 0)?;
+    let v1: u64 = res1.remove(0).try_into()?;
+    assert_eq!(v1, ((0xF3-0x100) as u64).into());
 
-    let res1 = exec_method!("get64_16u", 0)?;
-    assert_eq!(res1, 0xF5F3u64.into());
+    let mut res1 = exec_method!("get64_16u", 0)?;
+    let v1: u64 = res1.remove(0).try_into()?;
+    assert_eq!(v1, 0xF5F3u64.into());
     
-    let res1 = exec_method!("get64_16s", 0)?;
-    assert_eq!(res1, ((0xF5F3-0x10000) as u64).into());
+    let mut res1 = exec_method!("get64_16s", 0)?;
+    let v1: u64 = res1.remove(0).try_into()?;
+    assert_eq!(v1, ((0xF5F3-0x10000) as u64).into());
 
-    let res1 = exec_method!("get64_32u", 0)?;
-    assert_eq!(res1, 0x8176F5F3u64.into());
+    let mut res1 = exec_method!("get64_32u", 0)?;
+    let v1: u64 = res1.remove(0).try_into()?;
+    assert_eq!(v1, 0x8176F5F3u64.into());
     
-    let res1 = exec_method!("get64_32s", 0)?;
-    assert_eq!(res1, ((0x8176F5F3i64-0x100000000i64) as u64).into());
+    let mut res1 = exec_method!("get64_32s", 0)?;
+    let v1: u64 = res1.remove(0).try_into()?;
+    assert_eq!(v1, ((0x8176F5F3i64-0x100000000i64) as u64).into());
     Ok(())
 }
 
@@ -51,16 +58,19 @@ fn meminstr64_put() -> Result<()> {
     runner!(runtime, &mod_inst);
 
     exec_method!("put64_8", 0x873646368176F5F3u64, 0)?;
-    let res1 = exec_method!("get64", 0)?;
-    assert_eq!(res1, (0xF3u64).into());
+    let mut res1 = exec_method!("get64", 0)?;
+    let v1: u64 = res1.remove(0).try_into()?;
+    assert_eq!(v1, (0xF3u64).into());
 
     exec_method!("put64_16", 0x873646368176F5F3u64 ,0)?;
-    let res1 = exec_method!("get64", 0)?;
-    assert_eq!(res1, (0xF5F3u64).into());
+    let mut res1 = exec_method!("get64", 0)?;
+    let v1: u64 = res1.remove(0).try_into()?;
+    assert_eq!(v1, (0xF5F3u64).into());
 
     exec_method!("put64_32", 0x873646368176F5F3u64 ,0)?;
-    let res1 = exec_method!("get64", 0)?;
-    assert_eq!(res1, (0x8176F5F3u64).into());
+    let mut res1 = exec_method!("get64", 0)?;
+    let v1: u64 = res1.remove(0).try_into()?;
+    assert_eq!(v1, (0x8176F5F3u64).into());
     
     exec_method!("put64_8", 0x78u64, 0)?;
     exec_method!("put64_8", 0x56u64, 1)?;
@@ -70,8 +80,9 @@ fn meminstr64_put() -> Result<()> {
     exec_method!("put64_8", 0xcdu64, 5)?;
     exec_method!("put64_8", 0xefu64, 6)?;
     exec_method!("put64_8", 0x77u64, 7)?;
-    let res1 = exec_method!("get64", 0)?;
-    assert_eq!(res1, (0x77efcdab12345678u64).into());
+    let mut res1 = exec_method!("get64", 0)?;
+    let v1: u64 = res1.remove(0).try_into()?;
+    assert_eq!(v1, (0x77efcdab12345678u64).into());
     Ok(())
 }
 

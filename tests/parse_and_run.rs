@@ -1,4 +1,4 @@
-use wrausmt::format::text::parse::Parser;
+use wrausmt::{format::text::parse::Parser, runtime::values::Value};
 use wrausmt::format::text::compile::compile;
 use wrausmt::format::text::lex::Tokenizer;
 use wrausmt::error::{Result, ResultFrom};
@@ -21,7 +21,8 @@ fn simplefunc() -> Result<()> {
     let mod_inst = runtime.load(module)?;
 
     let res1 = runtime.call(&mod_inst, "test", &[100u32.into()])?;
-    assert_eq!(res1, 142u32.into());
+    let v1: &Value = res1.first().unwrap();
+    assert_eq!(v1, &142u32.into());
 
     Ok(())
 }
@@ -43,7 +44,8 @@ fn locals() -> Result<()> {
     let mod_inst = runtime.load(module)?;
 
     let res1 = runtime.call(&mod_inst, "test", &[105u32.into()])?;
-    assert_eq!(res1, 699u32.into());
+    let v1: &Value = res1.first().unwrap();
+    assert_eq!(v1, &699u32.into());
 
     Ok(())
 }
