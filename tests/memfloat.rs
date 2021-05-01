@@ -1,4 +1,4 @@
-use std::fs::File;
+use std::{convert::TryInto, fs::File};
 use wrausmt::format::binary::parse;
 use wrausmt::runtime::Runtime;
 use wrausmt::error::{Result, ResultFrom};
@@ -15,13 +15,15 @@ fn memfloat() -> Result<()> {
     runner!(runtime, &mod_inst);
 
     exec_method!("put32_f", 8745897.5f32, 0)?;
-    let res1 = exec_method!("get32_f", 0)?;
-    assert_eq!(res1, (8745897.5f32).into());
+    let mut res1 = exec_method!("get32_f", 0)?;
+    let v1: f32 = res1.remove(0).try_into()?;
+    assert_eq!(v1, 8745897.5f32);
 
     let c2: f64 = 897459874895.625;
     exec_method!("put64_f", c2, 0)?;
-    let res1 = exec_method!("get64_f", 0)?;
-    assert_eq!(res1, c2.into());
+    let mut res1 = exec_method!("get64_f", 0)?;
+    let v1: f64 = res1.remove(0).try_into()?;
+    assert_eq!(v1, c2);
     
     Ok(())
 }

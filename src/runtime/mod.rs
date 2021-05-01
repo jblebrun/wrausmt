@@ -19,8 +19,7 @@ use {
     stack::{ActivationFrame, Label, Stack},
     store::addr,
     store::Store,
-    values::Value,
-    values::Num,
+    values::Value
 };
 
 #[derive(Debug, Default)]
@@ -205,7 +204,7 @@ impl Runtime {
         mod_instance: &Rc<ModuleInstance>,
         name: &str,
         vals: &[Value],
-    ) -> Result<Value> {
+    ) -> Result<Vec<Value>> {
         let funcaddr = match mod_instance.resolve(name) {
             Some(ExportInstance {
                 name: _,
@@ -240,12 +239,12 @@ impl Runtime {
         // 9. Invoke the function.
         self.invoke(*funcaddr)?;
 
-        // assume single result for now
-        let result = if funcinst.functype.result.len() > 0 {
-            self.stack.pop_value().wrap(&format!("popping result for {}", name))?
-        } else {
-            Value::Num(Num::I32(0))
-        };
+        let mut results: Vec<Value> = vec![];
+        for i in 0..funcinst.functype.result.len() {
+            let result = self.stack.pop_value()
+                .wrap(&format!("popping result {} for {}", i, name))?;
+            results.push(result);
+        }
 
         // pop the dummy frame
         // due to validation, this will be the one we pushed above.
@@ -263,7 +262,7 @@ impl Runtime {
         if let Ok(f) = self.stack.peek_activation() {
             return err!("frames still on stack {:?}", f)
         }
-        Ok(result)
+        Ok(results)
     }
 }
 
