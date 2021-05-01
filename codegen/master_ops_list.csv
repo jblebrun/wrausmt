@@ -135,19 +135,71 @@
 | _ec.push_value(v.into())
 
 0x42      ,i64.const                      ,(I64)
+| let v = _ec.op_u64()?;
+| _ec.push_value(v.into())
+
 0x43      ,f32.const                      ,(F32)
+| let v = _ec.op_u32()? as f32;
+| _ec.push_value(v.into())
+
 0x44      ,f64.const                     ,(F64)
+| let v = _ec.op_u64()? as f64;
+| _ec.push_value(v.into())
+
 0x45      ,i32.eqz                       ,()
+| let o = _ec.pop::<u32>()?;
+| _ec.push(if o == 0 {1} else {0})
+
 0x46      ,i32.eq                        ,()
+| let r = _ec.pop::<u32>()?;
+| let l = _ec.pop::<u32>()?;
+| _ec.push(if l == r {1} else {0})
+
 0x47      ,i32.ne                        ,()
+| let r = _ec.pop::<u32>()?;
+| let l = _ec.pop::<u32>()?;
+| _ec.push(if l != r {1} else {0})
+
 0x48      ,i32.lt_s                      ,()
+| let r = _ec.pop::<u32>()? as i32;
+| let l = _ec.pop::<u32>()? as i32;
+| _ec.push(if l < r {1} else {0})
+
 0x49      ,i32.lt_u                      ,()
+| let r = _ec.pop::<u32>()?;
+| let l = _ec.pop::<u32>()?;
+| _ec.push(if l < r {1} else {0})
+
 0x4a      ,i32.gt_s                      ,()
+| let r = _ec.pop::<u32>()? as i32;
+| let l = _ec.pop::<u32>()? as i32;
+| _ec.push(if l > r {1} else {0})
+
 0x4b      ,i32.gt_u                      ,()
+| let r = _ec.pop::<u32>()?;
+| let l = _ec.pop::<u32>()?;
+| _ec.push(if l > r {1} else {0})
+
 0x4c      ,i32.le_s                      ,()
+| let r = _ec.pop::<u32>()? as i32;
+| let l = _ec.pop::<u32>()? as i32;
+| _ec.push(if l <= r {1} else {0})
+
 0x4d      ,i32.le_u                      ,()
+| let r = _ec.pop::<u32>()?;
+| let l = _ec.pop::<u32>()?;
+| _ec.push(if l <= r {1} else {0})
+
 0x4e      ,i32.ge_s                      ,()
+| let r = _ec.pop::<u32>()? as i32;
+| let l = _ec.pop::<u32>()? as i32;
+| _ec.push(if l >= r {1} else {0})
+
 0x4f      ,i32.ge_u                      ,()
+| let r = _ec.pop::<u32>()?;
+| let l = _ec.pop::<u32>()?;
+| _ec.push(if l >= r {1} else {0})
+
 0x50      ,i64.eqz                       ,()
 0x51      ,i64.eq                        ,()
 0x52      ,i64.ne                        ,()
@@ -172,31 +224,92 @@
 0x65      ,f64.le                        ,()
 0x66      ,f64ge                         ,()
 0x67      ,i32.clz                       ,()
+| let o = _ec.pop::<u32>()?;
+| _ec.push(o.leading_zeros())
+
 0x68      ,i32.ctz                       ,()
+| let o = _ec.pop::<u32>()?;
+| _ec.push(o.trailing_zeros())
+
 0x69      ,i32.popcnt                    ,()
+| let o = _ec.pop::<u32>()?;
+| _ec.push(o.count_ones())
+
 0x6a      ,i32.add                       ,()
 | let r = _ec.pop::<u32>()?;
 | let l = _ec.pop::<u32>()?;
-| _ec.push(l + r)
+| _ec.push(l.wrapping_add(r))
 
 0x6b      ,i32.sub                       ,()
 | let r = _ec.pop::<u32>()?;
 | let l = _ec.pop::<u32>()?;
-| _ec.push(r - l)
+| _ec.push(l.wrapping_sub(r))
 
 0x6c      ,i32.mul                       ,()
+| let r = _ec.pop::<u32>()?;
+| let l = _ec.pop::<u32>()?;
+| _ec.push(l.wrapping_mul(r))
+
 0x6d      ,i32.div_s                     ,()
+| let r = _ec.pop::<u32>()? as i32;
+| let l = _ec.pop::<u32>()? as i32;
+| _ec.push(l.wrapping_div(r))
+
 0x6e      ,i32.div_u                     ,()
+| let r = _ec.pop::<u32>()?;
+| let l = _ec.pop::<u32>()?;
+| _ec.push(l.wrapping_div(r))
+
 0x6f      ,i32.rem_s                     ,()
+| let r = _ec.pop::<u32>()? as i32;
+| let l = _ec.pop::<u32>()? as i32;
+| _ec.push(l.wrapping_rem(r))
+
 0x70      ,i32.rem_u                     ,()
+| let r = _ec.pop::<u32>()?;
+| let l = _ec.pop::<u32>()?;
+| _ec.push(l.wrapping_rem(r))
+
 0x71      ,i32.and                       ,()
+| let r = _ec.pop::<u32>()?;
+| let l = _ec.pop::<u32>()?;
+| _ec.push(l & r)
+
 0x72      ,i32.or                        ,()
+| let r = _ec.pop::<u32>()?;
+| let l = _ec.pop::<u32>()?;
+| _ec.push(l | r)
+
 0x73      ,i32.xor                       ,()
+| let r = _ec.pop::<u32>()?;
+| let l = _ec.pop::<u32>()?;
+| _ec.push(l ^ r)
+
 0x74      ,i32.shl                       ,()
+| let r = _ec.pop::<u32>()?;
+| let l = _ec.pop::<u32>()?;
+| _ec.push(l.wrapping_shl(r))
+
 0x75      ,i32.shr_s                     ,()
+| let r = _ec.pop::<u32>()?;
+| let l = _ec.pop::<u32>()? as i32;
+| _ec.push(l.wrapping_shr(r))
+
 0x76      ,i32.shr_u                     ,()
+| let r = _ec.pop::<u32>()?;
+| let l = _ec.pop::<u32>()?;
+| _ec.push(l.wrapping_shr(r))
+
 0x77      ,i32.rotl                      ,()
+| let r = _ec.pop::<u32>()?;
+| let l = _ec.pop::<u32>()?;
+| _ec.push(l.rotate_left(r))
+
 0x78      ,i32.rotr                      ,()
+| let r = _ec.pop::<u32>()?;
+| let l = _ec.pop::<u32>()?;
+| _ec.push(l.rotate_right(r))
+
 0x79      ,i64.clz                       ,()
 0x7a      ,i64.ctz                       ,()
 0x7b      ,i64.popcnt                    ,()
@@ -269,7 +382,13 @@
 0xbe      ,f32.reinterpret_i32           ,()
 0xbf      ,f64.reinterpret_i64           ,()
 0xc0      ,i32.extend8_s                 ,()
+| let o = (_ec.pop::<u32>()? & 0xFF) as i8;
+| _ec.push(o as u32)
+
 0xc1      ,i32.extend16_s                ,()
+| let o = (_ec.pop::<u32>()? & 0xFFFF) as i16;
+| _ec.push(o as u32)
+
 0xc2      ,i64.extend8_s                 ,()
 0xc3      ,i64.extend16_s                ,()
 0xc4      ,i64.extend32_s                ,()

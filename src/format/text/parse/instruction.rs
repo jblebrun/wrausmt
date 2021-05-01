@@ -19,7 +19,6 @@ impl<R: Read> Parser<R> {
         };
 
         let instruction_data = instruction_by_name(&name);
-        println!("INSTRUCTION DATA {:?}", instruction_data);
 
         match instruction_data {
             Some(data) => {

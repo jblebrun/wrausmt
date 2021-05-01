@@ -15,7 +15,7 @@ fn meminstr32_get() -> Result<()> {
 
     runner!(runtime, &mod_inst);
 
-    exec_method!("put32", 0x8176F5F3u32, 0)?;
+    exec_method!("put32", 0, 0x8176F5F3u32)?;
     let mut res1 = exec_method!("get32", 0)?;
     let v1: u32 = res1.remove(0).try_into()?;
     assert_eq!(v1, 0x8176F5F3u32.into());
@@ -49,12 +49,12 @@ fn meminstr32_put() -> Result<()> {
 
     runner!(runtime, &mod_inst);
 
-    exec_method!("put32_8", 0x8176F5F3u32, 0)?;
+    exec_method!("put32_8", 0, 0x8176F5F3u32)?;
     let mut res1 = exec_method!("get32", 0)?;
     let v1: u32 = res1.remove(0).try_into()?;
     assert_eq!(v1, (0xF3u8).into());
 
-    exec_method!("put32_16", 0x8176F5F3u32, 0)?;
+    exec_method!("put32_16", 0, 0x8176F5F3u32)?;
     let mut res1 = exec_method!("get32", 0)?;
     let v1: u32 = res1.remove(0).try_into()?;
     assert_eq!(v1, (0xF5F3u16).into());

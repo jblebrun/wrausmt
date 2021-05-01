@@ -9,14 +9,14 @@
   (import "env" "__table_base" (global (;2;) i32))
   (import "env" "memory" (memory (;0;) 0))
   (func $init (type 2) (param i32) 
-    call 2)
+    call 1)
   (func (type $void))
   (func $foo (param $foo i32) (result i32)
     (local i32)
     i32.const 600
     local.set 1
-    (i32.add (i32.const 2) (i32.const 4))
     local.get 1
+    (i32.add (i32.const 2) (i32.const 4))
     i32.sub
     local.get 0
     i32.add

@@ -126,7 +126,6 @@ impl<R: Read> Parser<R> {
 
         let instr = self.parse_instructions()?;
         self.expect_close().wrap("closing func")?;
-        println!("FINISHED INSTRUCTIONS AT {:?} {:?}", self.current, self.next);
 
         let mut idx = 0;
         let mut localindices = HashMap::default(); 

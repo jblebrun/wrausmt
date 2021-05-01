@@ -35,7 +35,7 @@ fn locals() -> Result<()> {
     let mod_inst = runtime.load(test_mod)?;
     let res = runtime.call(&mod_inst, "test", &[100u32.into()])?;
     let v: Value = *res.first().unwrap();
-    assert_eq!(v, 500u32.into());
+    assert_eq!(v, 694u32.into());
 
     Ok(())
 }

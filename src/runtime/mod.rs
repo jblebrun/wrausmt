@@ -158,11 +158,17 @@ impl Runtime {
         // 5. Let instr* end be the code body
         // 6. Assert (due to validation) n values on the stack
         // 7. Pop val_n from the stack
-        let param_count = funcinst.functype.params.len();
         let mut vals: Vec<Value> = vec![];
-        for _ in 0..param_count {
-            vals.push(self.stack.pop_value()?);
+        for _ in funcinst.functype.params.iter() {
+            let v = self.stack.pop_value()?;
+            println!("PUSH PARAM {} {:?}", vals.len(),  v);
+            vals.push(v);
         }
+
+        // TODO - should calls work by moving the stack pointer, rather than
+        // by pushing/popping? This would simplify framing, too; activation frames
+        // would no longer need locals.
+        vals.reverse();
 
         // 8. Let val0* be the list of zero values (other locals). 
         for localtype in funcinst.code.locals.iter() {
