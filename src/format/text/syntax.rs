@@ -417,6 +417,7 @@ pub struct Instruction<R:ResolvedState> {
 #[derive(PartialEq, Debug)]
 pub enum Operands<R:ResolvedState> {
     None,
+    CallIndirect(Index<R, TableIndex>, TypeUse<R>),
     Block(Option<String>, FunctionType, Expr<R>),
     If(Option<String>, FunctionType, Expr<R>, Expr<R>),
     BrTable(Vec<Index<R, LabelIndex>>),
