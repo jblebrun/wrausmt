@@ -27,3 +27,26 @@ fn locals() -> Result<()> {
 
     Ok(())
 }
+
+#[test]
+fn blockbr() -> Result<()> {
+    let mut runtime = Runtime::new();
+    let mod_inst = runtime.load_wast("testdata/blockbr.wat")?;
+
+    let res1 = runtime.call(&mod_inst, "simpleblock", &[])?;
+    let v1: &Value = res1.first().unwrap();
+    assert_eq!(v1, &14.into());
+
+    let res1 = runtime.call(&mod_inst, "nestedblock", &[])?;
+    let v1: &Value = res1.first().unwrap();
+    assert_eq!(v1, &13.into());
+
+    let res1 = runtime.call(&mod_inst, "simpleblockplain", &[])?;
+    let v1: &Value = res1.first().unwrap();
+    assert_eq!(v1, &114.into());
+
+    let res1 = runtime.call(&mod_inst, "nestedblockplain", &[])?;
+    let v1: &Value = res1.first().unwrap();
+    assert_eq!(v1, &113.into());
+    Ok(())
+}

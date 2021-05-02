@@ -1,13 +1,20 @@
 0x01      ,nop                           ,()
 0x02      ,block                         ,(Block)
+| let arity = _ec.op_u32()?;
+| let cnt = _ec.op_u32()?;
+| _ec.push_label(arity, cnt)
+
 0x03      ,loop                          ,(Loop)
 0x04      ,if                            ,(If)
 0x05      ,else                          ,()
 0x0B      ,end                           ,()
-| // eventually pop label
+| _ec.pop_label()?;
 | Ok(())
 
 0x0C      ,br                            ,(Br)
+| let labelidx = _ec.op_u32()?;
+| _ec.br(labelidx)
+
 0x0D      ,br_if                         ,(Br)
 0x0E      ,br_table                      ,(BrTable)
 0x0F      ,return                        ,()
@@ -20,6 +27,8 @@
 
 0x11      ,call_indirect                 ,(CallIndirect)
 0x1A      ,drop                          ,()
+| _ec.pop_value()?;
+| Ok(())
 0x1B      ,select                        ,()
 0x1C      ,selectt                       ,(SelectT)
 0xD0      ,ref.null                      ,(HeapType)

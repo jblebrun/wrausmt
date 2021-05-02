@@ -21,6 +21,7 @@ fn locals() -> Result<()> {
     let mut runtime = Runtime::new();
     let mod_inst = runtime.load_wasm("testdata/locals.wasm")?;
 
+    println!("BEGIN TEST");
     let res = runtime.call(&mod_inst, "test", &[100u32.into()])?;
     let v: Value = *res.first().unwrap();
     assert_eq!(v, 694u32.into());

@@ -23,14 +23,10 @@
     return)
   (func $inline-export (export "fooexport") (result i32)
     i32.const 45)
-  (func
-    br_table 0 4 5 2 local.get 0)
-  (func
-    call_indirect 0 (param i32) (result i32))
-  (func (type $void2))
-  (type $void2 (func (param f32) (result f32)))
   ;; Inline type
   (global (;3;) i32 (i32.const 0))
+  (type $void2 (func (param f32) (result f32)))
+  (table 0 10 funcref)
   (export "__post_instantiate" (func 0))
   (export "test" (func $foo))
   (export "__dso_handle" (global 3))

@@ -153,6 +153,8 @@ impl std::fmt::Debug for FunctionType {
     }
 }
 
+/// A [Resolved] TypeUse has not just its index name resolved, but also provides a guarantee
+/// that the index value stored corresponds to a type use in this module.
 #[derive(PartialEq, Clone, Default)]
 pub struct TypeUse<R:ResolvedState> {
     pub typeidx: Option<Index<R, TypeIndex>>,
@@ -164,6 +166,15 @@ impl <R:ResolvedState> TypeUse<R> {
         match self.typeidx {
             Some(_) => None,
             None => Some(self.functiontype.anonymous())
+        }
+    }
+}
+
+impl TypeUse<Resolved> {
+    pub fn index_value(&self) -> u32 {
+        match &self.typeidx {
+            Some(idx) => idx.value(),
+            None => panic!("improperly resolved typeuse (compiler error)")
         }
     }
 }
