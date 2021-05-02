@@ -44,6 +44,11 @@ impl<R: Read> Parser<R> {
                         let idxs = self.zero_or_more(Self::try_index)?;
                         syntax::Operands::BrTable(idxs)
                     }
+                    Operands::CallIndirect => {
+                        let idx = self.expect_index()?;
+                        let tu = self.parse_type_use()?;
+                        syntax::Operands::CallIndirect(idx, tu)
+                    }
                     Operands::I32 => syntax::Operands::I32(self.expect_number()? as u32),
                     Operands::I64 => syntax::Operands::I64(self.expect_number()? as u64),
                     Operands::F32 => syntax::Operands::F32(self.expect_number()? as f32),

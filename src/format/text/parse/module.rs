@@ -399,7 +399,7 @@ impl<R: Read> Parser<R> {
     // Try to parse one "type use" section, in an import or function.
     // := (type <typeidx>)
     //  | (type <typeidx>) (param <id>? <type>)* (result <type>)*
-    fn parse_type_use(&mut self) -> Result<TypeUse<Unresolved>> {
+    pub fn parse_type_use(&mut self) -> Result<TypeUse<Unresolved>> {
         let typeidx = if self.try_expr_start("type")? {
             let idx = self.expect_index()?;
             self.expect_close()?;
