@@ -126,7 +126,7 @@ impl Resolve<Operands<Resolved>> for Operands<Unresolved> {
         match self {
             Operands::None => Operands::None,
             Operands::If(id, typ, th, el) => 
-                Operands::If(id, typ, th.resolve(&ic)?, el.resolve(&ic)?),
+                Operands::If(id, typ.resolve(&ic)?, th.resolve(&ic)?, el.resolve(&ic)?),
             Operands::BrTable(idxs) => {
                 resolve_all!(ridxs, idxs, ic);
                 Operands::BrTable(ridxs?)
@@ -134,14 +134,14 @@ impl Resolve<Operands<Resolved>> for Operands<Unresolved> {
             Operands::CallIndirect(idx, tu) => {
                 Operands::CallIndirect(idx.resolve(&ic)?, tu.resolve(&ic)?)
             }
-            Operands::Block(id, typ, expr) => {
+            Operands::Block(id, typ, expr, cnt) => {
                 let lid = match id {
                     Some(ref id) => id.clone(),
                     _ => "".into()
                 };
                 let bic = ic.with_label(lid);
                 println!("RESOLVING BLOCK WITH {:#?}", bic);
-                Operands::Block(id, typ, expr.resolve(&bic)?)
+                Operands::Block(id, typ.resolve(&bic)?, expr.resolve(&bic)?, cnt)
             }
             Operands::FuncIndex(idx) => Operands::FuncIndex(idx.resolve(&ic)?),
             Operands::TableIndex(idx) => Operands::TableIndex(idx.resolve(&ic)?),

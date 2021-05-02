@@ -1,6 +1,6 @@
 0x01      ,nop                           ,()
 0x02      ,block                         ,(Block)
-0x03      ,loop                          ,(Block)
+0x03      ,loop                          ,(Loop)
 0x04      ,if                            ,(If)
 0x05      ,else                          ,()
 0x0B      ,end                           ,()

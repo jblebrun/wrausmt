@@ -402,11 +402,17 @@ pub struct Instruction<R:ResolvedState> {
 }
 
 #[derive(PartialEq, Debug)]
+pub enum Continuation {
+    Start,
+    End
+}
+
+#[derive(PartialEq, Debug)]
 pub enum Operands<R:ResolvedState> {
     None,
     CallIndirect(Index<R, TableIndex>, TypeUse<R>),
-    Block(Option<String>, FunctionType, Expr<R>),
-    If(Option<String>, FunctionType, Expr<R>, Expr<R>),
+    Block(Option<String>, TypeUse<R>, Expr<R>, Continuation),
+    If(Option<String>, TypeUse<R>, Expr<R>, Expr<R>),
     BrTable(Vec<Index<R, LabelIndex>>),
     FuncIndex(Index<R, FuncIndex>),
     TableIndex(Index<R, TableIndex>),
@@ -425,8 +431,8 @@ pub enum Operands<R:ResolvedState> {
 impl <R:ResolvedState> std::fmt::Display for Operands<R> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Operands::Block(id, ft, e) => {
-                writeln!(f, "{:?} {:?}", id, ft)?;
+            Operands::Block(id, ft, e, cnt) => {
+                writeln!(f, "{:?} {:?} {:?}", id, ft, cnt)?;
                 writeln!(f, "  {:?}", e)?;
                 write!(f, ")")
             }
