@@ -1,21 +1,11 @@
-use wrausmt::format::text::parse::Parser;
-use wrausmt::format::text::token::Token;
-use wrausmt::format::text::lex::Tokenizer;
+use wrausmt::loader::load_ast;
 use wrausmt::typefield;
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
 #[test]
 fn basic_parse() -> Result<()> {
-    let f = std::fs::File::open("testdata/locals.wat")?;
-
-    let tokenizer = Tokenizer::new(f)?;
-    let mut parser = Parser::new(tokenizer)?;
-    let module = parser.parse_full_module()?;
-
-    if parser.current.token != Token::Eof {
-        panic!("Incomplete parse {:?} {:?}",parser.current, parser.next); 
-    }
+    let module = load_ast("testdata/locals.wat")?;
 
     println!("{:?}", module);
 
@@ -33,27 +23,15 @@ fn basic_parse() -> Result<()> {
 
 #[test]
 fn block_parse() -> Result<()> {
-    let f = std::fs::File::open("testdata/plainblock.wat")?;
-
-    let tokenizer = Tokenizer::new(f)?;
-    let mut parser = Parser::new(tokenizer)?;
-    let module = parser.parse_full_module()?;
-
+    let module = load_ast("testdata/plainblock.wat")?;
     println!("{:?}", module);
-
     Ok(())
 }
 
 #[test]
 fn folded_block_parse() -> Result<()> {
-    let f = std::fs::File::open("testdata/foldedblock.wat")?;
-
-    let tokenizer = Tokenizer::new(f)?;
-    let mut parser = Parser::new(tokenizer)?;
-    let module = parser.parse_full_module()?;
-
+    let module = load_ast("testdata/foldedblock.wat")?;
     println!("{:?}", module);
-
     Ok(())
 }
 
