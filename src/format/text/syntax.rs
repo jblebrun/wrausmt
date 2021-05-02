@@ -76,18 +76,6 @@ pub struct Module<R:ResolvedState> {
     pub start: Option<StartField<R>>,
     pub elems: Vec<ElemField<R>>,
     pub data: Vec<DataField<R>>,
-    pub identifiers: ModuleIdentifiers
-}
-
-#[derive(Clone, Default, Debug, PartialEq)]
-pub struct ModuleIdentifiers {
-    pub typeindices: HashMap<String, u32>,
-    pub funcindices: HashMap<String, u32>,
-    pub tableindices: HashMap<String, u32>,
-    pub memindices: HashMap<String, u32>,
-    pub globalindices: HashMap<String, u32>,
-    pub elemindices: HashMap<String, u32>,
-    pub dataindices: HashMap<String, u32>,
 }
 
 impl <I: ResolvedState> fmt::Debug for Module<I> {
@@ -117,8 +105,7 @@ impl <I: ResolvedState> fmt::Debug for Module<I> {
         print_all!(&self.elems);
         print_all!(&self.data);
         write!(f, "\n)")?;
-        write!(f, ".IdentifierContext:")?;
-        write!(f, "{:#?}", &self.identifiers)
+        write!(f, ".IdentifierContext:")
     }
 }
 

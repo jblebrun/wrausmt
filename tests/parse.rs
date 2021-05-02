@@ -19,13 +19,14 @@ fn basic_parse() -> Result<()> {
 
     println!("{:?}", module);
 
-    assert_eq!(module.types.len(), 6);
+    assert_eq!(module.types.len(), 7);
     assert_eq!(module.types[0], typefield! { "$void"; [] -> [] });
     assert_eq!(module.types[1], typefield! { None; [I32] -> [I32] });
     assert_eq!(module.types[2], typefield! { [I32 "$x"] -> [] });
     assert_eq!(module.types[3], typefield! { [Func] -> [] });
     assert_eq!(module.types[4], typefield! { [Extern] -> [] });
     assert_eq!(module.types[5], typefield! { [] -> [I32] });
+    assert_eq!(module.types[6], typefield! { "$void2"; [F32] -> [F32] });
 
     Ok(())
 }
