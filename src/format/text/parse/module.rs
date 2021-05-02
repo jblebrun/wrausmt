@@ -500,15 +500,19 @@ impl<R: Read> Parser<R> {
     }
 
     // parse an index usage. It can be either a number or a named identifier.
-    pub fn expect_index<I:IndexSpace>(&mut self) -> Result<Index<Unresolved, I>> {
+    pub fn try_index<I:IndexSpace>(&mut self) -> Result<Option<Index<Unresolved, I>>> {
         if let Some(id) = self.try_id()? {
-            return Ok(Index::named(id, 0));
+            return Ok(Some(Index::named(id, 0)));
         }
 
         if let Some(val) = self.try_unsigned()? {
-            return Ok(Index::unnamed(val as u32));
+            return Ok(Some(Index::unnamed(val as u32)));
         }
 
-        Err(ParseError::unexpected("index"))
+        Ok(None)
+    }
+
+    pub fn expect_index<I:IndexSpace>(&mut self) -> Result<Index<Unresolved, I>> {
+        self.try_index()?.ok_or_else(|| ParseError::unexpected("index"))
     }
 }

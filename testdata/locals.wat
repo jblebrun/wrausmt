@@ -23,6 +23,8 @@
     return)
   (func $inline-export (export "fooexport") (result i32)
     i32.const 45)
+  (func
+    br_table 0 4 5 2 local.get 0)
   ;; Inline type
   (global (;3;) i32 (i32.const 0))
   (export "__post_instantiate" (func 0))

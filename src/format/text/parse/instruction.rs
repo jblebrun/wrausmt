@@ -40,6 +40,10 @@ impl<R: Read> Parser<R> {
                     Operands::DataIndex => syntax::Operands::DataIndex(self.expect_index()?),
                     Operands::LocalIndex => syntax::Operands::LocalIndex(self.expect_index()?),
                     Operands::Br => syntax::Operands::LabelIndex(self.expect_index()?),
+                    Operands::BrTable => {
+                        let idxs = self.zero_or_more(Self::try_index)?;
+                        syntax::Operands::BrTable(idxs)
+                    }
                     Operands::I32 => syntax::Operands::I32(self.expect_number()? as u32),
                     Operands::I64 => syntax::Operands::I64(self.expect_number()? as u64),
                     Operands::F32 => syntax::Operands::F32(self.expect_number()? as f32),
