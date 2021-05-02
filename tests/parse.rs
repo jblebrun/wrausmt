@@ -29,3 +29,36 @@ fn basic_parse() -> Result<()> {
 
     Ok(())
 }
+
+#[test]
+fn block_parse() -> Result<()> {
+    let f = std::fs::File::open("testdata/plainblock.wat")?;
+
+    let tokenizer = Tokenizer::new(f)?;
+    let mut parser = Parser::new(tokenizer)?;
+    let module = parser.try_module()?.unwrap();
+
+    if parser.current.token != Token::Eof {
+        panic!("Incomplete parse {:?} {:?}",parser.current, parser.next); 
+    }
+    println!("{:?}", module);
+
+    Ok(())
+}
+
+#[test]
+fn folded_block_parse() -> Result<()> {
+    let f = std::fs::File::open("testdata/foldedblock.wat")?;
+
+    let tokenizer = Tokenizer::new(f)?;
+    let mut parser = Parser::new(tokenizer)?;
+    let module = parser.try_module()?.unwrap();
+
+    if parser.current.token != Token::Eof {
+        panic!("Incomplete parse {:?} {:?}",parser.current, parser.next); 
+    }
+    println!("{:?}", module);
+
+    Ok(())
+}
+
