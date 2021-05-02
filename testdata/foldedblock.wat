@@ -5,7 +5,7 @@
     local.get 1
     local.get 0
     i32.const 1
-    (if (i32.eq) (result i32)
+    (if (result i32) (i32.eq)
       (then i32.const 2)
       (else i32.const 4))
     i32.mul) 
@@ -13,8 +13,12 @@
     (block (result i32)
     i32.const 1
     br 0
+    i32.const 2)
+    local.get 1
     i32.const 2
-    ))
+    i32.add
+    drop
+    )
   (func (;2;) (type 1) (param i32 i32) (result i32)
     loop (result i32)
     i32.const 1

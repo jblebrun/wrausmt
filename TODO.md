@@ -2,7 +2,9 @@
 
 * Validate function params and return types
 
-* Make a macro to unify try/expect parser pattern
+* Clean up the mega-cloney identifier context code
+* Review and possibly refactor the folded expression code
+* Find a solution for conveniently tracking a context stack while parsing.
 * Improve error structuring
 * Generate instruction name tables
 * Add better execution tracing & control

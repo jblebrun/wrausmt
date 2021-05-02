@@ -10,11 +10,44 @@ pub enum ResolveError {
 
 pub type Result<T> = std::result::Result<T, ResolveError>;
 /// A structure to hold the currently resolvable set of identifiers.
-#[derive(Debug)]
-pub struct IdentifierContext<'a> {
-    pub modulescope: &'a ModuleIdentifiers,
-    pub localindices: &'a HashMap<String, u32>,
-    pub labelindices: &'a HashMap<String, u32> 
+#[derive(Debug, Default)]
+pub struct IdentifierContext {
+    pub modulescope: ModuleIdentifiers,
+    pub localindices: HashMap<String, u32>,
+    labeltracker: Vec<String>,
+    pub labelindices: HashMap<String, u32>,
+}
+
+impl IdentifierContext {
+    pub fn new(modulescope: ModuleIdentifiers) -> Self {
+        IdentifierContext {
+            modulescope,
+            .. IdentifierContext::default()
+        }
+    }
+    pub fn for_func(&self, li: HashMap<String, u32>) -> IdentifierContext {
+        IdentifierContext {
+            modulescope: self.modulescope.clone(),
+            localindices: li,
+            labeltracker: self.labeltracker.clone(),
+            labelindices: self.labelindices.clone()
+        }
+    }
+
+    pub fn with_label(&self, labelname: String) -> IdentifierContext {
+        let mut lt = self.labeltracker.clone();
+        lt.push(labelname);
+        let mut li = HashMap::default();
+        for (i, n) in lt.iter().enumerate() {
+            li.insert(n.clone(),i as u32);
+        }
+        IdentifierContext {
+            modulescope: self.modulescope.clone(),
+            localindices: self.localindices.clone(),
+            labeltracker: lt,
+            labelindices: li
+        }
+    }
 }
 
 /// Each syntax element that contains an index usag, an element containin an index
@@ -101,7 +134,15 @@ impl Resolve<Operands<Resolved>> for Operands<Unresolved> {
             Operands::CallIndirect(idx, tu) => {
                 Operands::CallIndirect(idx.resolve(&ic)?, tu.resolve(&ic)?)
             }
-            Operands::Block(id, typ, expr) => Operands::Block(id, typ, expr.resolve(&ic)?),
+            Operands::Block(id, typ, expr) => {
+                let lid = match id {
+                    Some(ref id) => id.clone(),
+                    _ => "".into()
+                };
+                let bic = ic.with_label(lid);
+                println!("RESOLVING BLOCK WITH {:#?}", bic);
+                Operands::Block(id, typ, expr.resolve(&bic)?)
+            }
             Operands::FuncIndex(idx) => Operands::FuncIndex(idx.resolve(&ic)?),
             Operands::TableIndex(idx) => Operands::TableIndex(idx.resolve(&ic)?),
             Operands::GlobalIndex(idx) => Operands::GlobalIndex(idx.resolve(&ic)?),
@@ -308,11 +349,8 @@ impl Resolve<FuncField<Resolved>> for FuncField<Unresolved> {
     fn resolve(self, ic: &IdentifierContext) -> Result<FuncField<Resolved>> {
         let typeuse = self.typeuse.resolve(&ic)?;
 
-        let fic = IdentifierContext {
-            modulescope: ic.modulescope,
-            localindices: &self.localindices,
-            labelindices: ic.labelindices
-        };
+        let fic = ic.for_func(self.localindices.clone());
+
         let body = self.body.resolve(&fic)?;
 
         Ok(FuncField {
