@@ -1,5 +1,5 @@
 use super::{ActivationFrame, values::Value, values::Ref, Runtime};
-use crate::error::{Error, Result, ResultFrom};
+use crate::{error::{Error, Result, ResultFrom}, runtime::stack::Label};
 use std::{convert::TryFrom, convert::TryInto};
 use crate::instructions::exec_method;
 use crate::runtime::instance::MemInstance;
@@ -62,11 +62,15 @@ pub trait ExecutionContextActions {
 
     fn get_global(&mut self, idx: u32) -> Result<Value>;
     fn push_value(&mut self, val: Value) -> Result<()>;
+    fn push_label(&mut self, arity: u32, continuation: u32) -> Result<()>;
     fn push<T: Into<Value>>(&mut self, val: T) -> Result<()>;
     fn pop_value(&mut self) -> Result<Value>;
+    fn pop_label(&mut self) -> Result<Label>;
     fn pop<T: TryFrom<Value, Error = Error>>(&mut self) -> Result<T>;
     fn call(&mut self, idx: u32) -> Result<()>;
     fn mem(&mut self, idx: u32) -> Result<&mut MemInstance>;
+
+    fn br(&mut self, labelidx: u32) -> Result<()>;
 
     get_mem! { get_mem_i32, u32, 4 }
     get_mem! { get_mem_i32_8s, i8, 1 }
@@ -126,6 +130,14 @@ impl <'l> ExecutionContextActions for ExecutionContext<'l> {
     fn mem(&mut self, idx: u32) -> Result<&mut MemInstance> {
         self.runtime.store.mem(idx)
     }
+    
+    fn br(&mut self, labelidx: u32) -> Result<()> {
+        let fromend = self.runtime.stack.label_stack.len() as u32 - 1 - labelidx;
+        let label = &self.runtime.stack.label_stack[fromend as usize];
+        println!("FOUND LABEL {:?}", label);
+        self.pc = label.continuation as usize;
+        Ok(())
+    }
 
     fn get_global(&mut self, idx: u32) -> Result<Value> {
         let gaddr = idx + self.current_frame()?.module.global_offset;
@@ -135,6 +147,17 @@ impl <'l> ExecutionContextActions for ExecutionContext<'l> {
     fn push_value(&mut self, val: Value) -> Result<()> {
         self.runtime.stack.push_value(val);
         Ok(())
+    }
+    
+    fn push_label(&mut self, arity: u32, continuation: u32) -> Result<()> {
+        let label = Label{arity, continuation};
+        println!("PUSH LABEL {:?}", label);
+        self.runtime.stack.push_label(label);
+        Ok(())
+    }
+
+    fn pop_label(&mut self) -> Result<Label> {
+        self.runtime.stack.pop_label()
     }
 
     fn push<T: Into<Value>>(&mut self, val: T) -> Result<()> {
@@ -177,7 +200,6 @@ impl<'l> ExecutionContext<'l> {
 /// Implementation of instruction implementation for this runtime.
 impl Runtime {
     pub fn enter(&mut self, body: &[u8])-> Result<()> {
-        println!("EXECUTING {:x?}", body);
         let mut ic = ExecutionContext {
             runtime: self,
             body,
@@ -187,11 +209,13 @@ impl Runtime {
     }
 
     pub fn eval_expr(&mut self, body: &[u8]) -> Result<Value> {
+        self.stack.push_label(Label{arity: 1, continuation: body.len() as u32-1});
         self.enter(body)?;
         self.stack.pop_value()
     }
 
     pub fn eval_ref_expr(&mut self, body: &[u8]) -> Result<Ref> {
+        self.stack.push_label(Label{arity: 1, continuation: body.len() as u32-1});
         self.enter(body)?;
         match self.stack.pop_value()? {
             Value::Ref(r) => Ok(r),

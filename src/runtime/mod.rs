@@ -190,13 +190,13 @@ impl Runtime {
             continuation: funcinst.code.body.len() as u32,
         };
         
+        
         self.stack.push_label(label);
 
         self.enter(&funcinst.code.body)?;
         
-        // Due to validation, this shouould be equal to label.
-        // TODO - validation.
-        self.stack.pop_label()?;
+        // NOTE: The compiled function has an `end` instruction at the end
+        // which takes care of popping the label.
         
         // Due to validation, this should be equal to the frame above.
         self.stack.pop_activation()?;

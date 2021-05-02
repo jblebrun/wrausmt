@@ -46,8 +46,8 @@ impl<R: Read> Parser<R> {
                     }
                     Operands::CallIndirect => {
                         let idx = self.try_index()?.unwrap_or_else(|| Index::unnamed(0));
-                        let tu = self.parse_type_use()?;
-                        syntax::Operands::CallIndirect(idx, tu)
+                        let typeuse = self.parse_type_use()?;
+                        syntax::Operands::CallIndirect(idx, typeuse)
                     }
                     Operands::I32 => syntax::Operands::I32(self.expect_number()? as u32),
                     Operands::I64 => syntax::Operands::I64(self.expect_number()? as u64),
