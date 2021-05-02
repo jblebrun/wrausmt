@@ -5,3 +5,4 @@ pub mod module;
 pub mod runtime;
 pub mod types;
 pub mod spec;
+pub mod loader;

@@ -1,17 +1,14 @@
-use std::fs::File;
-use wrausmt::format::binary::parse;
 use wrausmt::runtime::Runtime;
-use wrausmt::error::{Result, ResultFrom};
 use wrausmt::runner;
 use std::convert::TryInto;
+use wrausmt::loader::Loader;
+
+type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
 #[test]
 fn meminstr32_get() -> Result<()> {
     let runtime = &mut Runtime::new();
-
-    let mut f = File::open("testdata/meminstr.wasm").wrap("load file")?;
-    let test_mod = parse(&mut f).wrap("parse error")?;
-    let mod_inst = runtime.load(test_mod)?;
+    let mod_inst = runtime.load_wasm("testdata/meminstr.wasm")?;
 
     runner!(runtime, &mod_inst);
 
@@ -42,10 +39,7 @@ fn meminstr32_get() -> Result<()> {
 #[test]
 fn meminstr32_put() -> Result<()> {
     let runtime = &mut Runtime::new();
-
-    let mut f = File::open("testdata/meminstr.wasm").wrap("load file")?;
-    let test_mod = parse(&mut f).wrap("parse error")?;
-    let mod_inst = runtime.load(test_mod)?;
+    let mod_inst = runtime.load_wasm("testdata/meminstr.wasm")?;
 
     runner!(runtime, &mod_inst);
 

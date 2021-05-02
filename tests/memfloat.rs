@@ -1,16 +1,14 @@
-use std::{convert::TryInto, fs::File};
-use wrausmt::format::binary::parse;
 use wrausmt::runtime::Runtime;
-use wrausmt::error::{Result, ResultFrom};
 use wrausmt::runner;
+use wrausmt::loader::Loader;
+use std::convert::TryInto;
+
+type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
 #[test]
 fn memfloat() -> Result<()> {
     let runtime = &mut Runtime::new();
-
-    let mut f = File::open("testdata/meminstr.wasm").wrap("load file")?;
-    let test_mod = parse(&mut f).wrap("parse error")?;
-    let mod_inst = runtime.load(test_mod)?;
+    let mod_inst = runtime.load_wasm("testdata/meminstr.wasm")?;
 
     runner!(runtime, &mod_inst);
 
