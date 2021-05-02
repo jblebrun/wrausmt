@@ -47,8 +47,3 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: doc
-
-      - uses: actions/upload-artifact@v2
-        with:
-          name: Cargo Docs
-          path: target/doc
