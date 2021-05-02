@@ -1,4 +1,4 @@
-use crate::format::text::{parse::error::ParseError, syntax::{self, Expr, Unresolved}};
+use crate::format::text::{parse::error::ParseError, syntax::{self, Expr, Index, Unresolved}};
 use crate::{instructions::instruction_by_name, instructions::Operands};
 use crate::format::text::token::Token;
 use super::Parser;
@@ -45,7 +45,7 @@ impl<R: Read> Parser<R> {
                         syntax::Operands::BrTable(idxs)
                     }
                     Operands::CallIndirect => {
-                        let idx = self.expect_index()?;
+                        let idx = self.try_index()?.unwrap_or_else(|| Index::unnamed(0));
                         let tu = self.parse_type_use()?;
                         syntax::Operands::CallIndirect(idx, tu)
                     }
@@ -64,11 +64,12 @@ impl<R: Read> Parser<R> {
                 };
                 Ok(Some(Instruction{name, opcode: data.opcode, operands}))
             },
-            None => Err(ParseError::UnrecognizedInstruction(name.into()))
+            None => Ok(None)
         }
     }
 
     fn parse_plain_block(&mut self) -> Result<syntax::Operands<Unresolved>> {
+        println!("PARSING PLAIN BLOCK");
         let label = self.try_id()?;
         let blocktype = self.try_function_type()?;
         let instr = self.parse_instructions()?;
@@ -136,6 +137,41 @@ impl<R: Read> Parser<R> {
         ])
     }
 
+    fn parse_folded_block(&mut self, name: &str, opcode: u8) -> Result<Instruction<Unresolved>> {
+        let label = self.try_id()?;
+        let blocktype = self.try_function_type()?;
+        let instr = self.parse_instructions()?;
+        self.expect_close()?;
+        let operands = syntax::Operands::Block(label, blocktype, Expr{instr});
+        Ok(Instruction{name: name.into(), opcode, operands})
+    }
+
+    fn parse_folded_if(&mut self) -> Result<Vec<Instruction<Unresolved>>> {
+        let label = self.try_id()?;
+        let blocktype = self.try_function_type()?;
+        let condition = self.zero_or_more_groups(Self::try_folded_instruction)?;
+        let mut unfolded = condition;
+        let thexpr = if self.try_expr_start("then")? {
+            let instr = self.zero_or_more_groups(Self::try_instruction)?;
+            self.expect_close()?;
+            Expr{instr}
+        } else { 
+            return Err(ParseError::unexpected("then"))
+        };
+        let elexpr = if self.try_expr_start("else")? {
+            let instr = self.zero_or_more_groups(Self::try_instruction)?;
+            self.expect_close()?;
+            Expr{instr}
+        } else { Expr::default() };
+
+        self.expect_close()?;
+        let operands = syntax::Operands::If(label, blocktype, thexpr, elexpr);
+
+        unfolded.push(Instruction{name: "if".into(), opcode: 0x02, operands});
+
+        Ok(unfolded)
+    }
+
     // (block <label> <bt <instr>*)
     // block <label> <bt> <instr>* end
     // (loop <label> <bt> <instr>*) 
@@ -147,41 +183,36 @@ impl<R: Read> Parser<R> {
             return Ok(None)
         }
 
-        // TODO - folded blocks
-        if self.try_expr_start("block")? {
-            self.consume_expression()?;
-            return Ok(Some(vec![]))
+        if matches!(self.peek_next_keyword()?, Some("then") | Some("else")) {
+            return Ok(None)
         }
 
+        if self.try_expr_start("block")? {
+            return Ok(Some(vec![self.parse_folded_block("block", 0x02)?]))
+        }
+        
         if self.try_expr_start("loop")? {
-            self.consume_expression()?;
-            return Ok(Some(vec![]))
+            return Ok(Some(vec![self.parse_folded_block("loop", 0x03)?]))
         }
 
         if self.try_expr_start("if")? {
-            self.consume_expression()?;
-            return Ok(Some(vec![]))
+            return Ok(Some(self.parse_folded_if()?))
         }
         
         self.advance()?;
 
-        // If this is a blocked if statement, we need to handle it slightly differently, since
-        // if may have folded conditional instructions. The normal try_plain_instruction for
-        // an `if` expects the then body immediately following, but in folded form we may have
-        // some folded conditionals first.
-
-        // First one must be plain
+         // First one must be plain
         let first = match self.try_plain_instruction()? {
             Some(instr) => instr,
             None => return Ok(None)
         };
         
         let mut rest = self.zero_or_more_groups(Self::try_folded_instruction)?;
-                
+
+
         rest.push(first);
         self.expect_close()?;
 
         Ok(Some(rest))
     }
-
 }

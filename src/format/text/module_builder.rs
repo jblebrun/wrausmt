@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use super::{resolve::{IdentifierContext, Resolve, Result}, syntax::{
     DataField, ElemField, ExportDesc, ExportField, FuncField, FunctionType, GlobalField,
     ImportDesc, ImportField, Index, MemoryField, Module, Resolved, StartField, TableField,
@@ -51,13 +49,8 @@ impl ModuleBuilder {
         // the bit pattern is the same.
         // This is indeed unsafe; the symbolic indexes will not have been resolved, so any
         // references to them in the module body will be incorrect.
-        let empty: HashMap<String, u32> = HashMap::default();
         let modulescope = std::mem::take(&mut self.module.identifiers);
-        let ic = IdentifierContext {
-            modulescope: &modulescope,
-            localindices: &empty,
-            labelindices: &empty
-        };
+        let ic = IdentifierContext::new(modulescope);
         self.module.resolve(&ic)
     }
 

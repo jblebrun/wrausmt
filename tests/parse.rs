@@ -36,11 +36,8 @@ fn block_parse() -> Result<()> {
 
     let tokenizer = Tokenizer::new(f)?;
     let mut parser = Parser::new(tokenizer)?;
-    let module = parser.try_module()?.unwrap();
+    let module = parser.parse_full_module()?;
 
-    if parser.current.token != Token::Eof {
-        panic!("Incomplete parse {:?} {:?}",parser.current, parser.next); 
-    }
     println!("{:?}", module);
 
     Ok(())
@@ -52,11 +49,8 @@ fn folded_block_parse() -> Result<()> {
 
     let tokenizer = Tokenizer::new(f)?;
     let mut parser = Parser::new(tokenizer)?;
-    let module = parser.try_module()?.unwrap();
+    let module = parser.parse_full_module()?;
 
-    if parser.current.token != Token::Eof {
-        panic!("Incomplete parse {:?} {:?}",parser.current, parser.next); 
-    }
     println!("{:?}", module);
 
     Ok(())

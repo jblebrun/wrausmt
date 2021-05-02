@@ -79,7 +79,7 @@ pub struct Module<R:ResolvedState> {
     pub identifiers: ModuleIdentifiers
 }
 
-#[derive(Default, Debug, PartialEq)]
+#[derive(Clone, Default, Debug, PartialEq)]
 pub struct ModuleIdentifiers {
     pub typeindices: HashMap<String, u32>,
     pub funcindices: HashMap<String, u32>,

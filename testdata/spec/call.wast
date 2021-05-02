@@ -246,7 +246,7 @@
   (func $dummy (param i32) (result i32) (local.get 0))
   (func $du (param f32) (result f32) (local.get 0))
   (func (export "as-unary-operand") (result f32)
-    (block (result f32) (f32.sqrt (call $du (f32.const 0x0p+0))))
+    ;;(block (result f32) (f32.sqrt (call $du (f32.const 0x0p+0))))
   )
 
   (func (export "as-binary-left") (result i32)
