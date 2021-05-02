@@ -1,4 +1,4 @@
-use crate::format::text::{parse::error::ParseError, syntax::{self, Expr, Index, Unresolved}};
+use crate::format::text::{parse::error::ParseError, syntax::{self, Continuation, Expr, Index, Unresolved}};
 use crate::{instructions::instruction_by_name, instructions::Operands};
 use crate::format::text::token::Token;
 use super::Parser;
@@ -58,7 +58,8 @@ impl<R: Read> Parser<R> {
                         let offset = self.try_offset()?.unwrap_or(0); 
                         syntax::Operands::Memargs(align, offset)
                     },
-                    Operands::Block => self.parse_plain_block()?,
+                    Operands::Block => self.parse_plain_block(Continuation::End)?,
+                    Operands::Loop => self.parse_plain_block(Continuation::Start)?,
                     Operands::If => self.parse_plain_if_operands()?,
                     _ => panic!("Unimplemented operands type {:?}", data.operands)
                 };
@@ -68,21 +69,21 @@ impl<R: Read> Parser<R> {
         }
     }
 
-    fn parse_plain_block(&mut self) -> Result<syntax::Operands<Unresolved>> {
+    fn parse_plain_block(&mut self, cnt: Continuation) -> Result<syntax::Operands<Unresolved>> {
         println!("PARSING PLAIN BLOCK");
         let label = self.try_id()?;
-        let blocktype = self.try_function_type()?;
+        let typeuse = self.parse_type_use()?;
         let instr = self.parse_instructions()?;
         if self.take_keyword_if(|kw| kw == "end")?.is_none() {
             return Err(ParseError::unexpected("block end"))
         }
-        Ok(syntax::Operands::Block(label, blocktype, Expr{instr}))
+        Ok(syntax::Operands::Block(label, typeuse, Expr{instr}, cnt))
     }
 
     fn parse_plain_if_operands(&mut self) -> Result<syntax::Operands<Unresolved>> {
         let label = self.try_id()?;
 
-        let blocktype = self.try_function_type()?;
+        let typeuse = self.parse_type_use()?;
                         
         let thengroup = self.parse_instructions()?;
 
@@ -97,7 +98,7 @@ impl<R: Read> Parser<R> {
             return Err(ParseError::unexpected("end"))
         }
                     
-        Ok(syntax::Operands::If(label, blocktype, Expr{instr: thengroup}, Expr{instr: elsegroup}))
+        Ok(syntax::Operands::If(label, typeuse, Expr{instr: thengroup}, Expr{instr: elsegroup}))
     }
 
     fn try_align(&mut self) -> Result<Option<u32>> {
@@ -137,18 +138,18 @@ impl<R: Read> Parser<R> {
         ])
     }
 
-    fn parse_folded_block(&mut self, name: &str, opcode: u8) -> Result<Instruction<Unresolved>> {
+    fn parse_folded_block(&mut self, name: &str, opcode: u8, cnt: Continuation) -> Result<Instruction<Unresolved>> {
         let label = self.try_id()?;
-        let blocktype = self.try_function_type()?;
+        let typeuse = self.parse_type_use()?;
         let instr = self.parse_instructions()?;
         self.expect_close()?;
-        let operands = syntax::Operands::Block(label, blocktype, Expr{instr});
+        let operands = syntax::Operands::Block(label, typeuse, Expr{instr}, cnt);
         Ok(Instruction{name: name.into(), opcode, operands})
     }
 
     fn parse_folded_if(&mut self) -> Result<Vec<Instruction<Unresolved>>> {
         let label = self.try_id()?;
-        let blocktype = self.try_function_type()?;
+        let typeuse = self.parse_type_use()?;
         let condition = self.zero_or_more_groups(Self::try_folded_instruction)?;
         let mut unfolded = condition;
         let thexpr = if self.try_expr_start("then")? {
@@ -165,7 +166,7 @@ impl<R: Read> Parser<R> {
         } else { Expr::default() };
 
         self.expect_close()?;
-        let operands = syntax::Operands::If(label, blocktype, thexpr, elexpr);
+        let operands = syntax::Operands::If(label, typeuse, thexpr, elexpr);
 
         unfolded.push(Instruction{name: "if".into(), opcode: 0x02, operands});
 
@@ -188,11 +189,11 @@ impl<R: Read> Parser<R> {
         }
 
         if self.try_expr_start("block")? {
-            return Ok(Some(vec![self.parse_folded_block("block", 0x02)?]))
+            return Ok(Some(vec![self.parse_folded_block("block", 0x02, Continuation::End)?]))
         }
         
         if self.try_expr_start("loop")? {
-            return Ok(Some(vec![self.parse_folded_block("loop", 0x03)?]))
+            return Ok(Some(vec![self.parse_folded_block("loop", 0x03, Continuation::Start)?]))
         }
 
         if self.try_expr_start("if")? {
