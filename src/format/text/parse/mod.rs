@@ -15,6 +15,7 @@ pub struct Parser<R: Read> {
     pub current: FileToken,
     // 1 token of lookahead
     pub next: FileToken,
+    context: Vec<String>
 }
 
 trait Ignorable {
@@ -35,6 +36,7 @@ impl<R: Read> Parser<R> {
             tokenizer,
             current: FileToken::default(),
             next: FileToken::default(),
+            context: vec![],
         };
         p.advance()?;
         p.advance()?;

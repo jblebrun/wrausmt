@@ -1,11 +1,20 @@
-use crate::format::text::{lex::error::LexError, resolve::ResolveError};
+use crate::format::text::{lex::error::LexError, resolve::ResolveError, token::FileToken};
 
 
 #[derive(Debug)]
+pub struct ParseErrorContext {
+    pub context: Vec<String>,
+    pub current: FileToken,
+    pub next: FileToken
+}
+
+#[derive(Debug)]
 pub enum ParseError {
+    WithContext(ParseErrorContext, Box<ParseError>),
     Eof,
     Tokenizer(LexError),
     UnexpectedToken(String),
+    UnrecognizedInstruction(String),
     ResolveError(ResolveError),
     Incomplete
 }

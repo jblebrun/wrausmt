@@ -1,7 +1,7 @@
 use crate::format::Location;
 
 /// A [Token] along with context about its location in the source file.
-#[derive(Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct FileToken {
     pub token: Token,
     pub location: Location,
@@ -26,7 +26,7 @@ impl <IC:Into<char>> From<IC> for Sign {
 }
 
 /// An enum of all of the possible lexical tokens that can occur in a WebAssembly text file.
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Token {
     Start,
     Whitespace,
