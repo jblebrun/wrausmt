@@ -1,6 +1,6 @@
-use crate::format::text::{module_builder::ModuleBuilder, syntax::{IndexSpace, Resolved, Unresolved}};
+use crate::format::text::{module_builder::ModuleBuilder, syntax::{IndexSpace, Resolved, Unresolved}, token::Token};
 use crate::format::text::syntax::{DataField, ElemField, ElemList, ExportDesc, ExportField, Expr, FParam, FResult, Field, FuncField, FunctionType, GlobalField, ImportDesc, ImportField, Index, Local, MemoryField, ModeEntry, Module, StartField, TableField, TypeField, TypeUse};
-use super::error::{ParseError, Result};
+use super::error::{ParseError, ParseErrorContext, Result};
 use super::Parser;
 use crate::types::{GlobalType, Limits, RefType, TableType};
 use crate::types::MemType;
@@ -16,6 +16,27 @@ impl<R: Read> Parser<R> {
             return Ok(None);
         }
         self.try_module_rest()
+    }
+
+    pub fn parse_full_module(&mut self) ->  Result<Module<Resolved>> {
+        match self.try_module() {
+            Ok(Some(m)) => {
+                if self.current.token != Token::Eof {
+                    return Err(self.with_context(ParseError::Incomplete))
+                }
+                Ok(m)
+            }
+            Ok(None) => Err(self.with_context(ParseError::Eof)),
+            Err(e) => Err(self.with_context(e))
+        }
+    }
+
+    pub fn with_context(&self, err: ParseError) -> ParseError {
+        ParseError::WithContext(ParseErrorContext {
+            context: self.context.clone(),
+            current: self.current.clone(),
+            next: self.next.clone()
+        }, Box::new(err))
     }
 
     /// This is split away as a convenience for spec test parsing, so that we can

@@ -11,7 +11,7 @@ fn simplefunc() -> Result<()> {
 
     let tokenizer = Tokenizer::new(f)?;
     let mut parser = Parser::new(tokenizer)?;
-    let ast = parser.try_module()?.unwrap();
+    let ast = parser.parse_full_module()?;
     
     println!("AST! {:?}", ast);
     let module = compile(ast);
@@ -34,7 +34,7 @@ fn locals() -> Result<()> {
 
     let tokenizer = Tokenizer::new(f)?;
     let mut parser = Parser::new(tokenizer)?;
-    let ast = parser.try_module()?.unwrap();
+    let ast = parser.parse_full_module()?;
     
     println!("AST! {:?}", ast);
     let module = compile(ast);

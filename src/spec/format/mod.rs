@@ -6,11 +6,15 @@ use crate::format::text::parse::error::{ParseError, Result};
 
 impl <R:Read> Parser<R> {
     pub fn parse_spec_test(&mut self) -> Result<SpecTestScript> {
-        let cmds = self.zero_or_more(Self::try_cmd)?;
-        if self.current.token != Token::Eof {
-            return Err(ParseError::Incomplete)
+        match self.zero_or_more(Self::try_cmd) {
+            Ok(cmds) => {
+                if self.current.token != Token::Eof {
+                    return Err(self.with_context(ParseError::unexpected("cmd")))
+                }
+                Ok(SpecTestScript{cmds})
+            },
+            Err(e) => Err(self.with_context(e))
         }
-        Ok(SpecTestScript { cmds })
     }
 
     fn try_cmd(&mut self) -> Result<Option<Cmd>> {

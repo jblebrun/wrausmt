@@ -1,10 +1,12 @@
 use crate::format::text::syntax::{self, Unresolved};
 use crate::instructions::{instruction_by_name, Operands};
 use crate::format::text::token::Token;
-use super::Parser;
+use super::{Parser, error::ParseError};
 use std::io::Read;
 use crate::format::text::syntax::Instruction;
 use super::Result;
+
+
 
 impl<R: Read> Parser<R> {
     pub fn parse_instructions(&mut self) -> Result<Vec<Instruction<Unresolved>>> {
@@ -44,7 +46,7 @@ impl<R: Read> Parser<R> {
                 };
                 Ok(Some(Instruction{name, opcode: data.opcode, operands}))
             },
-            None => panic!("bad instruction name {}", name)
+            None => Err(ParseError::UnrecognizedInstruction(name))
         }
     }
 
