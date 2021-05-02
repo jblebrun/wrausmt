@@ -419,6 +419,7 @@ pub enum Operands<R:ResolvedState> {
     None,
     Block(Option<String>, FunctionType, Expr<R>),
     If(Option<String>, FunctionType, Expr<R>, Expr<R>),
+    BrTable(Vec<Index<R, LabelIndex>>),
     FuncIndex(Index<R, FuncIndex>),
     TableIndex(Index<R, TableIndex>),
     GlobalIndex(Index<R, GlobalIndex>),

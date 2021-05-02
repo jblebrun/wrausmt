@@ -94,6 +94,10 @@ impl Resolve<Operands<Resolved>> for Operands<Unresolved> {
             Operands::None => Operands::None,
             Operands::If(id, typ, th, el) => 
                 Operands::If(id, typ, th.resolve(&ic)?, el.resolve(&ic)?),
+            Operands::BrTable(idxs) => {
+                resolve_all!(ridxs, idxs, ic);
+                Operands::BrTable(ridxs?)
+            }
             Operands::Block(id, typ, expr) => Operands::Block(id, typ, expr.resolve(&ic)?),
             Operands::FuncIndex(idx) => Operands::FuncIndex(idx.resolve(&ic)?),
             Operands::TableIndex(idx) => Operands::TableIndex(idx.resolve(&ic)?),
