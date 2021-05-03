@@ -9,12 +9,6 @@ use crate::{
 };
 use std::{borrow::Borrow, convert::TryFrom, convert::TryInto, fmt::Display, hash::Hash};
 
-pub struct ExecutionContext<'l> {
-    runtime: &'l mut Runtime,
-    body: &'l [u8],
-    pc: usize,
-}
-
 /// Emit an implementation for one of the memory load instructions.
 /// $n - the name of the function to emit
 /// $t - the return type of the functiona
@@ -61,7 +55,6 @@ pub trait ExecutionContextActions {
     fn log<S: Borrow<str> + Eq + Hash + Display, F>(&self, tag: S, msg: F)
     where
         F: Fn() -> String;
-    fn next_byte(&mut self) -> u8;
     fn op_u32(&mut self) -> Result<u32>;
     fn op_u64(&mut self) -> Result<u64>;
     fn get_local(&mut self, idx: u32) -> Result<Value>;
@@ -77,7 +70,7 @@ pub trait ExecutionContextActions {
     fn pop_value(&mut self) -> Result<Value>;
     fn pop_label(&mut self) -> Result<Label>;
     fn pop<T: TryFrom<Value, Error = Error>>(&mut self) -> Result<T>;
-    fn call(&mut self, idx: u32) -> Result<()>;
+    fn docall(&mut self, idx: u32) -> Result<()>;
     fn mem(&mut self, idx: u32) -> Result<&mut MemInstance>;
     fn grow_mem(&mut self, pgs: u32) -> Result<Option<u32>>;
     fn table_init(&mut self) -> Result<()>;
@@ -115,42 +108,34 @@ pub trait ExecutionContextActions {
     set_mem! { set_mem_f64, f64, f64, 8 }
 }
 
-impl<'l> ExecutionContextActions for ExecutionContext<'l> {
+impl ExecutionContextActions for Runtime {
     fn log<S: Borrow<str> + Eq + Hash + Display, F>(&self, tag: S, msg: F)
     where
         F: Fn() -> String,
     {
-        self.runtime.logger.log(tag, msg);
-    }
-
-    fn next_byte(&mut self) -> u8 {
-        self.body[self.pc]
+        self.logger.log(tag, msg);
     }
 
     fn op_u32(&mut self) -> Result<u32> {
-        let result = u32::from_le_bytes(self.body[self.pc..self.pc + 4].try_into().wrap("idx")?);
-        self.pc += 4;
-        Ok(result)
+        self.callstack.next_u32()
     }
 
     fn op_u64(&mut self) -> Result<u64> {
-        let result = u64::from_le_bytes(self.body[self.pc..self.pc + 8].try_into().wrap("idx")?);
-        self.pc += 8;
-        Ok(result)
+        self.callstack.next_u64()
     }
 
     fn get_local(&mut self, idx: u32) -> Result<Value> {
         self.log("LOCAL", || format!("GET {}", idx));
-        self.runtime.stack.get_local(idx)
+        self.stack.get_local(idx)
     }
 
     fn set_local(&mut self, idx: u32, val: Value) -> Result<()> {
-        self.runtime.stack.set_local(idx, val)
+        self.stack.set_local(idx, val)
     }
 
     fn get_func_table(&mut self, tidx: u32, elemidx: u32) -> Result<u32> {
-        let tableaddr = &self.runtime.stack.get_table_addr(tidx)?;
-        let table = self.runtime.store.table(*tableaddr)?;
+        let tableaddr = &self.stack.get_table_addr(tidx)?;
+        let table = self.store.table(*tableaddr)?;
         match table.elem[elemidx as usize] {
             Ref::Func(a) => Ok(a as u32),
             _ => panic!("not a func"),
@@ -158,24 +143,19 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
     }
 
     fn mem(&mut self, idx: u32) -> Result<&mut MemInstance> {
-        let memaddr = self.runtime.stack.get_mem_addr(idx)?;
+        let memaddr = self.stack.get_mem_addr(idx)?;
         self.log("MEM", || format!("USING MEM {:?}", memaddr));
-        self.runtime.store.mem(memaddr)
+        self.store.mem(memaddr)
     }
 
     fn grow_mem(&mut self, pgs: u32) -> Result<Option<u32>> {
-        let memaddr = self.runtime.stack.get_mem_addr(0)?;
-        self.runtime.store.grow_mem(memaddr, pgs)
+        let memaddr = self.stack.get_mem_addr(0)?;
+        self.store.grow_mem(memaddr, pgs)
     }
 
     fn br(&mut self, labelidx: u32) -> Result<()> {
-        let label = self.runtime.stack.break_to_label(labelidx)?;
-        self.pc = label.continuation as usize;
-        Ok(())
-    }
-
-    fn ret(&mut self) -> Result<()> {
-        self.pc = self.body.len() - 1;
+        let label = self.stack.break_to_label(labelidx)?;
+        self.callstack.br(label.continuation as usize)?;
         Ok(())
     }
 
@@ -186,10 +166,9 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
         let src = self.pop::<u32>()? as usize;
         let dst = self.pop::<u32>()? as usize;
         // TODO if s + n or d + n > sie of table 0, trap
-        let tableaddr = self.runtime.stack.get_table_addr(tableidx)?;
-        let elemaddr = self.runtime.stack.get_elem_addr(elemidx)?;
-        self.runtime
-            .store
+        let tableaddr = self.stack.get_table_addr(tableidx)?;
+        let elemaddr = self.stack.get_elem_addr(elemidx)?;
+        self.store
             .copy_elems_to_table(tableaddr, elemaddr, src, dst, n)
     }
 
@@ -199,55 +178,41 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
         let src = self.pop::<u32>()? as usize;
         let dst = self.pop::<u32>()? as usize;
         // TODO if s + n or d + n > sie of table 0, trap
-        let memaddr = self.runtime.stack.get_mem_addr(0)?;
-        let dataaddr = self.runtime.stack.get_data_addr(dataidx)?;
-        self.runtime
-            .store
-            .copy_data_to_mem(memaddr, dataaddr, src, dst, n)
+        let memaddr = self.stack.get_mem_addr(0)?;
+        let dataaddr = self.stack.get_data_addr(dataidx)?;
+        self.store.copy_data_to_mem(memaddr, dataaddr, src, dst, n)
     }
 
     fn elem_drop(&mut self) -> Result<()> {
         let elemidx = self.op_u32()?;
-        self.runtime.store.elem_drop(elemidx)
+        self.store.elem_drop(elemidx)
     }
 
     fn data_drop(&mut self) -> Result<()> {
         let dataidx = self.op_u32()?;
-        self.runtime.store.data_drop(dataidx)
+        self.store.data_drop(dataidx)
     }
 
     fn continuation(&mut self, cnt: u32) -> Result<()> {
-        self.pc = cnt as usize;
-        self.log("FLOW", || format!("CONTINUE AT {:x}", cnt));
-        if self.pc >= self.body.len() {
-            panic!(
-                "invalid continuation {} for body size {}",
-                self.pc,
-                self.body.len()
-            )
-        }
+        self.callstack.br(cnt as usize)?;
         Ok(())
     }
 
     fn get_global(&mut self, idx: u32) -> Result<Value> {
-        self.runtime
-            .store
-            .global(self.runtime.stack.get_global_addr(idx)?)
+        self.store.global(self.stack.get_global_addr(idx)?)
     }
 
     fn set_global(&mut self, idx: u32, val: Value) -> Result<()> {
-        self.runtime
-            .store
-            .set_global(self.runtime.stack.get_global_addr(idx)?, val)
+        self.store.set_global(self.stack.get_global_addr(idx)?, val)
     }
 
     fn push_value(&mut self, val: Value) -> Result<()> {
-        self.runtime.stack.push_value(val);
+        self.stack.push_value(val);
         Ok(())
     }
 
     fn push_func_ref(&mut self, idx: u32) -> Result<()> {
-        self.runtime.stack.push_value(Ref::Func(idx).into());
+        self.stack.push_value(Ref::Func(idx).into());
         Ok(())
     }
 
@@ -255,14 +220,13 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
         let param_arity = self.op_u32()?;
         let result_arity = self.op_u32()?;
         let continuation = self.op_u32()?;
-        self.runtime
-            .stack
+        self.stack
             .push_label(param_arity, result_arity, continuation)?;
         Ok(())
     }
 
     fn pop_label(&mut self) -> Result<Label> {
-        self.runtime.stack.pop_label()
+        self.stack.pop_label()
     }
 
     fn push<T: Into<Value>>(&mut self, val: T) -> Result<()> {
@@ -270,7 +234,7 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
     }
 
     fn pop_value(&mut self) -> Result<Value> {
-        self.runtime.stack.pop_value()
+        self.stack.pop_value()
     }
 
     fn pop<T: TryFrom<Value, Error = Error>>(&mut self) -> Result<T> {
@@ -278,56 +242,46 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
         val.try_into().wrap("pop convert")
     }
 
-    fn call(&mut self, idx: u32) -> Result<()> {
-        self.runtime
-            .invoke(self.runtime.stack.get_function_addr(idx)?)
+    fn docall(&mut self, idx: u32) -> Result<()> {
+        self.invoke(self.stack.get_function_addr(idx)?)
     }
-}
 
-impl<'l> ExecutionContext<'l> {
-    pub fn run(&mut self) -> Result<()> {
-        while self.pc < self.body.len() {
-            let op = self.body[self.pc];
-            self.log("OP", || format!("BEGIN 0x{:x}", op));
-            self.pc += 1;
-            exec_method(op, self)?;
-            self.log("OP", || format!("FINISHED 0x{:x}", op));
-        }
-        Ok(())
+    fn ret(&mut self) -> Result<()> {
+        self.callstack.ret()?;
+        self.stack.pop_activation()
     }
 }
 
 /// Implementation of instruction implementation for this runtime.
 impl Runtime {
-    fn log<S: Borrow<str> + Eq + Hash + Display, F: Fn() -> String>(&self, tag: S, msg: F) {
-        self.logger.log(tag, msg);
+    pub fn run(&mut self) -> Result<()> {
+        while let Ok(Some(op)) = self.callstack.next_op() {
+            self.log("OP", || format!("BEGIN 0x{:x}", op));
+            exec_method(op, self)?;
+            self.log("OP", || format!("FINISHED 0x{:x}", op));
+        }
+        Ok(())
     }
 
-    pub fn enter(&mut self, body: &[u8]) -> Result<()> {
-        self.log("ENTER", || format!("ENTER EXPR {:x?}", body));
-        let mut ic = ExecutionContext {
-            runtime: self,
-            body,
-            pc: 0,
-        };
-        ic.run()
-    }
-
-    pub fn exec_expr(&mut self, body: &[u8]) -> Result<()> {
+    pub fn exec_expr(&mut self, body: Box<[u8]>) -> Result<()> {
+        // Push a label so the end has something to pop
         self.stack.push_label(0, 1, body.len() as u32 - 1)?;
-        self.enter(body)
+        self.callstack.eval(body);
+        self.run()
     }
 
-    pub fn eval_expr(&mut self, body: &[u8]) -> Result<Value> {
+    pub fn eval_expr(&mut self, body: Box<[u8]>) -> Result<Value> {
         self.exec_expr(body)?;
         self.stack.pop_value()
     }
 
-    pub fn eval_ref_expr(&mut self, body: &[u8]) -> Result<Ref> {
+    pub fn eval_ref_expr(&mut self, body: Box<[u8]>) -> Result<Ref> {
         self.exec_expr(body)?;
-        match self.stack.pop_value()? {
+        // Push a label so the end has something to pop
+        let result = match self.stack.pop_value()? {
             Value::Ref(r) => Ok(r),
-            _ => err!("non-ref result for expression"),
-        }
+            _ => return err!("non-ref result for expression"),
+        };
+        result
     }
 }

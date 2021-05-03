@@ -259,7 +259,20 @@ impl Stack {
     }
 
     pub fn get_label(&self, idx: u32) -> Result<&Label> {
-        let fromend = self.label_stack()?.len() as u32 - 1 - idx;
-        Ok(&self.label_stack()?[fromend as usize])
+        let label_stack = self.label_stack()?;
+        let fromend = label_stack.len() as u32 - 1 - idx;
+        label_stack
+            .get(fromend as usize)
+            .ok_or_else(|| error!("label stack underflow"))
+    }
+
+    pub fn assert_empty(&self) -> Result<()> {
+        if !self.value_stack.is_empty() {
+            return Err(error!("value stack not empty"));
+        }
+        if !self.activation_stack.is_empty() {
+            return Err(error!("activation stack not empty"));
+        }
+        Ok(())
     }
 }

@@ -91,10 +91,10 @@ impl Runtime {
         let mut init_code: Vec<u8> = vec![];
         // TODO - offset has and end marker 0x0b throwing off label count.
         init_code.emit_expr(&tp.offset);
-        self.exec_expr(&init_code)?;
-        init_code.clear();
+        self.exec_expr(init_code.into_boxed_slice())?;
+        let mut init_code: Vec<u8> = vec![];
         init_code.emit_expr(&Expr { instr: initexpr });
-        self.exec_expr(&init_code)?;
+        self.exec_expr(init_code.into_boxed_slice())?;
         Ok(())
     }
 
@@ -108,10 +108,10 @@ impl Runtime {
         let mut init_code: Vec<u8> = vec![];
         // TODO - offset has and end marker 0x0b throwing off label count.
         init_code.emit_expr(&datainit.offset);
-        self.exec_expr(&init_code)?;
-        init_code.clear();
+        self.exec_expr(init_code.into_boxed_slice())?;
+        let mut init_code: Vec<u8> = vec![];
         init_code.emit_expr(&Expr { instr: initexpr });
-        self.exec_expr(&init_code)?;
+        self.exec_expr(init_code.into_boxed_slice())?;
         Ok(())
     }
 
@@ -191,7 +191,7 @@ impl Runtime {
                     .map(|ei| {
                         let mut initexpr: Vec<u8> = Vec::new();
                         initexpr.emit_expr(&ei);
-                        self.eval_ref_expr(&initexpr)
+                        self.eval_ref_expr(initexpr.into_boxed_slice())
                     })
                     .collect::<Result<_>>()?;
                 Ok(ElemInstance::new(refs.into_boxed_slice()))
@@ -223,7 +223,9 @@ impl Runtime {
                     .log("LOAD", || format!("COMPILE GLOBAL INIT EXPR {:x?}", g.init));
                 let mut initexpr: Vec<u8> = Vec::new();
                 initexpr.emit_expr(&g.init);
-                let val = self.eval_expr(&initexpr).wrap("initializing global")?;
+                let val = self
+                    .eval_expr(initexpr.into_boxed_slice())
+                    .wrap("initializing global")?;
                 Ok(GlobalInstance {
                     typ: g.globaltype.valtype,
                     val,

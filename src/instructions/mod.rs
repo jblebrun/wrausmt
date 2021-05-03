@@ -5,7 +5,7 @@ mod generated;
 
 use crate::err;
 use crate::error::{Result, ResultFrom};
-use crate::runtime::exec::ExecutionContext;
+use crate::runtime::Runtime;
 use generated::data_table::INSTRUCTION_DATA;
 use generated::exec_table::EXEC_TABLE;
 
@@ -74,16 +74,16 @@ pub enum Operands {
 /// manages its own operand acquisition, pushing, and popping via the operators available in the
 /// provided [ExecutionContext]; there are no generalized conveniences for generating different
 /// function types for the different groups of instructions.
-pub type ExecFn = fn(ec: &mut ExecutionContext) -> Result<()>;
+pub type ExecFn = fn(ec: &mut Runtime) -> Result<()>;
 
 /// This function appears in the lookup table for opcodes that don't have a
 /// corresponding operation in the specification.
-pub fn bad(_ec: &mut ExecutionContext) -> Result<()> {
+pub fn bad(_ec: &mut Runtime) -> Result<()> {
     err!("unknown opcode")
 }
 
 /// This function is used to mark not-yet-implemented instructions in the table.
-pub fn unimpl(_ec: &mut ExecutionContext) -> Result<()> {
+pub fn unimpl(_ec: &mut Runtime) -> Result<()> {
     err!("not yet implemented")
 }
 
@@ -93,7 +93,7 @@ pub const BAD_INSTRUCTION: InstructionData = InstructionData {
     operands: Operands::None,
 };
 
-pub fn exec_method(opcode: u8, ec: &mut ExecutionContext) -> Result<()> {
+pub fn exec_method(opcode: u8, ec: &mut Runtime) -> Result<()> {
     match EXEC_TABLE.get(opcode as usize) {
         Some(ef) => ef(ec).wrap(&format!("while executing 0x{:x}", opcode)),
         None => err!("unhandled opcode {}", opcode),

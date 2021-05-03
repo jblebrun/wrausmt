@@ -8,11 +8,11 @@ pub mod store;
 pub mod values;
 
 use crate::{
-    err,
+    err, error as mkerror,
     error::{Result, ResultFrom},
     logger::{Logger, PrintLogger},
 };
-use std::{collections::HashMap, rc::Rc};
+use std::{collections::HashMap, convert::TryInto, rc::Rc};
 
 use {
     instance::{ExportInstance, ExternalVal, ModuleInstance},
@@ -21,6 +21,91 @@ use {
     store::Store,
     values::Value,
 };
+
+#[derive(Debug)]
+struct FunctionContext {
+    body: Box<[u8]>,
+    pc: usize,
+    expr: bool,
+}
+
+#[derive(Debug, Default)]
+struct CallStack {
+    stack: Vec<FunctionContext>,
+}
+
+impl CallStack {
+    fn top(&mut self) -> Result<&mut FunctionContext> {
+        self.stack
+            .last_mut()
+            .ok_or_else(|| mkerror!("stack underflow"))
+    }
+
+    pub fn next_u32(&mut self) -> Result<u32> {
+        let top = self.top()?;
+        let result = u32::from_le_bytes(top.body[top.pc..top.pc + 4].try_into().wrap("idx")?);
+        top.pc += 4;
+        Ok(result)
+    }
+
+    pub fn next_u64(&mut self) -> Result<u64> {
+        let top = self.top()?;
+        let result = u64::from_le_bytes(top.body[top.pc..top.pc + 8].try_into().wrap("idx")?);
+        top.pc += 8;
+        Ok(result)
+    }
+
+    pub fn br(&mut self, cont: usize) -> Result<()> {
+        let top = self.top()?;
+        top.pc = cont;
+        Ok(())
+    }
+
+    pub fn invoke(&mut self, body: Box<[u8]>) {
+        println!("ENTER FUNCTION BODY {:x?}", body);
+        self.stack.push(FunctionContext {
+            body,
+            pc: 0,
+            expr: false,
+        })
+    }
+
+    pub fn eval(&mut self, body: Box<[u8]>) {
+        println!("ENTER FUNCTION BODY {:x?}", body);
+        self.stack.push(FunctionContext {
+            body,
+            pc: 0,
+            expr: true,
+        })
+    }
+
+    pub fn ret(&mut self) -> Result<()> {
+        self.stack
+            .pop()
+            .ok_or_else(|| mkerror!("stack underflow"))?;
+        Ok(())
+    }
+
+    pub fn next_op(&mut self) -> Result<Option<u8>> {
+        match self.stack.last_mut() {
+            Some(top) => {
+                if top.pc >= top.body.len() {
+                    // End of function, implicit return
+                    if top.expr {
+                        return Ok(None);
+                    } else {
+                        println!("IMPLICIT RETURN");
+                        return Ok(Some(0x0F));
+                    }
+                }
+                let result = Ok(Some(top.body[top.pc]));
+                top.pc += 1;
+                result
+            }
+            None => Ok(None),
+        }
+    }
+}
 
 #[derive(Debug, Default)]
 /// Contains all of the runtime state for the WebAssembly interpreter.
@@ -35,6 +120,8 @@ pub struct Runtime {
     registered: HashMap<String, Rc<ModuleInstance>>,
 
     logger: PrintLogger,
+
+    callstack: CallStack,
 }
 
 impl Runtime {
@@ -74,22 +161,7 @@ impl Runtime {
 
         self.stack.push_label(0, arity, continuation)?;
 
-        self.enter(&funcinst.body)?;
-
-        // NOTE: The compiled function has an `end` instruction at the end
-        // which takes care of popping the label.
-
-        // Due to validation, this should be equal to the frame above.
-        self.stack.pop_activation()?;
-
-        self.logger.log("ACTIVATION", || {
-            format!(
-                "REMOVE FRAME {} {} {}",
-                funcinst.locals.len(),
-                funcinst.functype.params.len(),
-                funcinst.functype.result.len(),
-            )
-        });
+        self.callstack.invoke(funcinst.body.clone());
 
         Ok(())
     }
@@ -137,19 +209,22 @@ impl Runtime {
         // 9. Invoke the function.
         self.invoke(funcaddr)?;
 
+        self.run()?;
+
+        println!("POPPING VALUES {}", funcinst.functype.result.len());
         let mut results: Vec<Value> = vec![];
         for i in 0..funcinst.functype.result.len() {
             let result = self
                 .stack
                 .pop_value()
                 .wrap(&format!("popping result {} for {}", i, name))?;
-            self.logger
-                .log("HOST", || format!("POPPED HOST RESULT {:?}", result));
+            println!("POPPED {:?}", result);
             results.push(result);
         }
 
         // pop the dummy frame
         // due to validation, this will be the one we pushed above.
+        println!("POP HOST DUMMY");
         self.stack.pop_activation()?;
 
         // Since we don't do validation yet, do some checking here to make sure things seem ok.

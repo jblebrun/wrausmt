@@ -58,14 +58,14 @@
 
 0x10      ,call                          ,(FuncIndex)
 | let i = _ec.op_u32()?;
-| _ec.call(i)
+| _ec.docall(i)
 
 0x11      ,call_indirect                 ,(CallIndirect)
 | let t = _ec.op_u32()?;
 | let _tu = _ec.op_u32()?;
 | let ei = _ec.pop::<u32>()?;
 | let f = _ec.get_func_table(t, ei)?;
-| _ec.call(f)
+| _ec.docall(f)
 
 0x1A      ,drop                          ,()
 | _ec.pop_value()?;
