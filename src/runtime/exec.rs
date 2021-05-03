@@ -1,4 +1,4 @@
-use super::{ActivationFrame, values::Value, values::Ref, Runtime};
+use super::{values::Value, values::Ref, Runtime};
 use crate::{error::{Error, Result, ResultFrom}, runtime::stack::Label};
 use std::{convert::TryFrom, convert::TryInto};
 use crate::instructions::exec_method;
@@ -118,13 +118,11 @@ impl <'l> ExecutionContextActions for ExecutionContext<'l> {
     }
 
     fn get_local(&mut self, idx: u32) -> Result<Value> {
-        let v = self.current_frame()?.locals[idx as usize];
-        println!("GOT LOCAL {}: {:?}", idx, v);
-        Ok(v)
+        self.runtime.stack.get_local(idx)
     }
 
     fn set_local(&mut self, idx: u32, val: Value) -> Result<()> {
-        self.runtime.stack.mut_activation()?.set_local(idx, val)
+        self.runtime.stack.set_local(idx, val)
     }
 
     fn mem(&mut self, idx: u32) -> Result<&mut MemInstance> {
@@ -132,16 +130,14 @@ impl <'l> ExecutionContextActions for ExecutionContext<'l> {
     }
     
     fn br(&mut self, labelidx: u32) -> Result<()> {
-        let fromend = self.runtime.stack.label_stack.len() as u32 - 1 - labelidx;
-        let label = &self.runtime.stack.label_stack[fromend as usize];
+        let label = self.runtime.stack.get_label(labelidx)?;
         println!("FOUND LABEL {:?}", label);
         self.pc = label.continuation as usize;
         Ok(())
     }
 
     fn get_global(&mut self, idx: u32) -> Result<Value> {
-        let gaddr = idx + self.current_frame()?.module.global_offset;
-        self.runtime.store.global(gaddr)
+        self.runtime.store.global(self.runtime.stack.get_global_addr(idx)?)
     }
 
     fn push_value(&mut self, val: Value) -> Result<()> {
@@ -175,16 +171,11 @@ impl <'l> ExecutionContextActions for ExecutionContext<'l> {
     }
 
     fn call(&mut self, idx: u32) -> Result<()> {
-        let faddr = idx + self.current_frame()?.module.func_offset;
-        self.runtime.invoke(faddr)
+        self.runtime.invoke(self.runtime.stack.get_function_addr(idx)?)
     }
 }
 
 impl<'l> ExecutionContext<'l> {
-    fn current_frame(&self) -> Result<&ActivationFrame> {
-        self.runtime.stack.peek_activation()
-    }
-
     pub fn run(&mut self) -> Result<()> {
         while self.pc < self.body.len() {
             let op = self.body[self.pc];

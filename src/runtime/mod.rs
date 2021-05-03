@@ -16,7 +16,7 @@ use self::instance::GlobalInstance;
 
 use {
     instance::{ExportInstance, ExternalVal, ElemInstance, FunctionInstance, MemInstance, ModuleInstance, TableInstance},
-    stack::{ActivationFrame, Label, Stack},
+    stack::{Label, Stack},
     store::addr,
     store::Store,
     values::Value
@@ -88,8 +88,7 @@ impl Runtime {
         let init_module_instance = Rc::new(module_instance.copy_for_init());
        
         // (Instantiation 6-7.) Create a frame with the instance, push it.
-        let init_frame = ActivationFrame::new(0, init_module_instance, Box::new([]));
-        self.stack.push_activation(init_frame);
+        self.stack.push_dummy_activation(init_module_instance)?;
 
         // (Instantiation 8.) Get global init vals and allocate globals.
         let global_insts: Vec<GlobalInstance> = module.globals
@@ -158,30 +157,10 @@ impl Runtime {
         // 5. Let instr* end be the code body
         // 6. Assert (due to validation) n values on the stack
         // 7. Pop val_n from the stack
-        let mut vals: Vec<Value> = vec![];
-        for _ in funcinst.functype.params.iter() {
-            let v = self.stack.pop_value()?;
-            println!("PUSH PARAM {} {:?}", vals.len(),  v);
-            vals.push(v);
-        }
-
-        // TODO - should calls work by moving the stack pointer, rather than
-        // by pushing/popping? This would simplify framing, too; activation frames
-        // would no longer need locals.
-        vals.reverse();
-
         // 8. Let val0* be the list of zero values (other locals). 
-        for localtype in funcinst.code.locals.iter() {
-            vals.push(localtype.default());
-        }
-
         // 9. Let F be the frame.
         // 10. Push activation w/ arity m onto the stack.
-        self.stack.push_activation(ActivationFrame::new(
-            funcinst.functype.result.len() as u32,
-            funcinst.module_instance()?,
-            vals.into_boxed_slice(),
-        ));
+        self.stack.push_activation(&funcinst)?;
 
         // 11. Let L be the Label with continuation at function end.
         // 12. Enter the instruction sequence with the label.
@@ -200,6 +179,12 @@ impl Runtime {
         
         // Due to validation, this should be equal to the frame above.
         self.stack.pop_activation()?;
+
+        println!("REMOVE FRAME {} {} {}", 
+            funcinst.code.locals.len(),
+            funcinst.functype.params.len(),
+            funcinst.functype.result.len(),
+        );
 
         Ok(())
     }
@@ -235,7 +220,7 @@ impl Runtime {
 
         // 6. Let F be a dummy frame. (Represents a dummy "caller" for the function to invoke).
         // 7. Push F to the stack.
-        self.stack.push_activation(ActivationFrame::default());
+        self.stack.push_dummy_activation(mod_instance.clone())?;
 
         // 8. Push the values to the stack.
         for val in vals {
@@ -265,8 +250,8 @@ impl Runtime {
             return err!("labels still on stack {:?}", l)
         }
 
-        if let Ok(f) = self.stack.peek_activation() {
-            return err!("frames still on stack {:?}", f)
+        if self.stack.activation_depth() != 0 {
+            return err!("frames still on stack")
         }
         Ok(results)
     }
