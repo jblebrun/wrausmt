@@ -20,7 +20,6 @@ use std::rc::Rc;
 #[derive(Debug, Default)]
 pub struct Stack {
     value_stack: Vec<Value>,
-    label_stack: Vec<Label>,
     activation_stack: Vec<ActivationFrame>,
 }
 
@@ -52,6 +51,7 @@ struct ActivationFrame {
     /// This value contains the index into the stack for the frame.
     pub local_start: usize,
     pub module: Rc<ModuleInstance>,
+    label_stack: Vec<Label>,
 }
 
 impl Stack {
@@ -59,8 +59,17 @@ impl Stack {
         self.value_stack.push(entry);
     }
 
-    pub fn push_label(&mut self, label: Label) {
-        self.label_stack.push(label);
+    fn label_stack(&self) -> Result<&Vec<Label>> {
+        Ok(self.peek_activation()?.label_stack.as_ref())
+    }
+
+    fn label_stack_mut(&mut self) -> Result<&mut Vec<Label>> {
+        Ok(self.peek_activation_mut()?.label_stack.as_mut())
+    }
+
+    pub fn push_label(&mut self, label: Label) -> Result<()> {
+        self.label_stack_mut()?.push(label);
+        Ok(())
     }
 
     pub fn push_activation(&mut self, funcinst: &FunctionInstance) -> Result<()> {
@@ -74,6 +83,7 @@ impl Stack {
                 arity: funcinst.functype.result.len() as u32,
                 local_start: frame_start,
                 module: funcinst.module_instance()?,
+                label_stack: vec![]
         });
         Ok(())
     }
@@ -83,6 +93,7 @@ impl Stack {
                 arity: 0,
                 local_start: self.value_stack.len(),
                 module: modinst,
+                label_stack: vec![]
         });
         Ok(())
     }
@@ -93,7 +104,7 @@ impl Stack {
             .ok_or_else(|| error!("value stack underflow"))
     }
     pub fn pop_label(&mut self) -> Result<Label> {
-        self.label_stack
+        self.label_stack_mut()?
             .pop()
             .ok_or_else(|| error!("label stack underflow"))
     }
@@ -121,13 +132,19 @@ impl Stack {
     pub fn activation_depth(&self) -> usize { self.activation_stack.len() }
 
     pub fn peek_label(&self) -> Result<&Label> {
-        self.label_stack.last()
+        self.label_stack()?.last()
             .ok_or_else(|| error!("label stack underflow"))
     }
 
     fn peek_activation(&self) -> Result<&ActivationFrame> {
         self.activation_stack
             .last()
+            .ok_or_else(|| error!("activation stack underflow"))
+    }
+
+    fn peek_activation_mut(&mut self) -> Result<&mut ActivationFrame> {
+        self.activation_stack
+            .last_mut()
             .ok_or_else(|| error!("activation stack underflow"))
     }
 
@@ -154,7 +171,7 @@ impl Stack {
     }
 
     pub fn get_label(&self, idx: u32) -> Result<&Label> {
-        let fromend = self.label_stack.len() as u32 - 1 - idx;
-        Ok(&self.label_stack[fromend as usize])
+        let fromend = self.label_stack()?.len() as u32 - 1 - idx;
+        Ok(&self.label_stack()?[fromend as usize])
     }
 }

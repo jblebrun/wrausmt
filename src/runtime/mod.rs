@@ -170,7 +170,7 @@ impl Runtime {
         };
         
         
-        self.stack.push_label(label);
+        self.stack.push_label(label)?;
 
         self.enter(&funcinst.code.body)?;
         

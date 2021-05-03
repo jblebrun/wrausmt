@@ -148,7 +148,7 @@ impl <'l> ExecutionContextActions for ExecutionContext<'l> {
     fn push_label(&mut self, arity: u32, continuation: u32) -> Result<()> {
         let label = Label{arity, continuation};
         println!("PUSH LABEL {:?}", label);
-        self.runtime.stack.push_label(label);
+        self.runtime.stack.push_label(label)?;
         Ok(())
     }
 
@@ -200,13 +200,13 @@ impl Runtime {
     }
 
     pub fn eval_expr(&mut self, body: &[u8]) -> Result<Value> {
-        self.stack.push_label(Label{arity: 1, continuation: body.len() as u32-1});
+        self.stack.push_label(Label{arity: 1, continuation: body.len() as u32-1})?;
         self.enter(body)?;
         self.stack.pop_value()
     }
 
     pub fn eval_ref_expr(&mut self, body: &[u8]) -> Result<Ref> {
-        self.stack.push_label(Label{arity: 1, continuation: body.len() as u32-1});
+        self.stack.push_label(Label{arity: 1, continuation: body.len() as u32-1})?;
         self.enter(body)?;
         match self.stack.pop_value()? {
             Value::Ref(r) => Ok(r),
