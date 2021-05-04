@@ -1,5 +1,5 @@
-use crate::format::text::{module_builder::ModuleBuilder, syntax::{IndexSpace, Resolved, Unresolved}, token::Token};
-use crate::format::text::syntax::{DataField, ElemField, ElemList, ExportDesc, ExportField, Expr, FParam, FResult, Field, FuncField, FunctionType, GlobalField, ImportDesc, ImportField, Index, Local, MemoryField, ModeEntry, Module, StartField, TableField, TypeField, TypeUse};
+use crate::format::text::{module_builder::ModuleBuilder, token::Token};
+use crate::syntax::{DataField, ElemField, ElemList, ExportDesc, ExportField, Expr, FParam, FResult, Field, FuncField, FunctionType, GlobalField, ImportDesc, ImportField, Index, IndexSpace, Local, MemoryField, ModeEntry, Module, Resolved, StartField, TableField, TypeField, TypeUse, Unresolved};
 use super::error::{ParseError, ParseErrorContext, Result};
 use super::Parser;
 use crate::types::{GlobalType, Limits, RefType, TableType};

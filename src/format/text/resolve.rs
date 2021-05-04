@@ -1,7 +1,8 @@
 //! Methods implementing index usage resolution.
 use std::collections::HashMap;
 
-use super::{module_builder::ModuleIdentifiers, syntax::{DataField, DataIndex, DataInit, ElemField, ElemIndex, ElemList, ExportDesc, ExportField, Expr, FuncField, FuncIndex, GlobalField, GlobalIndex, ImportDesc, ImportField, Index, Instruction, LabelIndex, LocalIndex, MemoryIndex, ModeEntry, Module, Operands, Resolved, StartField, TableElems, TableField, TableIndex, TablePosition, TableUse, TypeIndex, TypeUse, Unresolved}};
+use super::module_builder::ModuleIdentifiers;
+use crate::syntax::{DataField, DataIndex, DataInit, ElemField, ElemIndex, ElemList, ExportDesc, ExportField, Expr, FuncField, FuncIndex, GlobalField, GlobalIndex, ImportDesc, ImportField, Index, Instruction, LabelIndex, LocalIndex, MemoryIndex, ModeEntry, Module, Operands, Resolved, StartField, TableElems, TableField, TableIndex, TablePosition, TableUse, TypeIndex, TypeUse, Unresolved};
 
 #[derive(Debug)]
 pub enum ResolveError {

@@ -2,10 +2,12 @@
 //!
 //! [Spec]: https://webassembly.github.io/spec/core/text/modules.html#modules
 
+mod indices;
+
 use crate::types::{GlobalType, MemType, RefType, TableType, ValueType};
 use std::{collections::HashMap, fmt::{self, Debug}, marker::PhantomData};
-pub use super::indices::{Resolved, ResolvedState, Unresolved};
-pub use super::indices::{IndexSpace, FuncIndex, TypeIndex, TableIndex, GlobalIndex, MemoryIndex, DataIndex, ElemIndex, LocalIndex, LabelIndex};
+pub use indices::{Resolved, ResolvedState, Unresolved};
+pub use indices::{IndexSpace, FuncIndex, TypeIndex, TableIndex, GlobalIndex, MemoryIndex, DataIndex, ElemIndex, LocalIndex, LabelIndex};
 
 /// Represents one index usage point. It may be named ($id) or numeric. [Spec]
 ///

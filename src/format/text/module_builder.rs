@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
-use super::{resolve::{IdentifierContext, Resolve, Result}, syntax::{DataField, ElemField, ExportDesc, ExportField, Expr, FuncField, FunctionType, GlobalField, ImportDesc, ImportField, Index, MemoryField, Module, Operands, Resolved, StartField, TableField, TypeField, TypeUse, Unresolved}};
+use super::resolve::{IdentifierContext, Resolve, Result};
+use crate::syntax::{DataField, ElemField, ExportDesc, ExportField, Expr, FuncField, FunctionType, GlobalField, ImportDesc, ImportField, Index, MemoryField, Module, Operands, Resolved, StartField, TableField, TypeField, TypeUse, Unresolved};
 
 
 #[derive(Clone, Default, Debug, PartialEq)]

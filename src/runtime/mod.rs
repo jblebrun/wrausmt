@@ -5,7 +5,7 @@ pub mod stack;
 pub mod store;
 pub mod values;
 
-use crate::{err, error::{Result, ResultFrom}, format::text::syntax::{self, Resolved}, module::Module};
+use crate::{err, error::{Result, ResultFrom}, syntax::{self, Resolved}, module::Module};
 use std::rc::Rc;
 
 use self::instance::GlobalInstance;
