@@ -1,8 +1,5 @@
-use super::syntax::{self, Resolved};
-use crate::{
-    module,
-    types::{FunctionType, ValueType},
-};
+use super::syntax::{self,  Resolved};
+use crate::{runtime::instance::{ExportInstance, ExternalVal}, types::{FunctionType, ValueType}};
 
 const END_OPCODE: u8 = 0xb;
 
@@ -21,22 +18,22 @@ impl From<syntax::Local> for ValueType {
     }
 }
 
-impl From<syntax::ExportDesc<Resolved>> for module::ExportDesc {
-    fn from(ast: syntax::ExportDesc<Resolved>) -> module::ExportDesc {
+impl From<syntax::ExportDesc<Resolved>> for ExternalVal {
+    fn from(ast: syntax::ExportDesc<Resolved>) -> ExternalVal { 
         match ast {
-            syntax::ExportDesc::Func(idx) => module::ExportDesc::Func(idx.value()),
-            syntax::ExportDesc::Table(idx) => module::ExportDesc::Table(idx.value()),
-            syntax::ExportDesc::Mem(idx) => module::ExportDesc::Memory(idx.value()),
-            syntax::ExportDesc::Global(idx) => module::ExportDesc::Func(idx.value()),
+            syntax::ExportDesc::Func(idx) => ExternalVal::Func(idx.value()),
+            syntax::ExportDesc::Table(idx) => ExternalVal::Table(idx.value()),
+            syntax::ExportDesc::Mem(idx) => ExternalVal::Memory(idx.value()),
+            syntax::ExportDesc::Global(idx) => ExternalVal::Global(idx.value()),
         }
     }
 }
 
-impl From<syntax::ExportField<Resolved>> for module::Export {
-    fn from(ast: syntax::ExportField<Resolved>) -> module::Export {
-        module::Export {
+impl From<syntax::ExportField<Resolved>> for ExportInstance {
+    fn from(ast: syntax::ExportField<Resolved>) -> ExportInstance { 
+        ExportInstance { 
             name: ast.name,
-            desc: ast.exportdesc.into(),
+            addr: ast.exportdesc.into(),
         }
     }
 }
@@ -136,7 +133,7 @@ impl Emitter for Vec<u8> {
     fn len(&self) -> usize { self.len() }
 }
 
-fn compile_function_body(func: &syntax::FuncField<Resolved>) -> Box<[u8]> {
+pub fn compile_function_body(func: &syntax::FuncField<Resolved>) -> Box<[u8]> {
     let mut out: Vec<u8> = Vec::new();
 
     out.emit_expr(&func.body);
@@ -144,41 +141,4 @@ fn compile_function_body(func: &syntax::FuncField<Resolved>) -> Box<[u8]> {
     // ???
     // profit!
     out.into_boxed_slice()
-}
-
-fn compile_function(func: syntax::FuncField<Resolved>) -> module::Function {
-    // Convert the locals into a normal box
-    let locals: Box<[ValueType]> = func.locals.iter().map(|l| l.valtype).collect();
-
-    let body = compile_function_body(&func);
-
-    // Compile the method body!!
-    module::Function {
-        functype: func.typeuse.index_value(),
-        locals,
-        body,
-    }
-}
-
-pub fn compile(ast: syntax::Module<Resolved>) -> module::Module {
-    let types: Box<[FunctionType]> = ast
-        .types
-        .into_iter()
-        .map(|t| t.functiontype.into())
-        .collect();
-
-    let exports = ast.exports.into_iter().map(|e| e.into()).collect();
-
-    let funcs = ast
-        .funcs
-        .into_iter()
-        .map(compile_function)
-        .collect();
-
-    module::Module {
-        types,
-        funcs,
-        exports,
-        ..module::Module::default()
-    }
 }

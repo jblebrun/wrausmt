@@ -1,9 +1,10 @@
-use crate::{error::{Result, ResultFrom}, instructions::Expr, types::ValueType};
+use crate::{error::{Result, ResultFrom}, format::text::syntax::{self, Resolved}, instructions::Expr, types::ValueType};
 use crate::module::Function;
 use crate::runtime::error::ArgumentCountError;
 use crate::runtime::instance::ModuleInstance;
 use crate::runtime::Value;
 use crate::types::FunctionType;
+use crate::format::text::compile::compile_function_body;
 use std::rc::Rc;
 use std::cell::RefCell;
 use crate::error;
@@ -19,7 +20,7 @@ use crate::error;
 pub struct FunctionInstance {
     pub functype: FunctionType,
     pub module_instance: RefCell<Option<Rc<ModuleInstance>>>,
-    
+
     /// The locals declare a vector of mutable local variables and their types. These variables are
     /// referenced through local indices in the function's body. The index of the first local is
     /// the smallest index not referencing a parameter.
@@ -53,6 +54,16 @@ impl FunctionInstance {
             body: func.body
         }
     }
+
+    pub fn new_ast(func: syntax::FuncField<Resolved>, types: &[FunctionType]) -> Self {
+        let locals: Box<[ValueType]> = func.locals.iter().map(|l| l.valtype).collect();
+        let body = compile_function_body(&func);
+        Self { 
+            functype: types[func.typeuse.index_value() as usize].clone(),
+            module_instance: RefCell::new(None),
+            locals,
+            body,
+        }}
 
     pub fn validate_args(&self, args: &[Value]) -> Result<()> {
         let params_arity = self.functype.params.len();

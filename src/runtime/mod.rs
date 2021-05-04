@@ -5,11 +5,7 @@ pub mod stack;
 pub mod store;
 pub mod values;
 
-use crate::{
-    err,
-    error::{Result, ResultFrom},
-    module::Module,
-};
+use crate::{err, error::{Result, ResultFrom}, format::text::syntax::{self, Resolved}, module::Module};
 use std::rc::Rc;
 
 use self::instance::GlobalInstance;
@@ -44,6 +40,48 @@ impl Runtime {
             println!("NEED TO RESOLVE {}:{}", import.module_name, import.name);
         }
         self.instantiate(module)
+    }
+
+    /// The load method allocates and instantiates the provided [Module].
+    pub fn load_ast(&mut self, module: syntax::Module<Resolved>) -> Result<Rc<ModuleInstance>> {
+        // TODO Resolve imports
+        for import in module.imports.iter() {
+            println!("NEED TO RESOLVE {}:{}", import.modname, import.name);
+        }
+        self.instantiate_ast(module)
+    }
+
+    #[allow(clippy::unnecessary_wraps)]
+    fn instantiate_ast(&mut self, module: syntax::Module<Resolved>) -> Result<Rc<ModuleInstance>> {
+        let mut module_instance = ModuleInstance {
+            types: module.types.into_iter().map(|t| t.functiontype.into()).collect(),
+            ..ModuleInstance::default()
+        };
+
+        // (Alloc 2.) Allocate functions
+        // https://webassembly.github.io/spec/core/exec/modules.html#functions
+        let new_func_inst = |f| Rc::new(FunctionInstance::new_ast(f, &module_instance.types));
+        // We hold onto these so we can update the module instance at the end.
+        let func_insts: Vec<Rc<FunctionInstance>> = module.funcs
+            .into_iter()
+            .map(new_func_inst)
+            .collect();
+        let (func_count, func_offset) = self.store.alloc_funcs(func_insts.iter().cloned());
+        module_instance.func_count = func_count;
+        module_instance.func_offset = func_offset;
+
+        module_instance.exports = module.exports.into_iter().map(|e| e.into()).collect();
+
+        let rcinst = Rc::new(module_instance);
+
+        // As noted in the specification for module allocation: functions are defined before the
+        // final [ModuleInstance] is available, so now we pass the completed instance to the store
+        // so it can update the value.
+        for f in func_insts {
+            f.module_instance.replace(Some(rcinst.clone()));
+        }
+
+        Ok(rcinst)
     }
 
     /// Instntiation (and allocation) of the provided module, roughly following the
