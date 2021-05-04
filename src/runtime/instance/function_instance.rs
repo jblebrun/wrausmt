@@ -1,4 +1,4 @@
-use crate::error::{Result, ResultFrom};
+use crate::{error::{Result, ResultFrom}, instructions::Expr, types::ValueType};
 use crate::module::Function;
 use crate::runtime::error::ArgumentCountError;
 use crate::runtime::instance::ModuleInstance;
@@ -19,7 +19,15 @@ use crate::error;
 pub struct FunctionInstance {
     pub functype: FunctionType,
     pub module_instance: RefCell<Option<Rc<ModuleInstance>>>,
-    pub code: Function,
+    
+    /// The locals declare a vector of mutable local variables and their types. These variables are
+    /// referenced through local indices in the function's body. The index of the first local is
+    /// the smallest index not referencing a parameter.
+    pub locals: Box<[ValueType]>,
+
+    /// The body is an instruction sequence that upon termination must produce a stack matching the
+    /// function type's result type.
+    pub body: Box<Expr>,
 }
 
 /// A host function is a function expressed outside WebAssembly but passed to a
@@ -41,7 +49,8 @@ impl FunctionInstance {
         FunctionInstance {
             functype: types[func.functype as usize].clone(),
             module_instance: RefCell::new(None),
-            code: func,
+            locals: func.locals,
+            body: func.body
         }
     }
 

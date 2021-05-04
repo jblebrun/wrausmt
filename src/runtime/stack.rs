@@ -75,7 +75,7 @@ impl Stack {
     pub fn push_activation(&mut self, funcinst: &FunctionInstance) -> Result<()> {
         let frame_start = self.value_stack.len() - funcinst.functype.params.len();
         // 8. Let val0* be the list of zero values (other locals). 
-        for localtype in funcinst.code.locals.iter() {
+        for localtype in funcinst.locals.iter() {
             self.push_value(localtype.default());
         }
         println!("FRAME START: {}", frame_start);

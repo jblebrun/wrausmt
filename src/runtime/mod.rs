@@ -166,13 +166,13 @@ impl Runtime {
         // 12. Enter the instruction sequence with the label.
         let label = Label {
             arity: funcinst.functype.result.len() as u32,
-            continuation: funcinst.code.body.len() as u32,
+            continuation: funcinst.body.len() as u32,
         };
         
         
         self.stack.push_label(label)?;
 
-        self.enter(&funcinst.code.body)?;
+        self.enter(&funcinst.body)?;
         
         // NOTE: The compiled function has an `end` instruction at the end
         // which takes care of popping the label.
@@ -181,7 +181,7 @@ impl Runtime {
         self.stack.pop_activation()?;
 
         println!("REMOVE FRAME {} {} {}", 
-            funcinst.code.locals.len(),
+            funcinst.locals.len(),
             funcinst.functype.params.len(),
             funcinst.functype.result.len(),
         );
