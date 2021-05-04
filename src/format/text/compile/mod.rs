@@ -41,12 +41,14 @@ impl From<syntax::ExportField<Resolved>> for ExportInstance {
     }
 }
 
-trait Emitter {
+pub trait Emitter {
     fn emit32(&mut self, v: u32);
     fn emit64(&mut self, v: u64);
     fn splice32(&mut self, idx: usize, v: u32);
     fn len(&self) -> usize;
     fn push(&mut self, b: u8);
+
+    fn is_empty(&self) -> bool;
 
     fn emit_block(
         &mut self,
@@ -109,6 +111,10 @@ trait Emitter {
                 syntax::Operands::DataIndex(idx) => self.emit32(idx.value()),
                 syntax::Operands::LocalIndex(idx) => self.emit32(idx.value()),
                 syntax::Operands::LabelIndex(idx) => self.emit32(idx.value()),
+                syntax::Operands::Memargs(o, a) => {
+                    self.emit32(*o);
+                    self.emit32(*a)
+                }
                 _ => panic!("Not yet implemented in compiler: {:?}", instr),
             }
         }
@@ -135,8 +141,13 @@ impl Emitter for Vec<u8> {
     fn push(&mut self, b: u8) {
         self.push(b)
     }
+
     fn len(&self) -> usize {
         self.len()
+    }
+
+    fn is_empty(&self) -> bool {
+        self.is_empty()
     }
 }
 

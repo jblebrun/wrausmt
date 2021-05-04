@@ -1,6 +1,4 @@
 use crate::error;
-use crate::format::text::compile::compile_function_body;
-use crate::module::Function;
 use crate::runtime::error::ArgumentCountError;
 use crate::runtime::instance::ModuleInstance;
 use crate::runtime::Value;
@@ -8,7 +6,6 @@ use crate::types::FunctionType;
 use crate::{
     error::{Result, ResultFrom},
     instructions::Expr,
-    syntax::{self, Resolved},
     types::ValueType,
 };
 use std::cell::RefCell;
@@ -51,26 +48,6 @@ struct HostFunc {
 }
 
 impl FunctionInstance {
-    pub fn new(func: Function, types: &[FunctionType]) -> FunctionInstance {
-        FunctionInstance {
-            functype: types[func.functype as usize].clone(),
-            module_instance: RefCell::new(None),
-            locals: func.locals,
-            body: func.body,
-        }
-    }
-
-    pub fn new_ast(func: syntax::FuncField<Resolved>, types: &[FunctionType]) -> Self {
-        let locals: Box<[ValueType]> = func.locals.iter().map(|l| l.valtype).collect();
-        let body = compile_function_body(&func);
-        Self {
-            functype: types[func.typeuse.index_value() as usize].clone(),
-            module_instance: RefCell::new(None),
-            locals,
-            body,
-        }
-    }
-
     pub fn validate_args(&self, args: &[Value]) -> Result<()> {
         let params_arity = self.functype.params.len();
         if params_arity != args.len() {

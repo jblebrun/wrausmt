@@ -392,7 +392,6 @@ impl<R: ResolvedState> fmt::Debug for ImportField<R> {
 }
 
 #[derive(Debug, PartialEq)]
-#[allow(dead_code)]
 pub enum ExportDesc<R: ResolvedState> {
     Func(Index<R, FuncIndex>),
     Table(Index<R, TableIndex>),
@@ -510,7 +509,6 @@ pub struct ElemList<R: ResolvedState> {
 }
 
 #[derive(Debug, PartialEq)]
-#[allow(dead_code)]
 pub enum ModeEntry<R: ResolvedState> {
     Passive,
     Active(TablePosition<R>),

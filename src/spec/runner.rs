@@ -76,7 +76,7 @@ pub fn run_spec_test(script: SpecTestScript) -> Result<()> {
             Cmd::Module(m) => match m {
                 Module::Module(m) => {
                     println!("NORMAL MODULE");
-                    module = Some(runtime.load_ast(m)?);
+                    module = Some(runtime.load(m)?);
                 }
                 Module::Binary(_) => println!("BINARY MODULE ACTION"),
                 Module::Quote(_) => println!("QUOTE MODULE ACTION"),
