@@ -1,13 +1,13 @@
 use std::rc::Rc;
 
-use crate::format::{binary::parse, text::parse::error::ParseError};
-use crate::syntax::{Module, Resolved};
-use crate::format::text::lex::Tokenizer;
+use crate::error::Error;
 use crate::format::error::ParseError as BinaryParseError;
 use crate::format::text::lex::error::LexError;
+use crate::format::text::lex::Tokenizer;
 use crate::format::text::parse::Parser;
-use crate::runtime::{Runtime, instance::ModuleInstance};
-use crate::error::Error;
+use crate::format::{binary::parse, text::parse::error::ParseError};
+use crate::runtime::{instance::ModuleInstance, Runtime};
+use crate::syntax::{Module, Resolved};
 
 #[derive(Debug)]
 pub enum LoaderError {
@@ -17,13 +17,11 @@ pub enum LoaderError {
     GenericError(Box<dyn std::error::Error>),
 }
 
-impl std::error::Error for LoaderError {
-}
+impl std::error::Error for LoaderError {}
 
 impl std::fmt::Display for LoaderError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:?}", self)
-        
     }
 }
 
@@ -76,18 +74,18 @@ pub fn load_ast(filename: &str) -> Result<Module<Resolved>> {
 impl Loader for Runtime {
     fn load_wast(&mut self, filename: &str) -> Result<Rc<ModuleInstance>> {
         let ast = load_ast(filename)?;
-    
+
         println!("MODULE {:#?}", ast);
-    
+
         let mod_inst = self.load_ast(ast)?;
         Ok(mod_inst)
     }
 
     fn load_wasm(&mut self, filename: &str) -> Result<Rc<ModuleInstance>> {
         let mut f = std::fs::File::open(filename)?;
-        
+
         let module = parse(&mut f)?;
-    
+
         let mod_inst = self.load(module)?;
         Ok(mod_inst)
     }

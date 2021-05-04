@@ -1,11 +1,10 @@
 use crate::format::text::{lex::error::LexError, resolve::ResolveError, token::FileToken};
 
-
 #[derive(Debug)]
 pub struct ParseErrorContext {
     pub context: Vec<String>,
     pub current: FileToken,
-    pub next: FileToken
+    pub next: FileToken,
 }
 
 #[derive(Debug)]
@@ -16,7 +15,7 @@ pub enum ParseError {
     UnexpectedToken(String),
     UnrecognizedInstruction(String),
     ResolveError(ResolveError),
-    Incomplete
+    Incomplete,
 }
 
 impl ParseError {
@@ -25,14 +24,12 @@ impl ParseError {
     }
 }
 
-impl std::error::Error for ParseError {
-}
+impl std::error::Error for ParseError {}
 
 impl std::fmt::Display for ParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:?}", self)
     }
-    
 }
 
 pub type Result<T> = std::result::Result<T, ParseError>;

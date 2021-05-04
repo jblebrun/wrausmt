@@ -1,19 +1,24 @@
-use crate::{format::text::parse::Parser, runtime::values::{Num, Ref, Value}, syntax::Resolved, types::{NumType, RefType}};
-use crate::format::text::token::Token;
-use std::io::Read;
-use crate::syntax as modulesyntax;
 use crate::format::text::parse::error::{ParseError, Result};
+use crate::format::text::token::Token;
+use crate::syntax as modulesyntax;
+use crate::{
+    format::text::parse::Parser,
+    runtime::values::{Num, Ref, Value},
+    syntax::Resolved,
+    types::{NumType, RefType},
+};
+use std::io::Read;
 
-impl <R:Read> Parser<R> {
+impl<R: Read> Parser<R> {
     pub fn parse_spec_test(&mut self) -> Result<SpecTestScript> {
         match self.zero_or_more(Self::try_cmd) {
             Ok(cmds) => {
                 if self.current.token != Token::Eof {
-                    return Err(self.with_context(ParseError::unexpected("cmd")))
+                    return Err(self.with_context(ParseError::unexpected("cmd")));
                 }
-                Ok(SpecTestScript{cmds})
-            },
-            Err(e) => Err(self.with_context(e))
+                Ok(SpecTestScript { cmds })
+            }
+            Err(e) => Err(self.with_context(e)),
         }
     }
 
@@ -29,7 +34,7 @@ impl <R:Read> Parser<R> {
 
     fn try_module_cmd(&mut self) -> Result<Option<Cmd>> {
         if let Some(module) = self.try_spec_module()? {
-            return Ok(Some(Cmd::Module(module)))
+            return Ok(Some(Cmd::Module(module)));
         }
 
         Ok(None)
@@ -37,7 +42,7 @@ impl <R:Read> Parser<R> {
 
     fn try_spec_module(&mut self) -> Result<Option<Module>> {
         if !self.try_expr_start("module")? {
-            return Ok(None)
+            return Ok(None);
         }
 
         let kw = self.try_keyword()?;
@@ -47,23 +52,25 @@ impl <R:Read> Parser<R> {
                 let strings = self.zero_or_more(Self::try_string)?;
                 self.expect_close()?;
                 Ok(Some(Module::Binary(strings)))
-            },
+            }
             Some("quote") => {
                 let strings = self.zero_or_more(Self::try_string)?;
                 self.expect_close()?;
                 Ok(Some(Module::Quote(strings)))
-            },
+            }
             _ => {
                 if let Some(module) = self.try_module_rest()? {
                     Ok(Some(Module::Module(module)))
-                } else { Ok(None) }
+                } else {
+                    Ok(None)
+                }
             }
         }
     }
 
     fn try_register_cmd(&mut self) -> Result<Option<Cmd>> {
         if !self.try_expr_start("register")? {
-            return Ok(None)
+            return Ok(None);
         }
 
         Ok(None)
@@ -74,19 +81,17 @@ impl <R:Read> Parser<R> {
     }
 
     fn try_action(&mut self) -> Result<Option<Action>> {
-        self.first_of(&[
-            Self::try_invoke_action,
-            Self::try_get_action,
-        ])
+        self.first_of(&[Self::try_invoke_action, Self::try_get_action])
     }
 
     fn expect_action(&mut self) -> Result<Action> {
-        self.try_action()?.ok_or_else(|| ParseError::unexpected("spec test action"))
+        self.try_action()?
+            .ok_or_else(|| ParseError::unexpected("spec test action"))
     }
 
     fn try_invoke_action(&mut self) -> Result<Option<Action>> {
         if !self.try_expr_start("invoke")? {
-            return Ok(None)
+            return Ok(None);
         }
 
         let id = self.try_id()?;
@@ -99,10 +104,10 @@ impl <R:Read> Parser<R> {
 
         Ok(Some(Action::Invoke { id, name, params }))
     }
-    
+
     fn try_get_action(&mut self) -> Result<Option<Action>> {
         if !self.try_expr_start("get")? {
-            return Ok(None)
+            return Ok(None);
         }
         Ok(None)
     }
@@ -115,7 +120,8 @@ impl <R:Read> Parser<R> {
             Self::try_assert_invalid,
             Self::try_assert_malformed,
             Self::try_assert_unlinkable,
-        ]).map(|a| a.map(Cmd::Assertion))
+        ])
+        .map(|a| a.map(Cmd::Assertion))
     }
 
     fn try_meta_cmd(&mut self) -> Result<Option<Cmd>> {
@@ -123,33 +129,33 @@ impl <R:Read> Parser<R> {
             let id = self.try_id()?;
             let script = self.expect_string()?;
             self.expect_close()?;
-            return Ok(Some(Cmd::Meta(Meta::Script { id, script })))
+            return Ok(Some(Cmd::Meta(Meta::Script { id, script })));
         }
         if self.try_expr_start("input")? {
             let id = self.try_id()?;
             let file = self.expect_string()?;
             self.expect_close()?;
-            return Ok(Some(Cmd::Meta(Meta::Input { id, file})))
+            return Ok(Some(Cmd::Meta(Meta::Input { id, file })));
         }
         if self.try_expr_start("output")? {
             let id = self.try_id()?;
             let file = self.expect_string()?;
             self.expect_close()?;
-            return Ok(Some(Cmd::Meta(Meta::Output { id, file})))
+            return Ok(Some(Cmd::Meta(Meta::Output { id, file })));
         }
-        
+
         Ok(None)
     }
 
     fn try_assert_return(&mut self) -> Result<Option<Assertion>> {
         if !self.try_expr_start("assert_return")? {
-            return Ok(None)
+            return Ok(None);
         }
 
         let action = self.expect_action()?;
 
         let results = self.zero_or_more(Self::try_result)?;
-        
+
         self.expect_close()?;
 
         Ok(Some(Assertion::Return { action, results }))
@@ -157,9 +163,9 @@ impl <R:Read> Parser<R> {
 
     fn try_assert_exhaustion(&mut self) -> Result<Option<Assertion>> {
         if !self.try_expr_start("assert_exhaustion")? {
-            return Ok(None)
+            return Ok(None);
         }
-        
+
         let action = self.expect_action()?;
         let failure = self.expect_string()?;
         self.expect_close()?;
@@ -169,21 +175,21 @@ impl <R:Read> Parser<R> {
 
     fn try_assert_trap(&mut self) -> Result<Option<Assertion>> {
         if !self.try_expr_start("assert_trap")? {
-            return Ok(None)
+            return Ok(None);
         }
-        
+
         if let Some(action) = self.try_action()? {
             let failure = self.expect_string()?;
             self.expect_close()?;
 
-            return Ok(Some(Assertion::ActionTrap { action, failure }))
+            return Ok(Some(Assertion::ActionTrap { action, failure }));
         }
 
         if let Some(module) = self.try_spec_module()? {
             let failure = self.expect_string()?;
             self.expect_close()?;
-            
-            return Ok(Some(Assertion::ModuleTrap {module, failure }))
+
+            return Ok(Some(Assertion::ModuleTrap { module, failure }));
         }
 
         Ok(None)
@@ -191,10 +197,12 @@ impl <R:Read> Parser<R> {
 
     fn try_assert_invalid(&mut self) -> Result<Option<Assertion>> {
         if !self.try_expr_start("assert_invalid")? {
-            return Ok(None)
+            return Ok(None);
         }
-        
-        let module = self.try_spec_module()?.ok_or_else(|| ParseError::unexpected("spec module"))?;
+
+        let module = self
+            .try_spec_module()?
+            .ok_or_else(|| ParseError::unexpected("spec module"))?;
 
         let failure = self.expect_string()?;
 
@@ -205,10 +213,12 @@ impl <R:Read> Parser<R> {
 
     fn try_assert_malformed(&mut self) -> Result<Option<Assertion>> {
         if !self.try_expr_start("assert_malformed")? {
-            return Ok(None)
+            return Ok(None);
         }
-        
-        let module = self.try_spec_module()?.ok_or_else(|| ParseError::unexpected("spec module"))?;
+
+        let module = self
+            .try_spec_module()?
+            .ok_or_else(|| ParseError::unexpected("spec module"))?;
 
         let failure = self.expect_string()?;
 
@@ -219,10 +229,12 @@ impl <R:Read> Parser<R> {
 
     fn try_assert_unlinkable(&mut self) -> Result<Option<Assertion>> {
         if !self.try_expr_start("assert_invalid")? {
-            return Ok(None)
+            return Ok(None);
         }
-        
-        let module = self.try_spec_module()?.ok_or_else(|| ParseError::unexpected("spec module"))?;
+
+        let module = self
+            .try_spec_module()?
+            .ok_or_else(|| ParseError::unexpected("spec module"))?;
 
         let failure = self.expect_string()?;
 
@@ -234,19 +246,19 @@ impl <R:Read> Parser<R> {
     fn try_result(&mut self) -> Result<Option<ActionResult>> {
         if self.try_expr_start("ref.func")? {
             self.expect_close()?;
-            return Ok(Some(ActionResult::Func))
+            return Ok(Some(ActionResult::Func));
         }
 
         if self.try_expr_start("ref.extern")? {
             self.expect_close()?;
-            return Ok(Some(ActionResult::Extern))
+            return Ok(Some(ActionResult::Extern));
         }
 
         let num = self.try_num_pat()?;
 
         match num {
             Some(pat) => Ok(Some(ActionResult::Num(pat))),
-            _ => Ok(None)
+            _ => Ok(None),
         }
     }
 
@@ -254,20 +266,20 @@ impl <R:Read> Parser<R> {
         if self.try_expr_start("ref.null")? {
             let reftype = self.expect_reftype()?;
             self.expect_close()?;
-            return Ok(Some(Const::RefNull(reftype)))
+            return Ok(Some(Const::RefNull(reftype)));
         }
 
         if self.try_expr_start("ref.host")? {
             let val = self.expect_integer()?;
             self.expect_close()?;
-            return Ok(Some(Const::RefHost(val)))
+            return Ok(Some(Const::RefHost(val)));
         }
 
         let num = self.try_num_pat()?;
 
         match num {
             Some(pat) => Ok(Some(Const::Num(pat))),
-            _ => Ok(None)
+            _ => Ok(None),
         }
     }
 
@@ -280,22 +292,22 @@ impl <R:Read> Parser<R> {
                 let numtype = kw.split('.').next();
                 let nt = match numtype {
                     Some("i32") => Some(NumType::I32),
-                    Some("i64") => Some(NumType::I64), 
+                    Some("i64") => Some(NumType::I64),
                     Some("f32") => Some(NumType::F32),
                     Some("f64") => Some(NumType::F64),
-                    _ => None
+                    _ => None,
                 };
                 if let Some(nt) = nt {
-                        self.advance()?;
-                        self.advance()?;
-                        let val = self.expect_number()?;
-                        self.expect_close()?;
-                        Ok(Some(NumPat::Num(nt, val)))
+                    self.advance()?;
+                    self.advance()?;
+                    let val = self.expect_number()?;
+                    self.expect_close()?;
+                    Ok(Some(NumPat::Num(nt, val)))
                 } else {
                     Ok(None)
                 }
-            },
-            _ => Ok(None)
+            }
+            _ => Ok(None),
         }
     }
 }
@@ -303,7 +315,7 @@ impl <R:Read> Parser<R> {
 /// script: <cmd>*
 #[derive(Debug, Default)]
 pub struct SpecTestScript {
-    pub cmds: Vec<Cmd>
+    pub cmds: Vec<Cmd>,
 }
 
 /// cmd:
@@ -311,14 +323,14 @@ pub struct SpecTestScript {
 ///   ( register <string> <name>? )              ;; register module for imports
 ///   <action>                                   ;; perform action and print results
 ///   <assertion>                                ;; assert result of an action
-///   <meta> 
+///   <meta>
 #[derive(Debug)]
 pub enum Cmd {
     Module(Module),
-    Register{string: String, name: String},
+    Register { string: String, name: String },
     Action(Action),
     Assertion(Assertion),
-    Meta(Meta)
+    Meta(Meta),
 }
 
 /// module:
@@ -329,7 +341,7 @@ pub enum Cmd {
 pub enum Module {
     Module(modulesyntax::Module<Resolved>),
     Binary(Vec<String>),
-    Quote(Vec<String>)
+    Quote(Vec<String>),
 }
 
 /// action:
@@ -337,8 +349,15 @@ pub enum Module {
 ///   ( get <name>? <string> )                   ;; get global export
 #[derive(Debug)]
 pub enum Action {
-    Invoke { id: Option<String>, name: String, params: Vec<Const> },
-    Get { id: Option<String>, name: String }
+    Invoke {
+        id: Option<String>,
+        name: String,
+        params: Vec<Const>,
+    },
+    Get {
+        id: Option<String>,
+        name: String,
+    },
 }
 
 /// const:
@@ -360,7 +379,7 @@ impl From<Const> for Value {
             Const::RefNull(t) => match t {
                 RefType::Func => Value::Ref(Ref::Func(0)),
                 RefType::Extern => Value::Ref(Ref::Extern(0)),
-            }
+            },
         }
     }
 }
@@ -373,9 +392,9 @@ impl From<NumPat> for Value {
                 NumType::I64 => Value::Num(Num::I64(v)),
                 NumType::F32 => Value::Num(Num::F32(v as f32)),
                 NumType::F64 => Value::Num(Num::F64(v as f64)),
-            }
+            },
             NumPat::ArithmeticNaN => panic!("not yet"),
-            NumPat::CanonicalNaN => panic!("not yet")
+            NumPat::CanonicalNaN => panic!("not yet"),
         }
     }
 }
@@ -390,13 +409,34 @@ impl From<NumPat> for Value {
 ///   ( assert_trap <module> <failure> )         ;; assert module traps on instantiation
 #[derive(Debug)]
 pub enum Assertion {
-    Return{action: Action, results: Vec<ActionResult>},
-    ActionTrap{action: Action, failure: String},
-    Exhaustion{action: Action, failure: String},
-    Malformed{module: Module, failure: String},
-    Invalid{module: Module, failure: String},
-    Unlinkable{module: Module, failure: String},
-    ModuleTrap{module: Module, failure: String},
+    Return {
+        action: Action,
+        results: Vec<ActionResult>,
+    },
+    ActionTrap {
+        action: Action,
+        failure: String,
+    },
+    Exhaustion {
+        action: Action,
+        failure: String,
+    },
+    Malformed {
+        module: Module,
+        failure: String,
+    },
+    Invalid {
+        module: Module,
+        failure: String,
+    },
+    Unlinkable {
+        module: Module,
+        failure: String,
+    },
+    ModuleTrap {
+        module: Module,
+        failure: String,
+    },
 }
 
 /// result:
@@ -407,7 +447,7 @@ pub enum Assertion {
 pub enum ActionResult {
     Num(NumPat),
     Extern,
-    Func
+    Func,
 }
 
 /// num_pat:
@@ -418,7 +458,7 @@ pub enum ActionResult {
 pub enum NumPat {
     Num(NumType, u64),
     CanonicalNaN,
-    ArithmeticNaN
+    ArithmeticNaN,
 }
 
 /// meta:
@@ -428,6 +468,6 @@ pub enum NumPat {
 #[derive(Debug)]
 pub enum Meta {
     Script { id: Option<String>, script: String },
-    Input { id: Option<String> , file: String },
-    Output { id: Option<String> , file: String },
+    Input { id: Option<String>, file: String },
+    Output { id: Option<String>, file: String },
 }

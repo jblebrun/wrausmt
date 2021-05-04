@@ -2,19 +2,19 @@ use self::error::LexError;
 
 use super::token::{FileToken, Token};
 use crate::format::Location;
-mod num;
 mod chars;
 pub mod error;
+mod num;
 
-use std::io::Read;
-use std::iter::Iterator;
 use chars::CharChecks;
 use error::{Result, WithContext};
+use std::io::Read;
+use std::iter::Iterator;
 
 #[cfg(test)]
-mod test;
-#[cfg(test)]
 mod num_test;
+#[cfg(test)]
+mod test;
 
 /// A streaming WebAssembly tokenizer. It acts as an [Iterator] of [Tokens][Token],
 /// parsing the [Read] source gradually as tokens are requested.
@@ -54,15 +54,21 @@ impl<R: Read> Tokenizer<R> {
         match self.current {
             b'"' => self.consume_string().ctx("while reading string literal"),
             b'(' => self.consume_open_or_block_comment(),
-            b')' => self.consume_close(), 
-            b';' => self.consume_line_comment().ctx("while consuming line comment"),
+            b')' => self.consume_close(),
+            b';' => self
+                .consume_line_comment()
+                .ctx("while consuming line comment"),
             b if b.is_idchar() => {
                 let idchars = self.consume_idchars().ctx("while reading next token")?;
-                if idchars.as_bytes()[0] == b'$' { return Ok(Token::Id(idchars)) }
-                if let Some(n) = num::maybe_number(&idchars) { return Ok(n) }
+                if idchars.as_bytes()[0] == b'$' {
+                    return Ok(Token::Id(idchars));
+                }
+                if let Some(n) = num::maybe_number(&idchars) {
+                    return Ok(n);
+                }
                 Ok(keyword_or_reserved(idchars))
             }
-            _ => Err(LexError::UnexpectedChar(self.current as char))
+            _ => Err(LexError::UnexpectedChar(self.current as char)),
         }
     }
 
@@ -101,7 +107,7 @@ impl<R: Read> Tokenizer<R> {
     /// the start of the next line.
     fn consume_line_comment(&mut self) -> Result<Token> {
         if self.current != b';' {
-            return Err(LexError::UnexpectedChar(self.current as char))
+            return Err(LexError::UnexpectedChar(self.current as char));
         }
         while self.current != b'\n' {
             self.advance()?;
@@ -109,7 +115,6 @@ impl<R: Read> Tokenizer<R> {
         self.advance()?;
         Ok(Token::LineComment)
     }
-
 
     /// Consume a block comment, also handling nested comments, returning them all as one
     /// [Token::BlockComment].  Caller should have consumed '(', and we will be on the ';'.
@@ -170,12 +175,13 @@ impl<R: Read> Tokenizer<R> {
     }
 
     /// Handler for a '(' - if followed by ';, consumes a block comment and returns
-    /// [Token::BlockComment], otherwise just returns [Token::Open]. Leave the 
+    /// [Token::BlockComment], otherwise just returns [Token::Open]. Leave the
     /// current character at the next character to parse.
     fn consume_open_or_block_comment(&mut self) -> Result<Token> {
         self.advance()?;
         if self.current == b';' {
-            self.consume_block_comment().ctx("while parsing block comment")
+            self.consume_block_comment()
+                .ctx("while parsing block comment")
         } else {
             Ok(Token::Open)
         }
@@ -185,7 +191,7 @@ impl<R: Read> Tokenizer<R> {
     fn consume_close(&mut self) -> Result<Token> {
         self.advance()?;
         Ok(Token::Close)
-    } 
+    }
 }
 
 impl<R: Read> Iterator for Tokenizer<R> {
@@ -195,8 +201,7 @@ impl<R: Read> Iterator for Tokenizer<R> {
         if self.eof {
             return None;
         }
-        let token = self.next_token()
-            .map(|t| self.location.token(t));
+        let token = self.next_token().map(|t| self.location.token(t));
         Some(token)
     }
 }

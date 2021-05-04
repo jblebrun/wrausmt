@@ -5,17 +5,25 @@ pub mod stack;
 pub mod store;
 pub mod values;
 
-use crate::{err, error::{Result, ResultFrom}, syntax::{self, Resolved}, module::Module};
+use crate::{
+    err,
+    error::{Result, ResultFrom},
+    module::Module,
+    syntax::{self, Resolved},
+};
 use std::rc::Rc;
 
 use self::instance::GlobalInstance;
 
 use {
-    instance::{ExportInstance, ExternalVal, ElemInstance, FunctionInstance, MemInstance, ModuleInstance, TableInstance},
+    instance::{
+        ElemInstance, ExportInstance, ExternalVal, FunctionInstance, MemInstance, ModuleInstance,
+        TableInstance,
+    },
     stack::{Label, Stack},
     store::addr,
     store::Store,
-    values::Value
+    values::Value,
 };
 
 #[derive(Debug, Default)]
@@ -54,7 +62,11 @@ impl Runtime {
     #[allow(clippy::unnecessary_wraps)]
     fn instantiate_ast(&mut self, module: syntax::Module<Resolved>) -> Result<Rc<ModuleInstance>> {
         let mut module_instance = ModuleInstance {
-            types: module.types.into_iter().map(|t| t.functiontype.into()).collect(),
+            types: module
+                .types
+                .into_iter()
+                .map(|t| t.functiontype.into())
+                .collect(),
             ..ModuleInstance::default()
         };
 
@@ -62,10 +74,8 @@ impl Runtime {
         // https://webassembly.github.io/spec/core/exec/modules.html#functions
         let new_func_inst = |f| Rc::new(FunctionInstance::new_ast(f, &module_instance.types));
         // We hold onto these so we can update the module instance at the end.
-        let func_insts: Vec<Rc<FunctionInstance>> = module.funcs
-            .into_iter()
-            .map(new_func_inst)
-            .collect();
+        let func_insts: Vec<Rc<FunctionInstance>> =
+            module.funcs.into_iter().map(new_func_inst).collect();
         let (func_count, func_offset) = self.store.alloc_funcs(func_insts.iter().cloned());
         module_instance.func_count = func_count;
         module_instance.func_offset = func_offset;
@@ -100,7 +110,8 @@ impl Runtime {
         // https://webassembly.github.io/spec/core/exec/modules.html#functions
         let new_func_inst = |f| Rc::new(FunctionInstance::new(f, &module_instance.types));
         // We hold onto these so we can update the module instance at the end.
-        let func_insts: Vec<Rc<FunctionInstance>> = module.funcs
+        let func_insts: Vec<Rc<FunctionInstance>> = module
+            .funcs
             .into_vec()
             .into_iter()
             .map(new_func_inst)
@@ -124,16 +135,20 @@ impl Runtime {
         // (Instantiation 5-10.) Generate global and elem init values
         // (Instantiation 5.) Create the module instance for global initialization
         let init_module_instance = Rc::new(module_instance.copy_for_init());
-       
+
         // (Instantiation 6-7.) Create a frame with the instance, push it.
         self.stack.push_dummy_activation(init_module_instance)?;
 
         // (Instantiation 8.) Get global init vals and allocate globals.
-        let global_insts: Vec<GlobalInstance> = module.globals
+        let global_insts: Vec<GlobalInstance> = module
+            .globals
             .iter()
             .map(|g| {
                 let val = self.eval_expr(&g.init)?;
-                Ok(GlobalInstance { typ: g.typ.valtype, val })
+                Ok(GlobalInstance {
+                    typ: g.typ.valtype,
+                    val,
+                })
             })
             .collect::<Result<_>>()?;
         let (count, offset) = self.store.alloc_globals(global_insts.into_iter());
@@ -141,19 +156,25 @@ impl Runtime {
         module_instance.global_offset = offset;
 
         // (Instantian 9.) Get elem init vals
-        let elem_insts: Vec<ElemInstance> = module.elems
+        let elem_insts: Vec<ElemInstance> = module
+            .elems
             .iter()
             .map(|e| {
-                let elems = e.init.iter()
+                let elems = e
+                    .init
+                    .iter()
                     .map(|ei| self.eval_ref_expr(&ei))
                     .collect::<Result<_>>()?;
-                Ok(ElemInstance { elemtype: e.typ, elems })
+                Ok(ElemInstance {
+                    elemtype: e.typ,
+                    elems,
+                })
             })
             .collect::<Result<_>>()?;
         let (count, offset) = self.store.alloc_elems(elem_insts.into_iter());
         module_instance.elem_count = count;
         module_instance.elem_offset = offset;
-            
+
         self.stack.pop_activation()?;
 
         // (Alloc 5.) Globals
@@ -164,7 +185,8 @@ impl Runtime {
 
         // (Alloc 18.) Allocate exports.
         let new_export_inst = |e| ExportInstance::new(e, &module_instance);
-        let exports = module.exports
+        let exports = module
+            .exports
             .into_vec()
             .into_iter()
             .map(new_export_inst)
@@ -195,7 +217,7 @@ impl Runtime {
         // 5. Let instr* end be the code body
         // 6. Assert (due to validation) n values on the stack
         // 7. Pop val_n from the stack
-        // 8. Let val0* be the list of zero values (other locals). 
+        // 8. Let val0* be the list of zero values (other locals).
         // 9. Let F be the frame.
         // 10. Push activation w/ arity m onto the stack.
         self.stack.push_activation(&funcinst)?;
@@ -206,19 +228,19 @@ impl Runtime {
             arity: funcinst.functype.result.len() as u32,
             continuation: funcinst.body.len() as u32,
         };
-        
-        
+
         self.stack.push_label(label)?;
 
         self.enter(&funcinst.body)?;
-        
+
         // NOTE: The compiled function has an `end` instruction at the end
         // which takes care of popping the label.
-        
+
         // Due to validation, this should be equal to the frame above.
         self.stack.pop_activation()?;
 
-        println!("REMOVE FRAME {} {} {}", 
+        println!(
+            "REMOVE FRAME {} {} {}",
             funcinst.locals.len(),
             funcinst.functype.params.len(),
             funcinst.functype.result.len(),
@@ -270,7 +292,9 @@ impl Runtime {
 
         let mut results: Vec<Value> = vec![];
         for i in 0..funcinst.functype.result.len() {
-            let result = self.stack.pop_value()
+            let result = self
+                .stack
+                .pop_value()
                 .wrap(&format!("popping result {} for {}", i, name))?;
             results.push(result);
         }
@@ -281,15 +305,15 @@ impl Runtime {
 
         // Since we don't do validation yet, do some checking here to make sure things seem ok.
         if let Ok(v) = self.stack.pop_value() {
-            return err!("values still on stack {:?}", v)
+            return err!("values still on stack {:?}", v);
         }
 
         if let Ok(l) = self.stack.peek_label() {
-            return err!("labels still on stack {:?}", l)
+            return err!("labels still on stack {:?}", l);
         }
 
         if self.stack.activation_depth() != 0 {
-            return err!("frames still on stack")
+            return err!("frames still on stack");
         }
         Ok(results)
     }
@@ -307,7 +331,7 @@ macro_rules! runner {
             };
             ( $cmd:expr, $v1:expr, $v2:expr ) => {
                 $runtime.call(&$mod_inst, $cmd, &[$v1.into(), $v2.into()]);
-            }
+            };
         }
-    }
+    };
 }

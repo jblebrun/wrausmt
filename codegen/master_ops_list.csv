@@ -157,57 +157,57 @@
 
 0x45      ,i32.eqz                       ,()
 | let o = _ec.pop::<u32>()?;
-| _ec.push(if o == 0 {1} else {0})
+| _ec.push(if o == 0 { 1 } else { 0 })
 
 0x46      ,i32.eq                        ,()
 | let r = _ec.pop::<u32>()?;
 | let l = _ec.pop::<u32>()?;
-| _ec.push(if l == r {1} else {0})
+| _ec.push(if l == r { 1 } else { 0 })
 
 0x47      ,i32.ne                        ,()
 | let r = _ec.pop::<u32>()?;
 | let l = _ec.pop::<u32>()?;
-| _ec.push(if l != r {1} else {0})
+| _ec.push(if l != r { 1 } else { 0 })
 
 0x48      ,i32.lt_s                      ,()
 | let r = _ec.pop::<u32>()? as i32;
 | let l = _ec.pop::<u32>()? as i32;
-| _ec.push(if l < r {1} else {0})
+| _ec.push(if l < r { 1 } else { 0 })
 
 0x49      ,i32.lt_u                      ,()
 | let r = _ec.pop::<u32>()?;
 | let l = _ec.pop::<u32>()?;
-| _ec.push(if l < r {1} else {0})
+| _ec.push(if l < r { 1 } else { 0 })
 
 0x4a      ,i32.gt_s                      ,()
 | let r = _ec.pop::<u32>()? as i32;
 | let l = _ec.pop::<u32>()? as i32;
-| _ec.push(if l > r {1} else {0})
+| _ec.push(if l > r { 1 } else { 0 })
 
 0x4b      ,i32.gt_u                      ,()
 | let r = _ec.pop::<u32>()?;
 | let l = _ec.pop::<u32>()?;
-| _ec.push(if l > r {1} else {0})
+| _ec.push(if l > r { 1 } else { 0 })
 
 0x4c      ,i32.le_s                      ,()
 | let r = _ec.pop::<u32>()? as i32;
 | let l = _ec.pop::<u32>()? as i32;
-| _ec.push(if l <= r {1} else {0})
+| _ec.push(if l <= r { 1 } else { 0 })
 
 0x4d      ,i32.le_u                      ,()
 | let r = _ec.pop::<u32>()?;
 | let l = _ec.pop::<u32>()?;
-| _ec.push(if l <= r {1} else {0})
+| _ec.push(if l <= r { 1 } else { 0 })
 
 0x4e      ,i32.ge_s                      ,()
 | let r = _ec.pop::<u32>()? as i32;
 | let l = _ec.pop::<u32>()? as i32;
-| _ec.push(if l >= r {1} else {0})
+| _ec.push(if l >= r { 1 } else { 0 })
 
 0x4f      ,i32.ge_u                      ,()
 | let r = _ec.pop::<u32>()?;
 | let l = _ec.pop::<u32>()?;
-| _ec.push(if l >= r {1} else {0})
+| _ec.push(if l >= r { 1 } else { 0 })
 
 0x50      ,i64.eqz                       ,()
 0x51      ,i64.eq                        ,()

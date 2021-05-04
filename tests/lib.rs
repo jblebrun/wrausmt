@@ -4,6 +4,6 @@ mod meminstr32;
 mod meminstr64;
 mod memoffset;
 mod parse;
-mod spec_parse;
 mod parse_and_run;
+mod spec_parse;
 mod spec_runner;

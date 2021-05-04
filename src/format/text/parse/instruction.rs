@@ -1,12 +1,10 @@
+use super::Parser;
+use super::Result;
 use crate::format::text::parse::error::ParseError;
+use crate::format::text::token::Token;
 use crate::syntax::{self, Continuation, Expr, Index, Instruction, Unresolved};
 use crate::{instructions::instruction_by_name, instructions::Operands};
-use crate::format::text::token::Token;
-use super::Parser;
 use std::io::Read;
-use super::Result;
-
-
 
 impl<R: Read> Parser<R> {
     pub fn parse_instructions(&mut self) -> Result<Vec<Instruction<Unresolved>>> {
@@ -17,13 +15,13 @@ impl<R: Read> Parser<R> {
     fn try_plain_instruction(&mut self) -> Result<Option<Instruction<Unresolved>>> {
         let name = match self.peek_keyword()? {
             None => return Ok(None),
-            Some(kw) => kw
+            Some(kw) => kw,
         };
 
         // These mark the end of a block, so we should return none as a signal to the
         // caller.
         if matches!(name, "else" | "end") {
-            return Ok(None)
+            return Ok(None);
         }
 
         let instruction_data = instruction_by_name(&name);
@@ -53,19 +51,23 @@ impl<R: Read> Parser<R> {
                     Operands::I64 => syntax::Operands::I64(self.expect_number()? as u64),
                     Operands::F32 => syntax::Operands::F32(self.expect_number()? as f32),
                     Operands::F64 => syntax::Operands::F64(self.expect_number()? as f64),
-                    Operands::Memargs => { 
+                    Operands::Memargs => {
                         let align = self.try_align()?.unwrap_or(0);
-                        let offset = self.try_offset()?.unwrap_or(0); 
+                        let offset = self.try_offset()?.unwrap_or(0);
                         syntax::Operands::Memargs(align, offset)
-                    },
+                    }
                     Operands::Block => self.parse_plain_block(Continuation::End)?,
                     Operands::Loop => self.parse_plain_block(Continuation::Start)?,
                     Operands::If => self.parse_plain_if_operands()?,
-                    _ => panic!("Unimplemented operands type {:?}", data.operands)
+                    _ => panic!("Unimplemented operands type {:?}", data.operands),
                 };
-                Ok(Some(Instruction{name, opcode: data.opcode, operands}))
-            },
-            None => Ok(None)
+                Ok(Some(Instruction {
+                    name,
+                    opcode: data.opcode,
+                    operands,
+                }))
+            }
+            None => Ok(None),
         }
     }
 
@@ -75,39 +77,42 @@ impl<R: Read> Parser<R> {
         let typeuse = self.parse_type_use()?;
         let instr = self.parse_instructions()?;
         if self.take_keyword_if(|kw| kw == "end")?.is_none() {
-            return Err(ParseError::unexpected("block end"))
+            return Err(ParseError::unexpected("block end"));
         }
-        Ok(syntax::Operands::Block(label, typeuse, Expr{instr}, cnt))
+        Ok(syntax::Operands::Block(label, typeuse, Expr { instr }, cnt))
     }
 
     fn parse_plain_if_operands(&mut self) -> Result<syntax::Operands<Unresolved>> {
         let label = self.try_id()?;
 
         let typeuse = self.parse_type_use()?;
-                        
+
         let thengroup = self.parse_instructions()?;
 
         let elsegroup = match self.take_keyword_if(|kw| kw == "else")? {
-            Some(_) => {
-                self.parse_instructions()?
-            }
-            _ => vec![]
+            Some(_) => self.parse_instructions()?,
+            _ => vec![],
         };
 
         if self.take_keyword_if(|kw| kw == "end")?.is_none() {
-            return Err(ParseError::unexpected("end"))
+            return Err(ParseError::unexpected("end"));
         }
-                    
-        Ok(syntax::Operands::If(label, typeuse, Expr{instr: thengroup}, Expr{instr: elsegroup}))
+
+        Ok(syntax::Operands::If(
+            label,
+            typeuse,
+            Expr { instr: thengroup },
+            Expr { instr: elsegroup },
+        ))
     }
 
     fn try_align(&mut self) -> Result<Option<u32>> {
-        if let Some(kw)  = self.take_keyword_if(|kw| kw.starts_with("align="))? {
+        if let Some(kw) = self.take_keyword_if(|kw| kw.starts_with("align="))? {
             if let Some(idx) = kw.find('=') {
-                 let (_, valstr) = kw.split_at(idx + 1);
-                 if let Ok(val) = u32::from_str_radix(valstr, 10) {
-                     return Ok(Some(val))
-                 }
+                let (_, valstr) = kw.split_at(idx + 1);
+                if let Ok(val) = u32::from_str_radix(valstr, 10) {
+                    return Ok(Some(val));
+                }
             }
         }
 
@@ -115,12 +120,12 @@ impl<R: Read> Parser<R> {
     }
 
     fn try_offset(&mut self) -> Result<Option<u32>> {
-        if let Some(kw)  = self.take_keyword_if(|kw| kw.starts_with("offset="))? {
+        if let Some(kw) = self.take_keyword_if(|kw| kw.starts_with("offset="))? {
             if let Some(idx) = kw.find('=') {
-                 let (_, valstr) = kw.split_at(idx + 1);
-                 if let Ok(val) = u32::from_str_radix(valstr, 10) {
-                     return Ok(Some(val))
-                 }
+                let (_, valstr) = kw.split_at(idx + 1);
+                if let Ok(val) = u32::from_str_radix(valstr, 10) {
+                    return Ok(Some(val));
+                }
             }
         }
 
@@ -138,13 +143,22 @@ impl<R: Read> Parser<R> {
         ])
     }
 
-    fn parse_folded_block(&mut self, name: &str, opcode: u8, cnt: Continuation) -> Result<Instruction<Unresolved>> {
+    fn parse_folded_block(
+        &mut self,
+        name: &str,
+        opcode: u8,
+        cnt: Continuation,
+    ) -> Result<Instruction<Unresolved>> {
         let label = self.try_id()?;
         let typeuse = self.parse_type_use()?;
         let instr = self.parse_instructions()?;
         self.expect_close()?;
-        let operands = syntax::Operands::Block(label, typeuse, Expr{instr}, cnt);
-        Ok(Instruction{name: name.into(), opcode, operands})
+        let operands = syntax::Operands::Block(label, typeuse, Expr { instr }, cnt);
+        Ok(Instruction {
+            name: name.into(),
+            opcode,
+            operands,
+        })
     }
 
     fn parse_folded_if(&mut self) -> Result<Vec<Instruction<Unresolved>>> {
@@ -155,61 +169,74 @@ impl<R: Read> Parser<R> {
         let thexpr = if self.try_expr_start("then")? {
             let instr = self.zero_or_more_groups(Self::try_instruction)?;
             self.expect_close()?;
-            Expr{instr}
-        } else { 
-            return Err(ParseError::unexpected("then"))
+            Expr { instr }
+        } else {
+            return Err(ParseError::unexpected("then"));
         };
         let elexpr = if self.try_expr_start("else")? {
             let instr = self.zero_or_more_groups(Self::try_instruction)?;
             self.expect_close()?;
-            Expr{instr}
-        } else { Expr::default() };
+            Expr { instr }
+        } else {
+            Expr::default()
+        };
 
         self.expect_close()?;
         let operands = syntax::Operands::If(label, typeuse, thexpr, elexpr);
 
-        unfolded.push(Instruction{name: "if".into(), opcode: 0x02, operands});
+        unfolded.push(Instruction {
+            name: "if".into(),
+            opcode: 0x02,
+            operands,
+        });
 
         Ok(unfolded)
     }
 
     // (block <label> <bt <instr>*)
     // block <label> <bt> <instr>* end
-    // (loop <label> <bt> <instr>*) 
+    // (loop <label> <bt> <instr>*)
     // loop <label> <bt> <instr>* end
     // <folded>* if <label> <bt> <instr>* <else <instr*>>? end
     // (if <label> <bt> <folded>* (then <instr>*) (else <instr>*)?)
     fn try_folded_instruction(&mut self) -> Result<Option<Vec<Instruction<Unresolved>>>> {
         if self.current.token != Token::Open {
-            return Ok(None)
+            return Ok(None);
         }
 
         if matches!(self.peek_next_keyword()?, Some("then") | Some("else")) {
-            return Ok(None)
+            return Ok(None);
         }
 
         if self.try_expr_start("block")? {
-            return Ok(Some(vec![self.parse_folded_block("block", 0x02, Continuation::End)?]))
+            return Ok(Some(vec![self.parse_folded_block(
+                "block",
+                0x02,
+                Continuation::End,
+            )?]));
         }
-        
+
         if self.try_expr_start("loop")? {
-            return Ok(Some(vec![self.parse_folded_block("loop", 0x03, Continuation::Start)?]))
+            return Ok(Some(vec![self.parse_folded_block(
+                "loop",
+                0x03,
+                Continuation::Start,
+            )?]));
         }
 
         if self.try_expr_start("if")? {
-            return Ok(Some(self.parse_folded_if()?))
+            return Ok(Some(self.parse_folded_if()?));
         }
-        
+
         self.advance()?;
 
-         // First one must be plain
+        // First one must be plain
         let first = match self.try_plain_instruction()? {
             Some(instr) => instr,
-            None => return Ok(None)
+            None => return Ok(None),
         };
-        
-        let mut rest = self.zero_or_more_groups(Self::try_folded_instruction)?;
 
+        let mut rest = self.zero_or_more_groups(Self::try_folded_instruction)?;
 
         rest.push(first);
         self.expect_close()?;

@@ -20,9 +20,9 @@ mod mems;
 mod section;
 mod start;
 mod tables;
+mod tokenizer;
 mod types;
 mod values;
-mod tokenizer;
 
 use super::error::ParseError;
 use crate::{
@@ -78,7 +78,7 @@ fn parse_inner<R: Read>(reader: &mut R, module: &mut Module) -> Result<()> {
             Section::Data(d) => module.datas = d,
             Section::DataCount(c) => {
                 if module.datas.len() != c as usize {
-                    return err!("data count mismatch")
+                    return err!("data count mismatch");
                 }
             }
         }

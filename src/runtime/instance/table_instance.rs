@@ -21,11 +21,9 @@ pub struct TableInstance {
 
 impl TableInstance {
     pub fn new(tabletype: TableType) -> TableInstance {
-        let elem: Box<[Ref]> = 
-            std::iter::repeat(tabletype.reftype.default())
+        let elem: Box<[Ref]> = std::iter::repeat(tabletype.reftype.default())
             .take(tabletype.limits.lower as usize)
             .collect();
         TableInstance { tabletype, elem }
     }
 }
-

@@ -1,9 +1,14 @@
-use crate::format::text::{module_builder::ModuleBuilder, token::Token};
-use crate::syntax::{DataField, ElemField, ElemList, ExportDesc, ExportField, Expr, FParam, FResult, Field, FuncField, FunctionType, GlobalField, ImportDesc, ImportField, Index, IndexSpace, Local, MemoryField, ModeEntry, Module, Resolved, StartField, TableField, TypeField, TypeUse, Unresolved};
 use super::error::{ParseError, ParseErrorContext, Result};
 use super::Parser;
-use crate::types::{GlobalType, Limits, RefType, TableType};
+use crate::format::text::{module_builder::ModuleBuilder, token::Token};
+use crate::syntax::{
+    DataField, ElemField, ElemList, ExportDesc, ExportField, Expr, FParam, FResult, Field,
+    FuncField, FunctionType, GlobalField, ImportDesc, ImportField, Index, IndexSpace, Local,
+    MemoryField, ModeEntry, Module, Resolved, StartField, TableField, TypeField, TypeUse,
+    Unresolved,
+};
 use crate::types::MemType;
+use crate::types::{GlobalType, Limits, RefType, TableType};
 use std::{collections::HashMap, io::Read};
 
 // Implementation for module-specific parsing functions.
@@ -18,25 +23,28 @@ impl<R: Read> Parser<R> {
         self.try_module_rest()
     }
 
-    pub fn parse_full_module(&mut self) ->  Result<Module<Resolved>> {
+    pub fn parse_full_module(&mut self) -> Result<Module<Resolved>> {
         match self.try_module() {
             Ok(Some(m)) => {
                 if self.current.token != Token::Eof {
-                    return Err(self.with_context(ParseError::Incomplete))
+                    return Err(self.with_context(ParseError::Incomplete));
                 }
                 Ok(m)
             }
             Ok(None) => Err(self.with_context(ParseError::Eof)),
-            Err(e) => Err(self.with_context(e))
+            Err(e) => Err(self.with_context(e)),
         }
     }
 
     pub fn with_context(&self, err: ParseError) -> ParseError {
-        ParseError::WithContext(ParseErrorContext {
-            context: self.context.clone(),
-            current: self.current.clone(),
-            next: self.next.clone()
-        }, Box::new(err))
+        ParseError::WithContext(
+            ParseErrorContext {
+                context: self.context.clone(),
+                current: self.current.clone(),
+                next: self.next.clone(),
+            },
+            Box::new(err),
+        )
     }
 
     /// This is split away as a convenience for spec test parsing, so that we can
@@ -65,7 +73,7 @@ impl<R: Read> Parser<R> {
                 Field::Data(f) => module_builder.add_datafield(f),
             }
         }
-        
+
         self.expect_close()?;
 
         Ok(Some(module_builder.build()?))
@@ -105,16 +113,13 @@ impl<R: Read> Parser<R> {
         // Close (type
         self.expect_close()?;
 
-        Ok(Some(Field::Type(TypeField {
-            id,
-            functiontype
-        })))
+        Ok(Some(Field::Type(TypeField { id, functiontype })))
     }
 
     pub fn try_function_type(&mut self) -> Result<FunctionType> {
         Ok(FunctionType {
             params: self.zero_or_more_groups(Self::try_parse_fparam)?,
-            results: self.zero_or_more_groups(Self::try_parse_fresult)?
+            results: self.zero_or_more_groups(Self::try_parse_fresult)?,
         })
     }
 
@@ -148,22 +153,27 @@ impl<R: Read> Parser<R> {
         self.expect_close()?;
 
         let mut idx = 0;
-        let mut localindices = HashMap::default(); 
+        let mut localindices = HashMap::default();
         for p in &typeuse.functiontype.params {
             if let Some(id) = &p.id {
-               localindices.insert(id.to_owned(), idx);
+                localindices.insert(id.to_owned(), idx);
             }
             idx += 1;
         }
         for l in &locals {
             if let Some(id) = &l.id {
-               localindices.insert(id.to_owned(), idx);
+                localindices.insert(id.to_owned(), idx);
             }
             idx += 1;
         }
 
         Ok(Some(Field::Func(FuncField {
-            id, exports, typeuse, locals, body: Expr{instr}, localindices
+            id,
+            exports,
+            typeuse,
+            locals,
+            body: Expr { instr },
+            localindices,
         })))
     }
 
@@ -198,7 +208,7 @@ impl<R: Read> Parser<R> {
                 limits: Limits::default(),
                 reftype: RefType::Func,
             },
-            elems: None
+            elems: None,
         })))
     }
 
@@ -211,7 +221,7 @@ impl<R: Read> Parser<R> {
             id: None,
             exports: vec![],
             memtype: MemType::default(),
-            init: vec![]
+            init: vec![],
         })))
     }
 
@@ -295,10 +305,7 @@ impl<R: Read> Parser<R> {
 
         self.expect_close()?;
 
-        Ok(Some(Field::Export(ExportField {
-            name,
-            exportdesc,
-        })))
+        Ok(Some(Field::Export(ExportField { name, exportdesc })))
     }
 
     fn expect_exportdesc(&mut self) -> Result<ExportDesc<Unresolved>> {
@@ -338,12 +345,12 @@ impl<R: Read> Parser<R> {
 
         if let Some(import) = import {
             self.expect_close()?;
-            return Ok(Some(Field::Import(ImportField{
+            return Ok(Some(Field::Import(ImportField {
                 id,
                 modname: import.0,
                 name: import.1,
-                desc: ImportDesc::Global(globaltype)
-            })))
+                desc: ImportDesc::Global(globaltype),
+            })));
         }
 
         let init = self.parse_instructions()?;
@@ -353,7 +360,7 @@ impl<R: Read> Parser<R> {
             id,
             exports,
             globaltype,
-            init: Expr {instr:init}
+            init: Expr { instr: init },
         })))
     }
 
@@ -412,7 +419,7 @@ impl<R: Read> Parser<R> {
 
         Ok(TypeUse {
             typeidx,
-            functiontype
+            functiontype,
         })
     }
 
@@ -500,7 +507,7 @@ impl<R: Read> Parser<R> {
     }
 
     // parse an index usage. It can be either a number or a named identifier.
-    pub fn try_index<I:IndexSpace>(&mut self) -> Result<Option<Index<Unresolved, I>>> {
+    pub fn try_index<I: IndexSpace>(&mut self) -> Result<Option<Index<Unresolved, I>>> {
         if let Some(id) = self.try_id()? {
             return Ok(Some(Index::named(id, 0)));
         }
@@ -512,7 +519,8 @@ impl<R: Read> Parser<R> {
         Ok(None)
     }
 
-    pub fn expect_index<I:IndexSpace>(&mut self) -> Result<Index<Unresolved, I>> {
-        self.try_index()?.ok_or_else(|| ParseError::unexpected("index"))
+    pub fn expect_index<I: IndexSpace>(&mut self) -> Result<Index<Unresolved, I>> {
+        self.try_index()?
+            .ok_or_else(|| ParseError::unexpected("index"))
     }
 }

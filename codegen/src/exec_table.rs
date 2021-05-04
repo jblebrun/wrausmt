@@ -1,7 +1,7 @@
 //! Methods for emitting the table of execution functions.
+use super::Instruction;
 use std::collections::HashMap;
 use std::io::{Result, Write};
-use super::Instruction;
 
 pub trait EmitExecTable: Write + std::fmt::Debug {
     /// Emit the file containing the lookup table array. It generates an array with 256 entries,
@@ -19,24 +19,23 @@ pub trait EmitExecTable: Write + std::fmt::Debug {
     }
 }
 
-impl <W : Write + std::fmt::Debug> EmitExecTable for W {}
+impl<W: Write + std::fmt::Debug> EmitExecTable for W {}
 
 /// Emit one time in the lookup table. If the item is [None], the `bad` method will be used, which
 /// should be implemented by the target module. Instructions with en empty body emit `unimpl` as a
 /// helpful reminder to the developer.
 fn exec_table_item(inst: Option<&Instruction>) -> String {
     match inst {
-        None => "  bad,\n".into(),
-        Some(i) if i.body.is_empty() => "  unimpl,\n".into(),
-        Some(i) => format!("  instructions::{}_exec,\n", i.typename)
+        None => "    bad,\n".into(),
+        Some(i) if i.body.is_empty() => "    unimpl,\n".into(),
+        Some(i) => format!("    instructions::{}_exec,\n", i.typename),
     }
 }
 
-pub static EXEC_TABLE_HEADER: &str = &"
-use crate::instructions::ExecFn;
-use crate::instructions::unimpl;
+pub static EXEC_TABLE_HEADER: &str = &"use super::instructions;
 use crate::instructions::bad;
-use super::instructions;
+use crate::instructions::unimpl;
+use crate::instructions::ExecFn;
 
 pub static EXEC_TABLE: &[ExecFn] = &[
 ";

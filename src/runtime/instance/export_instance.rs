@@ -1,5 +1,5 @@
-use crate::runtime::store::addr;
 use crate::module;
+use crate::runtime::store::addr;
 
 use super::ModuleInstance;
 
@@ -38,11 +38,19 @@ impl ExportInstance {
         ExportInstance {
             name: e.name,
             addr: match e.desc {
-                    module::ExportDesc::Func(idx) => ExternalVal::Func(idx + module_instance.func_offset),
-                    module::ExportDesc::Table(idx) => ExternalVal::Table(idx + module_instance.table_offset),
-                    module::ExportDesc::Memory(idx) => ExternalVal::Memory(idx + module_instance.mem_offset),
-                    module::ExportDesc::Global(idx) => ExternalVal::Global(idx + module_instance.global_offset),
-            }
+                module::ExportDesc::Func(idx) => {
+                    ExternalVal::Func(idx + module_instance.func_offset)
+                }
+                module::ExportDesc::Table(idx) => {
+                    ExternalVal::Table(idx + module_instance.table_offset)
+                }
+                module::ExportDesc::Memory(idx) => {
+                    ExternalVal::Memory(idx + module_instance.mem_offset)
+                }
+                module::ExportDesc::Global(idx) => {
+                    ExternalVal::Global(idx + module_instance.global_offset)
+                }
+            },
         }
     }
 }

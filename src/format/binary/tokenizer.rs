@@ -5,12 +5,15 @@ use std::io::Read;
 #[derive(Debug)]
 pub struct Tokenizer<R> {
     inner: R,
-    location: Location
+    location: Location,
 }
 
-impl <R> Tokenizer<R> {
+impl<R> Tokenizer<R> {
     pub fn new(r: R) -> Self {
-        Tokenizer { inner: r, location: Location::default() }
+        Tokenizer {
+            inner: r,
+            location: Location::default(),
+        }
     }
 
     pub fn location(&self) -> Location {
@@ -25,4 +28,3 @@ impl<R: Read> Read for Tokenizer<R> {
         Ok(cnt)
     }
 }
-

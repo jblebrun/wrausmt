@@ -1,24 +1,19 @@
-#[cfg(test)] 
+#[cfg(test)]
 mod test {
-    use crate::format::text::token::{Sign, Token};
     use crate::format::text::lex::num::maybe_number;
-
+    use crate::format::text::token::{Sign, Token};
 
     macro_rules! check {
-        ( $s:expr, $t:expr ) => {
-            {
-                println!("Checking {}", $s);
-                let result = maybe_number(&$s.to_string()).unwrap();
-                assert_eq!(result, $t);
-            }
-        };
-        ( $s:expr ) => {
-            {
-                println!("Checking {}", $s);
-                let result = maybe_number(&$s.to_string());
-                assert!(result == None);
-            }
-        }
+        ( $s:expr, $t:expr ) => {{
+            println!("Checking {}", $s);
+            let result = maybe_number(&$s.to_string()).unwrap();
+            assert_eq!(result, $t);
+        }};
+        ( $s:expr ) => {{
+            println!("Checking {}", $s);
+            let result = maybe_number(&$s.to_string());
+            assert!(result == None);
+        }};
     }
 
     #[test]
@@ -42,8 +37,8 @@ mod test {
         check!("+0x7FFFFFFFFFFFFFFF", Token::Signed(i64::MAX));
         check!("+9223372036854775807", Token::Signed(i64::MAX));
 
-        check!("-0x7FFFFFFFFFFFFFFF", Token::Signed(i64::MIN+1));
-        check!("-9223372036854775807", Token::Signed(i64::MIN+1));
+        check!("-0x7FFFFFFFFFFFFFFF", Token::Signed(i64::MIN + 1));
+        check!("-9223372036854775807", Token::Signed(i64::MIN + 1));
 
         check!("-0x8000000000000000", Token::Signed(i64::MIN));
         check!("-9223372036854775808", Token::Signed(i64::MIN));
@@ -62,9 +57,12 @@ mod test {
         check!("-0.1", Token::Float(-0.1));
         check!("10.6e5", Token::Float(10.6e5));
         check!("10.6e-5", Token::Float(10.6e-5));
-        check!("892734987398473897410.6e-5", Token::Float(892734987398473897410.6e-5));
         check!(
-            "892734987398473897410.656756785675678e-5", 
+            "892734987398473897410.6e-5",
+            Token::Float(892734987398473897410.6e-5)
+        );
+        check!(
+            "892734987398473897410.656756785675678e-5",
             Token::Float(892734987398473897410.656756785675678e-5)
         );
         // check!("0xFF.FF", Token::Float(0.1));

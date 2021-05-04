@@ -1,9 +1,12 @@
-use super::{values::Value, values::Ref, Runtime};
-use crate::{error::{Error, Result, ResultFrom}, runtime::stack::Label};
-use std::{convert::TryFrom, convert::TryInto};
+use super::{values::Ref, values::Value, Runtime};
+use crate::err;
 use crate::instructions::exec_method;
 use crate::runtime::instance::MemInstance;
-use crate::err;
+use crate::{
+    error::{Error, Result, ResultFrom},
+    runtime::stack::Label,
+};
+use std::{convert::TryFrom, convert::TryInto};
 
 pub struct ExecutionContext<'l> {
     runtime: &'l mut Runtime,
@@ -22,14 +25,12 @@ macro_rules! get_mem {
             let o = self.op_u32()?;
             let b = self.pop::<u32>()?;
             let i = (b + o) as usize;
-            let db: [u8; $s] = self.mem(0)?
-                .data[i..i+$s]
-                .try_into().wrap("to array")?;
+            let db: [u8; $s] = self.mem(0)?.data[i..i + $s].try_into().wrap("to array")?;
             println!("GET {} BYTES {:?} {}", $s, db, stringify!($t));
             let val = <$t>::from_le_bytes(db);
             Ok(val)
         }
-    }
+    };
 }
 
 macro_rules! set_mem {
@@ -38,19 +39,19 @@ macro_rules! set_mem {
             let _a = self.op_u32()?;
             let o = self.op_u32()?;
             let val = self.pop::<$t>()? as $st;
-            println!("SETTING {:?}",val);
+            println!("SETTING {:?}", val);
             let b = self.pop::<u32>()?;
             let bs = val.to_le_bytes();
             let i = (o + b) as usize;
             let m = self.mem(0)?;
-            if i+$s > m.data.len() {
+            if i + $s > m.data.len() {
                 // TODO better error -> trap
                 return err!("out of bounds {} {}", i, $s);
             }
-            m.data[i..i+$s].clone_from_slice(&bs);
+            m.data[i..i + $s].clone_from_slice(&bs);
             Ok(())
         }
-    }
+    };
 }
 
 pub trait ExecutionContextActions {
@@ -98,10 +99,8 @@ pub trait ExecutionContextActions {
     set_mem! { set_mem_f64, f64, f64, 8 }
 }
 
-
-
-impl <'l> ExecutionContextActions for ExecutionContext<'l> {
-    fn next_byte(&mut self) -> u8{
+impl<'l> ExecutionContextActions for ExecutionContext<'l> {
+    fn next_byte(&mut self) -> u8 {
         self.body[self.pc]
     }
 
@@ -128,7 +127,7 @@ impl <'l> ExecutionContextActions for ExecutionContext<'l> {
     fn mem(&mut self, idx: u32) -> Result<&mut MemInstance> {
         self.runtime.store.mem(idx)
     }
-    
+
     fn br(&mut self, labelidx: u32) -> Result<()> {
         let label = self.runtime.stack.get_label(labelidx)?;
         println!("FOUND LABEL {:?}", label);
@@ -137,16 +136,21 @@ impl <'l> ExecutionContextActions for ExecutionContext<'l> {
     }
 
     fn get_global(&mut self, idx: u32) -> Result<Value> {
-        self.runtime.store.global(self.runtime.stack.get_global_addr(idx)?)
+        self.runtime
+            .store
+            .global(self.runtime.stack.get_global_addr(idx)?)
     }
 
     fn push_value(&mut self, val: Value) -> Result<()> {
         self.runtime.stack.push_value(val);
         Ok(())
     }
-    
+
     fn push_label(&mut self, arity: u32, continuation: u32) -> Result<()> {
-        let label = Label{arity, continuation};
+        let label = Label {
+            arity,
+            continuation,
+        };
         println!("PUSH LABEL {:?}", label);
         self.runtime.stack.push_label(label)?;
         Ok(())
@@ -171,7 +175,8 @@ impl <'l> ExecutionContextActions for ExecutionContext<'l> {
     }
 
     fn call(&mut self, idx: u32) -> Result<()> {
-        self.runtime.invoke(self.runtime.stack.get_function_addr(idx)?)
+        self.runtime
+            .invoke(self.runtime.stack.get_function_addr(idx)?)
     }
 }
 
@@ -190,7 +195,7 @@ impl<'l> ExecutionContext<'l> {
 
 /// Implementation of instruction implementation for this runtime.
 impl Runtime {
-    pub fn enter(&mut self, body: &[u8])-> Result<()> {
+    pub fn enter(&mut self, body: &[u8]) -> Result<()> {
         let mut ic = ExecutionContext {
             runtime: self,
             body,
@@ -200,17 +205,23 @@ impl Runtime {
     }
 
     pub fn eval_expr(&mut self, body: &[u8]) -> Result<Value> {
-        self.stack.push_label(Label{arity: 1, continuation: body.len() as u32-1})?;
+        self.stack.push_label(Label {
+            arity: 1,
+            continuation: body.len() as u32 - 1,
+        })?;
         self.enter(body)?;
         self.stack.pop_value()
     }
 
     pub fn eval_ref_expr(&mut self, body: &[u8]) -> Result<Ref> {
-        self.stack.push_label(Label{arity: 1, continuation: body.len() as u32-1})?;
+        self.stack.push_label(Label {
+            arity: 1,
+            continuation: body.len() as u32 - 1,
+        })?;
         self.enter(body)?;
         match self.stack.pop_value()? {
             Value::Ref(r) => Ok(r),
-            _ => err!("non-ref result for expression")
+            _ => err!("non-ref result for expression"),
         }
     }
 }

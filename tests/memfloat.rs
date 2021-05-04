@@ -1,7 +1,7 @@
-use wrausmt::runtime::Runtime;
-use wrausmt::runner;
-use wrausmt::loader::Loader;
 use std::convert::TryInto;
+use wrausmt::loader::Loader;
+use wrausmt::runner;
+use wrausmt::runtime::Runtime;
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
@@ -22,6 +22,6 @@ fn memfloat() -> Result<()> {
     let mut res1 = exec_method!("get64_f", 0)?;
     let v1: f64 = res1.remove(0).try_into()?;
     assert_eq!(v1, c2);
-    
+
     Ok(())
 }

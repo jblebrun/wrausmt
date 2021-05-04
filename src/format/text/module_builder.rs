@@ -1,8 +1,11 @@
 use std::collections::HashMap;
 
 use super::resolve::{IdentifierContext, Resolve, Result};
-use crate::syntax::{DataField, ElemField, ExportDesc, ExportField, Expr, FuncField, FunctionType, GlobalField, ImportDesc, ImportField, Index, MemoryField, Module, Operands, Resolved, StartField, TableField, TypeField, TypeUse, Unresolved};
-
+use crate::syntax::{
+    DataField, ElemField, ExportDesc, ExportField, Expr, FuncField, FunctionType, GlobalField,
+    ImportDesc, ImportField, Index, MemoryField, Module, Operands, Resolved, StartField,
+    TableField, TypeField, TypeUse, Unresolved,
+};
 
 #[derive(Clone, Default, Debug, PartialEq)]
 pub struct ModuleIdentifiers {
@@ -62,17 +65,21 @@ impl ModuleBuilder {
     }
 
     pub fn add_inline_typeuse(&mut self, functiontype: FunctionType) -> u32 {
-        let existing = self.module.types.iter().position(|t| t.functiontype == functiontype);
+        let existing = self
+            .module
+            .types
+            .iter()
+            .position(|t| t.functiontype == functiontype);
         match existing {
             None => {
-            let idx = self.module.types.len();
-            self.module.types.push(TypeField {
-                id: None,
-                functiontype,
-            });
-            idx as u32
-            } 
-            Some(idx) => idx as u32
+                let idx = self.module.types.len();
+                self.module.types.push(TypeField {
+                    id: None,
+                    functiontype,
+                });
+                idx as u32
+            }
+            Some(idx) => idx as u32,
         }
     }
 
@@ -100,7 +107,7 @@ impl ModuleBuilder {
                     self.resolve_func_body_typeuse(th);
                     self.resolve_func_body_typeuse(el);
                 }
-                _ => ()
+                _ => (),
             };
         }
     }
@@ -115,7 +122,7 @@ impl ModuleBuilder {
 
         // Resolve call_indirect type usages
         self.resolve_func_body_typeuse(&mut f.body);
-        
+
         add_ident!(self, f, funcindices, funcs, self.funcidx_offset);
 
         // export field may define new exports.
@@ -162,7 +169,7 @@ impl ModuleBuilder {
     pub fn add_importfield(&mut self, f: ImportField<Unresolved>) {
         let mut f = f;
         if let ImportDesc::Func(ref mut tu) = &mut f.desc {
-             self.resolve_typeuse(tu);
+            self.resolve_typeuse(tu);
         }
 
         // Imports contribute to index counts in their corresponding

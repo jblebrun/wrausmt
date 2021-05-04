@@ -1,6 +1,6 @@
 use super::error::Result;
-use std::io::Read;
 use super::Parser;
+use std::io::Read;
 
 type ParseFn<S, T> = fn(&mut S) -> Result<Option<T>>;
 type ParseGroupFn<S, T> = fn(&mut S) -> Result<Option<Vec<T>>>;
@@ -32,9 +32,9 @@ impl<R: Read> Parser<R> {
     /// The parse method should return 0 or more of the item type.
     /// Accepts an existing Vec of T, which it will extend.
     pub fn zero_or_more_groups_extend<T>(
-        &mut self, 
-        parse: ParseGroupFn<Self, T>, 
-        result: &mut Vec<T>
+        &mut self,
+        parse: ParseGroupFn<Self, T>,
+        result: &mut Vec<T>,
     ) -> Result<()> {
         while let Some(t) = parse(self)? {
             result.extend(t);
@@ -42,9 +42,9 @@ impl<R: Read> Parser<R> {
         Ok(())
     }
 
-    /// Returns the first successful parse result from the provided list of 
+    /// Returns the first successful parse result from the provided list of
     /// parse methods, otherwise none.
-    pub fn first_of<T>(&mut self, parsers: &[ParseFn<Self,T>]) -> Result<Option<T>> {
+    pub fn first_of<T>(&mut self, parsers: &[ParseFn<Self, T>]) -> Result<Option<T>> {
         for parse in parsers {
             match parse(self) {
                 Err(e) => return Err(e),

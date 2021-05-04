@@ -2,7 +2,7 @@
 /// resolved into the proper numeric values. This needs to happen in a second pass after the
 /// initial parse, since index usage may occur before the index has been defined.
 ///
-pub trait ResolvedState : std::fmt::Debug {}
+pub trait ResolvedState: std::fmt::Debug {}
 
 /// A module parameterized by the [Resolved] type will have undergone index resolution, and should
 /// be safe to compile further.

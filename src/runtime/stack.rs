@@ -1,5 +1,5 @@
-use super::{instance::FunctionInstance, store::addr, values::Value};
 use super::ModuleInstance;
+use super::{instance::FunctionInstance, store::addr, values::Value};
 use crate::error;
 use crate::error::Result;
 use std::rc::Rc;
@@ -74,26 +74,26 @@ impl Stack {
 
     pub fn push_activation(&mut self, funcinst: &FunctionInstance) -> Result<()> {
         let frame_start = self.value_stack.len() - funcinst.functype.params.len();
-        // 8. Let val0* be the list of zero values (other locals). 
+        // 8. Let val0* be the list of zero values (other locals).
         for localtype in funcinst.locals.iter() {
             self.push_value(localtype.default());
         }
         println!("FRAME START: {}", frame_start);
         self.activation_stack.push(ActivationFrame {
-                arity: funcinst.functype.result.len() as u32,
-                local_start: frame_start,
-                module: funcinst.module_instance()?,
-                label_stack: vec![]
+            arity: funcinst.functype.result.len() as u32,
+            local_start: frame_start,
+            module: funcinst.module_instance()?,
+            label_stack: vec![],
         });
         Ok(())
     }
 
     pub fn push_dummy_activation(&mut self, modinst: Rc<ModuleInstance>) -> Result<()> {
-        self.activation_stack.push(ActivationFrame{
-                arity: 0,
-                local_start: self.value_stack.len(),
-                module: modinst,
-                label_stack: vec![]
+        self.activation_stack.push(ActivationFrame {
+            arity: 0,
+            local_start: self.value_stack.len(),
+            module: modinst,
+            label_stack: vec![],
         });
         Ok(())
     }
@@ -110,18 +110,19 @@ impl Stack {
     }
 
     pub fn pop_activation(&mut self) -> Result<()> {
-        let frame = self.activation_stack
+        let frame = self
+            .activation_stack
             .pop()
             .ok_or_else(|| error!("activation stack underflow"))?;
 
         // Move the results to the new top of the stack.
         for i in 0..frame.arity as usize {
-            self.value_stack[frame.local_start+i] = 
-                self.value_stack[self.value_stack.len()-i-1];
+            self.value_stack[frame.local_start + i] =
+                self.value_stack[self.value_stack.len() - i - 1];
         }
 
         // Pop the rest of the frame.
-        // We originally had params + locals. 
+        // We originally had params + locals.
         // At the end, there were also results. We moved the results to the bottom.
         // Now we just need to truncate away the params/locals.
         let truncated_size = frame.local_start + frame.arity as usize;
@@ -129,10 +130,13 @@ impl Stack {
         Ok(())
     }
 
-    pub fn activation_depth(&self) -> usize { self.activation_stack.len() }
+    pub fn activation_depth(&self) -> usize {
+        self.activation_stack.len()
+    }
 
     pub fn peek_label(&self) -> Result<&Label> {
-        self.label_stack()?.last()
+        self.label_stack()?
+            .last()
             .ok_or_else(|| error!("label stack underflow"))
     }
 
@@ -164,7 +168,7 @@ impl Stack {
     pub fn get_function_addr(&self, idx: u32) -> Result<addr::FuncAddr> {
         Ok(self.peek_activation()?.module.func_offset + idx)
     }
-    
+
     // Get the global address for the provided index in the current activation.
     pub fn get_global_addr(&self, idx: u32) -> Result<addr::GlobalAddr> {
         Ok(self.peek_activation()?.module.global_offset + idx)

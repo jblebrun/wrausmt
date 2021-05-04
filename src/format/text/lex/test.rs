@@ -1,4 +1,4 @@
-use super::super::token::{FileToken, Token, Sign};
+use super::super::token::{FileToken, Sign, Token};
 use super::Tokenizer;
 use crate::format::text::lex::error::{Result, WithContext};
 

@@ -55,7 +55,7 @@ impl RefType {
     pub fn default(&self) -> Ref {
         match &self {
             RefType::Func => Ref::Func(0),
-            RefType::Extern => Ref::Extern(0)
+            RefType::Extern => Ref::Extern(0),
         }
     }
 }

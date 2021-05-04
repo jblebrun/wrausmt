@@ -1,4 +1,4 @@
-pub trait CharChecks { 
+pub trait CharChecks {
     fn is_whitespace(&self) -> bool;
     fn is_keyword_start(&self) -> bool;
     fn is_idchar(&self) -> bool;

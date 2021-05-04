@@ -5,9 +5,16 @@
 mod indices;
 
 use crate::types::{GlobalType, MemType, RefType, TableType, ValueType};
-use std::{collections::HashMap, fmt::{self, Debug}, marker::PhantomData};
+pub use indices::{
+    DataIndex, ElemIndex, FuncIndex, GlobalIndex, IndexSpace, LabelIndex, LocalIndex, MemoryIndex,
+    TableIndex, TypeIndex,
+};
 pub use indices::{Resolved, ResolvedState, Unresolved};
-pub use indices::{IndexSpace, FuncIndex, TypeIndex, TableIndex, GlobalIndex, MemoryIndex, DataIndex, ElemIndex, LocalIndex, LabelIndex};
+use std::{
+    collections::HashMap,
+    fmt::{self, Debug},
+    marker::PhantomData,
+};
 
 /// Represents one index usage point. It may be named ($id) or numeric. [Spec]
 ///
@@ -17,29 +24,33 @@ pub use indices::{IndexSpace, FuncIndex, TypeIndex, TableIndex, GlobalIndex, Mem
 ///
 /// [Spec]: https://webassembly.github.io/spec/core/text/modules.html#indices
 #[derive(Clone, Default, PartialEq)]
-pub struct Index<R:ResolvedState, S:IndexSpace> {
+pub struct Index<R: ResolvedState, S: IndexSpace> {
     name: String,
     value: u32,
     resolvedmarker: PhantomData<R>,
     indexmarker: PhantomData<S>,
 }
 
-impl <S:IndexSpace> From<Index<Resolved, S>> for u32  {
+impl<S: IndexSpace> From<Index<Resolved, S>> for u32 {
     fn from(idx: Index<Resolved, S>) -> u32 {
         idx.value()
     }
 }
 
-impl <R:ResolvedState, S:IndexSpace> Index<R, S> {
-    pub fn name(&self) -> &str { &self.name }
-    pub fn value(&self) -> u32 { self.value }
+impl<R: ResolvedState, S: IndexSpace> Index<R, S> {
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+    pub fn value(&self) -> u32 {
+        self.value
+    }
 
     pub fn named(name: String, value: u32) -> Self {
         Index {
-            name, 
+            name,
             value,
             resolvedmarker: PhantomData::default(),
-            indexmarker: PhantomData::default()
+            indexmarker: PhantomData::default(),
         }
     }
     pub fn unnamed(value: u32) -> Self {
@@ -49,14 +60,14 @@ impl <R:ResolvedState, S:IndexSpace> Index<R, S> {
     pub fn resolved(self, value: u32) -> Index<Resolved, S> {
         Index {
             name: self.name,
-            value, 
-            resolvedmarker: PhantomData{},
-            indexmarker: PhantomData{}
+            value,
+            resolvedmarker: PhantomData {},
+            indexmarker: PhantomData {},
         }
     }
 }
 
-impl <R:ResolvedState, S:IndexSpace> fmt::Debug for Index<R, S> {
+impl<R: ResolvedState, S: IndexSpace> fmt::Debug for Index<R, S> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}, {}", self.name, self.value)
     }
@@ -66,7 +77,7 @@ impl <R:ResolvedState, S:IndexSpace> fmt::Debug for Index<R, S> {
 /// A parsed text format module. [Spec]
 ///
 /// [Spec]: https://webassembly.github.io/spec/core/text/modules.html#modules
-pub struct Module<R:ResolvedState> {
+pub struct Module<R: ResolvedState> {
     pub id: Option<String>,
     pub types: Vec<TypeField>,
     pub funcs: Vec<FuncField<R>>,
@@ -80,7 +91,7 @@ pub struct Module<R:ResolvedState> {
     pub data: Vec<DataField<R>>,
 }
 
-impl <I: ResolvedState> fmt::Debug for Module<I> {
+impl<I: ResolvedState> fmt::Debug for Module<I> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "(module")?;
         macro_rules! print_all {
@@ -88,7 +99,7 @@ impl <I: ResolvedState> fmt::Debug for Module<I> {
                 for i in $v {
                     write!(f, "\n{:?}", i)?;
                 }
-            }
+            };
         }
         if let Some(id) = &self.id {
             write!(f, "{:?}", id)?;
@@ -112,7 +123,7 @@ impl <I: ResolvedState> fmt::Debug for Module<I> {
 }
 
 #[derive(Debug, PartialEq)]
-pub enum Field<R:ResolvedState> {
+pub enum Field<R: ResolvedState> {
     Type(TypeField),
     Func(FuncField<R>),
     Table(TableField<R>),
@@ -128,14 +139,19 @@ pub enum Field<R:ResolvedState> {
 #[derive(PartialEq, Clone, Default)]
 pub struct FunctionType {
     pub params: Vec<FParam>,
-    pub results: Vec<FResult>
+    pub results: Vec<FResult>,
 }
 
 impl FunctionType {
     pub fn anonymous(&self) -> FunctionType {
         FunctionType {
-            params: self.params.iter()
-                .map(|p| FParam{id:None, valuetype:p.valuetype})
+            params: self
+                .params
+                .iter()
+                .map(|p| FParam {
+                    id: None,
+                    valuetype: p.valuetype,
+                })
                 .collect(),
             results: self.results.clone(),
         }
@@ -147,7 +163,7 @@ impl std::fmt::Debug for FunctionType {
         for param in &self.params {
             write!(f, " {:?}", param)?;
         }
-        
+
         for result in &self.results {
             write!(f, " {:?}", result)?;
         }
@@ -158,16 +174,16 @@ impl std::fmt::Debug for FunctionType {
 /// A [Resolved] TypeUse has not just its index name resolved, but also provides a guarantee
 /// that the index value stored corresponds to a type use in this module.
 #[derive(PartialEq, Clone, Default)]
-pub struct TypeUse<R:ResolvedState> {
+pub struct TypeUse<R: ResolvedState> {
     pub typeidx: Option<Index<R, TypeIndex>>,
-    pub functiontype: FunctionType
+    pub functiontype: FunctionType,
 }
 
-impl <R:ResolvedState> TypeUse<R> {
+impl<R: ResolvedState> TypeUse<R> {
     pub fn get_inline_def(&self) -> Option<FunctionType> {
         match self.typeidx {
             Some(_) => None,
-            None => Some(self.functiontype.anonymous())
+            None => Some(self.functiontype.anonymous()),
         }
     }
 }
@@ -176,12 +192,12 @@ impl TypeUse<Resolved> {
     pub fn index_value(&self) -> u32 {
         match &self.typeidx {
             Some(idx) => idx.value(),
-            None => panic!("improperly resolved typeuse (compiler error)")
+            None => panic!("improperly resolved typeuse (compiler error)"),
         }
     }
 }
 
-impl <R:ResolvedState> std::fmt::Debug for TypeUse<R> {
+impl<R: ResolvedState> std::fmt::Debug for TypeUse<R> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if let Some(typeidx) = &self.typeidx {
             write!(f, "(type {:?})", typeidx)?;
@@ -202,7 +218,7 @@ impl std::fmt::Debug for FParam {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self.id {
             Some(id) => write!(f, "(param {} {:?})", id, self.valuetype),
-            None => write!(f, "(param {:?})", self.valuetype)
+            None => write!(f, "(param {:?})", self.valuetype),
         }
     }
 }
@@ -224,7 +240,7 @@ impl std::fmt::Debug for FResult {
 #[derive(PartialEq, Default)]
 pub struct TypeField {
     pub id: Option<String>,
-    pub functiontype: FunctionType
+    pub functiontype: FunctionType,
 }
 
 impl std::fmt::Debug for TypeField {
@@ -237,7 +253,7 @@ impl std::fmt::Debug for TypeField {
         write!(f, " (func")?;
 
         write!(f, " {:?}", self.functiontype)?;
-        
+
         write!(f, "))")
     }
 }
@@ -258,7 +274,7 @@ pub struct FuncField<R: ResolvedState> {
     pub localindices: HashMap<String, u32>,
 }
 
-impl <R:ResolvedState> std::fmt::Debug for FuncField<R> {
+impl<R: ResolvedState> std::fmt::Debug for FuncField<R> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "(func")?;
 
@@ -269,7 +285,7 @@ impl <R:ResolvedState> std::fmt::Debug for FuncField<R> {
         for export in &self.exports {
             write!(f, " (export {})", export)?;
         }
-        
+
         write!(f, " {:?}", self.typeuse)?;
 
         for local in &self.locals {
@@ -284,20 +300,20 @@ impl <R:ResolvedState> std::fmt::Debug for FuncField<R> {
 #[derive(PartialEq)]
 pub struct Local {
     pub id: Option<String>,
-    pub valtype: ValueType
+    pub valtype: ValueType,
 }
 
 impl std::fmt::Debug for Local {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self.id {
             Some(id) => write!(f, "(local {} {:?})", id, self.valtype),
-            None => write!(f, "(local {:?})", self.valtype)
+            None => write!(f, "(local {:?})", self.valtype),
         }
     }
 }
 
 #[derive(Debug, PartialEq)]
-pub enum TableElems<R:ResolvedState> {
+pub enum TableElems<R: ResolvedState> {
     Elem(ElemList<R>),
     Expr(Vec<Expr<R>>),
 }
@@ -307,11 +323,11 @@ pub enum TableElems<R:ResolvedState> {
 // Abbreviations:
 // inline imports/exports
 // inline elem
-pub struct TableField<R:ResolvedState> {
+pub struct TableField<R: ResolvedState> {
     pub id: Option<String>,
     pub exports: Vec<String>,
     pub tabletype: TableType,
-    pub elems: Option<TableElems<R>>
+    pub elems: Option<TableElems<R>>,
 }
 
 // memory := (memory id? <memtype>)
@@ -324,29 +340,29 @@ pub struct MemoryField {
     pub id: Option<String>,
     pub exports: Vec<String>,
     pub memtype: MemType,
-    pub init: Vec<u8>
+    pub init: Vec<u8>,
 }
 
 // global := (global <id>? <globaltype> <expr>)
 #[derive(PartialEq)]
-pub struct GlobalField<R:ResolvedState> {
+pub struct GlobalField<R: ResolvedState> {
     pub id: Option<String>,
     pub exports: Vec<String>,
     pub globaltype: GlobalType,
     pub init: Expr<R>,
 }
 
-impl <R:ResolvedState> fmt::Debug for GlobalField<R> {
+impl<R: ResolvedState> fmt::Debug for GlobalField<R> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self.id {
             Some(id) => write!(f, "(global {:?} {:?} {:?})", id, self.globaltype, self.init),
-            None => write!(f, "(global {:?} {:?})", self.globaltype, self.init)
+            None => write!(f, "(global {:?} {:?})", self.globaltype, self.init),
         }
     }
 }
 
 #[derive(Debug, PartialEq)]
-pub enum ImportDesc<R:ResolvedState> {
+pub enum ImportDesc<R: ResolvedState> {
     Func(TypeUse<R>),
     Table(TableType),
     Mem(MemType),
@@ -354,26 +370,30 @@ pub enum ImportDesc<R:ResolvedState> {
 }
 
 #[derive(PartialEq)]
-pub struct ImportField<R:ResolvedState> {
+pub struct ImportField<R: ResolvedState> {
     pub modname: String,
     pub name: String,
     pub id: Option<String>,
-    pub desc: ImportDesc<R>
+    pub desc: ImportDesc<R>,
 }
 
-impl <R:ResolvedState> fmt::Debug for ImportField<R> {
+impl<R: ResolvedState> fmt::Debug for ImportField<R> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "(import")?;
         if let Some(id) = &self.id {
             write!(f, " {}", id)?;
         }
-        write!(f, " \"{}\" \"{}\" {:?})", self.modname, self.name, self.desc)
+        write!(
+            f,
+            " \"{}\" \"{}\" {:?})",
+            self.modname, self.name, self.desc
+        )
     }
 }
 
 #[derive(Debug, PartialEq)]
 #[allow(dead_code)]
-pub enum ExportDesc<R:ResolvedState> {
+pub enum ExportDesc<R: ResolvedState> {
     Func(Index<R, FuncIndex>),
     Table(Index<R, TableIndex>),
     Mem(Index<R, MemoryIndex>),
@@ -382,46 +402,46 @@ pub enum ExportDesc<R:ResolvedState> {
 
 // export := (export <name> <exportdesc>)
 #[derive(PartialEq)]
-pub struct ExportField<R:ResolvedState> {
+pub struct ExportField<R: ResolvedState> {
     pub name: String,
-    pub exportdesc: ExportDesc<R>
+    pub exportdesc: ExportDesc<R>,
 }
 
-impl <R:ResolvedState> fmt::Debug for ExportField<R> {
+impl<R: ResolvedState> fmt::Debug for ExportField<R> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "(export {} {:?})", self.name, self.exportdesc)
     }
 }
 
 #[derive(Default, PartialEq)]
-pub struct Expr<R:ResolvedState> {
-    pub instr: Vec<Instruction<R>>
+pub struct Expr<R: ResolvedState> {
+    pub instr: Vec<Instruction<R>>,
 }
 
-impl <R:ResolvedState> fmt::Debug for Expr<R> {
+impl<R: ResolvedState> fmt::Debug for Expr<R> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for i in &self.instr {
-            writeln!(f, "{:?}", i)?; 
+            writeln!(f, "{:?}", i)?;
         }
         Ok(())
     }
 }
 
 #[derive(PartialEq)]
-pub struct Instruction<R:ResolvedState> {
+pub struct Instruction<R: ResolvedState> {
     pub name: String,
     pub opcode: u8,
-    pub operands: Operands<R>
+    pub operands: Operands<R>,
 }
 
 #[derive(PartialEq, Debug)]
 pub enum Continuation {
     Start,
-    End
+    End,
 }
 
 #[derive(PartialEq, Debug)]
-pub enum Operands<R:ResolvedState> {
+pub enum Operands<R: ResolvedState> {
     None,
     CallIndirect(Index<R, TableIndex>, TypeUse<R>),
     Block(Option<String>, TypeUse<R>, Expr<R>, Continuation),
@@ -438,10 +458,10 @@ pub enum Operands<R:ResolvedState> {
     I32(u32),
     I64(u64),
     F32(f32),
-    F64(f64)
+    F64(f64),
 }
 
-impl <R:ResolvedState> std::fmt::Display for Operands<R> {
+impl<R: ResolvedState> std::fmt::Display for Operands<R> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Operands::Block(id, ft, e, cnt) => {
@@ -455,13 +475,12 @@ impl <R:ResolvedState> std::fmt::Display for Operands<R> {
                 writeln!(f, "  (else {:?})", el)?;
                 write!(f, ")")
             }
-            o => write!(f, "{:?}", o)
-            
+            o => write!(f, "{:?}", o),
         }
     }
 }
 
-impl <R:ResolvedState> std::fmt::Debug for Instruction<R> {
+impl<R: ResolvedState> std::fmt::Debug for Instruction<R> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "({}({:#x}) {})", self.name, self.opcode, self.operands)
     }
@@ -469,49 +488,49 @@ impl <R:ResolvedState> std::fmt::Debug for Instruction<R> {
 
 // start := (start <funcidx>)
 #[derive(Debug, PartialEq)]
-pub struct StartField<R:ResolvedState> {
-    pub idx: Index<R, FuncIndex>
+pub struct StartField<R: ResolvedState> {
+    pub idx: Index<R, FuncIndex>,
 }
 
 #[derive(Debug, PartialEq)]
-pub struct TableUse<R:ResolvedState> {
-    pub tableidx: Index<R, TableIndex>
+pub struct TableUse<R: ResolvedState> {
+    pub tableidx: Index<R, TableIndex>,
 }
 
 #[derive(Debug, PartialEq)]
-pub struct TablePosition<R:ResolvedState> {
+pub struct TablePosition<R: ResolvedState> {
     pub tableuse: TableUse<R>,
-    pub offset: Expr<R>
+    pub offset: Expr<R>,
 }
 
 #[derive(Debug, PartialEq)]
-pub struct ElemList<R:ResolvedState> {
+pub struct ElemList<R: ResolvedState> {
     pub reftype: RefType,
-    pub items: Vec<Expr<R>>
+    pub items: Vec<Expr<R>>,
 }
 
 #[derive(Debug, PartialEq)]
 #[allow(dead_code)]
-pub enum ModeEntry<R:ResolvedState> {
+pub enum ModeEntry<R: ResolvedState> {
     Passive,
     Active(TablePosition<R>),
-    Declarative
+    Declarative,
 }
 
 // elem := (elem <id>? <elemlist>)
 //       | (elem <id>? <tableuse> (offset <expr>) <elemlist>)
 //       | (elem <id>? declare <elemlist>)
 #[derive(Debug, PartialEq)]
-pub struct ElemField<R:ResolvedState> {
+pub struct ElemField<R: ResolvedState> {
     pub id: Option<String>,
     pub mode: ModeEntry<R>,
     pub elemlist: ElemList<R>,
 }
 
 #[derive(Debug, PartialEq)]
-pub struct DataInit<R:ResolvedState> {
+pub struct DataInit<R: ResolvedState> {
     pub memidx: Index<R, DataIndex>,
-    pub offset: Expr<R>
+    pub offset: Expr<R>,
 }
 
 // data := (data id? <datastring>)
@@ -519,8 +538,8 @@ pub struct DataInit<R:ResolvedState> {
 // datastring := bytestring
 // memuse := (memory <memidx>)
 #[derive(Debug, PartialEq)]
-pub struct DataField<R:ResolvedState> {
+pub struct DataField<R: ResolvedState> {
     pub id: Option<String>,
     pub data: Vec<u8>,
-    pub init: Option<DataInit<R>>
+    pub init: Option<DataInit<R>>,
 }

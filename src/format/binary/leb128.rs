@@ -9,10 +9,14 @@ fn validate_final_byte(result: &[u8], size: usize, signed: bool) -> Result<()> {
     let remainder_mask = 0xFF << overflow_bit_count;
 
     let signbit = result.last().unwrap() & 0x40 == 0x40;
-    let expect = if signed && signbit { remainder_mask & 0x7f } else { 0x00 };
+    let expect = if signed && signbit {
+        remainder_mask & 0x7f
+    } else {
+        0x00
+    };
 
     let last = result.last().unwrap();
-    if last  & remainder_mask != expect {
+    if last & remainder_mask != expect {
         err!("value overflows requested size in final byte: {}", last)
     } else {
         Ok(())
@@ -44,8 +48,8 @@ fn read_leb_128_bytes<R: Read + ?Sized>(r: &mut R, size: usize, signed: bool) ->
             }
 
             sign_extend(&mut result, size, signed);
- 
-            return Ok(result)
+
+            return Ok(result);
         }
     }
 
@@ -53,7 +57,7 @@ fn read_leb_128_bytes<R: Read + ?Sized>(r: &mut R, size: usize, signed: bool) ->
 }
 
 // Generalized converter for both signed & unsigned LEB128 of any size.
-// This does not handle size verification or signing, those are handled 
+// This does not handle size verification or signing, those are handled
 // in read_leb_128_bytes.
 fn parse_leb_128(buf: &[u8]) -> u64 {
     buf.iter().rev().fold(0, |acc, i| (acc << 7) | *i as u64)

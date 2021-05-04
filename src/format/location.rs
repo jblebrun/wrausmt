@@ -1,9 +1,8 @@
-
-/// The location of a token in a source file, represented as a `line` and `pos` (column). 
+/// The location of a token in a source file, represented as a `line` and `pos` (column).
 #[derive(Debug, Default, PartialEq, Clone, Copy)]
 pub struct Location {
     line: u32,
-    pos: u32
+    pos: u32,
 }
 
 impl Location {
