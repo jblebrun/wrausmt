@@ -78,6 +78,8 @@ impl Loader for Runtime {
         let ast = load_ast(filename)?;
     
         let module = compile(ast);
+
+        println!("MODULE {:#?}", module);
     
         let mod_inst = self.load(module)?;
         Ok(mod_inst)
