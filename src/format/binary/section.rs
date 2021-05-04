@@ -6,7 +6,7 @@ use super::{
 };
 use crate::{
     error::{Result, ResultFrom},
-    module::Section,
+    syntax,
 };
 use std::io::Read;
 
@@ -83,3 +83,22 @@ pub trait SectionReader: ReadWasmValues + ReadCode {
 }
 
 impl<R: ReadWasmValues + ReadCode> SectionReader for R {}
+
+#[derive(Debug)]
+pub enum Section {
+    Eof,
+    Skip,
+    Custom(Box<[u8]>),
+    Types(Vec<syntax::TypeField>),
+    Imports(Vec<syntax::ImportField<syntax::Resolved>>),
+    Funcs(Vec<syntax::Index<syntax::Resolved, syntax::TypeIndex>>),
+    Tables(Vec<syntax::TableField<syntax::Resolved>>),
+    Mems(Vec<syntax::MemoryField>),
+    Globals(Vec<syntax::GlobalField<syntax::Resolved>>),
+    Exports(Vec<syntax::ExportField<syntax::Resolved>>),
+    Start(syntax::StartField<syntax::Resolved>),
+    Elems(Vec<syntax::ElemField<syntax::Resolved>>),
+    Code(Vec<syntax::FuncField<syntax::Resolved>>),
+    Data(Vec<syntax::DataField<syntax::Resolved>>),
+    DataCount(u32),
+}

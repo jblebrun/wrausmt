@@ -8,17 +8,15 @@ pub mod values;
 use crate::{
     err,
     error::{Result, ResultFrom},
-    module::Module,
-    syntax::{self, Resolved},
+    format::text::compile::{compile_function_body, Emitter},
+    syntax::{self, FuncField, Resolved},
+    types::ValueType,
 };
-use std::rc::Rc;
-
-use self::instance::GlobalInstance;
+use std::{cell::RefCell, rc::Rc};
 
 use {
     instance::{
-        ElemInstance, ExportInstance, ExternalVal, FunctionInstance, MemInstance, ModuleInstance,
-        TableInstance,
+        ExportInstance, ExternalVal, FunctionInstance, GlobalInstance, MemInstance, ModuleInstance,
     },
     stack::{Label, Stack},
     store::addr,
@@ -42,25 +40,28 @@ impl Runtime {
     }
 
     /// The load method allocates and instantiates the provided [Module].
-    pub fn load(&mut self, module: Module) -> Result<Rc<ModuleInstance>> {
-        // TODO Resolve imports
-        for import in module.imports.iter() {
-            println!("NEED TO RESOLVE {}:{}", import.module_name, import.name);
-        }
-        self.instantiate(module)
-    }
-
-    /// The load method allocates and instantiates the provided [Module].
-    pub fn load_ast(&mut self, module: syntax::Module<Resolved>) -> Result<Rc<ModuleInstance>> {
+    pub fn load(&mut self, module: syntax::Module<Resolved>) -> Result<Rc<ModuleInstance>> {
         // TODO Resolve imports
         for import in module.imports.iter() {
             println!("NEED TO RESOLVE {}:{}", import.modname, import.name);
         }
-        self.instantiate_ast(module)
+        self.instantiate(module)
     }
 
-    #[allow(clippy::unnecessary_wraps)]
-    fn instantiate_ast(&mut self, module: syntax::Module<Resolved>) -> Result<Rc<ModuleInstance>> {
+    /// Instantiate a function from the provided FuncField and module instance.
+    fn instantiate_function(f: FuncField<Resolved>, modinst: &ModuleInstance) -> FunctionInstance {
+        let functype = modinst.types[f.typeuse.index_value() as usize].clone();
+        let locals: Box<[ValueType]> = f.locals.iter().map(|l| l.valtype).collect();
+        let body = compile_function_body(&f);
+        FunctionInstance {
+            functype,
+            module_instance: RefCell::new(None),
+            locals,
+            body,
+        }
+    }
+
+    fn instantiate(&mut self, module: syntax::Module<Resolved>) -> Result<Rc<ModuleInstance>> {
         let mut module_instance = ModuleInstance {
             types: module
                 .types
@@ -72,65 +73,22 @@ impl Runtime {
 
         // (Alloc 2.) Allocate functions
         // https://webassembly.github.io/spec/core/exec/modules.html#functions
-        let new_func_inst = |f| Rc::new(FunctionInstance::new_ast(f, &module_instance.types));
-        // We hold onto these so we can update the module instance at the end.
-        let func_insts: Vec<Rc<FunctionInstance>> =
-            module.funcs.into_iter().map(new_func_inst).collect();
-        let (func_count, func_offset) = self.store.alloc_funcs(func_insts.iter().cloned());
-        module_instance.func_count = func_count;
-        module_instance.func_offset = func_offset;
-
-        module_instance.exports = module.exports.into_iter().map(|e| e.into()).collect();
-
-        let rcinst = Rc::new(module_instance);
-
-        // As noted in the specification for module allocation: functions are defined before the
-        // final [ModuleInstance] is available, so now we pass the completed instance to the store
-        // so it can update the value.
-        for f in func_insts {
-            f.module_instance.replace(Some(rcinst.clone()));
-        }
-
-        Ok(rcinst)
-    }
-
-    /// Instntiation (and allocation) of the provided module, roughly following the
-    /// specification. Allocation and instantiation are described as two independent
-    /// [Allocation](https://webassembly.github.io/spec/core/exec/modules.html#alloc-module)
-    /// [Instantiation](https://webassembly.github.io/spec/core/exec/modules.html#instantiate-module)
-    fn instantiate(&mut self, module: Module) -> Result<Rc<ModuleInstance>> {
-        // (Instantiate 1-4.) TODO Validate module
-
-        let mut module_instance = ModuleInstance {
-            types: module.types,
-            ..ModuleInstance::default()
-        };
-
-        // (Alloc 2.) Allocate functions
-        // https://webassembly.github.io/spec/core/exec/modules.html#functions
-        let new_func_inst = |f| Rc::new(FunctionInstance::new(f, &module_instance.types));
         // We hold onto these so we can update the module instance at the end.
         let func_insts: Vec<Rc<FunctionInstance>> = module
             .funcs
-            .into_vec()
             .into_iter()
-            .map(new_func_inst)
+            .map(|f| Self::instantiate_function(f, &module_instance))
+            .map(Rc::new)
             .collect();
         let (func_count, func_offset) = self.store.alloc_funcs(func_insts.iter().cloned());
         module_instance.func_count = func_count;
         module_instance.func_offset = func_offset;
 
-        // (Alloc 3.) Allocate tables
-        let table_insts = module.tables.into_vec().into_iter().map(TableInstance::new);
-        let (count, offset) = self.store.alloc_tables(table_insts);
-        module_instance.table_count = count;
-        module_instance.table_offset = offset;
-
-        // (Alloc 4.) Allocate mem
-        let mem_insts = module.mems.into_vec().into_iter().map(MemInstance::new);
+        let mem_insts = module.memories.into_iter().map(MemInstance::new_ast);
         let (count, offset) = self.store.alloc_mems(mem_insts);
         module_instance.mem_count = count;
         module_instance.mem_offset = offset;
+        module_instance.exports = module.exports.into_iter().map(|e| e.into()).collect();
 
         // (Instantiation 5-10.) Generate global and elem init values
         // (Instantiation 5.) Create the module instance for global initialization
@@ -144,9 +102,12 @@ impl Runtime {
             .globals
             .iter()
             .map(|g| {
-                let val = self.eval_expr(&g.init)?;
+                println!("COMPILE GLOBAL INIT EXPR {:x?}", g.init);
+                let mut initexpr: Vec<u8> = Vec::new();
+                initexpr.emit_expr(&g.init);
+                let val = self.eval_expr(&initexpr).wrap("initializing global")?;
                 Ok(GlobalInstance {
-                    typ: g.typ.valtype,
+                    typ: g.globaltype.valtype,
                     val,
                 })
             })
@@ -155,45 +116,7 @@ impl Runtime {
         module_instance.global_count = count;
         module_instance.global_offset = offset;
 
-        // (Instantian 9.) Get elem init vals
-        let elem_insts: Vec<ElemInstance> = module
-            .elems
-            .iter()
-            .map(|e| {
-                let elems = e
-                    .init
-                    .iter()
-                    .map(|ei| self.eval_ref_expr(&ei))
-                    .collect::<Result<_>>()?;
-                Ok(ElemInstance {
-                    elemtype: e.typ,
-                    elems,
-                })
-            })
-            .collect::<Result<_>>()?;
-        let (count, offset) = self.store.alloc_elems(elem_insts.into_iter());
-        module_instance.elem_count = count;
-        module_instance.elem_offset = offset;
-
         self.stack.pop_activation()?;
-
-        // (Alloc 5.) Globals
-
-        // (Alloc 6.) Elements
-
-        // (Alloc 7.) Data
-
-        // (Alloc 18.) Allocate exports.
-        let new_export_inst = |e| ExportInstance::new(e, &module_instance);
-        let exports = module
-            .exports
-            .into_vec()
-            .into_iter()
-            .map(new_export_inst)
-            .collect();
-
-        // (Alloc 19) Collect exports
-        module_instance.exports = exports;
 
         let rcinst = Rc::new(module_instance);
 

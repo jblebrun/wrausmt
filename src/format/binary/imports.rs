@@ -2,7 +2,7 @@ use super::values::ReadWasmValues;
 use crate::{
     err,
     error::{Result, ResultFrom},
-    module::{Import, ImportDesc},
+    syntax::{ImportDesc, ImportField, Resolved},
 };
 
 /// A trait to allow parsing of an imports section from something implementing
@@ -16,17 +16,18 @@ pub trait ReadImports: ReadWasmValues {
     /// 0x01 (table) tt:tabletype
     /// 0x02 (memory) mt:memorytype
     /// 0x03 (global) gt:globaltype
-    fn read_imports_section(&mut self) -> Result<Box<[Import]>> {
+    fn read_imports_section(&mut self) -> Result<Vec<ImportField<Resolved>>> {
         self.read_vec(|_, s| {
-            Ok(Import {
-                module_name: s.read_name().wrap("parsing module name")?,
+            Ok(ImportField {
+                id: None,
+                modname: s.read_name().wrap("parsing module name")?,
                 name: s.read_name().wrap("parsing name")?,
                 desc: {
                     let kind = s.read_byte().wrap("parsing kind")?;
                     match kind {
-                        0 => ImportDesc::Func(s.read_u32_leb_128().wrap("parsing func")?),
+                        0 => ImportDesc::Func(s.read_type_use().wrap("parsing func")?),
                         1 => ImportDesc::Table(s.read_table_type().wrap("parsing table")?),
-                        2 => ImportDesc::Memory(s.read_memory_type().wrap("parsing memory")?),
+                        2 => ImportDesc::Mem(s.read_memory_type().wrap("parsing memory")?),
                         3 => ImportDesc::Global(s.read_global_type().wrap("parsing global")?),
                         _ => return err!("unknown import desc {}", kind),
                     }

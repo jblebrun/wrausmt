@@ -186,7 +186,7 @@ impl<R: Read> Parser<R> {
 
         unfolded.push(Instruction {
             name: "if".into(),
-            opcode: 0x02,
+            opcode: 0x04,
             operands,
         });
 

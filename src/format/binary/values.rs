@@ -2,7 +2,8 @@ use super::leb128::ReadLeb128;
 use crate::{
     err,
     error::{Error, Result, ResultFrom},
-    types::{GlobalType, Limits, MemType, NumType, RefType, ResultType, TableType, ValueType},
+    syntax::{FParam, FResult, FunctionType, Index, IndexSpace, Resolved, TypeUse},
+    types::{GlobalType, Limits, MemType, NumType, RefType, TableType, ValueType},
 };
 use std::convert::TryFrom;
 
@@ -71,7 +72,7 @@ pub trait ReadWasmValues: ReadLeb128 + Sized {
         RefType::try_from(self.read_byte().wrap("fetching ref type")?)
     }
 
-    fn read_vec<T, F>(&mut self, f: F) -> Result<Box<[T]>>
+    fn read_vec<T, F>(&mut self, f: F) -> Result<Vec<T>>
     where
         Self: Sized,
         F: Fn(u32, &mut Self) -> Result<T>,
@@ -80,7 +81,37 @@ pub trait ReadWasmValues: ReadLeb128 + Sized {
         (0..item_count).map(|i| f(i, self)).collect()
     }
 
-    fn read_result_type(&mut self) -> Result<Box<ResultType>> {
+    fn read_index_use<IS: IndexSpace>(&mut self) -> Result<Index<Resolved, IS>> {
+        Ok(Index::unnamed(self.read_u32_leb_128()?))
+    }
+
+    fn read_type_use(&mut self) -> Result<TypeUse<Resolved>> {
+        Ok(TypeUse {
+            typeidx: Some(self.read_index_use()?),
+            functiontype: FunctionType::default(),
+        })
+    }
+
+    fn read_fparam(&mut self) -> Result<Vec<FParam>> {
+        Ok(self
+            .read_result_type()?
+            .into_iter()
+            .map(|vt| FParam {
+                id: None,
+                valuetype: vt,
+            })
+            .collect())
+    }
+
+    fn read_fresult(&mut self) -> Result<Vec<FResult>> {
+        Ok(self
+            .read_result_type()?
+            .into_iter()
+            .map(|vt| FResult { valuetype: vt })
+            .collect())
+    }
+
+    fn read_result_type(&mut self) -> Result<Vec<ValueType>> {
         self.read_vec(|_, s| s.read_value_type())
     }
 

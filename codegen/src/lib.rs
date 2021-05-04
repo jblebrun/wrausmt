@@ -68,7 +68,11 @@ fn read_instruction_list(file: &str) -> io::Result<HashMap<u32, Instruction>> {
         // most recently described above in the file. So just add this text to the
         // body for the current instruction.
         if let Some(stripped_code_line) = line.strip_prefix('|') {
-            let formatted_code_line = format!("   {}\n", stripped_code_line);
+            let formatted_code_line = if stripped_code_line.is_empty() {
+                "".to_owned()
+            } else {
+                format!("   {}\n", stripped_code_line)
+            };
             curinst.body += &formatted_code_line;
             continue;
         }

@@ -1,10 +1,11 @@
-use crate::syntax::{self, Resolved};
+use crate::syntax::{self, Expr, Resolved, TypeUse};
 use crate::{
     runtime::instance::{ExportInstance, ExternalVal},
     types::{FunctionType, ValueType},
 };
 
 const END_OPCODE: u8 = 0xb;
+const ELSE_OPCODE: u8 = 0x5;
 
 impl From<syntax::FunctionType> for FunctionType {
     fn from(ast: syntax::FunctionType) -> FunctionType {
@@ -41,12 +42,15 @@ impl From<syntax::ExportField<Resolved>> for ExportInstance {
     }
 }
 
-trait Emitter {
+pub trait Emitter {
     fn emit32(&mut self, v: u32);
     fn emit64(&mut self, v: u64);
+    fn splice8(&mut self, idx: usize, v: u8);
     fn splice32(&mut self, idx: usize, v: u32);
     fn len(&self) -> usize;
     fn push(&mut self, b: u8);
+
+    fn is_empty(&self) -> bool;
 
     fn emit_block(
         &mut self,
@@ -87,6 +91,30 @@ trait Emitter {
         }
     }
 
+    fn emit_if(&mut self, typeuse: &TypeUse<Resolved>, th: &Expr<Resolved>, el: &Expr<Resolved>) {
+        let self_arity = typeuse.functiontype.results.len();
+        // For now: ignoring param types
+        self.emit32(self_arity as u32);
+
+        // Store the space for end continuation
+        let end_location = self.len();
+        self.emit32(0x00);
+
+        // Store the space for else continuation
+        let else_location = self.len();
+        self.emit32(0x00);
+
+        self.emit_expr(th);
+
+        self.splice32(else_location, self.len() as u32);
+        if !el.instr.is_empty() {
+            // Replace the `end` for the then expression with the else opcode.
+            self.splice8(self.len() - 1, ELSE_OPCODE);
+            self.emit_expr(el);
+        }
+        self.splice32(end_location, self.len() as u32 - 1);
+    }
+
     fn emit_expr(&mut self, expr: &syntax::Expr<Resolved>) {
         for instr in &expr.instr {
             // Emit opcode
@@ -98,6 +126,7 @@ trait Emitter {
                 syntax::Operands::None => (),
                 syntax::Operands::Block(_, typeuse, e, cnt) => self.emit_block(typeuse, e, cnt),
                 syntax::Operands::BrTable(indices) => self.emit_br_table(indices),
+                syntax::Operands::If(_, typeuse, th, el) => self.emit_if(typeuse, th, el),
                 syntax::Operands::I32(n) => self.emit32(*n),
                 syntax::Operands::I64(n) => self.emit64(*n),
                 syntax::Operands::F32(n) => self.emit32(*n as u32),
@@ -109,6 +138,10 @@ trait Emitter {
                 syntax::Operands::DataIndex(idx) => self.emit32(idx.value()),
                 syntax::Operands::LocalIndex(idx) => self.emit32(idx.value()),
                 syntax::Operands::LabelIndex(idx) => self.emit32(idx.value()),
+                syntax::Operands::Memargs(o, a) => {
+                    self.emit32(*o);
+                    self.emit32(*a)
+                }
                 _ => panic!("Not yet implemented in compiler: {:?}", instr),
             }
         }
@@ -127,6 +160,10 @@ impl Emitter for Vec<u8> {
         self.splice(idx..idx + 4, bytes.iter().cloned());
     }
 
+    fn splice8(&mut self, idx: usize, v: u8) {
+        self[idx] = v;
+    }
+
     fn emit64(&mut self, v: u64) {
         let bytes = &v.to_le_bytes()[..];
         self.extend(bytes);
@@ -135,8 +172,13 @@ impl Emitter for Vec<u8> {
     fn push(&mut self, b: u8) {
         self.push(b)
     }
+
     fn len(&self) -> usize {
         self.len()
+    }
+
+    fn is_empty(&self) -> bool {
+        self.is_empty()
     }
 }
 

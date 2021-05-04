@@ -35,7 +35,6 @@ fn keyword_or_reserved(idchars: String) -> Token {
 }
 
 impl<R: Read> Tokenizer<R> {
-    #[allow(dead_code)]
     pub fn new(r: R) -> Result<Tokenizer<R>> {
         let mut tokenizer = Tokenizer {
             inner: r,

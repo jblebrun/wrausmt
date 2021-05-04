@@ -1,13 +1,14 @@
 use super::{ensure_consumed::EnsureConsumed, values::ReadWasmValues};
-use crate::instructions::instruction_data;
 use crate::{
     err,
     error::{Result, ResultFrom},
-    instructions::*,
-    module::Function,
-    types::ValueType,
+    instructions::{instruction_data, Operands},
+    syntax::{self, Continuation, Expr, FuncField, Instruction, Local, Resolved, TypeUse},
 };
-use std::io::{Read, Write};
+use std::{
+    collections::HashMap,
+    io::{Read, Write},
+};
 
 /// Read the Code section of a binary module.
 /// codesec := section vec(code)
@@ -16,25 +17,28 @@ use std::io::{Read, Write};
 /// locals := n:u32 t:type
 /// expr := (instr)*
 pub trait ReadCode: ReadWasmValues {
-    fn read_code_section(&mut self) -> Result<Box<[Function]>> {
+    fn read_code_section(&mut self) -> Result<Vec<FuncField<Resolved>>> {
         self.read_vec(|_, s| s.read_func().wrap("reading func"))
     }
 
-    fn read_vec_exprs(&mut self) -> Result<Box<[Box<Expr>]>> {
+    fn read_vec_exprs(&mut self) -> Result<Vec<Expr<Resolved>>> {
         self.read_vec(|_, s| s.read_expr().wrap("reading expr"))
     }
 
     /// code := size:u32 code:func
     /// func := (t*)*:vec(locals) e:expr
     /// The size is the size in bytes of the entire section, locals + exprs
-    fn read_func(&mut self) -> Result<Function> {
+    fn read_func(&mut self) -> Result<FuncField<Resolved>> {
         let codesize = self.read_u32_leb_128().wrap("parsing func")?;
         let mut code_reader = self.take(codesize as u64);
-        let function = Function {
+        let function = FuncField {
+            id: None,
+            exports: vec![],
             // The types are parsed earlier and will be set on the returned values.
-            functype: 0,
+            typeuse: TypeUse::default(),
             locals: code_reader.read_locals().wrap("parsing locals")?,
             body: code_reader.read_expr().wrap("parsing code")?,
+            localindices: HashMap::default(),
         };
         code_reader.ensure_consumed()?;
         Ok(function)
@@ -42,18 +46,21 @@ pub trait ReadCode: ReadWasmValues {
 
     /// Read the locals description for the function.
     /// locals := n:u32 t:type
-    fn read_locals(&mut self) -> Result<Box<[ValueType]>> {
+    fn read_locals(&mut self) -> Result<Vec<Local>> {
         let items = self.read_u32_leb_128().wrap("parsing item count")?;
-        let mut result: Vec<ValueType> = vec![];
+        let mut result: Vec<Local> = vec![];
 
         for _ in 0..items {
             let reps = self.read_u32_leb_128().wrap("parsing type rep")?;
             let val = self.read_value_type().wrap("parsing value type")?;
             for _ in 0..reps {
-                result.push(val);
+                result.push(Local {
+                    id: None,
+                    valtype: val,
+                });
             }
         }
-        Ok(result.into_boxed_slice())
+        Ok(result)
     }
 
     /// Read the instructions from one function in the code section.
@@ -61,20 +68,19 @@ pub trait ReadCode: ReadWasmValues {
     /// same structure that it has in the binary module ,but with LEB128 numbers
     /// converted to little-endian format.
     /// expr := (instr)* 0x0B
-    fn read_expr(&mut self) -> Result<Box<[u8]>> {
-        let mut result: Vec<u8> = vec![];
-        let mut depth = 1;
-        while depth > 0 {
-            depth += self.read_inst(&mut result).wrap("read inst byte")?
+    fn read_expr(&mut self) -> Result<Expr<Resolved>> {
+        let mut result = Expr::default();
+        while let Some(inst) = self.read_inst()? {
+            result.instr.push(inst);
         }
-        Ok(result.into_boxed_slice())
+        Ok(result)
     }
 
     /// Returns -1 if EOF or end instruction was reached while parsing an opcode.
     /// Returns 1 if a new block was started
     /// Returns 0 if a normal instruction was parsed.
     /// Returns Err result otherwise.
-    fn read_inst<W: Write>(&mut self, out: &mut W) -> Result<i8> {
+    fn read_inst(&mut self) -> Result<Option<Instruction<Resolved>>> {
         let mut opcode_buf = [0u8; 1];
         self.read_exact(&mut opcode_buf).wrap("parsing opcode")?;
 
@@ -88,42 +94,47 @@ pub trait ReadCode: ReadWasmValues {
             opcode_buf[0]
         };
 
-        // Assume success, write out the opcode. Validation occurs later.
-        out.write(&opcode_buf).wrap("writing opcode")?;
-
         let instruction_data = instruction_data(opcode)?;
 
-        // Ending block, decrease depth
+        // End of expression.
         if opcode == 0x0B {
-            return Ok(-1);
+            return Ok(None);
         }
 
         // Handle any additional behavior
-        #[allow(non_upper_case_globals)]
-        match instruction_data.operands {
-            Operands::None => (),
-            Operands::FuncIndex
-            | Operands::LocalIndex
-            | Operands::GlobalIndex
-            | Operands::TableIndex
-            | Operands::MemIndex
-            | Operands::Br
-            | Operands::I32
-            | Operands::Block
-            | Operands::HeapType => self.read_u32_arg(out)?,
+        let operands = match instruction_data.operands {
+            Operands::None => syntax::Operands::None,
+            Operands::FuncIndex => syntax::Operands::FuncIndex(self.read_index_use()?),
+            Operands::LocalIndex => syntax::Operands::FuncIndex(self.read_index_use()?),
+            Operands::GlobalIndex => syntax::Operands::FuncIndex(self.read_index_use()?),
+            Operands::TableIndex => syntax::Operands::FuncIndex(self.read_index_use()?),
+            Operands::MemIndex => syntax::Operands::FuncIndex(self.read_index_use()?),
+            Operands::Br => syntax::Operands::LabelIndex(self.read_index_use()?),
+            Operands::I32 => syntax::Operands::I32(self.read_u32_leb_128()?),
             Operands::Memargs => {
-                self.read_u32_arg(out)?;
-                self.read_u32_arg(out)?
+                syntax::Operands::Memargs(self.read_u32_leb_128()?, self.read_u32_leb_128()?)
             }
             Operands::MemorySize
             | Operands::MemoryGrow
             | Operands::MemoryInit
             | Operands::MemoryFill => {
                 self.read_byte()?;
+                syntax::Operands::None
             }
             Operands::MemoryCopy => {
                 self.read_byte()?;
                 self.read_byte()?;
+                syntax::Operands::None
+            }
+            Operands::Block => {
+                let bt = self.read_type_use()?;
+                let expr = self.read_expr()?;
+                syntax::Operands::Block(None, bt, expr, Continuation::End)
+            }
+            Operands::Loop => {
+                let bt = self.read_type_use()?;
+                let expr = self.read_expr()?;
+                syntax::Operands::Block(None, bt, expr, Continuation::Start)
             }
             _ => {
                 return err!(
@@ -134,11 +145,11 @@ pub trait ReadCode: ReadWasmValues {
             }
         };
 
-        if matches!(opcode, 0x02 | 0x03 | 0x04) {
-            Ok(1)
-        } else {
-            Ok(0)
-        }
+        Ok(Some(Instruction {
+            name: "".to_owned(),
+            opcode,
+            operands,
+        }))
     }
 
     /// Clarity method: use to read a single LEB128 argument for an instruction.
@@ -160,43 +171,3 @@ pub trait ReadCode: ReadWasmValues {
 }
 
 impl<I: ReadWasmValues> ReadCode for I {}
-
-#[cfg(test)]
-mod test {
-    use super::ReadCode;
-    use crate::error::Result;
-
-    #[test]
-    fn read_expr() -> Result<()> {
-        let data: &[u8] = &[0x6au8, 0x68, 0x6a, 0x68, 0x0B, 0xE0, 0xE1, 0xE2];
-        let mut reader = data;
-        let expr = reader.read_expr()?;
-        assert_eq!(*expr, data[0..5]);
-        Ok(())
-    }
-
-    #[test]
-    fn read_expr_nested() -> Result<()> {
-        let data: &[u8] = &[
-            0x6au8, 0x02, 0x40, 0x68, 0x6a, 0x68, 0x0B, 0x0B, 0xE0, 0xE1, 0xE2,
-        ];
-        let expect: &[u8] = &[
-            0x6au8, 0x02, 0x40, 0x00, 0x00, 0x00, 0x68, 0x6a, 0x68, 0x0B, 0x0B,
-        ];
-        let mut reader = data;
-        let expr = reader.read_expr()?;
-        assert_eq!(*expr, *expect);
-        Ok(())
-    }
-
-    #[test]
-    fn read_expr_early_eof() -> Result<()> {
-        let data: &[u8] = &[0x6au8, 0x02, 0x40, 0x68, 0x6a, 0x68, 0x0B, 0x97, 0x98, 0x99];
-        let mut reader = data;
-        match reader.read_expr() {
-            Ok(e) => panic!("expected error, read back {:?}", e),
-            Err(e) => assert!(format!("{:?}", e).contains("read inst byte")),
-        }
-        Ok(())
-    }
-}

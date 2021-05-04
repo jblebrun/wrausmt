@@ -72,6 +72,7 @@ pub trait ExecutionContextActions {
     fn mem(&mut self, idx: u32) -> Result<&mut MemInstance>;
 
     fn br(&mut self, labelidx: u32) -> Result<()>;
+    fn continuation(&mut self, cnt: u32) -> Result<()>;
 
     get_mem! { get_mem_i32, u32, 4 }
     get_mem! { get_mem_i32_8s, i8, 1 }
@@ -135,6 +136,19 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
         Ok(())
     }
 
+    fn continuation(&mut self, cnt: u32) -> Result<()> {
+        self.pc = cnt as usize;
+        println!("CONTINUE AT {:x}", cnt);
+        if self.pc >= self.body.len() {
+            panic!(
+                "invalid continuation {} for body size {}",
+                self.pc,
+                self.body.len()
+            )
+        }
+        Ok(())
+    }
+
     fn get_global(&mut self, idx: u32) -> Result<Value> {
         self.runtime
             .store
@@ -142,6 +156,7 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
     }
 
     fn push_value(&mut self, val: Value) -> Result<()> {
+        println!("PUSH VALUE {:?}", val);
         self.runtime.stack.push_value(val);
         Ok(())
     }
@@ -196,6 +211,7 @@ impl<'l> ExecutionContext<'l> {
 /// Implementation of instruction implementation for this runtime.
 impl Runtime {
     pub fn enter(&mut self, body: &[u8]) -> Result<()> {
+        println!("ENTER EXPR {:x?}", body);
         let mut ic = ExecutionContext {
             runtime: self,
             body,
