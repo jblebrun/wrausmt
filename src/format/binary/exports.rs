@@ -1,7 +1,9 @@
 use super::values::ReadWasmValues;
-use crate::err;
-use crate::error::{Result, ResultFrom};
-use crate::module::{Export, ExportDesc};
+use crate::{
+    err,
+    error::{Result, ResultFrom},
+    syntax::{ExportDesc, ExportField, Resolved},
+};
 
 /// A trait to allow parsing of an exports section from something implementing
 /// std::io::Read.
@@ -14,21 +16,33 @@ pub trait ReadExports: ReadWasmValues {
     /// 0x01 Table
     /// 0x02 Memory
     /// 0x03 Global
-    fn read_exports_section(&mut self) -> Result<Box<[Export]>> {
-        self.read_vec(|_, s| {
-            Ok(Export {
-                name: s.read_name().wrap("parsing name")?,
-                desc: {
-                    let kind = s.read_byte().wrap("parsing kind")?;
-                    match kind {
-                        0 => ExportDesc::Func(s.read_u32_leb_128().wrap("parsing func")?),
-                        1 => ExportDesc::Table(s.read_u32_leb_128().wrap("parsing table")?),
-                        2 => ExportDesc::Memory(s.read_u32_leb_128().wrap("parsing memory")?),
-                        3 => ExportDesc::Global(s.read_u32_leb_128().wrap("parsing global")?),
-                        _ => return err!("unknown import desc {:x}", kind),
-                    }
-                },
-            })
+    fn read_exports_section(&mut self) -> Result<Vec<ExportField<Resolved>>> {
+        self.read_vec(|_, s| s.read_export_field())
+    }
+
+    fn read_export_desc(&mut self) -> Result<ExportDesc<Resolved>> {
+        let kind = self.read_byte().wrap("parsing kind")?;
+        match kind {
+            0 => Ok(ExportDesc::Func(
+                self.read_index_use().wrap("parsing func")?,
+            )),
+            1 => Ok(ExportDesc::Table(
+                self.read_index_use().wrap("parsing table")?,
+            )),
+            2 => Ok(ExportDesc::Mem(
+                self.read_index_use().wrap("parsing memory")?,
+            )),
+            3 => Ok(ExportDesc::Global(
+                self.read_index_use().wrap("parsing global")?,
+            )),
+            _ => err!("unknown import desc {:x}", kind),
+        }
+    }
+
+    fn read_export_field(&mut self) -> Result<ExportField<Resolved>> {
+        Ok(ExportField {
+            name: self.read_name().wrap("parsing name")?,
+            exportdesc: self.read_export_desc()?,
         })
     }
 }

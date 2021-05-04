@@ -28,13 +28,17 @@ use super::error::ParseError;
 use crate::{
     err,
     error::Result,
-    module::{index, Function, Module, Section},
+    format::binary::section::Section,
+    syntax::{FuncField, Index, Module, Resolved, TypeIndex},
 };
 use section::SectionReader;
 use std::io::Read;
 use values::ReadWasmValues;
 
-fn resolve_functypes(funcs: &mut [Function], functypes: &[index::Func]) -> Result<()> {
+fn resolve_functypes(
+    funcs: &mut [FuncField<Resolved>],
+    functypes: &[Index<Resolved, TypeIndex>],
+) -> Result<()> {
     // In a valid module, we will have parsed the func types section already, so we'll
     // have some partially-initialized function items ready.
     if funcs.len() != functypes.len() {
@@ -43,18 +47,18 @@ fn resolve_functypes(funcs: &mut [Function], functypes: &[index::Func]) -> Resul
 
     // Add the functype type to the returned function structs.
     for (i, func) in funcs.iter_mut().enumerate() {
-        func.functype = functypes[i];
+        func.typeuse.typeidx = Some(functypes[i].clone());
     }
     Ok(())
 }
 
 /// Inner parse method accepts a mutable module, so that the outer parse method
 /// can return partial module results (useful for debugging).
-fn parse_inner<R: Read>(reader: &mut R, module: &mut Module) -> Result<()> {
+fn parse_inner<R: Read>(reader: &mut R, module: &mut Module<Resolved>) -> Result<()> {
     reader.read_magic()?;
     reader.read_version()?;
 
-    let mut functypes: Box<[index::Func]> = Box::new([]);
+    let mut functypes: Vec<Index<Resolved, TypeIndex>> = vec![];
 
     loop {
         let section = reader.read_section()?;
@@ -66,18 +70,18 @@ fn parse_inner<R: Read>(reader: &mut R, module: &mut Module) -> Result<()> {
             Section::Imports(i) => module.imports = i,
             Section::Funcs(f) => functypes = f,
             Section::Tables(t) => module.tables = t,
-            Section::Mems(m) => module.mems = m,
+            Section::Mems(m) => module.memories = m,
             Section::Globals(g) => module.globals = g,
             Section::Exports(e) => module.exports = e,
-            Section::Start(s) => module.start = s,
+            Section::Start(s) => module.start = Some(s),
             Section::Elems(e) => module.elems = e,
             Section::Code(c) => {
                 module.funcs = c;
                 resolve_functypes(module.funcs.as_mut(), &functypes)?
             }
-            Section::Data(d) => module.datas = d,
+            Section::Data(d) => module.data = d,
             Section::DataCount(c) => {
-                if module.datas.len() != c as usize {
+                if module.data.len() != c as usize {
                     return err!("data count mismatch");
                 }
             }
@@ -89,7 +93,7 @@ fn parse_inner<R: Read>(reader: &mut R, module: &mut Module) -> Result<()> {
 /// Attempt to interpret the data in the provided std::io:Read as a WASM binary module.
 /// If an error occurs, a ParseError will be returned containing the portion of the
 /// module that was successfully decoded.
-pub fn parse<R>(src: &mut R) -> std::result::Result<Module, ParseError>
+pub fn parse<R>(src: &mut R) -> std::result::Result<Module<Resolved>, ParseError>
 where
     R: Read,
 {
@@ -99,6 +103,6 @@ where
 
     match parse_inner(tokenizer, &mut module) {
         Ok(()) => Ok(module),
-        Err(e) => Err(ParseError::new(e, tokenizer.location(), module)),
+        Err(e) => Err(ParseError::new(e, tokenizer.location())),
     }
 }

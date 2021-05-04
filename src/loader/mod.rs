@@ -77,7 +77,7 @@ impl Loader for Runtime {
 
         println!("MODULE {:#?}", ast);
 
-        let mod_inst = self.load_ast(ast)?;
+        let mod_inst = self.load(ast)?;
         Ok(mod_inst)
     }
 

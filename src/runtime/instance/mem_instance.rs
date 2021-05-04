@@ -1,4 +1,4 @@
-use crate::types::MemType;
+use crate::{syntax::MemoryField, types::MemType};
 
 /// A memory instance is the runtime representation of a linear memory. [Spec][Spec]
 ///
@@ -29,6 +29,12 @@ impl MemInstance {
     ///
     /// [Spec]: https://webassembly.github.io/spec/core/exec/runtime.html#memory-instances
     pub fn new(memtype: MemType) -> MemInstance {
+        let data = vec![0u8; memtype.limits.lower as usize * PAGE_SIZE];
+        MemInstance { memtype, data }
+    }
+
+    pub fn new_ast(memfield: MemoryField) -> MemInstance {
+        let memtype = memfield.memtype;
         let data = vec![0u8; memtype.limits.lower as usize * PAGE_SIZE];
         MemInstance { memtype, data }
     }
