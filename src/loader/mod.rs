@@ -6,7 +6,6 @@ use crate::format::error::ParseError as BinaryParseError;
 use crate::format::text::lex::error::LexError;
 use crate::format::text::parse::Parser;
 use crate::runtime::{Runtime, instance::ModuleInstance};
-use crate::format::text::compile::compile;
 use crate::error::Error;
 
 #[derive(Debug)]
@@ -77,11 +76,9 @@ impl Loader for Runtime {
     fn load_wast(&mut self, filename: &str) -> Result<Rc<ModuleInstance>> {
         let ast = load_ast(filename)?;
     
-        let module = compile(ast);
-
-        println!("MODULE {:#?}", module);
+        println!("MODULE {:#?}", ast);
     
-        let mod_inst = self.load(module)?;
+        let mod_inst = self.load_ast(ast)?;
         Ok(mod_inst)
     }
 

@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use super::format::{Action, ActionResult, SpecTestScript};
-use crate::{err, error::Result, format::text::compile::compile, runtime::{Runtime, instance::ModuleInstance, values::{Num, Ref, Value}}, spec::format::{Assertion, Cmd, Module}};
+use crate::{err, error::Result, runtime::{Runtime, instance::ModuleInstance, values::{Num, Ref, Value}}, spec::format::{Assertion, Cmd, Module}};
 
 
 fn handle_action(
@@ -68,8 +68,7 @@ pub fn run_spec_test(script: SpecTestScript) -> Result<()> {
             Cmd::Module(m) => match m {
                 Module::Module(m) =>  {
                     println!("NORMAL MODULE");
-                    let compiled = compile(m);
-                    module = Some(runtime.load(compiled)?);
+                    module = Some(runtime.load_ast(m)?);
                 },
                 Module::Binary(_) => println!("BINARY MODULE ACTION"),
                 Module::Quote(_) => println!("QUOTE MODULE ACTION"),
