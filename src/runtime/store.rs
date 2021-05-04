@@ -1,9 +1,6 @@
 use super::instance::{ElemInstance, FunctionInstance, GlobalInstance, MemInstance, TableInstance};
 use super::values::Value;
-use crate::{
-    error,
-    error::Result,
-};
+use crate::{error, error::Result};
 use std::rc::Rc;
 
 /// Function instances, table instances, memory instances, and global instances,
@@ -77,54 +74,58 @@ impl Store {
     // Functions will be allocated in a contiguous block.
     // Returns the value of the first allocated fuction.
     pub fn alloc_funcs<I>(&mut self, funcs: I) -> (usize, addr::FuncAddr)
-        where I : Iterator<Item=Rc<FunctionInstance>>
+    where
+        I: Iterator<Item = Rc<FunctionInstance>>,
     {
         let base_addr = self.funcs.len();
         self.funcs.extend(funcs);
-        let count = self.funcs.len()-base_addr;
+        let count = self.funcs.len() - base_addr;
         (count, base_addr as addr::FuncAddr)
     }
 
     // Allocate a collection of tables.
     // Tables will be allocated in a contiguous block.
     // Returns the value of the first allocated tables.
-    pub fn alloc_tables<I>(&mut self, tables: I) -> (usize, addr::TableAddr) 
-        where I : Iterator<Item=TableInstance>
+    pub fn alloc_tables<I>(&mut self, tables: I) -> (usize, addr::TableAddr)
+    where
+        I: Iterator<Item = TableInstance>,
     {
         let base_addr = self.tables.len();
         self.tables.extend(tables);
-        let count = self.tables.len()-base_addr;
+        let count = self.tables.len() - base_addr;
         (count, base_addr as addr::TableAddr)
     }
 
     // Allocate a collection of mems.
     // Mems will be allocated in a contiguous block.
     // Returns the value of the first allocated mems.
-    pub fn alloc_mems<I>(&mut self, mems: I) -> (usize, addr::MemoryAddr) 
-        where I : Iterator<Item=MemInstance>
+    pub fn alloc_mems<I>(&mut self, mems: I) -> (usize, addr::MemoryAddr)
+    where
+        I: Iterator<Item = MemInstance>,
     {
         let base_addr = self.mems.len();
         self.mems.extend(mems);
-        let count = self.mems.len()-base_addr;
+        let count = self.mems.len() - base_addr;
         (count, base_addr as addr::MemoryAddr)
     }
 
     pub fn alloc_globals<I>(&mut self, globals: I) -> (usize, addr::GlobalAddr)
-        where I : Iterator<Item=GlobalInstance> 
+    where
+        I: Iterator<Item = GlobalInstance>,
     {
         let base_addr = self.globals.len();
         self.globals.extend(globals);
-        let count = self.globals.len()-base_addr;
+        let count = self.globals.len() - base_addr;
         (count, base_addr as addr::MemoryAddr)
     }
 
     pub fn alloc_elems<I>(&mut self, elems: I) -> (usize, addr::ElemAddr)
-        where I : Iterator<Item=ElemInstance> 
+    where
+        I: Iterator<Item = ElemInstance>,
     {
         let base_addr = self.elems.len();
         self.elems.extend(elems);
-        let count = self.elems.len()-base_addr;
+        let count = self.elems.len() - base_addr;
         (count, base_addr as addr::ElemAddr)
     }
-
 }

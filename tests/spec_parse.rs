@@ -1,5 +1,5 @@
-use wrausmt::format::text::parse::Parser;
 use wrausmt::format::text::lex::Tokenizer;
+use wrausmt::format::text::parse::Parser;
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
@@ -13,7 +13,7 @@ fn parse_and_print(path: &str) -> Result<()> {
     for cmd in &spectest.cmds {
         println!("cmd {:?}", cmd);
     }
-    
+
     Ok(())
 }
 

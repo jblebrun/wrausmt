@@ -1,6 +1,6 @@
 use crate::error::Error;
-use crate::module::Module;
 use crate::format::Location;
+use crate::module::Module;
 
 #[derive(Debug)]
 pub struct ParseError {

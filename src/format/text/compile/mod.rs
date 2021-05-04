@@ -1,5 +1,8 @@
-use crate::syntax::{self,  Resolved};
-use crate::{runtime::instance::{ExportInstance, ExternalVal}, types::{FunctionType, ValueType}};
+use crate::syntax::{self, Resolved};
+use crate::{
+    runtime::instance::{ExportInstance, ExternalVal},
+    types::{FunctionType, ValueType},
+};
 
 const END_OPCODE: u8 = 0xb;
 
@@ -19,7 +22,7 @@ impl From<syntax::Local> for ValueType {
 }
 
 impl From<syntax::ExportDesc<Resolved>> for ExternalVal {
-    fn from(ast: syntax::ExportDesc<Resolved>) -> ExternalVal { 
+    fn from(ast: syntax::ExportDesc<Resolved>) -> ExternalVal {
         match ast {
             syntax::ExportDesc::Func(idx) => ExternalVal::Func(idx.value()),
             syntax::ExportDesc::Table(idx) => ExternalVal::Table(idx.value()),
@@ -30,8 +33,8 @@ impl From<syntax::ExportDesc<Resolved>> for ExternalVal {
 }
 
 impl From<syntax::ExportField<Resolved>> for ExportInstance {
-    fn from(ast: syntax::ExportField<Resolved>) -> ExportInstance { 
-        ExportInstance { 
+    fn from(ast: syntax::ExportField<Resolved>) -> ExportInstance {
+        ExportInstance {
             name: ast.name,
             addr: ast.exportdesc.into(),
         }
@@ -47,9 +50,9 @@ trait Emitter {
 
     fn emit_block(
         &mut self,
-        typeuse: &syntax::TypeUse<Resolved>, 
-        expr: &syntax::Expr<Resolved>, 
-        cnt: &syntax::Continuation
+        typeuse: &syntax::TypeUse<Resolved>,
+        expr: &syntax::Expr<Resolved>,
+        cnt: &syntax::Continuation,
     ) {
         let self_arity = typeuse.functiontype.results.len();
         // For now: ignoring param types
@@ -129,8 +132,12 @@ impl Emitter for Vec<u8> {
         self.extend(bytes);
     }
 
-    fn push(&mut self, b: u8) { self.push(b) }
-    fn len(&self) -> usize { self.len() }
+    fn push(&mut self, b: u8) {
+        self.push(b)
+    }
+    fn len(&self) -> usize {
+        self.len()
+    }
 }
 
 pub fn compile_function_body(func: &syntax::FuncField<Resolved>) -> Box<[u8]> {

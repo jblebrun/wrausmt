@@ -10,7 +10,7 @@ pub trait EmitCode: Write + std::fmt::Debug {
         for (_, inst) in insts.iter() {
             if !inst.body.is_empty() {
                 let code = code_item(inst);
-               self.write_all(code.as_bytes())?;
+                self.write_all(code.as_bytes())?;
             }
         }
 
@@ -18,12 +18,11 @@ pub trait EmitCode: Write + std::fmt::Debug {
     }
 }
 
-impl <W:Write+std::fmt::Debug> EmitCode for W {}
+impl<W: Write + std::fmt::Debug> EmitCode for W {}
 
-pub static CODE_HEADER: &str = &"
+pub static CODE_HEADER: &str = &"use crate::error::Result;
 use crate::runtime::exec::ExecutionContext;
 use crate::runtime::exec::ExecutionContextActions;
-use crate::error::Result;
 ";
 
 fn code_item(inst: &Instruction) -> String {
@@ -31,8 +30,7 @@ fn code_item(inst: &Instruction) -> String {
         "
 #[allow(dead_code)]
 pub fn {typename}_exec(_ec: &mut ExecutionContext) -> Result<()> {{
-  {body}    
-}}
+{body}}}
 ",
         typename = inst.typename,
         body = inst.body,

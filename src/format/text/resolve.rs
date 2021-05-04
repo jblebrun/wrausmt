@@ -2,11 +2,16 @@
 use std::collections::HashMap;
 
 use super::module_builder::ModuleIdentifiers;
-use crate::syntax::{DataField, DataIndex, DataInit, ElemField, ElemIndex, ElemList, ExportDesc, ExportField, Expr, FuncField, FuncIndex, GlobalField, GlobalIndex, ImportDesc, ImportField, Index, Instruction, LabelIndex, LocalIndex, MemoryIndex, ModeEntry, Module, Operands, Resolved, StartField, TableElems, TableField, TableIndex, TablePosition, TableUse, TypeIndex, TypeUse, Unresolved};
+use crate::syntax::{
+    DataField, DataIndex, DataInit, ElemField, ElemIndex, ElemList, ExportDesc, ExportField, Expr,
+    FuncField, FuncIndex, GlobalField, GlobalIndex, ImportDesc, ImportField, Index, Instruction,
+    LabelIndex, LocalIndex, MemoryIndex, ModeEntry, Module, Operands, Resolved, StartField,
+    TableElems, TableField, TableIndex, TablePosition, TableUse, TypeIndex, TypeUse, Unresolved,
+};
 
 #[derive(Debug)]
 pub enum ResolveError {
-    UnresolvedIndex(String)
+    UnresolvedIndex(String),
 }
 
 pub type Result<T> = std::result::Result<T, ResolveError>;
@@ -23,7 +28,7 @@ impl IdentifierContext {
     pub fn new(modulescope: ModuleIdentifiers) -> Self {
         IdentifierContext {
             modulescope,
-            .. IdentifierContext::default()
+            ..IdentifierContext::default()
         }
     }
     pub fn for_func(&self, li: HashMap<String, u32>) -> IdentifierContext {
@@ -31,7 +36,7 @@ impl IdentifierContext {
             modulescope: self.modulescope.clone(),
             localindices: li,
             labeltracker: self.labeltracker.clone(),
-            labelindices: self.labelindices.clone()
+            labelindices: self.labelindices.clone(),
         }
     }
 
@@ -40,19 +45,19 @@ impl IdentifierContext {
         lt.push(labelname);
         let mut li = HashMap::default();
         for (i, n) in lt.iter().enumerate() {
-            li.insert(n.clone(),i as u32);
+            li.insert(n.clone(), i as u32);
         }
         IdentifierContext {
             modulescope: self.modulescope.clone(),
             localindices: self.localindices.clone(),
             labeltracker: lt,
-            labelindices: li
+            labelindices: li,
         }
     }
 }
 
 /// Each syntax element that contains an index usag, an element containin an index
-/// usage, should implement this trait with logic describing how to return the 
+/// usage, should implement this trait with logic describing how to return the
 /// element in a resolved state.
 pub trait Resolve<T> {
     fn resolve(self, ic: &IdentifierContext) -> Result<T>;
@@ -62,15 +67,14 @@ pub trait Resolve<T> {
 macro_rules! resolve_all {
     ( $dst:ident, $src:expr, $ic:expr ) => {
         let $dst: Result<Vec<_>> = $src.into_iter().map(|i| i.resolve(&$ic)).collect();
-
-    }
+    };
 }
 
 /// For an option of an unresolved items, returns an option of the resolved item.
 macro_rules! resolve_option {
     ( $dst:ident, $src:expr, $ic:expr ) => {
         let $dst = $src.map(|i| i.resolve(&$ic)).transpose()?;
-    }
+    };
 }
 
 /// This generates each of the [Resolve] impls for the [Index] in each [IndexSpace].
@@ -82,52 +86,51 @@ macro_rules! index_resolver {
                     self.value()
                 } else {
                     // TODO - how to handle the different index types?
-                    let value = $src.get(self.name())
+                    let value = $src
+                        .get(self.name())
                         .ok_or_else(|| ResolveError::UnresolvedIndex(self.name().to_owned()))?;
                     *value
                 };
                 Ok(self.resolved(value))
             }
         }
-    }
+    };
 }
 
-index_resolver!{TypeIndex, ic, ic.modulescope.typeindices}
-index_resolver!{FuncIndex, ic, ic.modulescope.funcindices}
-index_resolver!{TableIndex, ic, ic.modulescope.tableindices}
-index_resolver!{GlobalIndex, ic, ic.modulescope.globalindices}
-index_resolver!{MemoryIndex, ic, ic.modulescope.memindices}
-index_resolver!{ElemIndex, ic, ic.modulescope.elemindices}
-index_resolver!{DataIndex, ic, ic.modulescope.dataindices}
-index_resolver!{LocalIndex, ic, ic.localindices}
-index_resolver!{LabelIndex, ic, ic.labelindices}
+index_resolver! {TypeIndex, ic, ic.modulescope.typeindices}
+index_resolver! {FuncIndex, ic, ic.modulescope.funcindices}
+index_resolver! {TableIndex, ic, ic.modulescope.tableindices}
+index_resolver! {GlobalIndex, ic, ic.modulescope.globalindices}
+index_resolver! {MemoryIndex, ic, ic.modulescope.memindices}
+index_resolver! {ElemIndex, ic, ic.modulescope.elemindices}
+index_resolver! {DataIndex, ic, ic.modulescope.dataindices}
+index_resolver! {LocalIndex, ic, ic.localindices}
+index_resolver! {LabelIndex, ic, ic.labelindices}
 
 impl Resolve<Expr<Resolved>> for Expr<Unresolved> {
     fn resolve(self, ic: &IdentifierContext) -> Result<Expr<Resolved>> {
         resolve_all!(instr, self.instr, ic);
-        Ok(Expr {
-            instr: instr?
-        })
+        Ok(Expr { instr: instr? })
     }
 }
 
 impl Resolve<Instruction<Resolved>> for Instruction<Unresolved> {
     fn resolve(self, ic: &IdentifierContext) -> Result<Instruction<Resolved>> {
-        Ok(Instruction{
+        Ok(Instruction {
             name: self.name,
             opcode: self.opcode,
-            operands: self.operands.resolve(&ic)?
+            operands: self.operands.resolve(&ic)?,
         })
     }
 }
 
 impl Resolve<Operands<Resolved>> for Operands<Unresolved> {
     fn resolve(self, ic: &IdentifierContext) -> Result<Operands<Resolved>> {
-        Ok(
-        match self {
+        Ok(match self {
             Operands::None => Operands::None,
-            Operands::If(id, typ, th, el) => 
-                Operands::If(id, typ.resolve(&ic)?, th.resolve(&ic)?, el.resolve(&ic)?),
+            Operands::If(id, typ, th, el) => {
+                Operands::If(id, typ.resolve(&ic)?, th.resolve(&ic)?, el.resolve(&ic)?)
+            }
             Operands::BrTable(idxs) => {
                 resolve_all!(ridxs, idxs, ic);
                 Operands::BrTable(ridxs?)
@@ -138,7 +141,7 @@ impl Resolve<Operands<Resolved>> for Operands<Unresolved> {
             Operands::Block(id, typ, expr, cnt) => {
                 let lid = match id {
                     Some(ref id) => id.clone(),
-                    _ => "".into()
+                    _ => "".into(),
                 };
                 let bic = ic.with_label(lid);
                 println!("RESOLVING BLOCK WITH {:#?}", bic);
@@ -167,7 +170,7 @@ impl Resolve<TableField<Resolved>> for TableField<Unresolved> {
             id: self.id,
             exports: self.exports,
             tabletype: self.tabletype,
-            elems 
+            elems,
         })
     }
 }
@@ -187,9 +190,9 @@ impl Resolve<TableElems<Resolved>> for TableElems<Unresolved> {
 impl Resolve<ElemList<Resolved>> for ElemList<Unresolved> {
     fn resolve(self, ic: &IdentifierContext) -> Result<ElemList<Resolved>> {
         resolve_all!(items, self.items, ic);
-        Ok(ElemList{
+        Ok(ElemList {
             reftype: self.reftype,
-            items: items?
+            items: items?,
         })
     }
 }
@@ -200,7 +203,7 @@ impl Resolve<ImportField<Resolved>> for ImportField<Unresolved> {
             modname: self.modname,
             name: self.name,
             id: self.id,
-            desc: self.desc.resolve(&ic)?
+            desc: self.desc.resolve(&ic)?,
         })
     }
 }
@@ -211,16 +214,16 @@ impl Resolve<ImportDesc<Resolved>> for ImportDesc<Unresolved> {
             ImportDesc::Func(tu) => ImportDesc::Func(tu.resolve(&ic)?),
             ImportDesc::Table(tt) => ImportDesc::Table(tt),
             ImportDesc::Mem(mt) => ImportDesc::Mem(mt),
-            ImportDesc::Global(gt) => ImportDesc::Global(gt)
+            ImportDesc::Global(gt) => ImportDesc::Global(gt),
         })
     }
 }
 
 impl Resolve<ExportField<Resolved>> for ExportField<Unresolved> {
     fn resolve(self, ic: &IdentifierContext) -> Result<ExportField<Resolved>> {
-        Ok(ExportField{
+        Ok(ExportField {
             name: self.name,
-            exportdesc: self.exportdesc.resolve(&ic)?
+            exportdesc: self.exportdesc.resolve(&ic)?,
         })
     }
 }
@@ -238,29 +241,29 @@ impl Resolve<ExportDesc<Resolved>> for ExportDesc<Unresolved> {
 
 impl Resolve<GlobalField<Resolved>> for GlobalField<Unresolved> {
     fn resolve(self, ic: &IdentifierContext) -> Result<GlobalField<Resolved>> {
-        Ok(GlobalField{
+        Ok(GlobalField {
             id: self.id,
             exports: self.exports,
             globaltype: self.globaltype,
-            init: self.init.resolve(&ic)?
+            init: self.init.resolve(&ic)?,
         })
     }
 }
 
 impl Resolve<StartField<Resolved>> for StartField<Unresolved> {
     fn resolve(self, ic: &IdentifierContext) -> Result<StartField<Resolved>> {
-        Ok(StartField{
-            idx: self.idx.resolve(&ic)?
+        Ok(StartField {
+            idx: self.idx.resolve(&ic)?,
         })
     }
 }
 
 impl Resolve<ElemField<Resolved>> for ElemField<Unresolved> {
     fn resolve(self, ic: &IdentifierContext) -> Result<ElemField<Resolved>> {
-        Ok(ElemField{
+        Ok(ElemField {
             id: self.id,
             mode: self.mode.resolve(&ic)?,
-            elemlist: self.elemlist.resolve(&ic)?
+            elemlist: self.elemlist.resolve(&ic)?,
         })
     }
 }
@@ -270,24 +273,24 @@ impl Resolve<ModeEntry<Resolved>> for ModeEntry<Unresolved> {
         Ok(match self {
             ModeEntry::Passive => ModeEntry::Passive,
             ModeEntry::Active(tp) => ModeEntry::Active(tp.resolve(&ic)?),
-            ModeEntry::Declarative => ModeEntry::Declarative
+            ModeEntry::Declarative => ModeEntry::Declarative,
         })
     }
 }
 
 impl Resolve<TablePosition<Resolved>> for TablePosition<Unresolved> {
     fn resolve(self, ic: &IdentifierContext) -> Result<TablePosition<Resolved>> {
-        Ok(TablePosition{
+        Ok(TablePosition {
             tableuse: self.tableuse.resolve(&ic)?,
-            offset: self.offset.resolve(&ic)?
+            offset: self.offset.resolve(&ic)?,
         })
     }
 }
 
 impl Resolve<TableUse<Resolved>> for TableUse<Unresolved> {
     fn resolve(self, ic: &IdentifierContext) -> Result<TableUse<Resolved>> {
-        Ok(TableUse{
-            tableidx: self.tableidx.resolve(&ic)?
+        Ok(TableUse {
+            tableidx: self.tableidx.resolve(&ic)?,
         })
     }
 }
@@ -295,10 +298,10 @@ impl Resolve<TableUse<Resolved>> for TableUse<Unresolved> {
 impl Resolve<DataField<Resolved>> for DataField<Unresolved> {
     fn resolve(self, ic: &IdentifierContext) -> Result<DataField<Resolved>> {
         resolve_option!(init, self.init, ic);
-        Ok(DataField{
+        Ok(DataField {
             id: self.id,
             data: self.data,
-            init
+            init,
         })
     }
 }
@@ -307,7 +310,7 @@ impl Resolve<DataInit<Resolved>> for DataInit<Unresolved> {
     fn resolve(self, ic: &IdentifierContext) -> Result<DataInit<Resolved>> {
         Ok(DataInit {
             memidx: self.memidx.resolve(&ic)?,
-            offset: self.offset.resolve(&ic)?
+            offset: self.offset.resolve(&ic)?,
         })
     }
 }
@@ -341,7 +344,10 @@ impl Resolve<Module<Resolved>> for Module<Unresolved> {
 impl Resolve<TypeUse<Resolved>> for TypeUse<Unresolved> {
     fn resolve(self, ic: &IdentifierContext) -> Result<TypeUse<Resolved>> {
         resolve_option!(typeidx, self.typeidx, ic);
-        Ok(TypeUse { typeidx, functiontype: self.functiontype })
+        Ok(TypeUse {
+            typeidx,
+            functiontype: self.functiontype,
+        })
     }
 }
 
@@ -359,7 +365,7 @@ impl Resolve<FuncField<Resolved>> for FuncField<Unresolved> {
             typeuse,
             locals: self.locals,
             body,
-            localindices: self.localindices
+            localindices: self.localindices,
         })
     }
 }

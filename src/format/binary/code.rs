@@ -1,4 +1,5 @@
 use super::{ensure_consumed::EnsureConsumed, values::ReadWasmValues};
+use crate::instructions::instruction_data;
 use crate::{
     err,
     error::{Result, ResultFrom},
@@ -7,7 +8,6 @@ use crate::{
     types::ValueType,
 };
 use std::io::{Read, Write};
-use crate::instructions::instruction_data;
 
 /// Read the Code section of a binary module.
 /// codesec := section vec(code)
@@ -57,7 +57,7 @@ pub trait ReadCode: ReadWasmValues {
     }
 
     /// Read the instructions from one function in the code section.
-    /// The code is stored in the module as raw bytes, mostly following the 
+    /// The code is stored in the module as raw bytes, mostly following the
     /// same structure that it has in the binary module ,but with LEB128 numbers
     /// converted to little-endian format.
     /// expr := (instr)* 0x0B
@@ -81,9 +81,12 @@ pub trait ReadCode: ReadWasmValues {
         // 0xFC instructions are shifted into the normal opcode
         // table starting at 0xE0.
         let opcode = if opcode_buf[0] == 0xFC {
-            self.read_exact(&mut opcode_buf).wrap("parsing secondary opcode")?;
+            self.read_exact(&mut opcode_buf)
+                .wrap("parsing secondary opcode")?;
             opcode_buf[0] + 0xE0
-        } else { opcode_buf[0] };
+        } else {
+            opcode_buf[0]
+        };
 
         // Assume success, write out the opcode. Validation occurs later.
         out.write(&opcode_buf).wrap("writing opcode")?;
@@ -92,21 +95,43 @@ pub trait ReadCode: ReadWasmValues {
 
         // Ending block, decrease depth
         if opcode == 0x0B {
-            return Ok(-1)
+            return Ok(-1);
         }
 
         // Handle any additional behavior
         #[allow(non_upper_case_globals)]
         match instruction_data.operands {
             Operands::None => (),
-            Operands::FuncIndex | Operands::LocalIndex | Operands::GlobalIndex |
-            Operands::TableIndex | Operands::MemIndex | Operands::Br | Operands::I32 |
-            Operands::Block | Operands::HeapType => self.read_u32_arg(out)?,
-            Operands::Memargs => { self.read_u32_arg(out)?; self.read_u32_arg(out)? },
-            Operands::MemorySize | Operands::MemoryGrow | 
-            Operands::MemoryInit | Operands::MemoryFill => { self.read_byte()?; },
-            Operands::MemoryCopy => { self.read_byte()?; self.read_byte()?; }
-            _ => return err!("unsupported operands {:x?} for {:x}", instruction_data.operands, opcode),
+            Operands::FuncIndex
+            | Operands::LocalIndex
+            | Operands::GlobalIndex
+            | Operands::TableIndex
+            | Operands::MemIndex
+            | Operands::Br
+            | Operands::I32
+            | Operands::Block
+            | Operands::HeapType => self.read_u32_arg(out)?,
+            Operands::Memargs => {
+                self.read_u32_arg(out)?;
+                self.read_u32_arg(out)?
+            }
+            Operands::MemorySize
+            | Operands::MemoryGrow
+            | Operands::MemoryInit
+            | Operands::MemoryFill => {
+                self.read_byte()?;
+            }
+            Operands::MemoryCopy => {
+                self.read_byte()?;
+                self.read_byte()?;
+            }
+            _ => {
+                return err!(
+                    "unsupported operands {:x?} for {:x}",
+                    instruction_data.operands,
+                    opcode
+                )
+            }
         };
 
         if matches!(opcode, 0x02 | 0x03 | 0x04) {
@@ -136,7 +161,6 @@ pub trait ReadCode: ReadWasmValues {
 
 impl<I: ReadWasmValues> ReadCode for I {}
 
-
 #[cfg(test)]
 mod test {
     use super::ReadCode;
@@ -153,8 +177,12 @@ mod test {
 
     #[test]
     fn read_expr_nested() -> Result<()> {
-        let data: &[u8] = &[0x6au8, 0x02, 0x40, 0x68, 0x6a, 0x68, 0x0B, 0x0B, 0xE0, 0xE1, 0xE2];
-        let expect: &[u8] = &[0x6au8, 0x02, 0x40, 0x00, 0x00, 0x00, 0x68, 0x6a, 0x68, 0x0B, 0x0B];
+        let data: &[u8] = &[
+            0x6au8, 0x02, 0x40, 0x68, 0x6a, 0x68, 0x0B, 0x0B, 0xE0, 0xE1, 0xE2,
+        ];
+        let expect: &[u8] = &[
+            0x6au8, 0x02, 0x40, 0x00, 0x00, 0x00, 0x68, 0x6a, 0x68, 0x0B, 0x0B,
+        ];
         let mut reader = data;
         let expr = reader.read_expr()?;
         assert_eq!(*expr, *expect);
@@ -167,9 +195,8 @@ mod test {
         let mut reader = data;
         match reader.read_expr() {
             Ok(e) => panic!("expected error, read back {:?}", e),
-            Err(e) => assert!(format!("{:?}", e).contains("read inst byte"))
+            Err(e) => assert!(format!("{:?}", e).contains("read inst byte")),
         }
         Ok(())
     }
-
 }

@@ -1,7 +1,7 @@
-use wrausmt::runtime::Runtime;
-use wrausmt::runner;
 use std::convert::TryInto;
 use wrausmt::loader::Loader;
+use wrausmt::runner;
+use wrausmt::runtime::Runtime;
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
@@ -20,18 +20,18 @@ fn meminstr32_get() -> Result<()> {
     let mut res1 = exec_method!("get32_8u", 0)?;
     let v1: u32 = res1.remove(0).try_into()?;
     assert_eq!(v1, 0xF3u32.into());
-    
+
     let mut res1 = exec_method!("get32_8s", 0)?;
     let v1: u32 = res1.remove(0).try_into()?;
-    assert_eq!(v1, ((0xF3-0x100) as u32).into());
+    assert_eq!(v1, ((0xF3 - 0x100) as u32).into());
 
     let mut res1 = exec_method!("get32_16u", 0)?;
     let v1: i32 = res1.remove(0).try_into()?;
     assert_eq!(v1, 0xF5F3.into());
-    
+
     let mut res1 = exec_method!("get32_16s", 0)?;
     let v1: u32 = res1.remove(0).try_into()?;
-    assert_eq!(v1, ((0xF5F3-0x10000) as u32).into());
+    assert_eq!(v1, ((0xF5F3 - 0x10000) as u32).into());
 
     Ok(())
 }

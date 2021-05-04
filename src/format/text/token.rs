@@ -7,7 +7,6 @@ pub struct FileToken {
     pub location: Location,
 }
 
-
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Sign {
     Unspecified,
@@ -15,12 +14,12 @@ pub enum Sign {
     Positive,
 }
 
-impl <IC:Into<char>> From<IC> for Sign {
+impl<IC: Into<char>> From<IC> for Sign {
     fn from(ch: IC) -> Sign {
         match ch.into() {
             '+' => Sign::Positive,
             '-' => Sign::Negative,
-            _ => Sign::Unspecified 
+            _ => Sign::Unspecified,
         }
     }
 }
@@ -44,17 +43,22 @@ pub enum Token {
     Inf(Sign),
     NaN(Sign),
     NaNx(Sign, u32),
-    Eof
+    Eof,
 }
 
 impl Default for Token {
     /// Returns a default token of [Token::Start].
-    fn default() -> Token { Token::Start }
+    fn default() -> Token {
+        Token::Start
+    }
 }
 
 impl Location {
     /// Create a new [FileToken] from this [Location] for the provided [Token].
     pub fn token(self, token: Token) -> FileToken {
-        FileToken { token, location: self }
+        FileToken {
+            token,
+            location: self,
+        }
     }
 }

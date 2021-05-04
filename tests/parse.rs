@@ -34,4 +34,3 @@ fn folded_block_parse() -> Result<()> {
     println!("{:?}", module);
     Ok(())
 }
-

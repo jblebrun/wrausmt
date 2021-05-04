@@ -1,13 +1,18 @@
-use crate::{error::{Result, ResultFrom}, syntax::{self, Resolved}, instructions::Expr, types::ValueType};
+use crate::error;
+use crate::format::text::compile::compile_function_body;
 use crate::module::Function;
 use crate::runtime::error::ArgumentCountError;
 use crate::runtime::instance::ModuleInstance;
 use crate::runtime::Value;
 use crate::types::FunctionType;
-use crate::format::text::compile::compile_function_body;
-use std::rc::Rc;
+use crate::{
+    error::{Result, ResultFrom},
+    instructions::Expr,
+    syntax::{self, Resolved},
+    types::ValueType,
+};
 use std::cell::RefCell;
-use crate::error;
+use std::rc::Rc;
 
 /// A function instance is the runtime representation of a function. [Spec][Spec]
 ///
@@ -51,19 +56,20 @@ impl FunctionInstance {
             functype: types[func.functype as usize].clone(),
             module_instance: RefCell::new(None),
             locals: func.locals,
-            body: func.body
+            body: func.body,
         }
     }
 
     pub fn new_ast(func: syntax::FuncField<Resolved>, types: &[FunctionType]) -> Self {
         let locals: Box<[ValueType]> = func.locals.iter().map(|l| l.valtype).collect();
         let body = compile_function_body(&func);
-        Self { 
+        Self {
             functype: types[func.typeuse.index_value() as usize].clone(),
             module_instance: RefCell::new(None),
             locals,
             body,
-        }}
+        }
+    }
 
     pub fn validate_args(&self, args: &[Value]) -> Result<()> {
         let params_arity = self.functype.params.len();
@@ -74,6 +80,9 @@ impl FunctionInstance {
     }
 
     pub fn module_instance(&self) -> Result<Rc<ModuleInstance>> {
-        self.module_instance.borrow().clone().ok_or_else(|| error!("no module instance on function"))
+        self.module_instance
+            .borrow()
+            .clone()
+            .ok_or_else(|| error!("no module instance on function"))
     }
 }

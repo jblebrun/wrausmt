@@ -3,14 +3,14 @@ mod code;
 mod data_table;
 mod exec_table;
 mod fields;
+use std::collections::HashMap;
 use std::fs;
 use std::io;
-use std::collections::HashMap;
 use std::io::{BufRead, Write};
 
 use code::EmitCode;
-use exec_table::EmitExecTable;
 use data_table::EmitDataTable;
+use exec_table::EmitExecTable;
 
 /// The data for one instruction read from the instructions list file.
 #[derive(Default, Debug)]
@@ -28,7 +28,7 @@ pub struct Instruction {
     operands: String,
 
     /// The body of the execution function.
-    body: String
+    body: String,
 }
 
 impl Instruction {
@@ -40,7 +40,7 @@ impl Instruction {
             name: fields[1].to_string(),
             opcode: fields[0].to_string(),
             operands: fields::operands(fields[2]),
-            body: String::new()
+            body: String::new(),
         }
     }
 }
@@ -58,14 +58,14 @@ fn read_instruction_list(file: &str) -> io::Result<HashMap<u32, Instruction>> {
     for rline in buf_reader.lines() {
         let wline = rline?;
         let line = wline.trim();
-        
+
         // Skip empty lines.
         if line.is_empty() {
             continue;
         }
 
         // If a line starts with |, we're collecting the code for executing the instruction
-        // most recently described above in the file. So just add this text to the 
+        // most recently described above in the file. So just add this text to the
         // body for the current instruction.
         if let Some(stripped_code_line) = line.strip_prefix('|') {
             let formatted_code_line = format!("   {}\n", stripped_code_line);
@@ -74,9 +74,7 @@ fn read_instruction_list(file: &str) -> io::Result<HashMap<u32, Instruction>> {
         }
 
         // Get the fields for an instruction descriptor, expecting 3: opcode, name, parse.
-        let fields = line.split(',')
-            .map(|l| l.trim())
-            .collect::<Vec<&str>>();
+        let fields = line.split(',').map(|l| l.trim()).collect::<Vec<&str>>();
 
         if fields.len() != 3 {
             println!("Unhandled line {}", line);
@@ -101,15 +99,14 @@ fn read_instruction_list(file: &str) -> io::Result<HashMap<u32, Instruction>> {
 
 /// Read master_ops_list.csv and emit functions, function tables, and data tables.
 pub fn parse() -> io::Result<()> {
-
     let mut insts = read_instruction_list("codegen/master_ops_list.csv")?;
 
     let secondary_instructions = read_instruction_list("codegen/master_secondary_ops_list.csv")?;
 
-    // There's plenty of room in the primary opcode space, so we put secondary instructions in 
+    // There's plenty of room in the primary opcode space, so we put secondary instructions in
     // there starting at 0xE0
-    for (k,v) in secondary_instructions.into_iter() {
-        insts.insert(k+0xE0,  v);
+    for (k, v) in secondary_instructions.into_iter() {
+        insts.insert(k + 0xE0, v);
     }
 
     fs::create_dir_all("src/instructions/generated")?;
@@ -130,7 +127,7 @@ pub fn parse() -> io::Result<()> {
     code_file.emit_instruction_data_table(&insts)?;
 
     Ok(())
-}   
+}
 
 fn new_output_file(name: &str) -> io::Result<fs::File> {
     let mut f = fs::OpenOptions::new()
@@ -149,28 +146,13 @@ fn emit_module() -> io::Result<()> {
     f.write_all(MODULE.as_bytes())
 }
 
-
-pub static MODULE: &str = &"
- pub mod exec_table;
- pub mod data_table;
- pub mod instructions;
+pub static MODULE: &str = &"pub mod data_table;
+pub mod exec_table;
+pub mod instructions;
 ";
 
-pub static GEN_HEADER: &str = &"
-/// This file was generated automatically by the codegen crate.
+pub static GEN_HEADER: &str = &"/// This file was generated automatically by the codegen crate.
 /// Do not edit it manually.
 ///
 /// See build.rs for wrausmt or the included codegen crate for more details.
 ";
-
-
-
-
-
-
-
-
-
-
-
-

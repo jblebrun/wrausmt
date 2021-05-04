@@ -1,17 +1,16 @@
 use super::{
     code::ReadCode, custom::ReadCustom, data::ReadData, elems::ReadElems,
     ensure_consumed::EnsureConsumed, exports::ReadExports, funcs::ReadFuncs, globals::ReadGlobals,
-    imports::ReadImports, start::ReadStart, tables::ReadTables, mems::ReadMems,
-    types::ReadTypes,
-    values::ReadWasmValues
+    imports::ReadImports, mems::ReadMems, start::ReadStart, tables::ReadTables, types::ReadTypes,
+    values::ReadWasmValues,
 };
 use crate::{
-    module::Section,
     error::{Result, ResultFrom},
+    module::Section,
 };
 use std::io::Read;
 
-pub trait SectionReader : ReadWasmValues + ReadCode  {
+pub trait SectionReader: ReadWasmValues + ReadCode {
     /// Read and return the next section in a binary module being read by a std::io::Read
     /// If the end of the binary module has been reached, Section::Eof will be returned.
     ///
@@ -32,31 +31,31 @@ pub trait SectionReader : ReadWasmValues + ReadCode  {
         let section = match section_num {
             0 => Section::Custom(
                 section_reader
-                .read_custom_section()
-                .wrap("reading custom")?,
+                    .read_custom_section()
+                    .wrap("reading custom")?,
             ),
             1 => Section::Types(section_reader.read_types_section().wrap("reading types")?),
             2 => Section::Imports(
                 section_reader
-                .read_imports_section()
-                .wrap("reading imports")?,
+                    .read_imports_section()
+                    .wrap("reading imports")?,
             ),
             3 => Section::Funcs(section_reader.read_funcs_section().wrap("reading funcs")?),
             4 => Section::Tables(
                 section_reader
-                .read_tables_section()
-                .wrap("reading tables")?,
+                    .read_tables_section()
+                    .wrap("reading tables")?,
             ),
             5 => Section::Mems(section_reader.read_mems_section().wrap("reading mems")?),
             6 => Section::Globals(
                 section_reader
-                .read_globals_section()
-                .wrap("reading globals")?,
+                    .read_globals_section()
+                    .wrap("reading globals")?,
             ),
             7 => Section::Exports(
                 section_reader
-                .read_exports_section()
-                .wrap("reading exports")?,
+                    .read_exports_section()
+                    .wrap("reading exports")?,
             ),
             8 => Section::Start(section_reader.read_start_section().wrap("reading start")?),
             9 => Section::Elems(section_reader.read_elems_section().wrap("reading elems")?),
@@ -64,8 +63,8 @@ pub trait SectionReader : ReadWasmValues + ReadCode  {
             11 => Section::Data(section_reader.read_data_section().wrap("reading data")?),
             12 => Section::DataCount(
                 section_reader
-                .read_data_count_section()
-                .wrap("reading data count")?,
+                    .read_data_count_section()
+                    .wrap("reading data count")?,
             ),
             _ => {
                 section_reader
@@ -79,9 +78,8 @@ pub trait SectionReader : ReadWasmValues + ReadCode  {
             .ensure_consumed()
             .wrap(&format!("Section {}", section_num))?;
 
-
         Ok(section)
     }
 }
 
-impl <R:ReadWasmValues + ReadCode> SectionReader for R {}
+impl<R: ReadWasmValues + ReadCode> SectionReader for R {}

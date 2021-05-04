@@ -12,7 +12,7 @@ fn parse_and_run(path: &str) -> Result<()> {
     let spectest = parser.parse_spec_test()?;
 
     run_spec_test(spectest)?;
-    
+
     Ok(())
 }
 

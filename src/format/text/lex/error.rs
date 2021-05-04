@@ -1,5 +1,5 @@
 #[derive(Debug)]
-pub enum LexError{
+pub enum LexError {
     WithContext(Vec<String>, Box<LexError>),
     IoError(std::io::Error),
     Utf8Error(std::string::FromUtf8Error),
@@ -8,7 +8,7 @@ pub enum LexError{
 
 pub type Result<T> = std::result::Result<T, LexError>;
 
-pub trait WithContext<T> : Sized {
+pub trait WithContext<T>: Sized {
     fn ctx(self, ctx: &str) -> T;
 }
 
@@ -18,7 +18,7 @@ impl std::fmt::Display for LexError {
     }
 }
 
-impl std::error::Error for LexError { }
+impl std::error::Error for LexError {}
 
 impl WithContext<LexError> for LexError {
     fn ctx(self, ctx: &str) -> Self {
@@ -26,17 +26,17 @@ impl WithContext<LexError> for LexError {
             LexError::WithContext(mut ctxs, e) => {
                 ctxs.push(ctx.to_owned());
                 LexError::WithContext(ctxs, e)
-            },
-            e => LexError::WithContext(vec![ctx.to_owned()], Box::new(e))
+            }
+            e => LexError::WithContext(vec![ctx.to_owned()], Box::new(e)),
         }
     }
 }
 
-impl <T, E:Into<LexError>> WithContext<Result<T>> for std::result::Result<T, E> {
+impl<T, E: Into<LexError>> WithContext<Result<T>> for std::result::Result<T, E> {
     fn ctx(self, ctx: &str) -> Result<T> {
         match self {
             Ok(v) => Ok(v),
-            Err(e) => Err(e.into().ctx(ctx))
+            Err(e) => Err(e.into().ctx(ctx)),
         }
     }
 }

@@ -1,19 +1,20 @@
 /// Convert the function name into a type-friendly name by converting all punctuation to '_'.
 pub fn typename(s: &str) -> String {
-    s.as_bytes().iter().map(|c| {
-        match *c as char {
+    s.as_bytes()
+        .iter()
+        .map(|c| match *c as char {
             '.' | '_' => '_',
-            _ => *c as char
-        }
-    }).collect()
+            _ => *c as char,
+        })
+        .collect()
 }
 
-/// Convert the operand format in the instruction table to the 
+/// Convert the operand format in the instruction table to the
 pub fn operands(field: &str) -> String {
-    let trimmed = field.trim_matches(&['(',')'][..]);
+    let trimmed = field.trim_matches(&['(', ')'][..]);
     match trimmed {
         "" => "Operands::None".to_owned(),
-        operand => format!("Operands::{}", operand)
+        operand => format!("Operands::{}", operand),
     }
 }
 
@@ -27,7 +28,7 @@ pub fn hex(s: &str) -> u32 {
             b'a'..=b'f' => result += (10 + digit - b'a') as u32 * exp,
             b'A'..=b'F' => result += (10 + digit - b'A') as u32 * exp,
             b'x' => break,
-            _ => panic!("unhandling hex digit {}", digit)
+            _ => panic!("unhandling hex digit {}", digit),
         }
         exp *= 16;
     }

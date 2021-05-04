@@ -1,21 +1,21 @@
 use super::lex::Tokenizer;
-use std::io::Read;
 use super::token::{FileToken, Token};
 use error::{ParseError, Result};
+use std::io::Read;
 
-pub mod error;
-pub mod module;
 mod combinator;
+pub mod error;
+mod instruction;
+pub mod module;
 mod num;
 mod valtype;
-mod instruction;
 
 pub struct Parser<R: Read> {
     tokenizer: Tokenizer<R>,
     pub current: FileToken,
     // 1 token of lookahead
     pub next: FileToken,
-    context: Vec<String>
+    context: Vec<String>,
 }
 
 trait Ignorable {
@@ -25,7 +25,10 @@ trait Ignorable {
 impl Ignorable for Token {
     /// Returns true if the token is ignorable (whitespace, start, or comment) by the parser.
     fn ignorable(&self) -> bool {
-       matches!(self, Token::Start | Token::Whitespace | Token::LineComment | Token::BlockComment)
+        matches!(
+            self,
+            Token::Start | Token::Whitespace | Token::LineComment | Token::BlockComment
+        )
     }
 }
 
@@ -47,7 +50,7 @@ impl<R: Read> Parser<R> {
     // provided by the tokenizer.
     fn next(&mut self) -> Result<()> {
         if self.next.token == Token::Eof {
-            return Err(ParseError::Eof)
+            return Err(ParseError::Eof);
         }
 
         match self.tokenizer.next() {
@@ -67,7 +70,10 @@ impl<R: Read> Parser<R> {
         while self.next.token.ignorable() {
             self.next()?;
         }
-        println!("TOKENS ARE NOW {:?} {:?}", self.current.token, self.next.token);
+        println!(
+            "TOKENS ARE NOW {:?} {:?}",
+            self.current.token, self.next.token
+        );
         Ok(out)
     }
 
@@ -94,16 +100,14 @@ impl<R: Read> Parser<R> {
             return Ok(false);
         }
         match &self.next.token {
-            Token::Keyword(k) if k == name => {
-                Ok(true)
-            }
+            Token::Keyword(k) if k == name => Ok(true),
             _ => Ok(false),
         }
     }
 
     fn expect_expr_start(&mut self, name: &str) -> Result<()> {
         if !self.try_expr_start(name)? {
-            return Err(ParseError::unexpected("expression start"))
+            return Err(ParseError::unexpected("expression start"));
         }
         Ok(())
     }
@@ -114,7 +118,7 @@ impl<R: Read> Parser<R> {
                 self.advance()?;
                 Ok(())
             }
-            _ => Err(ParseError::unexpected("expression close"))
+            _ => Err(ParseError::unexpected("expression close")),
         }
     }
 
@@ -125,12 +129,13 @@ impl<R: Read> Parser<R> {
                 self.advance()?;
                 Ok(Some(data))
             }
-            _ => Ok(None)
+            _ => Ok(None),
         }
     }
 
     pub fn expect_string(&mut self) -> Result<String> {
-        self.try_string()?.ok_or_else(|| ParseError::unexpected("string literal"))
+        self.try_string()?
+            .ok_or_else(|| ParseError::unexpected("string literal"))
     }
 
     pub fn try_id(&mut self) -> Result<Option<String>> {
@@ -156,9 +161,7 @@ impl<R: Read> Parser<R> {
     }
     pub fn peek_keyword(&self) -> Result<Option<&str>> {
         match &self.current.token {
-            Token::Keyword(id) => {
-                Ok(Some(&id))
-            }
+            Token::Keyword(id) => Ok(Some(&id)),
             _ => Ok(None),
         }
     }
@@ -169,16 +172,14 @@ impl<R: Read> Parser<R> {
                 let id = std::mem::take(id);
                 self.advance()?;
                 Ok(Some(id))
-            },
-            _ => Ok(None)
+            }
+            _ => Ok(None),
         }
     }
 
     pub fn peek_next_keyword(&self) -> Result<Option<&str>> {
         match &self.next.token {
-            Token::Keyword(id) => {
-                Ok(Some(&id))
-            }
+            Token::Keyword(id) => Ok(Some(&id)),
             _ => Ok(None),
         }
     }
@@ -199,6 +200,4 @@ impl<R: Read> Parser<R> {
         self.advance()?;
         Ok(())
     }
-
-
 }
