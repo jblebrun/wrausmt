@@ -1,9 +1,9 @@
-use crate::format::text::{parse::error::ParseError, syntax::{self, Continuation, Expr, Index, Unresolved}};
+use crate::format::text::parse::error::ParseError;
+use crate::syntax::{self, Continuation, Expr, Index, Instruction, Unresolved};
 use crate::{instructions::instruction_by_name, instructions::Operands};
 use crate::format::text::token::Token;
 use super::Parser;
 use std::io::Read;
-use crate::format::text::syntax::Instruction;
 use super::Result;
 
 

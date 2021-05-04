@@ -1,4 +1,4 @@
-use crate::{error::{Result, ResultFrom}, format::text::syntax::{self, Resolved}, instructions::Expr, types::ValueType};
+use crate::{error::{Result, ResultFrom}, syntax::{self, Resolved}, instructions::Expr, types::ValueType};
 use crate::module::Function;
 use crate::runtime::error::ArgumentCountError;
 use crate::runtime::instance::ModuleInstance;

@@ -1,7 +1,7 @@
-use crate::{format::text::{parse::Parser, syntax::Resolved}, runtime::values::{Num, Ref, Value}, types::{NumType, RefType}};
+use crate::{format::text::parse::Parser, runtime::values::{Num, Ref, Value}, syntax::Resolved, types::{NumType, RefType}};
 use crate::format::text::token::Token;
 use std::io::Read;
-use crate::format::text::syntax as modulesyntax;
+use crate::syntax as modulesyntax;
 use crate::format::text::parse::error::{ParseError, Result};
 
 impl <R:Read> Parser<R> {

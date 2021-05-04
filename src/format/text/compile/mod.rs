@@ -1,4 +1,4 @@
-use super::syntax::{self,  Resolved};
+use crate::syntax::{self,  Resolved};
 use crate::{runtime::instance::{ExportInstance, ExternalVal}, types::{FunctionType, ValueType}};
 
 const END_OPCODE: u8 = 0xb;

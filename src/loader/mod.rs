@@ -1,6 +1,7 @@
 use std::rc::Rc;
 
-use crate::format::{binary::parse, text::{parse::error::ParseError, syntax::{Module, Resolved}}};
+use crate::format::{binary::parse, text::parse::error::ParseError};
+use crate::syntax::{Module, Resolved};
 use crate::format::text::lex::Tokenizer;
 use crate::format::error::ParseError as BinaryParseError;
 use crate::format::text::lex::error::LexError;

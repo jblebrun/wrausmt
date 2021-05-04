@@ -6,3 +6,4 @@ pub mod runtime;
 pub mod types;
 pub mod spec;
 pub mod loader;
+pub mod syntax;
