@@ -146,22 +146,7 @@ fn compile_function_body(func: &syntax::FuncField<Resolved>) -> Box<[u8]> {
     out.into_boxed_slice()
 }
 
-fn compile_function(func: syntax::FuncField<Resolved>, types: &[FunctionType]) -> module::Function {
-    // Get the typeidx from the finalized list of types
-    let functype = match &func.typeuse.typeidx {
-        Some(idx) => idx.value(),
-        None => {
-            let inline_def = &func.typeuse.get_inline_def().unwrap().into();
-            types
-                .iter()
-                .position(|t| t == inline_def)
-                .map(|p| p as u32)
-                .unwrap_or_else(|| {
-                    panic!("inline type missing from type list. this is a compiler error.")
-                })
-        }
-    };
-
+fn compile_function(func: syntax::FuncField<Resolved>) -> module::Function {
     // Convert the locals into a normal box
     let locals: Box<[ValueType]> = func.locals.iter().map(|l| l.valtype).collect();
 
@@ -169,7 +154,7 @@ fn compile_function(func: syntax::FuncField<Resolved>, types: &[FunctionType]) -
 
     // Compile the method body!!
     module::Function {
-        functype,
+        functype: func.typeuse.index_value(),
         locals,
         body,
     }
@@ -184,13 +169,10 @@ pub fn compile(ast: syntax::Module<Resolved>) -> module::Module {
 
     let exports = ast.exports.into_iter().map(|e| e.into()).collect();
 
-    // Needed:
-    // * completed types list,
-    // * completed index table,
     let funcs = ast
         .funcs
         .into_iter()
-        .map(|f| compile_function(f, &types))
+        .map(compile_function)
         .collect();
 
     module::Module {
