@@ -29,6 +29,20 @@ fn locals() -> Result<()> {
 }
 
 #[test]
+fn multi_module() -> Result<()> {
+    let mut runtime = Runtime::new();
+    let _ = runtime.load_wast("testdata/simplefunc.wat")?;
+
+    let mod_inst = runtime.load_wast("testdata/locals.wat")?;
+
+    let res1 = runtime.call(&mod_inst, "test", &[105u32.into()])?;
+    let v1: &Value = res1.first().unwrap();
+    assert_eq!(v1, &699u32.into());
+
+    Ok(())
+}
+
+#[test]
 fn blockbr() -> Result<()> {
     let mut runtime = Runtime::new();
     let mod_inst = runtime.load_wast("testdata/blockbr.wat")?;
