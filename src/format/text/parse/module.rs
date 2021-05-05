@@ -1,16 +1,13 @@
 use super::error::{ParseError, ParseErrorContext, Result};
 use super::Parser;
+use crate::{format::text::{module_builder::ModuleBuilder, token::Token}, syntax::{ResolvedState, TableField}};
 use crate::syntax::{
-    DataField, ElemField, ElemList, ExportDesc, ExportField, Expr, FParam, FResult, FuncField,
-    FunctionType, GlobalField, ImportDesc, ImportField, Index, IndexSpace, Local, MemoryField,
-    ModeEntry, Module, Resolved, StartField, TableField, TypeField, TypeUse, Unresolved,
+    DataField, ElemField, ElemList, ExportDesc, ExportField, Expr, FParam, FResult,
+    FuncField, FunctionType, GlobalField, ImportDesc, ImportField, Index, IndexSpace, Local,
+    MemoryField, ModeEntry, Module, Resolved, StartField, TypeField, TypeUse, Unresolved,
 };
 use crate::types::MemType;
-use crate::types::{GlobalType, Limits, RefType, TableType};
-use crate::{
-    format::text::{module_builder::ModuleBuilder, token::Token},
-    syntax::ResolvedState,
-};
+use crate::types::{GlobalType, RefType, TableType};
 use std::{collections::HashMap, io::Read};
 
 #[derive(Debug, PartialEq)]
@@ -63,6 +60,15 @@ impl<R: Read> Parser<R> {
         )
     }
 
+    fn fix_elem_table_id(ef: &mut ElemField<Unresolved>, idx: u32) {
+        match ef.mode {
+            ModeEntry::Active(ref mut tp) => {
+                tp.tableuse.tableidx = Index::unnamed(idx)
+            }
+            _ => ()
+        }
+    }
+
     /// This is split away as a convenience for spec test parsing, so that we can
     /// parse the module expression header, and then check for binary/quote modules
     /// first, before attempting a normal module parse.
@@ -80,8 +86,10 @@ impl<R: Read> Parser<R> {
                 Field::Type(f) => module_builder.add_typefield(f),
                 Field::Func(f) => module_builder.add_funcfield(f),
                 Field::Table(t, e) => {
+                    let tableidx = module_builder.tables();
                     module_builder.add_tablefield(t);
-                    if let Some(e) = e {
+                    if let Some(mut e) = e {
+                        Self::fix_elem_table_id(&mut e, tableidx);
                         module_builder.add_elemfield(e);
                     }
                 }
@@ -217,22 +225,8 @@ impl<R: Read> Parser<R> {
         Ok(Some(result))
     }
 
-    pub fn try_table_field(&mut self) -> Result<Option<Field<Unresolved>>> {
-        if !self.try_expr_start("table")? {
-            return Ok(None);
-        }
-        self.consume_expression()?;
-        Ok(Some(Field::Table(
-            TableField {
-                id: None,
-                exports: vec![],
-                tabletype: TableType {
-                    limits: Limits::default(),
-                    reftype: RefType::Func,
-                },
-            },
-            None,
-        )))
+    pub fn try_read_indices<IS: IndexSpace>(&mut self) -> Result<Vec<Index<Unresolved, IS>>> {
+        self.zero_or_more(Self::try_index)
     }
 
     pub fn try_memory_field(&mut self) -> Result<Option<Field<Unresolved>>> {
@@ -399,21 +393,6 @@ impl<R: Read> Parser<R> {
         Ok(Some(Field::Start(StartField { idx })))
     }
 
-    pub fn try_elem_field(&mut self) -> Result<Option<Field<Unresolved>>> {
-        if !self.try_expr_start("elem")? {
-            return Ok(None);
-        }
-        self.consume_expression()?;
-        Ok(Some(Field::Elem(ElemField {
-            id: None,
-            mode: ModeEntry::Passive,
-            elemlist: ElemList {
-                reftype: RefType::Func,
-                items: vec![],
-            },
-        })))
-    }
-
     pub fn try_data_field(&mut self) -> Result<Option<Field<Unresolved>>> {
         if !self.try_expr_start("data")? {
             return Ok(None);
@@ -448,7 +427,7 @@ impl<R: Read> Parser<R> {
 
     // Try to parse an inline export for a func, table, global, or memory.
     // := (export <name>)
-    fn try_inline_export(&mut self) -> Result<Option<String>> {
+    pub fn try_inline_export(&mut self) -> Result<Option<String>> {
         if !self.try_expr_start("export")? {
             return Ok(None);
         }
@@ -462,7 +441,7 @@ impl<R: Read> Parser<R> {
 
     // Try to parse an inline import for a func, table, global, or memory.
     // := (import <modname> <name>)
-    fn try_inline_import(&mut self) -> Result<Option<(String, String)>> {
+    pub fn try_inline_import(&mut self) -> Result<Option<(String, String)>> {
         if !self.try_expr_start("import")? {
             return Ok(None);
         }

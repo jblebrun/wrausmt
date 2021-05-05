@@ -299,12 +299,6 @@ impl std::fmt::Debug for Local {
 }
 
 #[derive(Debug, PartialEq)]
-pub enum TableElems<R: ResolvedState> {
-    Elem(ElemList<R>),
-    Expr(Vec<Expr<R>>),
-}
-
-#[derive(Debug, PartialEq)]
 // table :: = (table id? <tabletype>)
 // Abbreviations:
 // inline imports/exports
@@ -476,7 +470,7 @@ pub struct StartField<R: ResolvedState> {
     pub idx: Index<R, FuncIndex>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Default, PartialEq)]
 pub struct TableUse<R: ResolvedState> {
     pub tableidx: Index<R, TableIndex>,
 }

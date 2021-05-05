@@ -6,7 +6,7 @@ use crate::syntax::{
     DataField, DataIndex, DataInit, ElemField, ElemIndex, ElemList, ExportDesc, ExportField, Expr,
     FuncField, FuncIndex, GlobalField, GlobalIndex, ImportDesc, ImportField, Index, Instruction,
     LabelIndex, LocalIndex, MemoryIndex, ModeEntry, Module, Operands, Resolved, StartField,
-    TableElems, TableIndex, TablePosition, TableUse, TypeIndex, TypeUse, Unresolved,
+    TableIndex, TablePosition, TableUse, TypeIndex, TypeUse, Unresolved,
 };
 
 #[derive(Debug)]
@@ -159,18 +159,6 @@ impl Resolve<Operands<Resolved>> for Operands<Unresolved> {
             Operands::I64(v) => Operands::I64(v),
             Operands::F32(v) => Operands::F32(v),
             Operands::F64(v) => Operands::F64(v),
-        })
-    }
-}
-
-impl Resolve<TableElems<Resolved>> for TableElems<Unresolved> {
-    fn resolve(self, ic: &IdentifierContext) -> Result<TableElems<Resolved>> {
-        Ok(match self {
-            TableElems::Elem(el) => TableElems::Elem(el.resolve(&ic)?),
-            TableElems::Expr(exprs) => {
-                resolve_all!(e, exprs, ic);
-                TableElems::Expr(e?)
-            }
         })
     }
 }

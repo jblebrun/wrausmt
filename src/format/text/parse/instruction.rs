@@ -132,11 +132,11 @@ impl<R: Read> Parser<R> {
         Ok(None)
     }
 
-    fn try_plain_instruction_as_single(&mut self) -> Result<Option<Vec<Instruction<Unresolved>>>> {
+    pub fn try_plain_instruction_as_single(&mut self) -> Result<Option<Vec<Instruction<Unresolved>>>> {
         self.try_plain_instruction().map(|i| i.map(|i| vec![i]))
     }
 
-    fn try_instruction(&mut self) -> Result<Option<Vec<Instruction<Unresolved>>>> {
+    pub fn try_instruction(&mut self) -> Result<Option<Vec<Instruction<Unresolved>>>> {
         self.first_of(&[
             Self::try_folded_instruction,
             Self::try_plain_instruction_as_single,
