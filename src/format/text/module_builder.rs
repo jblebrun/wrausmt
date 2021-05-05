@@ -136,7 +136,7 @@ impl ModuleBuilder {
         self.module.funcs.push(f);
     }
 
-    pub fn add_tablefield(&mut self, f: TableField<Unresolved>) {
+    pub fn add_tablefield(&mut self, f: TableField) {
         add_ident!(self, f, tableindices, tables, self.tableidx_offset);
 
         // export field may define new exports.
@@ -147,7 +147,6 @@ impl ModuleBuilder {
                 exportdesc: ExportDesc::Table(Index::unnamed(tableidx)),
             })
         }
-        // TODO elem contents may define new elem
         self.module.tables.push(f);
     }
 

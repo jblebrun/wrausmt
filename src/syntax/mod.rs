@@ -81,7 +81,7 @@ pub struct Module<R: ResolvedState> {
     pub id: Option<String>,
     pub types: Vec<TypeField>,
     pub funcs: Vec<FuncField<R>>,
-    pub tables: Vec<TableField<R>>,
+    pub tables: Vec<TableField>,
     pub memories: Vec<MemoryField>,
     pub imports: Vec<ImportField<R>>,
     pub exports: Vec<ExportField<R>>,
@@ -120,20 +120,6 @@ impl<I: ResolvedState> fmt::Debug for Module<I> {
         write!(f, "\n)")?;
         write!(f, ".IdentifierContext:")
     }
-}
-
-#[derive(Debug, PartialEq)]
-pub enum Field<R: ResolvedState> {
-    Type(TypeField),
-    Func(FuncField<R>),
-    Table(TableField<R>),
-    Memory(MemoryField),
-    Import(ImportField<R>),
-    Export(ExportField<R>),
-    Global(GlobalField<R>),
-    Start(StartField<R>),
-    Elem(ElemField<R>),
-    Data(DataField<R>),
 }
 
 #[derive(PartialEq, Clone, Default)]
@@ -323,11 +309,10 @@ pub enum TableElems<R: ResolvedState> {
 // Abbreviations:
 // inline imports/exports
 // inline elem
-pub struct TableField<R: ResolvedState> {
+pub struct TableField {
     pub id: Option<String>,
     pub exports: Vec<String>,
     pub tabletype: TableType,
-    pub elems: Option<TableElems<R>>,
 }
 
 // memory := (memory id? <memtype>)

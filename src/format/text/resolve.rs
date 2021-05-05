@@ -6,7 +6,7 @@ use crate::syntax::{
     DataField, DataIndex, DataInit, ElemField, ElemIndex, ElemList, ExportDesc, ExportField, Expr,
     FuncField, FuncIndex, GlobalField, GlobalIndex, ImportDesc, ImportField, Index, Instruction,
     LabelIndex, LocalIndex, MemoryIndex, ModeEntry, Module, Operands, Resolved, StartField,
-    TableElems, TableField, TableIndex, TablePosition, TableUse, TypeIndex, TypeUse, Unresolved,
+    TableElems, TableIndex, TablePosition, TableUse, TypeIndex, TypeUse, Unresolved,
 };
 
 #[derive(Debug)]
@@ -163,18 +163,6 @@ impl Resolve<Operands<Resolved>> for Operands<Unresolved> {
     }
 }
 
-impl Resolve<TableField<Resolved>> for TableField<Unresolved> {
-    fn resolve(self, ic: &IdentifierContext) -> Result<TableField<Resolved>> {
-        resolve_option!(elems, self.elems, ic);
-        Ok(TableField {
-            id: self.id,
-            exports: self.exports,
-            tabletype: self.tabletype,
-            elems,
-        })
-    }
-}
-
 impl Resolve<TableElems<Resolved>> for TableElems<Unresolved> {
     fn resolve(self, ic: &IdentifierContext) -> Result<TableElems<Resolved>> {
         Ok(match self {
@@ -318,7 +306,6 @@ impl Resolve<DataInit<Resolved>> for DataInit<Unresolved> {
 impl Resolve<Module<Resolved>> for Module<Unresolved> {
     fn resolve(self, ic: &IdentifierContext) -> Result<Module<Resolved>> {
         resolve_all!(funcs, self.funcs, ic);
-        resolve_all!(tables, self.tables, ic);
         resolve_all!(imports, self.imports, ic);
         resolve_all!(exports, self.exports, ic);
         resolve_all!(globals, self.globals, ic);
@@ -329,7 +316,7 @@ impl Resolve<Module<Resolved>> for Module<Unresolved> {
             id: self.id,
             types: self.types,
             funcs: funcs?,
-            tables: tables?,
+            tables: self.tables,
             memories: self.memories,
             imports: imports?,
             exports: exports?,
