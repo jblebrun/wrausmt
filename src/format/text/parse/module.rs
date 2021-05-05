@@ -1,15 +1,31 @@
 use super::error::{ParseError, ParseErrorContext, Result};
 use super::Parser;
-use crate::format::text::{module_builder::ModuleBuilder, token::Token};
 use crate::syntax::{
-    DataField, ElemField, ElemList, ExportDesc, ExportField, Expr, FParam, FResult, Field,
-    FuncField, FunctionType, GlobalField, ImportDesc, ImportField, Index, IndexSpace, Local,
-    MemoryField, ModeEntry, Module, Resolved, StartField, TableField, TypeField, TypeUse,
-    Unresolved,
+    DataField, ElemField, ElemList, ExportDesc, ExportField, Expr, FParam, FResult, FuncField,
+    FunctionType, GlobalField, ImportDesc, ImportField, Index, IndexSpace, Local, MemoryField,
+    ModeEntry, Module, Resolved, StartField, TableField, TypeField, TypeUse, Unresolved,
 };
 use crate::types::MemType;
 use crate::types::{GlobalType, Limits, RefType, TableType};
+use crate::{
+    format::text::{module_builder::ModuleBuilder, token::Token},
+    syntax::ResolvedState,
+};
 use std::{collections::HashMap, io::Read};
+
+#[derive(Debug, PartialEq)]
+pub enum Field<R: ResolvedState> {
+    Type(TypeField),
+    Func(FuncField<R>),
+    Table(TableField, Option<ElemField<R>>),
+    Memory(MemoryField),
+    Import(ImportField<R>),
+    Export(ExportField<R>),
+    Global(GlobalField<R>),
+    Start(StartField<R>),
+    Elem(ElemField<R>),
+    Data(DataField<R>),
+}
 
 // Implementation for module-specific parsing functions.
 impl<R: Read> Parser<R> {
@@ -63,7 +79,12 @@ impl<R: Read> Parser<R> {
             match field? {
                 Field::Type(f) => module_builder.add_typefield(f),
                 Field::Func(f) => module_builder.add_funcfield(f),
-                Field::Table(f) => module_builder.add_tablefield(f),
+                Field::Table(t, e) => {
+                    module_builder.add_tablefield(t);
+                    if let Some(e) = e {
+                        module_builder.add_elemfield(e);
+                    }
+                }
                 Field::Memory(f) => module_builder.add_memoryfield(f),
                 Field::Import(f) => module_builder.add_importfield(f),
                 Field::Export(f) => module_builder.add_exportfield(f),
@@ -201,15 +222,17 @@ impl<R: Read> Parser<R> {
             return Ok(None);
         }
         self.consume_expression()?;
-        Ok(Some(Field::Table(TableField {
-            id: None,
-            exports: vec![],
-            tabletype: TableType {
-                limits: Limits::default(),
-                reftype: RefType::Func,
+        Ok(Some(Field::Table(
+            TableField {
+                id: None,
+                exports: vec![],
+                tabletype: TableType {
+                    limits: Limits::default(),
+                    reftype: RefType::Func,
+                },
             },
-            elems: None,
-        })))
+            None,
+        )))
     }
 
     pub fn try_memory_field(&mut self) -> Result<Option<Field<Unresolved>>> {

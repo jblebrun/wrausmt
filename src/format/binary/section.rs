@@ -92,7 +92,7 @@ pub enum Section {
     Types(Vec<syntax::TypeField>),
     Imports(Vec<syntax::ImportField<syntax::Resolved>>),
     Funcs(Vec<syntax::Index<syntax::Resolved, syntax::TypeIndex>>),
-    Tables(Vec<syntax::TableField<syntax::Resolved>>),
+    Tables(Vec<syntax::TableField>),
     Mems(Vec<syntax::MemoryField>),
     Globals(Vec<syntax::GlobalField<syntax::Resolved>>),
     Exports(Vec<syntax::ExportField<syntax::Resolved>>),
