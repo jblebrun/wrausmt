@@ -8,7 +8,7 @@ pub mod values;
 use crate::{
     err,
     error::{Result, ResultFrom},
-    format::text::compile::{compile_function_body, Emitter},
+    format::text::compile::{compile_export, compile_function_body, Emitter},
     syntax::{self, FuncField, Resolved},
     types::ValueType,
 };
@@ -83,12 +83,12 @@ impl Runtime {
         let (func_count, func_offset) = self.store.alloc_funcs(func_insts.iter().cloned());
         module_instance.func_count = func_count;
         module_instance.func_offset = func_offset;
+        println!("LOADED FUNCTIONS {} {}", func_count, func_offset);
 
         let mem_insts = module.memories.into_iter().map(MemInstance::new_ast);
         let (count, offset) = self.store.alloc_mems(mem_insts);
         module_instance.mem_count = count;
         module_instance.mem_offset = offset;
-        module_instance.exports = module.exports.into_iter().map(|e| e.into()).collect();
 
         // (Instantiation 5-10.) Generate global and elem init values
         // (Instantiation 5.) Create the module instance for global initialization
@@ -115,6 +115,12 @@ impl Runtime {
         let (count, offset) = self.store.alloc_globals(global_insts.into_iter());
         module_instance.global_count = count;
         module_instance.global_offset = offset;
+
+        module_instance.exports = module
+            .exports
+            .into_iter()
+            .map(|e| compile_export(e, &module_instance))
+            .collect();
 
         self.stack.pop_activation()?;
 

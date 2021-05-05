@@ -1,3 +1,4 @@
+use crate::runtime::instance::ModuleInstance;
 use crate::syntax::{self, Expr, Resolved, TypeUse};
 use crate::{
     runtime::instance::{ExportInstance, ExternalVal},
@@ -22,23 +23,22 @@ impl From<syntax::Local> for ValueType {
     }
 }
 
-impl From<syntax::ExportDesc<Resolved>> for ExternalVal {
-    fn from(ast: syntax::ExportDesc<Resolved>) -> ExternalVal {
-        match ast {
-            syntax::ExportDesc::Func(idx) => ExternalVal::Func(idx.value()),
-            syntax::ExportDesc::Table(idx) => ExternalVal::Table(idx.value()),
-            syntax::ExportDesc::Mem(idx) => ExternalVal::Memory(idx.value()),
-            syntax::ExportDesc::Global(idx) => ExternalVal::Global(idx.value()),
-        }
+fn compile_export_desc(ast: syntax::ExportDesc<Resolved>, modinst: &ModuleInstance) -> ExternalVal {
+    match ast {
+        syntax::ExportDesc::Func(idx) => ExternalVal::Func(idx.value() + modinst.func_offset),
+        syntax::ExportDesc::Table(idx) => ExternalVal::Table(idx.value() + modinst.table_offset),
+        syntax::ExportDesc::Mem(idx) => ExternalVal::Memory(idx.value() + modinst.mem_offset),
+        syntax::ExportDesc::Global(idx) => ExternalVal::Global(idx.value() + modinst.global_offset),
     }
 }
 
-impl From<syntax::ExportField<Resolved>> for ExportInstance {
-    fn from(ast: syntax::ExportField<Resolved>) -> ExportInstance {
-        ExportInstance {
-            name: ast.name,
-            addr: ast.exportdesc.into(),
-        }
+pub fn compile_export(
+    ast: syntax::ExportField<Resolved>,
+    modinst: &ModuleInstance,
+) -> ExportInstance {
+    ExportInstance {
+        name: ast.name,
+        addr: compile_export_desc(ast.exportdesc, modinst),
     }
 }
 
