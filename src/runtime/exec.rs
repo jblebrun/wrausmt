@@ -61,6 +61,7 @@ pub trait ExecutionContextActions {
     fn get_local(&mut self, idx: u32) -> Result<Value>;
     fn set_local(&mut self, idx: u32, val: Value) -> Result<()>;
 
+    fn get_func_table(&mut self, tidx: u32, elemidx: u32) -> Result<u32>;
     fn get_global(&mut self, idx: u32) -> Result<Value>;
     fn push_value(&mut self, val: Value) -> Result<()>;
     fn push_label(&mut self, arity: u32, continuation: u32) -> Result<()>;
@@ -123,6 +124,13 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
 
     fn set_local(&mut self, idx: u32, val: Value) -> Result<()> {
         self.runtime.stack.set_local(idx, val)
+    }
+
+    fn get_func_table(&mut self, tidx: u32, elemidx: u32) -> Result<u32> {
+        match self.runtime.store.tables[tidx as usize].elem[elemidx as usize] {
+            Ref::Func(a) => Ok(a as u32),
+            _ => panic!("not a func")
+        }
     }
 
     fn mem(&mut self, idx: u32) -> Result<&mut MemInstance> {

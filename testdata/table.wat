@@ -8,6 +8,12 @@
   (elem  (offset i32.const 2) funcref (ref.func $f2))
   (elem  (i32.const 2) funcref (ref.func $f2))
 )
+  (table funcref (elem $f0 $f1 $f2 $f3))
+  (table funcref (elem $f3 $f2 $f1 $f0))
+  (func (export "test") (param i32) (result i32)
+        local.get 0
+        call_indirect (result i32)
+        ))
 
 
              

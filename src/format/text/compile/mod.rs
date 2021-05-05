@@ -126,6 +126,10 @@ pub trait Emitter {
                 syntax::Operands::None => (),
                 syntax::Operands::Block(_, typeuse, e, cnt) => self.emit_block(typeuse, e, cnt),
                 syntax::Operands::BrTable(indices) => self.emit_br_table(indices),
+                syntax::Operands::CallIndirect(idx, typeuse) => {
+                    self.emit32(idx.value());
+                    self.emit32(typeuse.index_value());
+                }
                 syntax::Operands::If(_, typeuse, th, el) => self.emit_if(typeuse, th, el),
                 syntax::Operands::I32(n) => self.emit32(*n),
                 syntax::Operands::I64(n) => self.emit64(*n),
@@ -142,7 +146,6 @@ pub trait Emitter {
                     self.emit32(*o);
                     self.emit32(*a)
                 }
-                _ => panic!("not yet implemented in compiler {:?}", instr),
             }
         }
         self.push(END_OPCODE);

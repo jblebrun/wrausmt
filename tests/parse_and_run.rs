@@ -111,3 +111,15 @@ fn ifs() -> Result<()> {
     assert_eq!(v1, &0x42.into());
     Ok(())
 }
+
+#[test]
+fn table() -> Result<()> {
+    let mut runtime = Runtime::new();
+    let mod_inst = runtime.load_wast("testdata/table.wat")?;
+
+    let res1 = runtime.call(&mod_inst, "test", &[0.into()])?;
+    let v1: &Value = res1.first().unwrap();
+    assert_eq!(v1, &0x42.into());
+
+    Ok(())
+}

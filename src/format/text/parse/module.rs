@@ -1,5 +1,6 @@
 use super::error::{ParseError, ParseErrorContext, Result};
 use super::Parser;
+use crate::{format::text::{module_builder::ModuleBuilder, token::Token}, syntax::{ResolvedState, TableField}};
 use crate::syntax::{
     DataField, ElemField, ExportDesc, ExportField, Expr, FParam, FResult, FuncField, FunctionType,
     GlobalField, ImportDesc, ImportField, Index, IndexSpace, Local, MemoryField, ModeEntry, Module,

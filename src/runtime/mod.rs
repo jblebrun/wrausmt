@@ -5,13 +5,7 @@ pub mod stack;
 pub mod store;
 pub mod values;
 
-use crate::{
-    err,
-    error::{Result, ResultFrom},
-    format::text::compile::{compile_export, compile_function_body, Emitter},
-    syntax::{self, FuncField, Resolved},
-    types::ValueType,
-};
+use crate::{err, error::{Result, ResultFrom}, format::text::compile::{compile_export, compile_function_body, Emitter}, runtime::instance::TableInstance, syntax::{self, ElemList, Expr, FuncField, Instruction, ModeEntry, Resolved, TablePosition}, types::ValueType};
 use std::{cell::RefCell, rc::Rc};
 
 use {
@@ -61,6 +55,21 @@ impl Runtime {
         }
     }
 
+    fn init_table(&mut self, tp: &TablePosition<Resolved>, elemlist: &ElemList<Resolved>, i: u32) -> Result<()> {
+        let n = elemlist.items.len() as u32;
+        let initexpr: Vec<Instruction<Resolved>> = vec![
+            Instruction{name: "i32.const".to_owned(), opcode: 0x41, operands: syntax::Operands::I32(0)},
+            Instruction{name: "i32.const".to_owned(), opcode: 0x41, operands: syntax::Operands::I32(n)},
+            Instruction{name: "table.init".to_owned(), opcode: 0xE0 + 0x0c, operands: syntax::Operands::I32(i)},
+            Instruction{name: "elem.drop".to_owned(), opcode: 0xE0 + 0x0d, operands: syntax::Operands::I32(i)},
+        ];
+        let mut init_code: Vec<u8> = vec![];
+        init_code.emit_expr(&tp.offset);
+        init_code.emit_expr(&Expr{instr:initexpr});
+        self.eval_expr(&init_code)?;
+        Ok(())
+    }
+
     fn instantiate(&mut self, module: syntax::Module<Resolved>) -> Result<Rc<ModuleInstance>> {
         let mut module_instance = ModuleInstance {
             types: module
@@ -84,6 +93,15 @@ impl Runtime {
         module_instance.func_count = func_count;
         module_instance.func_offset = func_offset;
         println!("LOADED FUNCTIONS {} {}", func_count, func_offset);
+
+        let table_insts: Vec<TableInstance> = module
+            .tables
+            .into_iter()
+            .map(|t| TableInstance::new(t.tabletype))
+            .collect();
+        let (table_count, table_offset) = self.store.alloc_tables(table_insts.into_iter());
+        module_instance.table_count = table_count;
+        module_instance.table_offset = table_offset;
 
         let mem_insts = module.memories.into_iter().map(MemInstance::new_ast);
         let (count, offset) = self.store.alloc_mems(mem_insts);
@@ -115,6 +133,18 @@ impl Runtime {
         let (count, offset) = self.store.alloc_globals(global_insts.into_iter());
         module_instance.global_count = count;
         module_instance.global_offset = offset;
+
+        println!("ELEMS: {:?}", module.elems);
+
+        for (i, elem) in module.elems.iter().enumerate() {
+            match &elem.mode {
+                ModeEntry::Active(tp) => {
+                    println!("INIT ELEMS!");
+                    self.init_table(tp, &elem.elemlist, i as u32)?
+                }
+                _ => ()
+            }
+        }
 
         module_instance.exports = module
             .exports

@@ -492,6 +492,7 @@ pub struct TablePosition<R: ResolvedState> {
     pub offset: Expr<R>,
 }
 
+// ElemList may be exprs, or func indices (unresolved)
 #[derive(Debug, PartialEq)]
 pub struct ElemList<R: ResolvedState> {
     pub reftype: RefType,
