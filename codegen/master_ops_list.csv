@@ -6,7 +6,22 @@
 
 0x03      ,loop                          ,(Loop)
 0x04      ,if                            ,(If)
+| let arity = _ec.op_u32()?;
+| let end = _ec.op_u32()?;
+| let el = _ec.op_u32()?;
+|
+| _ec.push_label(arity, end)?;
+|
+| let cnd = _ec.pop::<i32>()?;
+|
+| if cnd == 0 {
+|     _ec.continuation(el)?;
+| }
+| Ok(())
+
 0x05      ,else                          ,()
+| _ec.br(0)
+
 0x0B      ,end                           ,()
 | _ec.pop_label()?;
 | Ok(())
