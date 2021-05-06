@@ -12,3 +12,12 @@ pub struct ElemInstance {
     pub elemtype: RefType,
     pub elems: Box<[Ref]>,
 }
+
+impl ElemInstance {
+    pub fn new(elems: Box<[Ref]>) -> Self {
+        ElemInstance {
+            elemtype: RefType::Func,
+            elems,
+        }
+    }
+}

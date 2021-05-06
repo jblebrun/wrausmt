@@ -11,7 +11,11 @@
 0x0a      ,memory.copy                   ,(MemoryCopy)
 0x0b      ,memory.fill                   ,(MemoryFill)
 0x0c      ,table.init                    ,(TableInit)
+| _ec.table_init()
+
 0x0d      ,elem.drop                     ,(ElemIndex)
+| _ec.elem_drop()
+
 0x0e      ,table.copy                    ,(TableCopy)
 0x0f      ,table.grow                    ,(TableIndex)
 0x10      ,table.size                    ,(TableIndex)

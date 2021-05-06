@@ -129,3 +129,9 @@ impl From<Num> for Value {
         Value::Num(n)
     }
 }
+
+impl From<Ref> for Value {
+    fn from(r: Ref) -> Value {
+        Value::Ref(r)
+    }
+}

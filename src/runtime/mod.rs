@@ -9,7 +9,11 @@ use crate::{
     err,
     error::{Result, ResultFrom},
     format::text::compile::{compile_export, compile_function_body, Emitter},
-    syntax::{self, FuncField, Resolved},
+    runtime::{
+        instance::{ElemInstance, TableInstance},
+        values::Ref,
+    },
+    syntax::{self, ElemList, Expr, FuncField, Instruction, ModeEntry, Resolved, TablePosition},
     types::ValueType,
 };
 use std::{cell::RefCell, rc::Rc};
@@ -61,6 +65,29 @@ impl Runtime {
         }
     }
 
+    fn init_table(
+        &mut self,
+        tp: &TablePosition<Resolved>,
+        elemlist: &ElemList<Resolved>,
+        i: u32,
+    ) -> Result<()> {
+        let n = elemlist.items.len() as u32;
+        let initexpr: Vec<Instruction<Resolved>> = vec![
+            Instruction::i32const(0),
+            Instruction::i32const(n),
+            Instruction::tableinit(i),
+            Instruction::elemdrop(i),
+        ];
+        let mut init_code: Vec<u8> = vec![];
+        // TODO - offset has and end marker 0x0b throwing off label count.
+        init_code.emit_expr(&tp.offset);
+        self.exec_expr(&init_code)?;
+        init_code.clear();
+        init_code.emit_expr(&Expr { instr: initexpr });
+        self.exec_expr(&init_code)?;
+        Ok(())
+    }
+
     fn instantiate(&mut self, module: syntax::Module<Resolved>) -> Result<Rc<ModuleInstance>> {
         let mut module_instance = ModuleInstance {
             types: module
@@ -85,6 +112,16 @@ impl Runtime {
         module_instance.func_offset = func_offset;
         println!("LOADED FUNCTIONS {} {}", func_count, func_offset);
 
+        let table_insts: Vec<TableInstance> = module
+            .tables
+            .into_iter()
+            .map(|t| TableInstance::new(t.tabletype))
+            .collect();
+        let (table_count, table_offset) = self.store.alloc_tables(table_insts.into_iter());
+        println!("LOADED TABLES {} {}", table_count, table_offset);
+        module_instance.table_count = table_count;
+        module_instance.table_offset = table_offset;
+
         let mem_insts = module.memories.into_iter().map(MemInstance::new_ast);
         let (count, offset) = self.store.alloc_mems(mem_insts);
         module_instance.mem_count = count;
@@ -96,6 +133,29 @@ impl Runtime {
 
         // (Instantiation 6-7.) Create a frame with the instance, push it.
         self.stack.push_dummy_activation(init_module_instance)?;
+
+        // (Instantiation 9.) Elems
+        let elem_insts: Vec<ElemInstance> = module
+            .elems
+            .iter()
+            .map(|e| {
+                let refs: Vec<Ref> = e
+                    .elemlist
+                    .items
+                    .iter()
+                    .map(|ei| {
+                        let mut initexpr: Vec<u8> = Vec::new();
+                        initexpr.emit_expr(&ei);
+                        self.eval_ref_expr(&initexpr)
+                    })
+                    .collect::<Result<_>>()?;
+                Ok(ElemInstance::new(refs.into_boxed_slice()))
+            })
+            .collect::<Result<_>>()?;
+        let (count, offset) = self.store.alloc_elems(elem_insts.into_iter());
+        module_instance.elem_count = count;
+        module_instance.elem_offset = offset;
+        println!("LOADED ELEMS {} {}", table_count, table_offset);
 
         // (Instantiation 8.) Get global init vals and allocate globals.
         let global_insts: Vec<GlobalInstance> = module
@@ -115,6 +175,13 @@ impl Runtime {
         let (count, offset) = self.store.alloc_globals(global_insts.into_iter());
         module_instance.global_count = count;
         module_instance.global_offset = offset;
+
+        for (i, elem) in module.elems.iter().enumerate() {
+            if let ModeEntry::Active(tp) = &elem.mode {
+                println!("INIT ELEMS!");
+                self.init_table(tp, &elem.elemlist, i as u32)?
+            }
+        }
 
         module_instance.exports = module
             .exports

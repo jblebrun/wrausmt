@@ -41,14 +41,24 @@
 | _ec.call(i)
 
 0x11      ,call_indirect                 ,(CallIndirect)
+| let t = _ec.op_u32()?;
+| let _tu = _ec.op_u32()?;
+| let ei = _ec.pop::<u32>()?;
+| let f = _ec.get_func_table(t, ei)?;
+| _ec.call(f)
+
 0x1A      ,drop                          ,()
 | _ec.pop_value()?;
 | Ok(())
 0x1B      ,select                        ,()
 0x1C      ,selectt                       ,(SelectT)
 0xD0      ,ref.null                      ,(HeapType)
+| _ec.push_func_ref(0)
+
 0xD1      ,ref.is_null                   ,()
 0xD2      ,ref.func                      ,(FuncIndex)
+| let fi = _ec.op_u32()?;
+| _ec.push_func_ref(fi)
 
 0x20      ,local.get                     ,(LocalIndex)
 | let i = _ec.op_u32()?;
@@ -69,6 +79,8 @@
 0x24      ,global.set                    ,(GlobalIndex)
 0x25      ,table.get                     ,(TableIndex)
 0x26      ,table.set                     ,(TableIndex)
+| panic!("table.set")
+
 0x28      ,i32.load                      ,(Memargs)
 | let v = _ec.get_mem_i32()?;
 | _ec.push(v)
