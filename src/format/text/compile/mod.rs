@@ -142,7 +142,7 @@ pub trait Emitter {
                     self.emit32(*o);
                     self.emit32(*a)
                 }
-                _ => panic!("not yet implemented in compiler {:?}", instr)
+                _ => panic!("not yet implemented in compiler {:?}", instr),
             }
         }
         self.push(END_OPCODE);

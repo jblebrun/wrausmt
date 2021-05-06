@@ -412,6 +412,16 @@ pub struct Instruction<R: ResolvedState> {
     pub operands: Operands<R>,
 }
 
+impl<R: ResolvedState> Instruction<R> {
+    pub fn reffunc(idx: Index<R, FuncIndex>) -> Self {
+        Self {
+            name: "ref.func".to_owned(),
+            opcode: 0xD2,
+            operands: Operands::FuncIndex(idx),
+        }
+    }
+}
+
 #[derive(PartialEq, Debug)]
 pub enum Continuation {
     Start,
@@ -433,6 +443,7 @@ pub enum Operands<R: ResolvedState> {
     LocalIndex(Index<R, LocalIndex>),
     LabelIndex(Index<R, LabelIndex>),
     Memargs(u32, u32),
+    HeapType(RefType),
     I32(u32),
     I64(u64),
     F32(f32),
@@ -475,7 +486,7 @@ pub struct TableUse<R: ResolvedState> {
     pub tableidx: Index<R, TableIndex>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Default, PartialEq)]
 pub struct TablePosition<R: ResolvedState> {
     pub tableuse: TableUse<R>,
     pub offset: Expr<R>,
@@ -485,6 +496,15 @@ pub struct TablePosition<R: ResolvedState> {
 pub struct ElemList<R: ResolvedState> {
     pub reftype: RefType,
     pub items: Vec<Expr<R>>,
+}
+
+impl<R: ResolvedState> ElemList<R> {
+    pub fn func(items: Vec<Expr<R>>) -> Self {
+        ElemList {
+            reftype: RefType::Func,
+            items,
+        }
+    }
 }
 
 #[derive(Debug, PartialEq)]

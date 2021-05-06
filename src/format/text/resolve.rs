@@ -155,6 +155,7 @@ impl Resolve<Operands<Resolved>> for Operands<Unresolved> {
             Operands::LocalIndex(idx) => Operands::LocalIndex(idx.resolve(&ic)?),
             Operands::LabelIndex(idx) => Operands::LabelIndex(idx.resolve(&ic)?),
             Operands::Memargs(a, o) => Operands::Memargs(a, o),
+            Operands::HeapType(r) => Operands::HeapType(r),
             Operands::I32(v) => Operands::I32(v),
             Operands::I64(v) => Operands::I64(v),
             Operands::F32(v) => Operands::F32(v),

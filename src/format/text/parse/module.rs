@@ -1,13 +1,16 @@
 use super::error::{ParseError, ParseErrorContext, Result};
 use super::Parser;
-use crate::{format::text::{module_builder::ModuleBuilder, token::Token}, syntax::{ResolvedState, TableField}};
 use crate::syntax::{
-    DataField, ElemField, ElemList, ExportDesc, ExportField, Expr, FParam, FResult,
-    FuncField, FunctionType, GlobalField, ImportDesc, ImportField, Index, IndexSpace, Local,
-    MemoryField, ModeEntry, Module, Resolved, StartField, TypeField, TypeUse, Unresolved,
+    DataField, ElemField, ExportDesc, ExportField, Expr, FParam, FResult, FuncField, FunctionType,
+    GlobalField, ImportDesc, ImportField, Index, IndexSpace, Local, MemoryField, ModeEntry, Module,
+    Resolved, StartField, TypeField, TypeUse, Unresolved,
 };
 use crate::types::MemType;
-use crate::types::{GlobalType, RefType, TableType};
+use crate::types::{GlobalType, TableType};
+use crate::{
+    format::text::{module_builder::ModuleBuilder, token::Token},
+    syntax::{ResolvedState, TableField},
+};
 use std::{collections::HashMap, io::Read};
 
 #[derive(Debug, PartialEq)]
@@ -61,11 +64,8 @@ impl<R: Read> Parser<R> {
     }
 
     fn fix_elem_table_id(ef: &mut ElemField<Unresolved>, idx: u32) {
-        match ef.mode {
-            ModeEntry::Active(ref mut tp) => {
-                tp.tableuse.tableidx = Index::unnamed(idx)
-            }
-            _ => ()
+        if let ModeEntry::Active(ref mut tp) = ef.mode {
+            tp.tableuse.tableidx = Index::unnamed(idx)
         }
     }
 

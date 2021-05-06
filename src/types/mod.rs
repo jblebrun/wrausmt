@@ -112,10 +112,13 @@ pub struct TableType {
 }
 
 impl TableType {
-    pub fn fixed_size(reftype: RefType, size: u32) -> Self {
+    pub fn fixed_size(size: u32) -> Self {
         Self {
-            reftype,
-            limits: Limits{lower: size, upper: Some(size)}
+            reftype: RefType::Func,
+            limits: Limits {
+                lower: size,
+                upper: Some(size),
+            },
         }
     }
 }
