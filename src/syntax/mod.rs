@@ -350,9 +350,9 @@ pub enum ImportDesc<R: ResolvedState> {
 
 #[derive(PartialEq)]
 pub struct ImportField<R: ResolvedState> {
+    pub id: Option<String>,
     pub modname: String,
     pub name: String,
-    pub id: Option<String>,
     pub desc: ImportDesc<R>,
 }
 

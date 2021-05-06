@@ -292,6 +292,7 @@ impl Runtime {
                 .stack
                 .pop_value()
                 .wrap(&format!("popping result {} for {}", i, name))?;
+            println!("POPPED HOST CALL RESULT {:?}", result);
             results.push(result);
         }
 

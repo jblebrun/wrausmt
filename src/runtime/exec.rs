@@ -264,21 +264,12 @@ impl Runtime {
     }
 
     pub fn eval_expr(&mut self, body: &[u8]) -> Result<Value> {
-        println!("PUSH LABEL");
-        self.stack.push_label(Label {
-            arity: 1,
-            continuation: body.len() as u32 - 1,
-        })?;
-        self.enter(body)?;
+        self.exec_expr(body)?;
         self.stack.pop_value()
     }
 
     pub fn eval_ref_expr(&mut self, body: &[u8]) -> Result<Ref> {
-        self.stack.push_label(Label {
-            arity: 1,
-            continuation: body.len() as u32 - 1,
-        })?;
-        self.enter(body)?;
+        self.exec_expr(body)?;
         match self.stack.pop_value()? {
             Value::Ref(r) => Ok(r),
             _ => err!("non-ref result for expression"),
