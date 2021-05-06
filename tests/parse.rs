@@ -34,3 +34,10 @@ fn folded_block_parse() -> Result<()> {
     println!("{:?}", module);
     Ok(())
 }
+
+#[test]
+fn table_parse() -> Result<()> {
+    let module = load_ast("testdata/table.wat")?;
+    println!("{:?}", module);
+    Ok(())
+}

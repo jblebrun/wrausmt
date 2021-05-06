@@ -8,6 +8,7 @@ pub mod error;
 mod instruction;
 pub mod module;
 mod num;
+mod table;
 mod valtype;
 
 pub struct Parser<R: Read> {

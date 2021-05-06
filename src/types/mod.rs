@@ -111,6 +111,18 @@ pub struct TableType {
     pub reftype: RefType,
 }
 
+impl TableType {
+    pub fn fixed_size(size: u32) -> Self {
+        Self {
+            reftype: RefType::Func,
+            limits: Limits {
+                lower: size,
+                upper: Some(size),
+            },
+        }
+    }
+}
+
 /// Global types classify global variables, which hold a value and can either be mutable or
 /// immutable. [Spec][Spec]
 ///

@@ -1,8 +1,8 @@
 use super::Parser;
 use super::Result;
-use crate::format::text::parse::error::ParseError;
 use crate::format::text::token::Token;
 use crate::syntax::{self, Continuation, Expr, Index, Instruction, Unresolved};
+use crate::{format::text::parse::error::ParseError, types::RefType};
 use crate::{instructions::instruction_by_name, instructions::Operands};
 use std::io::Read;
 
@@ -59,6 +59,7 @@ impl<R: Read> Parser<R> {
                     Operands::Block => self.parse_plain_block(Continuation::End)?,
                     Operands::Loop => self.parse_plain_block(Continuation::Start)?,
                     Operands::If => self.parse_plain_if_operands()?,
+                    Operands::HeapType => syntax::Operands::HeapType(self.expect_heap_type()?),
                     _ => panic!("Unimplemented operands type {:?}", data.operands),
                 };
                 Ok(Some(Instruction {
@@ -69,6 +70,16 @@ impl<R: Read> Parser<R> {
             }
             None => Ok(None),
         }
+    }
+
+    fn expect_heap_type(&mut self) -> Result<RefType> {
+        if self.take_keyword_if(|kw| kw == "func")?.is_some() {
+            return Ok(RefType::Func);
+        }
+        if self.take_keyword_if(|kw| kw == "extern")?.is_some() {
+            return Ok(RefType::Extern);
+        }
+        Err(ParseError::unexpected("heap type"))
     }
 
     fn parse_plain_block(&mut self, cnt: Continuation) -> Result<syntax::Operands<Unresolved>> {
@@ -132,11 +143,13 @@ impl<R: Read> Parser<R> {
         Ok(None)
     }
 
-    fn try_plain_instruction_as_single(&mut self) -> Result<Option<Vec<Instruction<Unresolved>>>> {
+    pub fn try_plain_instruction_as_single(
+        &mut self,
+    ) -> Result<Option<Vec<Instruction<Unresolved>>>> {
         self.try_plain_instruction().map(|i| i.map(|i| vec![i]))
     }
 
-    fn try_instruction(&mut self) -> Result<Option<Vec<Instruction<Unresolved>>>> {
+    pub fn try_instruction(&mut self) -> Result<Option<Vec<Instruction<Unresolved>>>> {
         self.first_of(&[
             Self::try_folded_instruction,
             Self::try_plain_instruction_as_single,
