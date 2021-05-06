@@ -5,7 +5,17 @@ pub mod stack;
 pub mod store;
 pub mod values;
 
-use crate::{err, error::{Result, ResultFrom}, format::text::compile::{compile_export, compile_function_body, Emitter}, runtime::instance::TableInstance, syntax::{self, ElemList, Expr, FuncField, Instruction, ModeEntry, Resolved, TablePosition}, types::ValueType};
+use crate::{
+    err,
+    error::{Result, ResultFrom},
+    format::text::compile::{compile_export, compile_function_body, Emitter},
+    runtime::{
+        instance::{ElemInstance, TableInstance},
+        values::Ref,
+    },
+    syntax::{self, ElemList, Expr, FuncField, Instruction, ModeEntry, Resolved, TablePosition},
+    types::ValueType,
+};
 use std::{cell::RefCell, rc::Rc};
 
 use {
@@ -55,18 +65,26 @@ impl Runtime {
         }
     }
 
-    fn init_table(&mut self, tp: &TablePosition<Resolved>, elemlist: &ElemList<Resolved>, i: u32) -> Result<()> {
+    fn init_table(
+        &mut self,
+        tp: &TablePosition<Resolved>,
+        elemlist: &ElemList<Resolved>,
+        i: u32,
+    ) -> Result<()> {
         let n = elemlist.items.len() as u32;
         let initexpr: Vec<Instruction<Resolved>> = vec![
-            Instruction{name: "i32.const".to_owned(), opcode: 0x41, operands: syntax::Operands::I32(0)},
-            Instruction{name: "i32.const".to_owned(), opcode: 0x41, operands: syntax::Operands::I32(n)},
-            Instruction{name: "table.init".to_owned(), opcode: 0xE0 + 0x0c, operands: syntax::Operands::I32(i)},
-            Instruction{name: "elem.drop".to_owned(), opcode: 0xE0 + 0x0d, operands: syntax::Operands::I32(i)},
+            Instruction::i32const(0),
+            Instruction::i32const(n),
+            Instruction::tableinit(i),
+            Instruction::elemdrop(i),
         ];
         let mut init_code: Vec<u8> = vec![];
+        // TODO - offset has and end marker 0x0b throwing off label count.
         init_code.emit_expr(&tp.offset);
-        init_code.emit_expr(&Expr{instr:initexpr});
-        self.eval_expr(&init_code)?;
+        self.exec_expr(&init_code)?;
+        init_code.clear();
+        init_code.emit_expr(&Expr { instr: initexpr });
+        self.exec_expr(&init_code)?;
         Ok(())
     }
 
@@ -100,6 +118,7 @@ impl Runtime {
             .map(|t| TableInstance::new(t.tabletype))
             .collect();
         let (table_count, table_offset) = self.store.alloc_tables(table_insts.into_iter());
+        println!("LOADED TABLES {} {}", table_count, table_offset);
         module_instance.table_count = table_count;
         module_instance.table_offset = table_offset;
 
@@ -114,6 +133,29 @@ impl Runtime {
 
         // (Instantiation 6-7.) Create a frame with the instance, push it.
         self.stack.push_dummy_activation(init_module_instance)?;
+
+        // (Instantiation 9.) Elems
+        let elem_insts: Vec<ElemInstance> = module
+            .elems
+            .iter()
+            .map(|e| {
+                let refs: Vec<Ref> = e
+                    .elemlist
+                    .items
+                    .iter()
+                    .map(|ei| {
+                        let mut initexpr: Vec<u8> = Vec::new();
+                        initexpr.emit_expr(&ei);
+                        self.eval_ref_expr(&initexpr)
+                    })
+                    .collect::<Result<_>>()?;
+                Ok(ElemInstance::new(refs.into_boxed_slice()))
+            })
+            .collect::<Result<_>>()?;
+        let (count, offset) = self.store.alloc_elems(elem_insts.into_iter());
+        module_instance.elem_count = count;
+        module_instance.elem_offset = offset;
+        println!("LOADED ELEMS {} {}", table_count, table_offset);
 
         // (Instantiation 8.) Get global init vals and allocate globals.
         let global_insts: Vec<GlobalInstance> = module
@@ -134,15 +176,10 @@ impl Runtime {
         module_instance.global_count = count;
         module_instance.global_offset = offset;
 
-        println!("ELEMS: {:?}", module.elems);
-
         for (i, elem) in module.elems.iter().enumerate() {
-            match &elem.mode {
-                ModeEntry::Active(tp) => {
-                    println!("INIT ELEMS!");
-                    self.init_table(tp, &elem.elemlist, i as u32)?
-                }
-                _ => ()
+            if let ModeEntry::Active(tp) = &elem.mode {
+                println!("INIT ELEMS!");
+                self.init_table(tp, &elem.elemlist, i as u32)?
             }
         }
 

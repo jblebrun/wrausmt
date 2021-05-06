@@ -1,6 +1,7 @@
 use super::instance::{ElemInstance, FunctionInstance, GlobalInstance, MemInstance, TableInstance};
 use super::values::Value;
 use crate::{error, error::Result};
+use std::iter::Iterator;
 use std::rc::Rc;
 
 /// Function instances, table instances, memory instances, and global instances,
@@ -68,6 +69,52 @@ impl Store {
         self.mems
             .get_mut(addr as usize)
             .ok_or_else(|| error!("no mem at {}", addr))
+    }
+
+    pub fn table_mut(&mut self, addr: addr::TableAddr) -> Result<&mut TableInstance> {
+        println!("TABLES {:?}", self.tables);
+        self.tables
+            .get_mut(addr as usize)
+            .ok_or_else(|| error!("no table at {}", addr))
+    }
+
+    // Use by the table.set and table.init ops
+    pub fn copy_elems_to_table(
+        &mut self,
+        tabaddr: addr::TableAddr,
+        elemaddr: addr::ElemAddr,
+        src: usize,
+        dst: usize,
+        count: usize,
+    ) -> Result<()> {
+        let elems = &self
+            .elems
+            .get(elemaddr as usize)
+            .ok_or_else(|| error!("no elem at {}", elemaddr))?
+            .elems
+            .get(src..src + count)
+            .ok_or_else(|| error!("{} count={} out of bounds for {}", src, count, elemaddr))?;
+
+        let table = &mut self
+            .tables
+            .get_mut(tabaddr as usize)
+            .ok_or_else(|| error!("no table at {}", tabaddr))?
+            .elem
+            .get_mut(dst..dst + count)
+            .ok_or_else(|| error!("{} count={} out of bounds for {}", dst, count, tabaddr))?;
+
+        table.copy_from_slice(elems);
+        Ok(())
+    }
+
+    pub fn elem_drop(&mut self, elemaddr: addr::ElemAddr) -> Result<()> {
+        let elem = self
+            .elems
+            .get_mut(elemaddr as usize)
+            .ok_or_else(|| error!("no elem at {}", elemaddr))?;
+
+        elem.elems = Box::new([]);
+        Ok(())
     }
 
     // Allocate a collection of functions.

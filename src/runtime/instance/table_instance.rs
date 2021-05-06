@@ -16,12 +16,12 @@ use crate::types::TableType;
 #[derive(Debug)]
 pub struct TableInstance {
     pub tabletype: TableType,
-    pub elem: Box<[Ref]>,
+    pub elem: Vec<Ref>,
 }
 
 impl TableInstance {
     pub fn new(tabletype: TableType) -> TableInstance {
-        let elem: Box<[Ref]> = std::iter::repeat(tabletype.reftype.default())
+        let elem: Vec<Ref> = std::iter::repeat(tabletype.reftype.default())
             .take(tabletype.limits.lower as usize)
             .collect();
         TableInstance { tabletype, elem }

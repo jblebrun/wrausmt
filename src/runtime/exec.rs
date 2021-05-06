@@ -64,6 +64,7 @@ pub trait ExecutionContextActions {
     fn get_func_table(&mut self, tidx: u32, elemidx: u32) -> Result<u32>;
     fn get_global(&mut self, idx: u32) -> Result<Value>;
     fn push_value(&mut self, val: Value) -> Result<()>;
+    fn push_func_ref(&mut self, idx: u32) -> Result<()>;
     fn push_label(&mut self, arity: u32, continuation: u32) -> Result<()>;
     fn push<T: Into<Value>>(&mut self, val: T) -> Result<()>;
     fn pop_value(&mut self) -> Result<Value>;
@@ -71,6 +72,8 @@ pub trait ExecutionContextActions {
     fn pop<T: TryFrom<Value, Error = Error>>(&mut self) -> Result<T>;
     fn call(&mut self, idx: u32) -> Result<()>;
     fn mem(&mut self, idx: u32) -> Result<&mut MemInstance>;
+    fn table_init(&mut self) -> Result<()>;
+    fn elem_drop(&mut self) -> Result<()>;
 
     fn br(&mut self, labelidx: u32) -> Result<()>;
     fn continuation(&mut self, cnt: u32) -> Result<()>;
@@ -129,7 +132,7 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
     fn get_func_table(&mut self, tidx: u32, elemidx: u32) -> Result<u32> {
         match self.runtime.store.tables[tidx as usize].elem[elemidx as usize] {
             Ref::Func(a) => Ok(a as u32),
-            _ => panic!("not a func")
+            _ => panic!("not a func"),
         }
     }
 
@@ -142,6 +145,22 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
         println!("FOUND LABEL {:?}", label);
         self.pc = label.continuation as usize;
         Ok(())
+    }
+
+    fn table_init(&mut self) -> Result<()> {
+        let elemidx = self.op_u32()?;
+        let n = self.pop::<u32>()? as usize;
+        let src = self.pop::<u32>()? as usize;
+        let dst = self.pop::<u32>()? as usize;
+        // TODO if s + n or d + n > sie of table 0, trap
+        self.runtime
+            .store
+            .copy_elems_to_table(0, elemidx, src, dst, n)
+    }
+
+    fn elem_drop(&mut self) -> Result<()> {
+        let elemidx = self.op_u32()?;
+        self.runtime.store.elem_drop(elemidx)
     }
 
     fn continuation(&mut self, cnt: u32) -> Result<()> {
@@ -169,6 +188,12 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
         Ok(())
     }
 
+    fn push_func_ref(&mut self, idx: u32) -> Result<()> {
+        println!("PUSH FUNC VALUE {:?}", idx);
+        self.runtime.stack.push_value(Ref::Func(idx as u64).into());
+        Ok(())
+    }
+
     fn push_label(&mut self, arity: u32, continuation: u32) -> Result<()> {
         let label = Label {
             arity,
@@ -180,6 +205,7 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
     }
 
     fn pop_label(&mut self) -> Result<Label> {
+        println!("POP LABEL");
         self.runtime.stack.pop_label()
     }
 
@@ -228,7 +254,17 @@ impl Runtime {
         ic.run()
     }
 
+    pub fn exec_expr(&mut self, body: &[u8]) -> Result<()> {
+        println!("PUSH LABEL");
+        self.stack.push_label(Label {
+            arity: 1,
+            continuation: body.len() as u32 - 1,
+        })?;
+        self.enter(body)
+    }
+
     pub fn eval_expr(&mut self, body: &[u8]) -> Result<Value> {
+        println!("PUSH LABEL");
         self.stack.push_label(Label {
             arity: 1,
             continuation: body.len() as u32 - 1,

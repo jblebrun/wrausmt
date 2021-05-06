@@ -420,6 +420,27 @@ impl<R: ResolvedState> Instruction<R> {
             operands: Operands::FuncIndex(idx),
         }
     }
+    pub fn i32const(val: u32) -> Self {
+        Self {
+            name: "i32.const".to_owned(),
+            opcode: 0x41,
+            operands: Operands::I32(val),
+        }
+    }
+    pub fn tableinit(elemidx: u32) -> Self {
+        Self {
+            name: "i32.const".to_owned(),
+            opcode: 0xE0 + 0x0c,
+            operands: Operands::TableInit(Index::unnamed(0), Index::unnamed(elemidx)),
+        }
+    }
+    pub fn elemdrop(elemidx: u32) -> Self {
+        Self {
+            name: "elem.drop".to_owned(),
+            opcode: 0xE0 + 0x0d,
+            operands: Operands::ElemIndex(Index::unnamed(elemidx)),
+        }
+    }
 }
 
 #[derive(PartialEq, Debug)]
@@ -444,6 +465,7 @@ pub enum Operands<R: ResolvedState> {
     LabelIndex(Index<R, LabelIndex>),
     Memargs(u32, u32),
     HeapType(RefType),
+    TableInit(Index<R, TableIndex>, Index<R, ElemIndex>),
     I32(u32),
     I64(u64),
     F32(f32),
@@ -486,12 +508,22 @@ pub struct TableUse<R: ResolvedState> {
     pub tableidx: Index<R, TableIndex>,
 }
 
-#[derive(Debug, Default, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub struct TablePosition<R: ResolvedState> {
     pub tableuse: TableUse<R>,
     pub offset: Expr<R>,
 }
 
+impl Default for TablePosition<Unresolved> {
+    fn default() -> Self {
+        Self {
+            tableuse: TableUse::default(),
+            offset: Expr {
+                instr: vec![Instruction::i32const(0)],
+            },
+        }
+    }
+}
 // ElemList may be exprs, or func indices (unresolved)
 #[derive(Debug, PartialEq)]
 pub struct ElemList<R: ResolvedState> {

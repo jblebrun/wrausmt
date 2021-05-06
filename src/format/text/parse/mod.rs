@@ -7,7 +7,6 @@ mod combinator;
 pub mod error;
 mod instruction;
 pub mod module;
-mod table;
 mod num;
 mod table;
 mod valtype;

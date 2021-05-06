@@ -17,7 +17,7 @@ pub trait ReadTables: ReadWasmValues {
         Ok(TableField {
             id: None,
             tabletype: self.read_table_type()?,
-            exports: vec![]
+            exports: vec![],
         })
     }
 }
