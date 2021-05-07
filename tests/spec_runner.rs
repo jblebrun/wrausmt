@@ -44,6 +44,16 @@ fn select() -> Result<()> {
 }
 
 #[test]
+fn loopop() -> Result<()> {
+    parse_and_run("testdata/spec/loop.wast", RunSet::First(13))
+}
+
+#[test]
+fn nop() -> Result<()> {
+    parse_and_run("testdata/spec/nop.wast", RunSet::First(33))
+}
+
+#[test]
 fn br_if() -> Result<()> {
     parse_and_run("testdata/spec/br_if.wast", RunSet::First(20))
 }

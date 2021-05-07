@@ -2,12 +2,18 @@
 | panic!("unreachable")
 
 0x01      ,nop                           ,()
+| Ok(())
+
 0x02      ,block                         ,(Block)
 | let arity = _ec.op_u32()?;
 | let cnt = _ec.op_u32()?;
 | _ec.push_label(arity, cnt)
 
 0x03      ,loop                          ,(Loop)
+| let arity = _ec.op_u32()?;
+| let cnt = _ec.op_u32()?;
+| _ec.push_label(arity, cnt)
+
 0x04      ,if                            ,(If)
 | let arity = _ec.op_u32()?;
 | let end = _ec.op_u32()?;

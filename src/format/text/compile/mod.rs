@@ -62,17 +62,17 @@ pub trait Emitter {
         // For now: ignoring param types
         self.emit32(self_arity as u32);
 
+        let continuation_location = self.len();
         // If the continuation is at the start, we write self the current length
         // of the compiled selfput so far, adding 4 to account for the 4-byte value
         // that we are abself to write.
         if matches!(cnt, syntax::Continuation::Start) {
             // Account for the value we are abself to write.
             self.emit32(self.len() as u32 + 4);
+        } else {
+            // Remember the spot to write continuation, and reserve a spot.
+            self.emit32(0x00);
         }
-
-        // Remember the spot to write continuation, and reserve a spot.
-        let continuation_location = self.len();
-        self.emit32(0x00);
 
         self.emit_expr(expr);
 
