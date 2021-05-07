@@ -57,6 +57,7 @@ struct ActivationFrame {
 impl Stack {
     pub fn push_value(&mut self, entry: Value) {
         self.value_stack.push(entry);
+        println!("STACK IS NOW {:?}", self.value_stack);
     }
 
     fn label_stack(&self) -> Result<&Vec<Label>> {
@@ -103,6 +104,7 @@ impl Stack {
             .pop()
             .ok_or_else(|| error!("value stack underflow"))
     }
+
     pub fn pop_label(&mut self) -> Result<Label> {
         self.label_stack_mut()?
             .pop()
@@ -115,11 +117,13 @@ impl Stack {
             .pop()
             .ok_or_else(|| error!("activation stack underflow"))?;
 
+        println!("STACK IS {:?}", self.value_stack);
+
         // Move the results to the new top of the stack.
-        for i in 0..frame.arity as usize {
-            self.value_stack[frame.local_start + i] =
-                self.value_stack[self.value_stack.len() - i - 1];
-        }
+        let result_start = self.value_stack.len() - (frame.arity as usize);
+        self.value_stack
+            .copy_within(result_start.., frame.local_start);
+        println!("AFTER RESULT MOVE STACK IS {:?}", self.value_stack);
 
         // Pop the rest of the frame.
         // We originally had params + locals.

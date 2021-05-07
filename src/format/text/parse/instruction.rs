@@ -121,7 +121,7 @@ impl<R: Read> Parser<R> {
         if let Some(kw) = self.take_keyword_if(|kw| kw.starts_with("align="))? {
             if let Some(idx) = kw.find('=') {
                 let (_, valstr) = kw.split_at(idx + 1);
-                if let Ok(val) = u32::from_str_radix(valstr, 10) {
+                if let Ok(val) = valstr.parse() {
                     return Ok(Some(val));
                 }
             }
@@ -134,7 +134,7 @@ impl<R: Read> Parser<R> {
         if let Some(kw) = self.take_keyword_if(|kw| kw.starts_with("offset="))? {
             if let Some(idx) = kw.find('=') {
                 let (_, valstr) = kw.split_at(idx + 1);
-                if let Ok(val) = u32::from_str_radix(valstr, 10) {
+                if let Ok(val) = valstr.parse() {
                     return Ok(Some(val));
                 }
             }
