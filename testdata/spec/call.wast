@@ -246,7 +246,7 @@
   (func $dummy (param i32) (result i32) (local.get 0))
   (func $du (param f32) (result f32) (local.get 0))
   (func (export "as-unary-operand") (result f32)
-    ;;(block (result f32) (f32.sqrt (call $du (f32.const 0x0p+0))))
+    (block (result f32) (f32.sqrt (call $du (f32.const 0x0p+0))))
   )
 
   (func (export "as-binary-left") (result i32)
@@ -365,7 +365,7 @@
 (assert_return (invoke "as-global.set-value") (i32.const 0x132))
 (assert_return (invoke "as-load-operand") (i32.const 1))
 
-;;(assert_return (invoke "as-unary-operand") (f32.const 0x0p+0))
+(assert_return (invoke "as-unary-operand") (f32.const 0x0p+0))
 (assert_return (invoke "as-binary-left") (i32.const 11))
 (assert_return (invoke "as-binary-right") (i32.const 9))
 (assert_return (invoke "as-test-operand") (i32.const 0))

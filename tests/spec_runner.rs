@@ -4,7 +4,7 @@ use wrausmt::spec::runner::run_spec_test;
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
-fn parse_and_run(path: &str) -> Result<()> {
+fn parse_and_run(path: &String) -> Result<()> {
     let f = std::fs::File::open(path)?;
 
     let tokenizer = Tokenizer::new(f)?;
@@ -16,12 +16,19 @@ fn parse_and_run(path: &str) -> Result<()> {
     Ok(())
 }
 
-#[test]
-fn i32() -> Result<()> {
-    parse_and_run("testdata/spec/i32.wast")
-}
+static ENABLED: &[&str] = &["comments.wast", "i32.wast", "i64.wast"];
 
 #[test]
-fn i64() -> Result<()> {
-    parse_and_run("testdata/spec/i64.wast")
+fn spec_tests() -> Result<()> {
+    for item in ENABLED {
+        let item = format!("testdata/spec/{}", item);
+        match parse_and_run(&item) {
+            Ok(()) => (),
+            Err(e) => {
+                println!("During {:?}", item);
+                return Err(e);
+            }
+        }
+    }
+    Ok(())
 }
