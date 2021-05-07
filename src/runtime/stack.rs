@@ -38,6 +38,10 @@ pub struct Label {
     /// the implementation of continuation here is an index into the set of
     /// instructions for the currently executing function.
     pub continuation: u32,
+
+    /// The location of the value stack when the label is pushed; block return values
+    /// will be moved here when exiting a block.
+    pub return_spot: usize,
 }
 
 /// Activation frames carry the return arity n of the respective function, hold
@@ -68,7 +72,18 @@ impl Stack {
         Ok(self.peek_activation_mut()?.label_stack.as_mut())
     }
 
-    pub fn push_label(&mut self, label: Label) -> Result<()> {
+    pub fn push_label(
+        &mut self,
+        param_arity: u32,
+        result_arity: u32,
+        continuation: u32,
+    ) -> Result<()> {
+        let label = Label {
+            arity: result_arity,
+            continuation,
+            return_spot: self.value_stack.len() - param_arity as usize,
+        };
+        println!("PUSH LABEL {:?}", label);
         self.label_stack_mut()?.push(label);
         Ok(())
     }
@@ -109,6 +124,37 @@ impl Stack {
         self.label_stack_mut()?
             .pop()
             .ok_or_else(|| error!("label stack underflow"))
+        // For non-break block exists, the stack is assumed to be proper,
+        // no adjustment needed.
+    }
+
+    fn break_label(&mut self) -> Result<Label> {
+        let label = self.pop_label()?;
+        self.move_return_values(label.arity, label.return_spot)?;
+        Ok(label)
+    }
+
+    pub fn break_to_label(&mut self, labelidx: u32) -> Result<Label> {
+        let mut label: Option<Label> = None;
+        for _ in 0..=labelidx {
+            label = Some(self.break_label()?);
+        }
+        let label = label.ok_or("failed to finish break")?;
+        Ok(label)
+    }
+
+    // Handle adjusting return values to a new stack top for breaks and returns.
+    fn move_return_values(&mut self, arity: u32, newtop: usize) -> Result<()> {
+        println!("STACK IS {:?}", self.value_stack);
+        println!("FIXING FOR ARITY {} onto {}", arity, newtop);
+        let result_start = self.value_stack.len() - (arity as usize);
+        self.value_stack.copy_within(result_start.., newtop);
+        println!("AFTER RESULT MOVE STACK IS {:?}", self.value_stack);
+
+        let truncated_size = newtop + arity as usize;
+        self.value_stack.truncate(truncated_size);
+
+        Ok(())
     }
 
     pub fn pop_activation(&mut self) -> Result<()> {
@@ -119,18 +165,7 @@ impl Stack {
 
         println!("STACK IS {:?}", self.value_stack);
 
-        // Move the results to the new top of the stack.
-        let result_start = self.value_stack.len() - (frame.arity as usize);
-        self.value_stack
-            .copy_within(result_start.., frame.local_start);
-        println!("AFTER RESULT MOVE STACK IS {:?}", self.value_stack);
-
-        // Pop the rest of the frame.
-        // We originally had params + locals.
-        // At the end, there were also results. We moved the results to the bottom.
-        // Now we just need to truncate away the params/locals.
-        let truncated_size = frame.local_start + frame.arity as usize;
-        self.value_stack.truncate(truncated_size);
+        self.move_return_values(frame.arity, frame.local_start)?;
         Ok(())
     }
 

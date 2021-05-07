@@ -58,9 +58,11 @@ pub trait Emitter {
         expr: &syntax::Expr<Resolved>,
         cnt: &syntax::Continuation,
     ) {
-        let self_arity = typeuse.functiontype.results.len();
-        // For now: ignoring param types
-        self.emit32(self_arity as u32);
+        let param_arity = typeuse.functiontype.params.len();
+        self.emit32(param_arity as u32);
+
+        let result_arity = typeuse.functiontype.results.len();
+        self.emit32(result_arity as u32);
 
         let continuation_location = self.len();
         // If the continuation is at the start, we write self the current length
@@ -80,7 +82,7 @@ pub trait Emitter {
         // we reserved (just above), and write self the position of the last item
         // in the current compiled selfput, which corresponds to the end of the expression.
         if matches!(cnt, syntax::Continuation::End) {
-            self.splice32(continuation_location, self.len() as u32 - 1);
+            self.splice32(continuation_location, self.len() as u32);
         }
     }
 
@@ -92,9 +94,11 @@ pub trait Emitter {
     }
 
     fn emit_if(&mut self, typeuse: &TypeUse<Resolved>, th: &Expr<Resolved>, el: &Expr<Resolved>) {
-        let self_arity = typeuse.functiontype.results.len();
-        // For now: ignoring param types
-        self.emit32(self_arity as u32);
+        let param_arity = typeuse.functiontype.params.len();
+        self.emit32(param_arity as u32);
+
+        let result_arity = typeuse.functiontype.results.len();
+        self.emit32(result_arity as u32);
 
         // Store the space for end continuation
         let end_location = self.len();
@@ -112,7 +116,7 @@ pub trait Emitter {
             self.splice8(self.len() - 1, ELSE_OPCODE);
             self.emit_expr(el);
         }
-        self.splice32(end_location, self.len() as u32 - 1);
+        self.splice32(end_location, self.len() as u32);
     }
 
     fn emit_expr(&mut self, expr: &syntax::Expr<Resolved>) {

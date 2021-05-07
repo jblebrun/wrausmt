@@ -5,23 +5,19 @@
 | Ok(())
 
 0x02      ,block                         ,(Block)
-| let arity = _ec.op_u32()?;
-| let cnt = _ec.op_u32()?;
-| _ec.push_label(arity, cnt)
+| _ec.push_label()
 
 0x03      ,loop                          ,(Loop)
-| let arity = _ec.op_u32()?;
-| let cnt = _ec.op_u32()?;
-| _ec.push_label(arity, cnt)
+| _ec.push_label()
 
 0x04      ,if                            ,(If)
-| let arity = _ec.op_u32()?;
-| let end = _ec.op_u32()?;
-| let el = _ec.op_u32()?;
-|
-| _ec.push_label(arity, end)?;
-|
+| // Note: pop the condition first, 
+| // so that push_label calculates the right stack 
+| // return location.
 | let cnd = _ec.pop::<i32>()?;
+|
+| _ec.push_label()?;
+| let el = _ec.op_u32()?;
 |
 | if cnd == 0 {
 |     _ec.continuation(el)?;
