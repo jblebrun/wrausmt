@@ -44,6 +44,11 @@ fn select() -> Result<()> {
 }
 
 #[test]
+fn br_if() -> Result<()> {
+    parse_and_run("testdata/spec/br_if.wast", RunSet::First(20))
+}
+
+#[test]
 fn callspecific() -> Result<()> {
     parse_and_run(
         "testdata/spec/call.wast",

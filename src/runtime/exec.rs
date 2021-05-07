@@ -77,6 +77,7 @@ pub trait ExecutionContextActions {
 
     fn br(&mut self, labelidx: u32) -> Result<()>;
     fn continuation(&mut self, cnt: u32) -> Result<()>;
+    fn ret(&mut self) -> Result<()>;
 
     get_mem! { get_mem_i32, u32, 4 }
     get_mem! { get_mem_i32_8s, i8, 1 }
@@ -144,6 +145,11 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
         let label = self.runtime.stack.get_label(labelidx)?;
         println!("FOUND LABEL {:?}", label);
         self.pc = label.continuation as usize;
+        Ok(())
+    }
+
+    fn ret(&mut self) -> Result<()> {
+        self.pc = self.body.len() - 1;
         Ok(())
     }
 
