@@ -360,6 +360,14 @@ pub enum Action {
     },
 }
 
+impl Action {
+    pub fn name(&self) -> &str {
+        match self {
+            Action::Invoke { name, .. } | Action::Get { name, .. } => name,
+        }
+    }
+}
+
 /// const:
 ///   ( <num_type>.const <num> )                 ;; number value
 ///   ( ref.null <ref_kind> )                    ;; null reference
