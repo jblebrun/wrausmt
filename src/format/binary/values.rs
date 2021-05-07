@@ -87,7 +87,7 @@ pub trait ReadWasmValues: ReadLeb128 + Sized {
     }
 
     fn read_index_use<IS: IndexSpace>(&mut self) -> Result<Index<Resolved, IS>> {
-        Ok(Index::unnamed(self.read_u32_leb_128()?))
+        Ok(Index::unnamed(self.read_u32_leb_128().wrap("leb128")?))
     }
 
     fn read_type_use(&mut self) -> Result<TypeUse<Resolved>> {

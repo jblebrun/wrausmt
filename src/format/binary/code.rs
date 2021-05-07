@@ -109,8 +109,8 @@ pub trait ReadCode: ReadWasmValues {
             Operands::TableIndex => syntax::Operands::FuncIndex(self.read_index_use()?),
             Operands::MemIndex => syntax::Operands::FuncIndex(self.read_index_use()?),
             Operands::Br => syntax::Operands::LabelIndex(self.read_index_use()?),
-            Operands::I32 => syntax::Operands::I32(self.read_i32_leb_128()? as u32),
-            Operands::I64 => syntax::Operands::I64(self.read_i64_leb_128()? as u64),
+            Operands::I32 => syntax::Operands::I32(self.read_i32_leb_128().wrap("i32")? as u32),
+            Operands::I64 => syntax::Operands::I64(self.read_i64_leb_128().wrap("i64")? as u64),
             Operands::F32 => {
                 let mut buf = [0u8; 4];
                 self.read_exact(&mut buf).wrap("reading f32 byte")?;
@@ -123,9 +123,10 @@ pub trait ReadCode: ReadWasmValues {
                 let val = f64::from_bits(u64::from_le_bytes(buf));
                 syntax::Operands::F64(val)
             }
-            Operands::Memargs => {
-                syntax::Operands::Memargs(self.read_u32_leb_128()?, self.read_u32_leb_128()?)
-            }
+            Operands::Memargs => syntax::Operands::Memargs(
+                self.read_u32_leb_128().wrap("memarg1")?,
+                self.read_u32_leb_128().wrap("memarg2")?,
+            ),
             Operands::MemorySize
             | Operands::MemoryGrow
             | Operands::MemoryInit

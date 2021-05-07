@@ -1,6 +1,34 @@
-use crate::err;
-use crate::error::{Result, ResultFrom};
 use std::io::Read;
+
+#[derive(Debug)]
+pub enum LEB128Error {
+    IOError(std::io::Error),
+    Overflow(Box<[u8]>),
+    Unterminated(Box<[u8]>),
+}
+
+impl std::fmt::Display for LEB128Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::IOError(ioe) => write!(f, "LEB128Error::IOError: {}", ioe),
+            Self::Overflow(bytes) => write!(f, "LEB128Error::Overflow for {:02x?}", bytes),
+            Self::Unterminated(bytes) => write!(f, "LEB128Error::IOError: {:02x?}", bytes),
+        }
+    }
+}
+
+impl std::error::Error for LEB128Error {}
+
+impl LEB128Error {
+    pub fn overflow(bs: &[u8]) -> LEB128Error {
+        LEB128Error::Overflow(bs.to_owned().into_boxed_slice())
+    }
+    pub fn unterminated(bs: &[u8]) -> LEB128Error {
+        LEB128Error::Unterminated(bs.to_owned().into_boxed_slice())
+    }
+}
+
+type Result<T> = std::result::Result<T, LEB128Error>;
 
 // The final bit is the MSB. If it's unsigned, none of the high bits should be set.
 // If it's signed, *all* of the high bits should be set.
@@ -17,8 +45,7 @@ fn validate_final_byte(result: &[u8], size: usize, signed: bool) -> Result<()> {
 
     let last = result.last().unwrap();
     if last & remainder_mask != expect {
-        println!("FOR SIGNED {}", signed);
-        err!("value overflows requested size in final byte: {}", last)
+        Err(LEB128Error::overflow(result))
     } else {
         Ok(())
     }
@@ -40,7 +67,7 @@ fn read_leb_128_bytes<R: Read + ?Sized>(r: &mut R, size: usize, signed: bool) ->
     let mut result = Vec::<u8>::with_capacity(bytecount);
 
     for br in r.bytes().take(bytecount) {
-        let b = br.wrap("reading next LEB byte")?;
+        let b = br.map_err(LEB128Error::IOError)?;
         result.push(b & 0x7f);
         if b & 0x80 == 0 {
             // Check for bit overflow for requested size
@@ -54,7 +81,7 @@ fn read_leb_128_bytes<R: Read + ?Sized>(r: &mut R, size: usize, signed: bool) ->
         }
     }
 
-    err!("did not reach terminal LEB128 byte in time: {:?}", result)
+    Err(LEB128Error::unterminated(&result))
 }
 
 // Generalized converter for both signed & unsigned LEB128 of any size.
@@ -79,9 +106,7 @@ pub trait ReadLeb128: Read + Sized {
     }
     fn read_i64_leb_128(&mut self) -> Result<i64> {
         let bytes = read_leb_128_bytes(self, 64, true)?;
-        println!("i64 bytes {:x?}", bytes);
         let uresult = parse_leb_128(&bytes);
-        println!("i64 uninterp {:x?}", uresult);
         Ok(uresult as i64)
     }
 }

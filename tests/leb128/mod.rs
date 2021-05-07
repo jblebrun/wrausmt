@@ -1,11 +1,30 @@
-use wrausmt::assert_err_match;
+use wrausmt::format::binary::leb128::LEB128Error;
 use wrausmt::format::binary::leb128::ReadLeb128;
 
+macro_rules! assert_err {
+    ( $res:expr, $match:pat ) => {
+        match $res {
+            Err($match) => Ok(()),
+            Err(e) => Err(format!(
+                "Expected error containg {}, got {}",
+                stringify!($match),
+                e
+            )),
+            Ok(_) => Err(format!(
+                "Expected error containg {}, got Ok",
+                stringify!($match)
+            )),
+        }
+    };
+}
+
+type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+
 #[test]
-fn test_leb128_u32() {
+fn test_leb128_u32() -> Result<()> {
     let data = vec![];
     let res = data.as_slice().read_u32_leb_128();
-    assert_err_match!(res, "did not reach terminal LEB128 byte");
+    assert_err!(res, LEB128Error::Unterminated(_))?;
 
     let data: Vec<u8> = vec![8];
     let res = data.as_slice().read_u32_leb_128().unwrap();
@@ -29,18 +48,20 @@ fn test_leb128_u32() {
 
     let data: Vec<u8> = vec![0xFF, 0xFF, 0xFF, 0xFF, 0x7F];
     let res = data.as_slice().read_u32_leb_128();
-    assert_err_match!(res, "value overflows");
+    assert_err!(res, LEB128Error::Overflow(_))?;
 
     let data: Vec<u8> = vec![0xFF, 0xFF, 0xFF, 0xFF, 0xFF];
     let res = data.as_slice().read_u32_leb_128();
-    assert_err_match!(res, "did not reach terminal LEB128 byte");
+    assert_err!(res, LEB128Error::Unterminated(_))?;
+
+    Ok(())
 }
 
 #[test]
-fn test_leb128_u64() {
+fn test_leb128_u64() -> Result<()> {
     let data = vec![];
     let res = data.as_slice().read_u64_leb_128();
-    assert_err_match!(res, "did not reach terminal LEB128 byte");
+    assert_err!(res, LEB128Error::Unterminated(_))?;
 
     let data: Vec<u8> = vec![8];
     let res = data.as_slice().read_u64_leb_128().unwrap();
@@ -64,13 +85,15 @@ fn test_leb128_u64() {
 
     let data: Vec<u8> = vec![0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F];
     let res = data.as_slice().read_u64_leb_128();
-    assert_err_match!(res, "value overflows");
+    assert_err!(res, LEB128Error::Overflow(_))?;
 
     let data: Vec<u8> = vec![
         0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
     ];
     let res = data.as_slice().read_u64_leb_128();
-    assert_err_match!(res, "did not reach terminal LEB128 byte");
+    assert_err!(res, LEB128Error::Unterminated(_))?;
+
+    Ok(())
 }
 
 #[test]
