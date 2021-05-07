@@ -37,27 +37,14 @@ pub enum RunSet {
     All,
     Specific(Vec<String>),
     Exclude(Vec<String>),
+    First(u32),
 }
 
 fn handle_action(
     runtime: &mut Runtime,
     module_instance: &Option<Rc<ModuleInstance>>,
     action: Action,
-    runset: &RunSet,
 ) -> Result<Option<Vec<Value>>> {
-    match runset {
-        RunSet::All => (),
-        RunSet::Specific(set) => {
-            if set.iter().find(|i| *i == action.name()).is_none() {
-                return Ok(None);
-            }
-        }
-        RunSet::Exclude(set) => {
-            if set.iter().any(|i| *i == action.name()) {
-                return Ok(None);
-            }
-        }
-    }
     let module_instance = match module_instance {
         Some(mi) => mi,
         None => return err!("action invoked with no module"),
@@ -112,6 +99,8 @@ pub fn run_spec_test(script: SpecTestScript, runset: RunSet) -> Result<()> {
 
     let mut module: Option<Rc<ModuleInstance>> = None;
 
+    let mut assert_returns = 0;
+
     for cmd in script.cmds {
         match cmd {
             Cmd::Module(m) => match m {
@@ -124,11 +113,30 @@ pub fn run_spec_test(script: SpecTestScript, runset: RunSet) -> Result<()> {
             },
             Cmd::Register { string, name } => println!("REGISTER {} {}", string, name),
             Cmd::Action(a) => {
-                handle_action(&mut runtime, &module, a, &runset)?;
+                handle_action(&mut runtime, &module, a)?;
             }
             Cmd::Assertion(a) => match a {
                 Assertion::Return { action, results } => {
-                    let result = handle_action(&mut runtime, &module, action, &runset)?;
+                    assert_returns += 1;
+                    match &runset {
+                        RunSet::All => (),
+                        RunSet::First(n) => {
+                            if assert_returns > *n {
+                                return Ok(());
+                            }
+                        }
+                        RunSet::Specific(set) => {
+                            if set.iter().find(|i| *i == action.name()).is_none() {
+                                continue;
+                            }
+                        }
+                        RunSet::Exclude(set) => {
+                            if set.iter().any(|i| *i == action.name()) {
+                                continue;
+                            }
+                        }
+                    }
+                    let result = handle_action(&mut runtime, &module, action)?;
                     if let Some(result) = result {
                         println!("\nTEST CASE:");
                         println!("  ASSERT RETURN EXPECTS {:?}", results);
