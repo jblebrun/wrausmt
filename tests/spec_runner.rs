@@ -20,3 +20,8 @@ fn parse_and_run(path: &str) -> Result<()> {
 fn i32() -> Result<()> {
     parse_and_run("testdata/spec/i32.wast")
 }
+
+#[test]
+fn i64() -> Result<()> {
+    parse_and_run("testdata/spec/i64.wast")
+}

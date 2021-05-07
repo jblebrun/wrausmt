@@ -237,16 +237,59 @@
 | _ec.push(if l >= r { 1 } else { 0 })
 
 0x50      ,i64.eqz                       ,()
+| let o = _ec.pop::<u64>()?;
+| _ec.push(if o == 0 { 1 } else { 0 })
+
 0x51      ,i64.eq                        ,()
+| let r = _ec.pop::<u64>()?;
+| let l = _ec.pop::<u64>()?;
+| _ec.push(if l == r { 1 } else { 0 })
+
 0x52      ,i64.ne                        ,()
+| let r = _ec.pop::<u64>()?;
+| let l = _ec.pop::<u64>()?;
+| _ec.push(if l != r { 1 } else { 0 })
+
 0x53      ,i64.lt_s                      ,()
+| let r = _ec.pop::<u64>()? as i64;
+| let l = _ec.pop::<u64>()? as i64;
+| _ec.push(if l < r { 1 } else { 0 })
+
 0x54      ,i64.lt_u                      ,()
+| let r = _ec.pop::<u64>()?;
+| let l = _ec.pop::<u64>()?;
+| _ec.push(if l < r { 1 } else { 0 })
+
 0x55      ,i64.gt_s                      ,()
+| let r = _ec.pop::<u64>()? as i64;
+| let l = _ec.pop::<u64>()? as i64;
+| _ec.push(if l > r { 1 } else { 0 })
+
 0x56      ,i64.gt_u                      ,()
+| let r = _ec.pop::<u64>()?;
+| let l = _ec.pop::<u64>()?;
+| _ec.push(if l > r { 1 } else { 0 })
+
 0x57      ,i64.le_s                      ,()
+| let r = _ec.pop::<u64>()? as i64;
+| let l = _ec.pop::<u64>()? as i64;
+| _ec.push(if l <= r { 1 } else { 0 })
+
 0x58      ,i64.le_u                      ,()
+| let r = _ec.pop::<u64>()?;
+| let l = _ec.pop::<u64>()?;
+| _ec.push(if l <= r { 1 } else { 0 })
+
 0x59      ,i64.ge_s                      ,()
+| let r = _ec.pop::<u64>()? as i64;
+| let l = _ec.pop::<u64>()? as i64;
+| _ec.push(if l >= r { 1 } else { 0 })
+
 0x5a      ,i64.ge_u                      ,()
+| let r = _ec.pop::<u64>()?;
+| let l = _ec.pop::<u64>()?;
+| _ec.push(if l >= r { 1 } else { 0 })
+
 0x5b      ,f32.eq                        ,()
 0x5c      ,f32.ne                        ,()
 0x5d      ,f32.lt                        ,()
@@ -347,23 +390,92 @@
 | _ec.push(l.rotate_right(r))
 
 0x79      ,i64.clz                       ,()
+| let o = _ec.pop::<u64>()?;
+| _ec.push(o.leading_zeros() as u64)
+
 0x7a      ,i64.ctz                       ,()
+| let o = _ec.pop::<u64>()?;
+| _ec.push(o.trailing_zeros() as u64)
+
 0x7b      ,i64.popcnt                    ,()
+| let o = _ec.pop::<u64>()?;
+| _ec.push(o.count_ones() as u64)
+
 0x7c      ,i64.add                       ,()
+| let r = _ec.pop::<u64>()?;
+| let l = _ec.pop::<u64>()?;
+| _ec.push(l.wrapping_add(r))
+
 0x7d      ,i64.sub                       ,()
+| let r = _ec.pop::<u64>()?;
+| let l = _ec.pop::<u64>()?;
+| _ec.push(l.wrapping_sub(r))
+
 0x7e      ,i64.mul                       ,()
-0x7f      ,i64.divs                      ,()
-0x80      ,i64.divu                      ,()
-0x81      ,i64.rems                      ,()
-0x82      ,i64.remu                      ,()
+| let r = _ec.pop::<u64>()?;
+| let l = _ec.pop::<u64>()?;
+| _ec.push(l.wrapping_mul(r))
+
+0x7f      ,i64.div_s                      ,()
+| let r = _ec.pop::<u64>()? as i64;
+| let l = _ec.pop::<u64>()? as i64;
+| _ec.push(l.wrapping_div(r))
+
+0x80      ,i64.div_u                      ,()
+| let r = _ec.pop::<u64>()?;
+| let l = _ec.pop::<u64>()?;
+| _ec.push(l.wrapping_div(r))
+
+0x81      ,i64.rem_s                      ,()
+| let r = _ec.pop::<u64>()? as i64;
+| let l = _ec.pop::<u64>()? as i64;
+| _ec.push(l.wrapping_rem(r))
+
+0x82      ,i64.rem_u                      ,()
+| let r = _ec.pop::<u64>()?;
+| let l = _ec.pop::<u64>()?;
+| _ec.push(l.wrapping_rem(r))
+
 0x83      ,i64.and                       ,()
+| let r = _ec.pop::<u64>()?;
+| let l = _ec.pop::<u64>()?;
+| _ec.push(l & r)
+
 0x84      ,i64.or                        ,()
+| let r = _ec.pop::<u64>()?;
+| let l = _ec.pop::<u64>()?;
+| _ec.push(l | r)
+
 0x85      ,i64.xor                       ,()
+| let r = _ec.pop::<u64>()?;
+| let l = _ec.pop::<u64>()?;
+| _ec.push(l ^ r)
+
 0x86      ,i64.shl                       ,()
-0x87      ,i64.shrs                      ,()
-0x88      ,i64.shru                      ,()
+| let r = _ec.pop::<u64>()?;
+| let l = _ec.pop::<u64>()?;
+| _ec.push(l.wrapping_shl(r as u32))
+
+0x87      ,i64.shr_s                      ,()
+| let r = _ec.pop::<u64>()?;
+| let l = _ec.pop::<u64>()? as i64;
+| _ec.push(l.wrapping_shr(r as u32))
+
+0x88      ,i64.shr_u                      ,()
+| let r = _ec.pop::<u64>()?;
+| let l = _ec.pop::<u64>()?;
+| _ec.push(l.wrapping_shr(r as u32))
+
 0x89      ,i64.rotl                      ,()
+| let r = _ec.pop::<u64>()?;
+| let l = _ec.pop::<u64>()?;
+| _ec.push(l.rotate_left(r as u32))
+
 0x8a      ,i64.rotr                      ,()
+| let r = _ec.pop::<u64>()?;
+| let l = _ec.pop::<u64>()?;
+| _ec.push(l.rotate_right(r as u32))
+
 0x8b      ,f32.abs                       ,()
 0x8c      ,f32.neg                       ,()
 0x8d      ,f32.ceil                      ,()
@@ -426,7 +538,16 @@
 | _ec.push(o as u32)
 
 0xc2      ,i64.extend8_s                 ,()
+| let o = (_ec.pop::<u64>()? & 0xFF) as i8;
+| _ec.push(o as u64)
+
 0xc3      ,i64.extend16_s                ,()
+| let o = (_ec.pop::<u64>()? & 0xFFFF) as i16;
+| _ec.push(o as u64)
+
 0xc4      ,i64.extend32_s                ,()
+| let o = (_ec.pop::<u64>()? & 0xFFFFFFFF) as i32;
+| _ec.push(o as u64)
+
 0xfc      ,extended                      ,()
 
