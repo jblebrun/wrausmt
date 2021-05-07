@@ -1,7 +1,5 @@
-use crate::{
-    error::{Result, ResultFrom},
-    syntax::{Index, Resolved, TypeIndex},
-};
+use super::error::{Result, WithContext};
+use crate::syntax::{Index, Resolved, TypeIndex};
 
 use super::values::ReadWasmValues;
 
@@ -11,7 +9,7 @@ pub trait ReadFuncs: ReadWasmValues {
     /// The values here don't correspond to a real module section, instead they
     /// correlate with the rest of the function data in the code section.
     fn read_funcs_section(&mut self) -> Result<Vec<Index<Resolved, TypeIndex>>> {
-        self.read_vec(|_, s| s.read_index_use().wrap("parsing func"))
+        self.read_vec(|_, s| s.read_index_use().ctx("parsing func"))
     }
 }
 

@@ -1,8 +1,6 @@
+use super::error::{Result, WithContext};
 use super::values::ReadWasmValues;
-use crate::{
-    error::{Result, ResultFrom},
-    syntax::TableField,
-};
+use crate::syntax::TableField;
 
 /// Read the tables section of a binary module from a std::io::Read.
 pub trait ReadTables: ReadWasmValues {
@@ -10,7 +8,7 @@ pub trait ReadTables: ReadWasmValues {
     /// The values here don't correspond to a real module section, instead they
     /// correlate with the rest of the function data in the code section.
     fn read_tables_section(&mut self) -> Result<Vec<TableField>> {
-        self.read_vec(|_, s| s.read_table_field().wrap("read table type"))
+        self.read_vec(|_, s| s.read_table_field().ctx("read table type"))
     }
 
     fn read_table_field(&mut self) -> Result<TableField> {

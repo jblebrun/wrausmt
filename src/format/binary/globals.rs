@@ -1,8 +1,6 @@
+use super::error::Result;
 use super::{code::ReadCode, values::ReadWasmValues};
-use crate::{
-    error::Result,
-    syntax::{GlobalField, Resolved},
-};
+use crate::syntax::{GlobalField, Resolved};
 
 /// Read the tables section of a binary module from a std::io::Read.
 pub trait ReadGlobals: ReadWasmValues + ReadCode {

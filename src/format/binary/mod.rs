@@ -1,3 +1,5 @@
+pub mod error;
+
 mod code;
 mod custom;
 mod data;
@@ -24,13 +26,11 @@ mod tokenizer;
 mod types;
 mod values;
 
-use super::error::ParseError;
 use crate::{
-    err,
-    error::Result,
-    format::binary::section::Section,
+    format::binary::{error::BinaryParseError, section::Section},
     syntax::{FuncField, Index, Module, Resolved, TypeIndex},
 };
+use error::{Result, WithContext};
 use section::SectionReader;
 use std::io::Read;
 use values::ReadWasmValues;
@@ -42,7 +42,7 @@ fn resolve_functypes(
     // In a valid module, we will have parsed the func types section already, so we'll
     // have some partially-initialized function items ready.
     if funcs.len() != functypes.len() {
-        return err!("func size mismatch");
+        return Err(BinaryParseError::FuncSizeMismatch);
     }
 
     // Add the functype type to the returned function structs.
@@ -82,7 +82,7 @@ fn parse_inner<R: Read>(reader: &mut R, module: &mut Module<Resolved>) -> Result
             Section::Data(d) => module.data = d,
             Section::DataCount(c) => {
                 if module.data.len() != c as usize {
-                    return err!("data count mismatch");
+                    return Err(BinaryParseError::DataCountMismatch);
                 }
             }
         }
@@ -93,7 +93,7 @@ fn parse_inner<R: Read>(reader: &mut R, module: &mut Module<Resolved>) -> Result
 /// Attempt to interpret the data in the provided std::io:Read as a WASM binary module.
 /// If an error occurs, a ParseError will be returned containing the portion of the
 /// module that was successfully decoded.
-pub fn parse<R>(src: &mut R) -> std::result::Result<Module<Resolved>, ParseError>
+pub fn parse<R>(src: &mut R) -> Result<Module<Resolved>>
 where
     R: Read,
 {
@@ -103,6 +103,6 @@ where
 
     match parse_inner(tokenizer, &mut module) {
         Ok(()) => Ok(module),
-        Err(e) => Err(ParseError::new(e, tokenizer.location())),
+        Err(e) => Err(e.ctx(format!("at {:?}", tokenizer.location()))),
     }
 }

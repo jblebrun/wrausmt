@@ -1,5 +1,4 @@
-use crate::err;
-use crate::error::Result;
+use super::error::{BinaryParseError, Result};
 
 /// A convenience method for take to assert that its contents have been fully consumed.
 pub trait EnsureConsumed {
@@ -7,7 +6,7 @@ pub trait EnsureConsumed {
     fn ensure_consumed(&self) -> Result<()> {
         let remaining = self.limit();
         if remaining > 0 {
-            err!("{} bytes remaining in section", remaining)
+            Err(BinaryParseError::ExtraSectionBytes(remaining))
         } else {
             Ok(())
         }

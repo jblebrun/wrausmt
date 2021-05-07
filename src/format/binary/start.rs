@@ -1,8 +1,6 @@
+use super::error::Result;
 use super::values::ReadWasmValues;
-use crate::{
-    error::Result,
-    syntax::{Resolved, StartField},
-};
+use crate::syntax::{Resolved, StartField};
 
 /// Read the tables section of a binary module from a std::io::Read.
 pub trait ReadStart: ReadWasmValues {

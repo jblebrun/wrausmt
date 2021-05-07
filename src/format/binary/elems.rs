@@ -1,7 +1,7 @@
+use super::error::{Result, WithContext};
 use super::{code::ReadCode, values::ReadWasmValues};
 use crate::{
-    err,
-    error::{Result, ResultFrom},
+    format::binary::error::BinaryParseError,
     syntax::{
         self, ElemField, ElemList, Expr, FuncIndex, Index, Instruction, ModeEntry, Resolved,
         TablePosition, TableUse,
@@ -59,7 +59,7 @@ pub trait ReadElems: ReadWasmValues + ReadCode {
 
         let offset_expr = if variants.active() {
             // read offset expr
-            self.read_expr()?
+            self.read_expr().ctx("read offset expr")?
         } else {
             Expr::default()
         };
@@ -69,7 +69,7 @@ pub trait ReadElems: ReadWasmValues + ReadCode {
                 self.read_vec_exprs()?,
                 if variants.read_eltypekind() {
                     // read element kind
-                    self.read_u32_leb_128().wrap("parsing element kind")?;
+                    self.read_u32_leb_128().ctx("parsing element kind")?;
                     // Only expect 0 -> funcref for now
                     RefType::Func
                 } else {
@@ -93,7 +93,7 @@ pub trait ReadElems: ReadWasmValues + ReadCode {
                     // read elemkind type, always 0
                     let elemkind = self.read_byte()?;
                     if elemkind != 0 {
-                        return err!("wrong elemkind byte {}", elemkind);
+                        return Err(BinaryParseError::InvalidElemKind(elemkind));
                     }
                     RefType::Func
                 } else {
@@ -127,9 +127,9 @@ pub trait ReadElems: ReadWasmValues + ReadCode {
     }
 
     fn read_vec_funcidx(&mut self) -> Result<Vec<Index<Resolved, FuncIndex>>> {
-        let items = self.read_u32_leb_128().wrap("parsing item count")?;
+        let items = self.read_u32_leb_128().ctx("parsing item count")?;
         (0..items)
-            .map(|_| self.read_index_use().wrap("reading funcidx"))
+            .map(|_| self.read_index_use().ctx("reading funcidx"))
             .collect()
     }
 }

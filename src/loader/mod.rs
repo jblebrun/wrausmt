@@ -1,11 +1,12 @@
 use std::rc::Rc;
 
 use crate::error::Error;
-use crate::format::error::ParseError as BinaryParseError;
 use crate::format::text::lex::error::LexError;
 use crate::format::text::lex::Tokenizer;
 use crate::format::text::parse::Parser;
-use crate::format::{binary::parse, text::parse::error::ParseError};
+use crate::format::{
+    binary::error::BinaryParseError, binary::parse, text::parse::error::ParseError,
+};
 use crate::runtime::{instance::ModuleInstance, Runtime};
 use crate::syntax::{Module, Resolved};
 
@@ -14,6 +15,7 @@ pub enum LoaderError {
     IoError(std::io::Error),
     LexError(LexError),
     ParseError(ParseError),
+    BinaryParseError(BinaryParseError),
     GenericError(Box<dyn std::error::Error>),
 }
 
@@ -51,7 +53,7 @@ impl From<Error> for LoaderError {
 
 impl From<BinaryParseError> for LoaderError {
     fn from(e: BinaryParseError) -> Self {
-        LoaderError::GenericError(Box::new(e))
+        LoaderError::BinaryParseError(e)
     }
 }
 
