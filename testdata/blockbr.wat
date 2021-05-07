@@ -6,6 +6,8 @@
         drop
         i32.const 12
     ))
+
+
   (func $simpleblockplain (result i32) 
     block (result i32)
         i32.const 114

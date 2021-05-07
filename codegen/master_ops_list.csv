@@ -44,6 +44,15 @@
 | Ok(())
 
 0x0E      ,br_table                      ,(BrTable)
+| let icnt = _ec.op_u32()?;
+| let mut indices: Vec<u32> = Vec::with_capacity(icnt as usize);
+| for _ in 0..icnt {
+|     indices.push(_ec.op_u32()?)
+| }
+| 
+| let sel = std::cmp::min(icnt - 1, _ec.pop::<u32>()?);
+| _ec.br(indices[sel as usize])
+
 0x0F      ,return                        ,()
 | _ec.ret()
 

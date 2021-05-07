@@ -427,11 +427,11 @@ impl<R: ResolvedState> Instruction<R> {
             operands: Operands::I32(val),
         }
     }
-    pub fn tableinit(elemidx: u32) -> Self {
+    pub fn tableinit(tableidx: u32, elemidx: u32) -> Self {
         Self {
             name: "i32.const".to_owned(),
             opcode: 0xE0 + 0x0c,
-            operands: Operands::TableInit(Index::unnamed(0), Index::unnamed(elemidx)),
+            operands: Operands::TableInit(Index::unnamed(tableidx), Index::unnamed(elemidx)),
         }
     }
     pub fn elemdrop(elemidx: u32) -> Self {
