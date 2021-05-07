@@ -456,6 +456,7 @@ pub enum Operands<R: ResolvedState> {
     Block(Option<String>, TypeUse<R>, Expr<R>, Continuation),
     If(Option<String>, TypeUse<R>, Expr<R>, Expr<R>),
     BrTable(Vec<Index<R, LabelIndex>>),
+    Select(Vec<FResult>),
     FuncIndex(Index<R, FuncIndex>),
     TableIndex(Index<R, TableIndex>),
     GlobalIndex(Index<R, GlobalIndex>),

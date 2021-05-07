@@ -244,12 +244,19 @@ impl<R: Read> Parser<R> {
     }
 
     fn try_result(&mut self) -> Result<Option<ActionResult>> {
+        if self.try_expr_start("ref.null")? {
+            let _reftype = self.expect_reftype()?;
+            self.expect_close()?;
+            return Ok(Some(ActionResult::Func));
+        }
+
         if self.try_expr_start("ref.func")? {
             self.expect_close()?;
             return Ok(Some(ActionResult::Func));
         }
 
         if self.try_expr_start("ref.extern")? {
+            let _reftype = self.expect_integer()?;
             self.expect_close()?;
             return Ok(Some(ActionResult::Extern));
         }
@@ -270,6 +277,12 @@ impl<R: Read> Parser<R> {
         }
 
         if self.try_expr_start("ref.host")? {
+            let val = self.expect_integer()?;
+            self.expect_close()?;
+            return Ok(Some(Const::RefHost(val)));
+        }
+
+        if self.try_expr_start("ref.extern")? {
             let val = self.expect_integer()?;
             self.expect_close()?;
             return Ok(Some(Const::RefHost(val)));

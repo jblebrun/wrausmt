@@ -42,6 +42,10 @@ impl<R: Read> Parser<R> {
                         let idxs = self.zero_or_more(Self::try_index)?;
                         syntax::Operands::BrTable(idxs)
                     }
+                    Operands::Select => {
+                        let results = self.try_parse_fresult()?.unwrap_or_else(Vec::new);
+                        syntax::Operands::Select(results)
+                    }
                     Operands::CallIndirect => {
                         let idx = self.try_index()?.unwrap_or_else(|| Index::unnamed(0));
                         let typeuse = self.parse_type_use()?;
