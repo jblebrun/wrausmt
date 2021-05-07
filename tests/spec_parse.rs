@@ -31,3 +31,8 @@ fn spec_parse_i32() -> Result<()> {
 fn spec_parse_align() -> Result<()> {
     parse_and_print("testdata/spec/align.wast")
 }
+
+#[test]
+fn spec_parse_select() -> Result<()> {
+    parse_and_print("testdata/spec/select.wast")
+}

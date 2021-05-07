@@ -46,6 +46,7 @@ pub enum Operands {
     Br,
     BrTable,
     CallIndirect,
+    Select,
     SelectT,
     HeapType,
     FuncIndex,

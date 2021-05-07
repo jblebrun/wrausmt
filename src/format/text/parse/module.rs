@@ -474,6 +474,7 @@ impl<R: Read> Parser<R> {
 
         self.expect_close()?;
 
+        println!("FPARAMS: {:?}", result);
         Ok(Some(result))
     }
 
@@ -496,7 +497,7 @@ impl<R: Read> Parser<R> {
 
     // Try to parse a function result.
     // := (result <valtype>*)
-    fn try_parse_fresult(&mut self) -> Result<Option<Vec<FResult>>> {
+    pub fn try_parse_fresult(&mut self) -> Result<Option<Vec<FResult>>> {
         if !self.try_expr_start("result")? {
             return Ok(None);
         }

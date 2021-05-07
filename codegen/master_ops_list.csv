@@ -1,3 +1,6 @@
+0x00      ,unreachable                   ,()
+| panic!("unreachable")
+
 0x01      ,nop                           ,()
 0x02      ,block                         ,(Block)
 | let arity = _ec.op_u32()?;
@@ -50,7 +53,7 @@
 0x1A      ,drop                          ,()
 | _ec.pop_value()?;
 | Ok(())
-0x1B      ,select                        ,()
+0x1B      ,select                        ,(Select)
 0x1C      ,selectt                       ,(SelectT)
 0xD0      ,ref.null                      ,(HeapType)
 | _ec.push_func_ref(0)

@@ -135,6 +135,7 @@ impl Resolve<Operands<Resolved>> for Operands<Unresolved> {
                 resolve_all!(ridxs, idxs, ic);
                 Operands::BrTable(ridxs?)
             }
+            Operands::Select(r) => Operands::Select(r),
             Operands::CallIndirect(idx, tu) => {
                 Operands::CallIndirect(idx.resolve(&ic)?, tu.resolve(&ic)?)
             }
