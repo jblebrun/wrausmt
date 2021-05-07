@@ -12,11 +12,52 @@ use crate::{
     spec::format::{Assertion, Cmd, Module},
 };
 
+#[macro_export]
+macro_rules! runset_specific {
+    ( $( $n:expr ),* ) => {
+        RunSet::Specific(vec![
+            $(
+                $n.to_owned(),
+            )*
+        ])
+    }
+}
+
+#[macro_export]
+macro_rules! runset_exclude {
+    ( $( $n:expr ),* ) => {
+        RunSet::Exclude(vec![
+            $(
+                $n.to_owned(),
+            )*
+        ])
+    }
+}
+pub enum RunSet {
+    All,
+    Specific(Vec<String>),
+    Exclude(Vec<String>),
+}
+
 fn handle_action(
     runtime: &mut Runtime,
     module_instance: &Option<Rc<ModuleInstance>>,
     action: Action,
-) -> Result<Vec<Value>> {
+    runset: &RunSet,
+) -> Result<Option<Vec<Value>>> {
+    match runset {
+        RunSet::All => (),
+        RunSet::Specific(set) => {
+            if set.iter().find(|i| *i == action.name()).is_none() {
+                return Ok(None);
+            }
+        }
+        RunSet::Exclude(set) => {
+            if set.iter().any(|i| *i == action.name()) {
+                return Ok(None);
+            }
+        }
+    }
     let module_instance = match module_instance {
         Some(mi) => mi,
         None => return err!("action invoked with no module"),
@@ -25,11 +66,11 @@ fn handle_action(
         Action::Invoke { id, name, params } => {
             println!("INVOKE ACTION {:?} {} {:?}", id, name, params);
             let values: Vec<Value> = params.into_iter().map(|p| p.into()).collect();
-            runtime.call(&module_instance, &name, &values)
+            Ok(Some(runtime.call(&module_instance, &name, &values)?))
         }
         Action::Get { id, name } => {
             println!("GET ACTION {:?} {}", id, name);
-            Ok(vec![Value::Num(Num::I32(0))])
+            Ok(Some(vec![Value::Num(Num::I32(0))]))
         }
     }
 }
@@ -64,7 +105,7 @@ pub fn verify_result(results: Vec<Value>, expects: Vec<ActionResult>) -> Result<
     println!("TEST PASSED!");
     Ok(())
 }
-pub fn run_spec_test(script: SpecTestScript) -> Result<()> {
+pub fn run_spec_test(script: SpecTestScript, runset: RunSet) -> Result<()> {
     println!("PARSING SCRIPT: ");
 
     let mut runtime = Runtime::new();
@@ -83,16 +124,18 @@ pub fn run_spec_test(script: SpecTestScript) -> Result<()> {
             },
             Cmd::Register { string, name } => println!("REGISTER {} {}", string, name),
             Cmd::Action(a) => {
-                handle_action(&mut runtime, &module, a)?;
+                handle_action(&mut runtime, &module, a, &runset)?;
             }
             Cmd::Assertion(a) => match a {
                 Assertion::Return { action, results } => {
-                    let result = handle_action(&mut runtime, &module, action)?;
-                    println!("\nTEST CASE:");
-                    println!("  ASSERT RETURN EXPECTS {:?}", results);
-                    println!("  ASSERT RETURN GOT {:?}", result);
-                    verify_result(result, results)?;
-                    println!("\n\n");
+                    let result = handle_action(&mut runtime, &module, action, &runset)?;
+                    if let Some(result) = result {
+                        println!("\nTEST CASE:");
+                        println!("  ASSERT RETURN EXPECTS {:?}", results);
+                        println!("  ASSERT RETURN GOT {:?}", result);
+                        verify_result(result, results)?;
+                        println!("\n\n");
+                    }
                 }
                 _ => println!("ASSERT OTHER"),
             },
