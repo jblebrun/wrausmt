@@ -1,3 +1,4 @@
+mod compile;
 pub mod error;
 pub mod exec;
 pub mod instance;
@@ -8,7 +9,6 @@ pub mod values;
 use crate::{
     err,
     error::{Result, ResultFrom},
-    format::text::compile::{compile_export, compile_function_body, Emitter},
     runtime::{
         instance::{ElemInstance, TableInstance},
         values::Ref,
@@ -19,6 +19,7 @@ use crate::{
 use std::{cell::RefCell, rc::Rc};
 
 use {
+    compile::{compile_export, compile_function_body, Emitter},
     instance::{
         ExportInstance, ExternalVal, FunctionInstance, GlobalInstance, MemInstance, ModuleInstance,
     },
