@@ -39,6 +39,11 @@ fn spec_tests() -> Result<()> {
 }
 
 #[test]
+fn select() -> Result<()> {
+    parse_and_run("testdata/spec/select.wast", RunSet::First(58))
+}
+
+#[test]
 fn callspecific() -> Result<()> {
     parse_and_run(
         "testdata/spec/call.wast",
