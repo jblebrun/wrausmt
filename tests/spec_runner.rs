@@ -55,7 +55,7 @@ fn loopop() -> Result<()> {
 
 #[test]
 fn nop() -> Result<()> {
-    parse_and_run("testdata/spec/nop.wast", RunSet::First(50))
+    parse_and_run("testdata/spec/nop.wast", RunSet::First(70))
 }
 
 #[test]

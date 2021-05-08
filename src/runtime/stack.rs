@@ -224,6 +224,11 @@ impl Stack {
         Ok(self.peek_activation()?.module.func_offset + idx)
     }
 
+    // Get the function address for the provided index in the current activation.
+    pub fn get_mem_addr(&self, idx: u32) -> Result<addr::FuncAddr> {
+        Ok(self.peek_activation()?.module.mem_offset + idx)
+    }
+
     // Get the global address for the provided index in the current activation.
     pub fn get_global_addr(&self, idx: u32) -> Result<addr::GlobalAddr> {
         Ok(self.peek_activation()?.module.global_offset + idx)

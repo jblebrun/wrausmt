@@ -29,13 +29,33 @@ impl MemInstance {
     ///
     /// [Spec]: https://webassembly.github.io/spec/core/exec/runtime.html#memory-instances
     pub fn new(memtype: MemType) -> MemInstance {
+        println!("INIT MEM {:?}", memtype.limits);
         let data = vec![0u8; memtype.limits.lower as usize * PAGE_SIZE];
         MemInstance { memtype, data }
     }
 
     pub fn new_ast(memfield: MemoryField) -> MemInstance {
         let memtype = memfield.memtype;
+        println!("INIT MEM {:?}", memtype.limits);
         let data = vec![0u8; memtype.limits.lower as usize * PAGE_SIZE];
         MemInstance { memtype, data }
+    }
+
+    pub fn grow(&mut self, pgs: u32) -> Option<u32> {
+        println!("CURRENT MEM SIZE {}", self.data.len());
+        if let Some(upper) = self.memtype.limits.upper {
+            if pgs * PAGE_SIZE as u32 > upper {
+                println!("CAN'T GROW");
+                return None;
+            }
+        }
+
+        let newsize = self.data.len() + (pgs as usize * PAGE_SIZE);
+        let old_size_in_pages = self.data.len() / PAGE_SIZE;
+
+        println!("GREW TO {}", newsize);
+        self.data.resize(newsize, 0);
+
+        Some(old_size_in_pages as u32)
     }
 }

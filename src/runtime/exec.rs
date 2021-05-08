@@ -78,6 +78,7 @@ pub trait ExecutionContextActions {
     fn pop<T: TryFrom<Value, Error = Error>>(&mut self) -> Result<T>;
     fn call(&mut self, idx: u32) -> Result<()>;
     fn mem(&mut self, idx: u32) -> Result<&mut MemInstance>;
+    fn grow_mem(&mut self, pgs: u32) -> Result<Option<u32>>;
     fn table_init(&mut self) -> Result<()>;
     fn elem_drop(&mut self) -> Result<()>;
 
@@ -154,6 +155,11 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
 
     fn mem(&mut self, idx: u32) -> Result<&mut MemInstance> {
         self.runtime.store.mem(idx)
+    }
+
+    fn grow_mem(&mut self, pgs: u32) -> Result<Option<u32>> {
+        let memaddr = self.runtime.stack.get_mem_addr(0)?;
+        self.runtime.store.grow_mem(memaddr, pgs)
     }
 
     fn br(&mut self, labelidx: u32) -> Result<()> {

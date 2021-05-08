@@ -78,6 +78,11 @@ impl Store {
             .ok_or_else(|| error!("no table at {}", addr))
     }
 
+    pub fn grow_mem(&mut self, addr: addr::MemoryAddr, pgs: u32) -> Result<Option<u32>> {
+        let mem = self.mem(addr)?;
+        Ok(mem.grow(pgs))
+    }
+
     // Use by the table.set and table.init ops
     pub fn copy_elems_to_table(
         &mut self,
