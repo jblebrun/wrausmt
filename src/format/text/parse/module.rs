@@ -1,15 +1,18 @@
 use super::error::{ParseError, ParseErrorContext, Result};
 use super::Parser;
-use crate::syntax::{
-    DataField, ElemField, ExportDesc, ExportField, Expr, FParam, FResult, FuncField, FunctionType,
-    GlobalField, ImportDesc, ImportField, Index, IndexSpace, Local, MemoryField, ModeEntry, Module,
-    Resolved, StartField, TypeField, TypeUse, Unresolved,
-};
 use crate::types::MemType;
 use crate::types::{GlobalType, TableType};
 use crate::{
     format::text::{module_builder::ModuleBuilder, token::Token},
     syntax::{ResolvedState, TableField},
+};
+use crate::{
+    syntax::{
+        DataField, ElemField, ExportDesc, ExportField, Expr, FParam, FResult, FuncField,
+        FunctionType, GlobalField, ImportDesc, ImportField, Index, IndexSpace, Local, MemoryField,
+        ModeEntry, Module, Resolved, StartField, TypeField, TypeUse, Unresolved,
+    },
+    types::Limits,
 };
 use std::{collections::HashMap, io::Read};
 
@@ -233,11 +236,19 @@ impl<R: Read> Parser<R> {
         if !self.try_expr_start("memory")? {
             return Ok(None);
         }
+
+        let id = self.try_id()?;
+
+        let exports = self.zero_or_more(Self::try_inline_export)?;
+
+        let lower = self.expect_integer()? as u32;
+        let upper = self.try_integer()?.map(|v| v as u32);
+        let limits = Limits { lower, upper };
         self.consume_expression()?;
         Ok(Some(Field::Memory(MemoryField {
-            id: None,
-            exports: vec![],
-            memtype: MemType::default(),
+            id,
+            exports,
+            memtype: MemType { limits },
             init: vec![],
         })))
     }

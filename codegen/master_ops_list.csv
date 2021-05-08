@@ -195,6 +195,13 @@
 
 0x3f      ,memory.size                   ,(MemorySize)
 0x40      ,memory.grow                   ,(MemoryGrow)
+| let pgs = _ec.pop::<u32>()?;
+| let res = _ec.grow_mem(pgs)?;
+| match res {
+|     None => _ec.push_value((-1i32).into()),
+|     Some(s) => _ec.push_value(s.into()),
+| }
+
 0x41      ,i32.const                      ,(I32)
 | let v = _ec.op_u32()?;
 | _ec.push_value(v.into())
