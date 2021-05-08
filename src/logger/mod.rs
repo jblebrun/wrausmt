@@ -15,7 +15,7 @@ pub struct PrintLogger {
 impl Default for PrintLogger {
     fn default() -> Self {
         let mut tags = HashSet::default();
-        tags.insert("ENTER".to_owned());
+        tags.insert("SPEC".to_owned());
         Self { tags }
     }
 }

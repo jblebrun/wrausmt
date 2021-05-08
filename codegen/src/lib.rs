@@ -22,7 +22,7 @@ pub struct Instruction {
     name: String,
 
     /// The opcdoe of the instruction, as a hex number starting with 0x.
-    opcode: String,
+    opcode: u8,
 
     /// The operands descriptor.
     operands: String,
@@ -38,14 +38,14 @@ impl Instruction {
         Instruction {
             typename: fields::typename(fields[1]),
             name: fields[1].to_string(),
-            opcode: fields[0].to_string(),
+            opcode: fields::hex(fields[0]) as u8,
             operands: fields::operands(fields[2]),
             body: String::new(),
         }
     }
 }
 
-fn read_instruction_list(file: &str) -> io::Result<HashMap<u32, Instruction>> {
+fn read_instruction_list(file: &str) -> io::Result<HashMap<u8, Instruction>> {
     let f = fs::File::open(file)?;
     let buf_reader = io::BufReader::new(f);
 
@@ -92,9 +92,7 @@ fn read_instruction_list(file: &str) -> io::Result<HashMap<u32, Instruction>> {
         // If we were actually collecting an instruction (this wasn't the first one)
         // add it to the instructions lists.
         if !oldinst.typename.is_empty() {
-            let opcode = fields::hex(&oldinst.opcode);
-            println!("OPCDOE FOR {} IS {}", oldinst.opcode, opcode);
-            insts.insert(opcode, oldinst);
+            insts.insert(oldinst.opcode, oldinst);
         }
     }
 
@@ -109,7 +107,8 @@ pub fn parse() -> io::Result<()> {
 
     // There's plenty of room in the primary opcode space, so we put secondary instructions in
     // there starting at 0xE0
-    for (k, v) in secondary_instructions.into_iter() {
+    for (k, mut v) in secondary_instructions.into_iter() {
+        v.opcode += 0xE0;
         insts.insert(k + 0xE0, v);
     }
 

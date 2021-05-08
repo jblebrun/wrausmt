@@ -1,8 +1,8 @@
 use super::Parser;
 use super::Result;
+use crate::format::text::parse::error::ParseError;
 use crate::format::text::token::Token;
 use crate::syntax::{self, Continuation, Expr, Index, Instruction, Unresolved};
-use crate::{format::text::parse::error::ParseError, types::RefType};
 use crate::{instructions::instruction_by_name, instructions::Operands};
 use std::io::Read;
 
@@ -30,7 +30,12 @@ impl<R: Read> Parser<R> {
             Some(data) => {
                 let name = self.try_keyword()?.unwrap();
                 let operands = match data.operands {
-                    Operands::None | Operands::MemoryGrow => syntax::Operands::None,
+                    Operands::None
+                    | Operands::MemoryFill
+                    | Operands::MemorySize
+                    | Operands::MemoryGrow
+                    | Operands::MemoryCopy => syntax::Operands::None,
+                    Operands::MemoryInit => syntax::Operands::DataIndex(self.expect_index()?),
                     Operands::FuncIndex => syntax::Operands::FuncIndex(self.expect_index()?),
                     Operands::TableIndex => syntax::Operands::TableIndex(self.expect_index()?),
                     Operands::GlobalIndex => syntax::Operands::GlobalIndex(self.expect_index()?),
@@ -60,10 +65,26 @@ impl<R: Read> Parser<R> {
                         let offset = self.try_offset()?.unwrap_or(0);
                         syntax::Operands::Memargs(align, offset)
                     }
+                    Operands::TableInit => {
+                        let tabidx = self.try_index()?;
+                        let elemidx = self.try_index()?;
+                        let (tabidx, elemidx) = match (elemidx, tabidx) {
+                            (None, None) => return Err(ParseError::unexpected("elem idx")),
+                            (None, Some(elemidx)) => (Index::unnamed(0), elemidx),
+                            (Some(tabidx), None) => (Index::unnamed(0), tabidx.convert()),
+                            (Some(tabidx), Some(elemidx)) => (tabidx, elemidx),
+                        };
+                        syntax::Operands::TableInit(tabidx, elemidx)
+                    }
+                    Operands::TableCopy => {
+                        let tabidx = self.try_index()?.unwrap_or_else(|| Index::unnamed(0));
+                        let tab2idx = self.try_index()?.unwrap_or_else(|| Index::unnamed(0));
+                        syntax::Operands::TableCopy(tabidx, tab2idx)
+                    }
                     Operands::Block => self.parse_plain_block(Continuation::End)?,
                     Operands::Loop => self.parse_plain_block(Continuation::Start)?,
                     Operands::If => self.parse_plain_if_operands()?,
-                    Operands::HeapType => syntax::Operands::HeapType(self.expect_heap_type()?),
+                    Operands::HeapType => syntax::Operands::HeapType(self.expect_heaptype()?),
                     _ => panic!("Unimplemented operands type {:?}", data.operands),
                 };
                 Ok(Some(Instruction {
@@ -76,18 +97,7 @@ impl<R: Read> Parser<R> {
         }
     }
 
-    fn expect_heap_type(&mut self) -> Result<RefType> {
-        if self.take_keyword_if(|kw| kw == "func")?.is_some() {
-            return Ok(RefType::Func);
-        }
-        if self.take_keyword_if(|kw| kw == "extern")?.is_some() {
-            return Ok(RefType::Extern);
-        }
-        Err(ParseError::unexpected("heap type"))
-    }
-
     fn parse_plain_block(&mut self, cnt: Continuation) -> Result<syntax::Operands<Unresolved>> {
-        println!("PARSING PLAIN BLOCK");
         let label = self.try_id()?;
         let typeuse = self.parse_type_use()?;
         let instr = self.parse_instructions()?;

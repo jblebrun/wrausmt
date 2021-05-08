@@ -65,6 +65,15 @@ impl<R: ResolvedState, S: IndexSpace> Index<R, S> {
             indexmarker: PhantomData {},
         }
     }
+
+    pub fn convert<S2: IndexSpace>(self) -> Index<R, S2> {
+        Index {
+            name: self.name,
+            value: self.value,
+            resolvedmarker: PhantomData {},
+            indexmarker: PhantomData {},
+        }
+    }
 }
 
 impl<R: ResolvedState, S: IndexSpace> fmt::Debug for Index<R, S> {
@@ -467,6 +476,7 @@ pub enum Operands<R: ResolvedState> {
     Memargs(u32, u32),
     HeapType(RefType),
     TableInit(Index<R, TableIndex>, Index<R, ElemIndex>),
+    TableCopy(Index<R, TableIndex>, Index<R, TableIndex>),
     I32(u32),
     I64(u64),
     F32(f32),

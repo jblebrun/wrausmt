@@ -71,10 +71,12 @@ impl<R: Read> Parser<R> {
         while self.next.token.ignorable() {
             self.next()?;
         }
+        /*
         println!(
             "TOKENS ARE NOW {:?} {:?}",
             self.current.token, self.next.token
         );
+        */
         Ok(out)
     }
 

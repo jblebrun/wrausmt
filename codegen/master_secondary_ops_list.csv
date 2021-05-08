@@ -19,4 +19,9 @@
 0x0e      ,table.copy                    ,(TableCopy)
 0x0f      ,table.grow                    ,(TableIndex)
 0x10      ,table.size                    ,(TableIndex)
+| // TODO
+| let _ti = _ec.op_u32()?;
+| _ec.push_value(0.into())?;
+| Ok(())
+
 0x11      ,table.fill                    ,(TableIndex)
