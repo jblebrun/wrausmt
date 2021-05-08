@@ -1,7 +1,10 @@
 use super::ModuleInstance;
 use super::{instance::FunctionInstance, store::addr, values::Value};
-use crate::error;
 use crate::error::Result;
+use crate::{
+    error,
+    logger::{Logger, PrintLogger},
+};
 use std::rc::Rc;
 
 /// Besides the store, most instructions interact with an implicit stack.
@@ -21,6 +24,7 @@ use std::rc::Rc;
 pub struct Stack {
     value_stack: Vec<Value>,
     activation_stack: Vec<ActivationFrame>,
+    logger: PrintLogger,
 }
 
 /// Labels carry an argument arity n and their associated branch target. [Spec][Spec]
@@ -61,7 +65,9 @@ struct ActivationFrame {
 impl Stack {
     pub fn push_value(&mut self, entry: Value) {
         self.value_stack.push(entry);
-        println!("STACK IS NOW {:?}", self.value_stack);
+        self.logger.log("VALSTACK", || format!("PUSH {:?}", entry));
+        self.logger
+            .log("DUMPVALSTACK", || format!("{:?}", self.value_stack));
     }
 
     fn label_stack(&self) -> Result<&Vec<Label>> {
@@ -83,8 +89,10 @@ impl Stack {
             continuation,
             return_spot: self.value_stack.len() - param_arity as usize,
         };
-        println!("PUSH LABEL {:?}", label);
+        self.logger.log("LABSTACK", || format!("PUSH {:?}", label));
         self.label_stack_mut()?.push(label);
+        self.logger
+            .log("DUMPLABSTACK", || format!("{:?}", self.label_stack()));
         Ok(())
     }
 
@@ -94,9 +102,14 @@ impl Stack {
         for localtype in funcinst.locals.iter() {
             self.push_value(localtype.default());
         }
-        println!("FRAME START: {}", frame_start);
+
+        let arity = funcinst.functype.result.len() as u32;
+
+        self.logger.log("ACTIVATE", || {
+            format!("arity {} local_start {}", arity, frame_start)
+        });
         self.activation_stack.push(ActivationFrame {
-            arity: funcinst.functype.result.len() as u32,
+            arity,
             local_start: frame_start,
             module: funcinst.module_instance()?,
             label_stack: vec![],
@@ -145,11 +158,16 @@ impl Stack {
 
     // Handle adjusting return values to a new stack top for breaks and returns.
     fn move_return_values(&mut self, arity: u32, newtop: usize) -> Result<()> {
-        println!("STACK IS {:?}", self.value_stack);
-        println!("FIXING FOR ARITY {} onto {}", arity, newtop);
+        self.logger.log("STACK", || {
+            format!("MOVING RETURN VALUES FOR {} {}", arity, newtop)
+        });
+        self.logger
+            .log("DUMPSTACK", || format!("STACK {:?}", self.value_stack));
         let result_start = self.value_stack.len() - (arity as usize);
         self.value_stack.copy_within(result_start.., newtop);
-        println!("AFTER RESULT MOVE STACK IS {:?}", self.value_stack);
+        self.logger.log("DUMPSTACK", || {
+            format!("AFTER MOVE STACK {:?}", self.value_stack)
+        });
 
         let truncated_size = newtop + arity as usize;
         self.value_stack.truncate(truncated_size);
@@ -162,8 +180,6 @@ impl Stack {
             .activation_stack
             .pop()
             .ok_or_else(|| error!("activation stack underflow"))?;
-
-        println!("STACK IS {:?}", self.value_stack);
 
         self.move_return_values(frame.arity, frame.local_start)?;
         Ok(())

@@ -1,6 +1,6 @@
 use super::instance::{ElemInstance, FunctionInstance, GlobalInstance, MemInstance, TableInstance};
 use super::values::Value;
-use crate::{error, error::Result};
+use crate::{error, error::Result, logger::PrintLogger};
 use std::iter::Iterator;
 use std::rc::Rc;
 
@@ -43,6 +43,7 @@ pub mod addr {
 /// [Spec]: https://webassembly.github.io/spec/core/exec/runtime.html#store
 #[derive(Default, Debug)]
 pub struct Store {
+    logger: PrintLogger,
     pub funcs: Vec<Rc<FunctionInstance>>,
     pub tables: Vec<TableInstance>,
     pub mems: Vec<MemInstance>,
@@ -72,7 +73,6 @@ impl Store {
     }
 
     pub fn table_mut(&mut self, addr: addr::TableAddr) -> Result<&mut TableInstance> {
-        println!("TABLES {:?}", self.tables);
         self.tables
             .get_mut(addr as usize)
             .ok_or_else(|| error!("no table at {}", addr))

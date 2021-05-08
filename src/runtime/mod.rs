@@ -9,6 +9,7 @@ pub mod values;
 use crate::{
     err,
     error::{Result, ResultFrom},
+    logger::{Logger, PrintLogger},
     runtime::{
         instance::{ElemInstance, TableInstance},
         values::Ref,
@@ -37,6 +38,8 @@ pub struct Runtime {
 
     /// The runtime stack.
     stack: Stack,
+
+    logger: PrintLogger,
 }
 
 impl Runtime {
@@ -47,9 +50,6 @@ impl Runtime {
     /// The load method allocates and instantiates the provided [Module].
     pub fn load(&mut self, module: syntax::Module<Resolved>) -> Result<Rc<ModuleInstance>> {
         // TODO Resolve imports
-        for import in module.imports.iter() {
-            println!("NEED TO RESOLVE {}:{}", import.modname, import.name);
-        }
         self.instantiate(module)
     }
 
@@ -112,7 +112,9 @@ impl Runtime {
         let (func_count, func_offset) = self.store.alloc_funcs(func_insts.iter().cloned());
         module_instance.func_count = func_count;
         module_instance.func_offset = func_offset;
-        println!("LOADED FUNCTIONS {} {}", func_count, func_offset);
+        self.logger.log("LOAD", || {
+            format!("LOADED FUNCTIONS {} {}", func_count, func_offset)
+        });
 
         let table_insts: Vec<TableInstance> = module
             .tables
@@ -120,7 +122,9 @@ impl Runtime {
             .map(|t| TableInstance::new(t.tabletype))
             .collect();
         let (table_count, table_offset) = self.store.alloc_tables(table_insts.into_iter());
-        println!("LOADED TABLES {} {}", table_count, table_offset);
+        self.logger.log("LOAD", || {
+            format!("LOADED TABLES {} {}", table_count, table_offset)
+        });
         module_instance.table_count = table_count;
         module_instance.table_offset = table_offset;
 
@@ -157,14 +161,16 @@ impl Runtime {
         let (count, offset) = self.store.alloc_elems(elem_insts.into_iter());
         module_instance.elem_count = count;
         module_instance.elem_offset = offset;
-        println!("LOADED ELEMS {} {}", count, offset);
+        self.logger
+            .log("LOAD", || format!("LOADED ELEMS {} {}", count, offset));
 
         // (Instantiation 8.) Get global init vals and allocate globals.
         let global_insts: Vec<GlobalInstance> = module
             .globals
             .iter()
             .map(|g| {
-                println!("COMPILE GLOBAL INIT EXPR {:x?}", g.init);
+                self.logger
+                    .log("LOAD", || format!("COMPILE GLOBAL INIT EXPR {:x?}", g.init));
                 let mut initexpr: Vec<u8> = Vec::new();
                 initexpr.emit_expr(&g.init);
                 let val = self.eval_expr(&initexpr).wrap("initializing global")?;
@@ -180,7 +186,8 @@ impl Runtime {
 
         for (i, elem) in module.elems.iter().enumerate() {
             if let ModeEntry::Active(tp) = &elem.mode {
-                println!("INIT ELEMS!i {:?}", elem);
+                self.logger
+                    .log("LOAD", || format!("INIT ELEMS!i {:?}", elem));
                 self.init_table(tp, &elem.elemlist, i as u32)?
             }
         }
@@ -235,12 +242,14 @@ impl Runtime {
         // Due to validation, this should be equal to the frame above.
         self.stack.pop_activation()?;
 
-        println!(
-            "REMOVE FRAME {} {} {}",
-            funcinst.locals.len(),
-            funcinst.functype.params.len(),
-            funcinst.functype.result.len(),
-        );
+        self.logger.log("ACTIVATION", || {
+            format!(
+                "REMOVE FRAME {} {} {}",
+                funcinst.locals.len(),
+                funcinst.functype.params.len(),
+                funcinst.functype.result.len(),
+            )
+        });
 
         Ok(())
     }
@@ -260,7 +269,7 @@ impl Runtime {
             _ => err!("Method not found in module: {}", name),
         }?;
 
-        println!("host is calling {}", name);
+        self.logger.log("HOST", || format!("calling {}", name));
         // 1. Assert S.funcaddr exists
         // 2. Let funcinst = S.funcs[funcaddr]
         let funcinst = self
@@ -293,7 +302,8 @@ impl Runtime {
                 .stack
                 .pop_value()
                 .wrap(&format!("popping result {} for {}", i, name))?;
-            println!("POPPED HOST CALL RESULT {:?}", result);
+            self.logger
+                .log("HOST", || format!("POPPED HOST RESULT {:?}", result));
             results.push(result);
         }
 

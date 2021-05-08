@@ -1,12 +1,13 @@
 use super::{values::Ref, values::Value, Runtime};
 use crate::err;
 use crate::instructions::exec_method;
+use crate::logger::Logger;
 use crate::runtime::instance::MemInstance;
 use crate::{
     error::{Error, Result, ResultFrom},
     runtime::stack::Label,
 };
-use std::{convert::TryFrom, convert::TryInto};
+use std::{borrow::Borrow, convert::TryFrom, convert::TryInto, fmt::Display, hash::Hash};
 
 pub struct ExecutionContext<'l> {
     runtime: &'l mut Runtime,
@@ -26,7 +27,9 @@ macro_rules! get_mem {
             let b = self.pop::<u32>()?;
             let i = (b + o) as usize;
             let db: [u8; $s] = self.mem(0)?.data[i..i + $s].try_into().wrap("to array")?;
-            println!("GET {} BYTES {:?} {}", $s, db, stringify!($t));
+            self.log("MEM", || {
+                format!("GET {} BYTES {:?} {}", $s, db, stringify!($t))
+            });
             let val = <$t>::from_le_bytes(db);
             Ok(val)
         }
@@ -39,9 +42,9 @@ macro_rules! set_mem {
             let _a = self.op_u32()?;
             let o = self.op_u32()?;
             let val = self.pop::<$t>()? as $st;
-            println!("SETTING {:?}", val);
             let b = self.pop::<u32>()?;
             let bs = val.to_le_bytes();
+            self.log("MEM", || format!("SETTING {:?} AS {:?}", val, bs));
             let i = (o + b) as usize;
             let m = self.mem(0)?;
             if i + $s > m.data.len() {
@@ -55,6 +58,9 @@ macro_rules! set_mem {
 }
 
 pub trait ExecutionContextActions {
+    fn log<S: Borrow<str> + Eq + Hash + Display, F>(&self, tag: S, msg: F)
+    where
+        F: Fn() -> String;
     fn next_byte(&mut self) -> u8;
     fn op_u32(&mut self) -> Result<u32>;
     fn op_u64(&mut self) -> Result<u64>;
@@ -106,6 +112,13 @@ pub trait ExecutionContextActions {
 }
 
 impl<'l> ExecutionContextActions for ExecutionContext<'l> {
+    fn log<S: Borrow<str> + Eq + Hash + Display, F>(&self, tag: S, msg: F)
+    where
+        F: Fn() -> String,
+    {
+        self.runtime.logger.log(tag, msg);
+    }
+
     fn next_byte(&mut self) -> u8 {
         self.body[self.pc]
     }
@@ -123,7 +136,7 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
     }
 
     fn get_local(&mut self, idx: u32) -> Result<Value> {
-        println!("GET LOCAL {}", idx);
+        self.log("LOCAL", || format!("GET {}", idx));
         self.runtime.stack.get_local(idx)
     }
 
@@ -175,7 +188,7 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
 
     fn continuation(&mut self, cnt: u32) -> Result<()> {
         self.pc = cnt as usize;
-        println!("CONTINUE AT {:x}", cnt);
+        self.log("FLOW", || format!("CONTINUE AT {:x}", cnt));
         if self.pc >= self.body.len() {
             panic!(
                 "invalid continuation {} for body size {}",
@@ -193,13 +206,11 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
     }
 
     fn push_value(&mut self, val: Value) -> Result<()> {
-        println!("PUSH VALUE {:?}", val);
         self.runtime.stack.push_value(val);
         Ok(())
     }
 
     fn push_func_ref(&mut self, idx: u32) -> Result<()> {
-        println!("PUSH FUNC VALUE {:?}", idx);
         self.runtime.stack.push_value(Ref::Func(idx as u64).into());
         Ok(())
     }
@@ -215,7 +226,6 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
     }
 
     fn pop_label(&mut self) -> Result<Label> {
-        println!("POP LABEL");
         self.runtime.stack.pop_label()
     }
 
@@ -229,7 +239,6 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
 
     fn pop<T: TryFrom<Value, Error = Error>>(&mut self) -> Result<T> {
         let val = self.pop_value()?;
-        println!("POPPED VALUE {:?}", val);
         val.try_into().wrap("pop convert")
     }
 
@@ -243,10 +252,10 @@ impl<'l> ExecutionContext<'l> {
     pub fn run(&mut self) -> Result<()> {
         while self.pc < self.body.len() {
             let op = self.body[self.pc];
-            println!("HANDLE OP 0x{:x}", op);
+            self.log("OP", || format!("BEGIN 0x{:x}", op));
             self.pc += 1;
             exec_method(op, self)?;
-            println!("FINISHED OP 0x{:x}", op);
+            self.log("OP", || format!("FINISHED 0x{:x}", op));
         }
         Ok(())
     }
@@ -254,8 +263,12 @@ impl<'l> ExecutionContext<'l> {
 
 /// Implementation of instruction implementation for this runtime.
 impl Runtime {
+    fn log<S: Borrow<str> + Eq + Hash + Display, F: Fn() -> String>(&self, tag: S, msg: F) {
+        self.logger.log(tag, msg);
+    }
+
     pub fn enter(&mut self, body: &[u8]) -> Result<()> {
-        println!("ENTER EXPR {:x?}", body);
+        self.log("ENTER", || format!("ENTER EXPR {:x?}", body));
         let mut ic = ExecutionContext {
             runtime: self,
             body,
@@ -265,7 +278,6 @@ impl Runtime {
     }
 
     pub fn exec_expr(&mut self, body: &[u8]) -> Result<()> {
-        println!("PUSH LABEL");
         self.stack.push_label(0, 1, body.len() as u32 - 1)?;
         self.enter(body)
     }
