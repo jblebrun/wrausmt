@@ -21,13 +21,32 @@ fn parse_and_run<S: AsRef<Path>>(path: S, runset: RunSet) -> Result<()> {
 }
 
 static ENABLED: &[&str] = &[
+    "binary-leb128.wast",
     "br.wast",
     "br_if.wast",
     "br_table.wast",
+    "custom.wast",
     "comments.wast",
+    "data.wast",
+    "forward.wast",
     "i32.wast",
     "i64.wast",
+    "int_literals.wast",
+    "load.wast",
     "nop.wast",
+    "ref_null.wast",
+    "return.wast",
+    "store.wast",
+    "table.wast",
+    "token.wast",
+    "traps.wast",
+    "type.wast",
+    "unreachable.wast",
+    "unreached-invalid.wast",
+    "utf8-custom-section-id.wast",
+    "utf8-import-field.wast",
+    "utf8-import-module.wast",
+    "utf8-invalid-encoding.wast",
 ];
 
 #[test]
@@ -51,6 +70,11 @@ fn spec_tests_all_run_ignore_failure() -> Result<()> {
         let entry = entry?;
         let path = entry.path();
         if path.is_file() {
+            let filename = &path.file_name().unwrap().to_str().unwrap();
+            if ENABLED.iter().any(|n| n == filename) {
+                println!("SKIP ALREADY SUCCEEDING {}", filename);
+                continue;
+            }
             println!("RUNNING {:?}", path);
             match parse_and_run(&path, RunSet::All) {
                 Ok(()) => {
