@@ -1,6 +1,6 @@
 use super::ModuleInstance;
 use super::{instance::FunctionInstance, store::addr, values::Value};
-use crate::error::Result;
+use crate::{err, error::Result};
 use crate::{
     error,
     logger::{Logger, PrintLogger},
@@ -97,6 +97,10 @@ impl Stack {
     }
 
     pub fn push_activation(&mut self, funcinst: &FunctionInstance) -> Result<()> {
+        if self.activation_stack.len() > 256 {
+            return err!("stack overflow");
+        }
+
         let frame_start = self.value_stack.len() - funcinst.functype.params.len();
         // 8. Let val0* be the list of zero values (other locals).
         for localtype in funcinst.locals.iter() {
@@ -105,14 +109,19 @@ impl Stack {
 
         let arity = funcinst.functype.result.len() as u32;
 
-        self.logger.log("ACTIVATE", || {
-            format!("arity {} local_start {}", arity, frame_start)
-        });
         self.activation_stack.push(ActivationFrame {
             arity,
             local_start: frame_start,
             module: funcinst.module_instance()?,
             label_stack: vec![],
+        });
+        self.logger.log("ACTIVATE", || {
+            format!(
+                "arity {} local_start {} stack size {}",
+                arity,
+                frame_start,
+                self.activation_stack.len()
+            )
         });
         Ok(())
     }

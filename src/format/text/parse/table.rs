@@ -122,7 +122,7 @@ impl<R: Read> Parser<R> {
     // elemexpr := ('item' <expr>)
     //           | <instr>
     //           | func <index>*
-    fn try_elemlist(&mut self) -> Result<ElemList<Unresolved>> {
+    fn try_elemlist(&mut self, allow_bare_funcidx: bool) -> Result<ElemList<Unresolved>> {
         let _reftype = self.try_reftype()?;
         let items = self.zero_or_more(Self::try_elem_item)?;
         if !items.is_empty() {
@@ -130,7 +130,7 @@ impl<R: Read> Parser<R> {
         }
         // TODO single instruction
 
-        if self.take_keyword_if(|kw| kw == "func")?.is_some() {
+        if self.take_keyword_if(|kw| kw == "func")?.is_some() || allow_bare_funcidx {
             let items = self.zero_or_more(Self::try_index_as_funcref)?;
             return Ok(ElemList::func(items));
         }
@@ -157,7 +157,7 @@ impl<R: Read> Parser<R> {
 
         let offset = self.try_elem_offset()?;
 
-        let elemlist = self.try_elemlist()?;
+        let elemlist = self.try_elemlist(tableuse.is_none())?;
 
         let mode = if declarative.is_some() {
             ModeEntry::Declarative

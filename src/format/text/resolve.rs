@@ -145,7 +145,6 @@ impl Resolve<Operands<Resolved>> for Operands<Unresolved> {
                     _ => "".into(),
                 };
                 let bic = ic.with_label(lid);
-                println!("RESOLVING BLOCK WITH {:#?}", bic);
                 Operands::Block(id, typ.resolve(&bic)?, expr.resolve(&bic)?, cnt)
             }
             Operands::FuncIndex(idx) => Operands::FuncIndex(idx.resolve(&ic)?),
@@ -157,6 +156,9 @@ impl Resolve<Operands<Resolved>> for Operands<Unresolved> {
             Operands::LabelIndex(idx) => Operands::LabelIndex(idx.resolve(&ic)?),
             Operands::TableInit(tidx, eidx) => {
                 Operands::TableInit(tidx.resolve(&ic)?, eidx.resolve(&ic)?)
+            }
+            Operands::TableCopy(tidx, t2idx) => {
+                Operands::TableCopy(tidx.resolve(&ic)?, t2idx.resolve(&ic)?)
             }
             Operands::Memargs(a, o) => Operands::Memargs(a, o),
             Operands::HeapType(r) => Operands::HeapType(r),

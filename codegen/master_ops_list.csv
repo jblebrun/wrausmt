@@ -117,8 +117,6 @@
 
 0x25      ,table.get                     ,(TableIndex)
 0x26      ,table.set                     ,(TableIndex)
-| panic!("table.set")
-
 0x28      ,i32.load                      ,(Memargs)
 | let v = _ec.get_mem_i32()?;
 | _ec.push(v)

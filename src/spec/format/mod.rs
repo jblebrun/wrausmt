@@ -73,7 +73,13 @@ impl<R: Read> Parser<R> {
             return Ok(None);
         }
 
-        Ok(None)
+        let modname = self.expect_string()?;
+
+        let id = self.try_id()?;
+
+        self.expect_close()?;
+
+        Ok(Some(Cmd::Register { modname, id }))
     }
 
     fn try_action_cmd(&mut self) -> Result<Option<Cmd>> {
@@ -245,7 +251,7 @@ impl<R: Read> Parser<R> {
 
     fn try_result(&mut self) -> Result<Option<ActionResult>> {
         if self.try_expr_start("ref.null")? {
-            let _reftype = self.expect_reftype()?;
+            let _reftype = self.expect_heaptype()?;
             self.expect_close()?;
             return Ok(Some(ActionResult::Func));
         }
@@ -271,7 +277,7 @@ impl<R: Read> Parser<R> {
 
     fn try_const(&mut self) -> Result<Option<Const>> {
         if self.try_expr_start("ref.null")? {
-            let reftype = self.expect_reftype()?;
+            let reftype = self.expect_heaptype()?;
             self.expect_close()?;
             return Ok(Some(Const::RefNull(reftype)));
         }
@@ -340,7 +346,7 @@ pub struct SpecTestScript {
 #[derive(Debug)]
 pub enum Cmd {
     Module(Module),
-    Register { string: String, name: String },
+    Register { modname: String, id: Option<String> },
     Action(Action),
     Assertion(Assertion),
     Meta(Meta),

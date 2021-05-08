@@ -232,6 +232,16 @@ impl<R: Read> Parser<R> {
         self.zero_or_more(Self::try_index)
     }
 
+    fn try_inline_memory_data(&mut self) -> Result<Option<String>> {
+        if !self.try_expr_start("data")? {
+            return Ok(None);
+        }
+
+        let data = self.expect_string()?;
+
+        Ok(Some(data))
+    }
+
     pub fn try_memory_field(&mut self) -> Result<Option<Field<Unresolved>>> {
         if !self.try_expr_start("memory")? {
             return Ok(None);
@@ -241,14 +251,46 @@ impl<R: Read> Parser<R> {
 
         let exports = self.zero_or_more(Self::try_inline_export)?;
 
+        let import = self.try_inline_import()?;
+
+        let inline_data = self.try_inline_memory_data()?;
+
+        if let Some(inline_data) = inline_data {
+            self.expect_close()?;
+            let n = inline_data.as_bytes().len() as u32;
+            let memtype = MemType {
+                limits: Limits {
+                    lower: n,
+                    upper: Some(n),
+                },
+            };
+            return Ok(Some(Field::Memory(MemoryField {
+                id,
+                exports,
+                memtype,
+                init: vec![],
+            })));
+        }
+
         let lower = self.expect_integer()? as u32;
         let upper = self.try_integer()?.map(|v| v as u32);
-        let limits = Limits { lower, upper };
-        self.consume_expression()?;
+        let memtype = MemType {
+            limits: Limits { lower, upper },
+        };
+
+        if let Some(import) = import {
+            return Ok(Some(Field::Import(ImportField {
+                id,
+                modname: import.0,
+                name: import.1,
+                desc: ImportDesc::Mem(memtype),
+            })));
+        }
+        self.expect_close()?;
         Ok(Some(Field::Memory(MemoryField {
             id,
             exports,
-            memtype: MemType { limits },
+            memtype,
             init: vec![],
         })))
     }
@@ -408,6 +450,7 @@ impl<R: Read> Parser<R> {
         if !self.try_expr_start("data")? {
             return Ok(None);
         }
+        // TODO - data field
         self.consume_expression()?;
         Ok(Some(Field::Data(DataField {
             id: None,
@@ -485,7 +528,6 @@ impl<R: Read> Parser<R> {
 
         self.expect_close()?;
 
-        println!("FPARAMS: {:?}", result);
         Ok(Some(result))
     }
 

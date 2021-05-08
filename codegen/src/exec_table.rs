@@ -6,10 +6,10 @@ use std::io::{Result, Write};
 pub trait EmitExecTable: Write + std::fmt::Debug {
     /// Emit the file containing the lookup table array. It generates an array with 256 entries,
     /// and each entry in the array corresponds to one opcode.
-    fn emit_exec_table(&mut self, insts: &HashMap<u32, Instruction>) -> Result<()> {
+    fn emit_exec_table(&mut self, insts: &HashMap<u8, Instruction>) -> Result<()> {
         self.write_all(EXEC_TABLE_HEADER.as_bytes())?;
 
-        for i in 0u32..256 {
+        for i in 0u8..=255 {
             self.write_all(exec_table_item(insts.get(&i)).as_bytes())?;
         }
 

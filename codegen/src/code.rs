@@ -4,7 +4,7 @@ use std::io::{Result, Write};
 
 /// Emit the execution functions for all of the [Instructions][Instruction] in the provided set.
 pub trait EmitCode: Write + std::fmt::Debug {
-    fn emit_code_file(&mut self, insts: &HashMap<u32, Instruction>) -> Result<()> {
+    fn emit_code_file(&mut self, insts: &HashMap<u8, Instruction>) -> Result<()> {
         self.write_all(CODE_HEADER.as_bytes())?;
 
         for (_, inst) in insts.iter() {

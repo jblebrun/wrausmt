@@ -155,6 +155,10 @@ pub trait Emitter {
                     self.emit32(ti.value());
                     self.emit32(ei.value());
                 }
+                syntax::Operands::TableCopy(ti, t2i) => {
+                    self.emit32(ti.value());
+                    self.emit32(t2i.value());
+                }
                 syntax::Operands::HeapType(_) => (),
             }
         }

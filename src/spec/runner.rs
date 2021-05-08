@@ -4,6 +4,7 @@ use super::format::{Action, ActionResult, SpecTestScript};
 use crate::{
     err,
     error::Result,
+    logger::{Logger, PrintLogger},
     runtime::{
         instance::ModuleInstance,
         values::{Num, Ref, Value},
@@ -44,6 +45,7 @@ fn handle_action(
     runtime: &mut Runtime,
     module_instance: &Option<Rc<ModuleInstance>>,
     action: Action,
+    logger: &PrintLogger,
 ) -> Result<Option<Vec<Value>>> {
     let module_instance = match module_instance {
         Some(mi) => mi,
@@ -51,12 +53,14 @@ fn handle_action(
     };
     match action {
         Action::Invoke { id, name, params } => {
-            println!("INVOKE ACTION {:?} {} {:?}", id, name, params);
+            logger.log("SPEC", || {
+                format!("INVOKE ACTION {:?} {} {:?}", id, name, params)
+            });
             let values: Vec<Value> = params.into_iter().map(|p| p.into()).collect();
             Ok(Some(runtime.call(&module_instance, &name, &values)?))
         }
         Action::Get { id, name } => {
-            println!("GET ACTION {:?} {}", id, name);
+            logger.log("SPEC", || format!("GET ACTION {:?} {}", id, name));
             Ok(Some(vec![Value::Num(Num::I32(0))]))
         }
     }
@@ -89,34 +93,32 @@ pub fn verify_result(results: Vec<Value>, expects: Vec<ActionResult>) -> Result<
             }
         }
     }
-    println!("TEST PASSED!");
     Ok(())
 }
 pub fn run_spec_test(script: SpecTestScript, runset: RunSet) -> Result<()> {
-    println!("PARSING SCRIPT: ");
-
     let mut runtime = Runtime::new();
 
     let mut module: Option<Rc<ModuleInstance>> = None;
 
     let mut assert_returns = 0;
 
+    let logger = PrintLogger::default();
+
     for cmd in script.cmds {
         match cmd {
             Cmd::Module(m) => match m {
                 Module::Module(m) => {
-                    println!("NORMAL MODULE");
                     module = Some(runtime.load(m)?);
                 }
                 Module::Binary(_) => println!("BINARY MODULE ACTION"),
                 Module::Quote(_) => println!("QUOTE MODULE ACTION"),
             },
-            Cmd::Register { string, name } => println!("REGISTER {} {}", string, name),
+            Cmd::Register { modname, id } => println!("REGISTER {} {:?}", modname, id),
             Cmd::Action(a) => {
-                handle_action(&mut runtime, &module, a)?;
+                handle_action(&mut runtime, &module, a, &logger)?;
             }
-            Cmd::Assertion(a) => match a {
-                Assertion::Return { action, results } => {
+            Cmd::Assertion(a) => {
+                if let Assertion::Return { action, results } = a {
                     assert_returns += 1;
                     match &runset {
                         RunSet::All => (),
@@ -136,17 +138,12 @@ pub fn run_spec_test(script: SpecTestScript, runset: RunSet) -> Result<()> {
                             }
                         }
                     }
-                    let result = handle_action(&mut runtime, &module, action)?;
+                    let result = handle_action(&mut runtime, &module, action, &logger)?;
                     if let Some(result) = result {
-                        println!("\nTEST CASE:");
-                        println!("  ASSERT RETURN EXPECTS {:?}", results);
-                        println!("  ASSERT RETURN GOT {:?}", result);
                         verify_result(result, results)?;
-                        println!("\n\n");
                     }
                 }
-                _ => println!("ASSERT OTHER"),
-            },
+            }
             Cmd::Meta(m) => println!("META {:?}", m),
         }
     }

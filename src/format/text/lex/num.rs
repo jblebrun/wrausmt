@@ -29,7 +29,7 @@ pub fn maybe_number(idchars: &str) -> Option<Token> {
 
     // Hack until hexfloats are implemented
     // To get some spec tests passing.
-    if numchars == "0x0p+0" {
+    if matches!(numchars, "0x0p+0" | "-0x0p+0") {
         return Some(Token::Float(0.0));
     }
 

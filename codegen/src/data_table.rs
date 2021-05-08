@@ -15,10 +15,10 @@ pub static INSTRUCTION_DATA: &[&InstructionData] = &[
 pub trait EmitDataTable: Write {
     /// Emit the code for the table of [InstructionData][wrausmt::instruction::InstructionData]
     /// items, in opcode order.
-    fn emit_instruction_data_table(&mut self, insts: &HashMap<u32, Instruction>) -> Result<()> {
+    fn emit_instruction_data_table(&mut self, insts: &HashMap<u8, Instruction>) -> Result<()> {
         self.write_all(DATA_TABLE_HEADER.as_bytes())?;
 
-        for i in 0u32..256 {
+        for i in 0u8..=255 {
             self.write_all(data_table_item(insts.get(&i)).as_bytes())?;
         }
 
@@ -36,7 +36,7 @@ fn data_table_item(inst: Option<&Instruction>) -> String {
     match inst {
         Some(i) => format!(
             "    &InstructionData {{
-        opcode: {},
+        opcode: {:#x},
         name: \"{}\",
         operands: {},
     }},\n",
