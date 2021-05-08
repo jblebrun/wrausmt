@@ -65,7 +65,7 @@ pub trait ExecutionContextActions {
     fn get_global(&mut self, idx: u32) -> Result<Value>;
     fn push_value(&mut self, val: Value) -> Result<()>;
     fn push_func_ref(&mut self, idx: u32) -> Result<()>;
-    fn push_label(&mut self, arity: u32, continuation: u32) -> Result<()>;
+    fn push_label(&mut self) -> Result<()>;
     fn push<T: Into<Value>>(&mut self, val: T) -> Result<()>;
     fn pop_value(&mut self) -> Result<Value>;
     fn pop_label(&mut self) -> Result<Label>;
@@ -123,6 +123,7 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
     }
 
     fn get_local(&mut self, idx: u32) -> Result<Value> {
+        println!("GET LOCAL {}", idx);
         self.runtime.stack.get_local(idx)
     }
 
@@ -142,8 +143,7 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
     }
 
     fn br(&mut self, labelidx: u32) -> Result<()> {
-        let label = self.runtime.stack.get_label(labelidx)?;
-        println!("FOUND LABEL {:?}", label);
+        let label = self.runtime.stack.break_to_label(labelidx)?;
         self.pc = label.continuation as usize;
         Ok(())
     }
@@ -200,13 +200,13 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
         Ok(())
     }
 
-    fn push_label(&mut self, arity: u32, continuation: u32) -> Result<()> {
-        let label = Label {
-            arity,
-            continuation,
-        };
-        println!("PUSH LABEL {:?}", label);
-        self.runtime.stack.push_label(label)?;
+    fn push_label(&mut self) -> Result<()> {
+        let param_arity = self.op_u32()?;
+        let result_arity = self.op_u32()?;
+        let continuation = self.op_u32()?;
+        self.runtime
+            .stack
+            .push_label(param_arity, result_arity, continuation)?;
         Ok(())
     }
 
@@ -262,10 +262,7 @@ impl Runtime {
 
     pub fn exec_expr(&mut self, body: &[u8]) -> Result<()> {
         println!("PUSH LABEL");
-        self.stack.push_label(Label {
-            arity: 1,
-            continuation: body.len() as u32 - 1,
-        })?;
+        self.stack.push_label(0, 1, body.len() as u32 - 1)?;
         self.enter(body)
     }
 

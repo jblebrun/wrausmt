@@ -62,6 +62,14 @@ fn blockbr() -> Result<()> {
     let res1 = runtime.call(&mod_inst, "nestedblockplain", &[])?;
     let v1: &Value = res1.first().unwrap();
     assert_eq!(v1, &113.into());
+
+    let res1 = runtime.call(&mod_inst, "nestedbreakcleanup", &[])?;
+    let v1: &Value = res1.first().unwrap();
+    assert_eq!(v1, &34.into());
+
+    let res1 = runtime.call(&mod_inst, "nestedbreakcleanupparams", &[])?;
+    let v1: &Value = res1.first().unwrap();
+    assert_eq!(v1, &34.into());
     Ok(())
 }
 

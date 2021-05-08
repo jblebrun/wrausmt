@@ -23,7 +23,7 @@ use {
     instance::{
         ExportInstance, ExternalVal, FunctionInstance, GlobalInstance, MemInstance, ModuleInstance,
     },
-    stack::{Label, Stack},
+    stack::Stack,
     store::addr,
     store::Store,
     values::Value,
@@ -221,12 +221,10 @@ impl Runtime {
 
         // 11. Let L be the Label with continuation at function end.
         // 12. Enter the instruction sequence with the label.
-        let label = Label {
-            arity: funcinst.functype.result.len() as u32,
-            continuation: funcinst.body.len() as u32,
-        };
+        let arity = funcinst.functype.result.len() as u32;
+        let continuation = funcinst.body.len() as u32;
 
-        self.stack.push_label(label)?;
+        self.stack.push_label(0, arity, continuation)?;
 
         self.enter(&funcinst.body)?;
 
@@ -261,6 +259,7 @@ impl Runtime {
             _ => err!("Method not found in module: {}", name),
         }?;
 
+        println!("host is calling {}", name);
         // 1. Assert S.funcaddr exists
         // 2. Let funcinst = S.funcs[funcaddr]
         let funcinst = self
