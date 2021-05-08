@@ -1,11 +1,3 @@
-/// This module contains the logic for parsing a WebAssembly module represented using the binary
-/// format in the specification. The parsing strategy is straightforward, and results in a [Module]
-/// being returned. There's currently no AST or other form of intermediate representation; the
-/// parser directly generates the internal type used by the execution engine. This may changein the
-/// future.
-///
-/// The code is organized into modules that implement various sub-aspects of the binary parsing
-/// task as traits on [std::io::Read].
 mod code;
 mod custom;
 mod data;
@@ -15,7 +7,15 @@ mod exports;
 mod funcs;
 mod globals;
 mod imports;
-mod leb128;
+/// This module contains the logic for parsing a WebAssembly module represented using the binary
+/// format in the specification. The parsing strategy is straightforward, and results in a [Module]
+/// being returned. There's currently no AST or other form of intermediate representation; the
+/// parser directly generates the internal type used by the execution engine. This may changein the
+/// future.
+///
+/// The code is organized into modules that implement various sub-aspects of the binary parsing
+/// task as traits on [std::io::Read].
+pub mod leb128;
 mod mems;
 mod section;
 mod start;

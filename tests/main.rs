@@ -1,3 +1,4 @@
+mod leb128;
 mod load_and_run;
 mod memfloat;
 mod meminstr32;
