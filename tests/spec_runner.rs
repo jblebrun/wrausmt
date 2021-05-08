@@ -5,7 +5,6 @@ use wrausmt::spec::runner::run_spec_test;
 use wrausmt::{format::text::lex::Tokenizer, spec::runner::RunSet};
 
 use wrausmt::runset_exclude;
-use wrausmt::runset_specific;
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
@@ -21,7 +20,13 @@ fn parse_and_run<S: AsRef<Path>>(path: S, runset: RunSet) -> Result<()> {
     Ok(())
 }
 
-static ENABLED: &[&str] = &["comments.wast", "i32.wast", "i64.wast"];
+static ENABLED: &[&str] = &[
+    "br.wast",
+    "br_table.wast",
+    "comments.wast",
+    "i32.wast",
+    "i64.wast",
+];
 
 #[test]
 fn spec_tests() -> Result<()> {
@@ -40,7 +45,7 @@ fn spec_tests() -> Result<()> {
 
 #[test]
 fn select() -> Result<()> {
-    parse_and_run("testdata/spec/select.wast", RunSet::First(58))
+    parse_and_run("testdata/spec/select.wast", RunSet::First(82))
 }
 
 #[test]
@@ -50,7 +55,7 @@ fn loopop() -> Result<()> {
 
 #[test]
 fn nop() -> Result<()> {
-    parse_and_run("testdata/spec/nop.wast", RunSet::First(33))
+    parse_and_run("testdata/spec/nop.wast", RunSet::First(50))
 }
 
 #[test]
@@ -59,28 +64,10 @@ fn br_if() -> Result<()> {
 }
 
 #[test]
-fn callspecific() -> Result<()> {
-    parse_and_run(
-        "testdata/spec/call.wast",
-        runset_specific!("type-i32", "type-i64"),
-    )
-}
-
-#[test]
 fn callexclude() -> Result<()> {
     parse_and_run(
         "testdata/spec/call.wast",
         runset_exclude!(
-            "fac",
-            "fac-acc",
-            "fib",
-            "as-select-first",
-            "as-select-mid",
-            "as-select-last",
-            "as-br_if-first",
-            "as-br_if-last",
-            "as-br_table-first",
-            "as-br_table-last",
             "as-store-first",
             "as-store-last",
             "as-memory.grow-value",

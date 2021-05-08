@@ -213,6 +213,16 @@ impl Stack {
         Ok(self.peek_activation()?.module.global_offset + idx)
     }
 
+    // Get the function address for the provided index in the current activation.
+    pub fn get_table_addr(&self, idx: u32) -> Result<addr::TableAddr> {
+        Ok(self.peek_activation()?.module.table_offset + idx)
+    }
+
+    // Get the function address for the provided index in the current activation.
+    pub fn get_elem_addr(&self, idx: u32) -> Result<addr::ElemAddr> {
+        Ok(self.peek_activation()?.module.elem_offset + idx)
+    }
+
     pub fn get_label(&self, idx: u32) -> Result<&Label> {
         let fromend = self.label_stack()?.len() as u32 - 1 - idx;
         Ok(&self.label_stack()?[fromend as usize])

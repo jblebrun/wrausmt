@@ -132,7 +132,8 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
     }
 
     fn get_func_table(&mut self, tidx: u32, elemidx: u32) -> Result<u32> {
-        match self.runtime.store.tables[tidx as usize].elem[elemidx as usize] {
+        let table = &self.runtime.store.tables[tidx as usize];
+        match table.elem[elemidx as usize] {
             Ref::Func(a) => Ok(a as u32),
             _ => panic!("not a func"),
         }
@@ -154,14 +155,17 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
     }
 
     fn table_init(&mut self) -> Result<()> {
+        let tableidx = self.op_u32()?;
         let elemidx = self.op_u32()?;
         let n = self.pop::<u32>()? as usize;
         let src = self.pop::<u32>()? as usize;
         let dst = self.pop::<u32>()? as usize;
         // TODO if s + n or d + n > sie of table 0, trap
+        let tableaddr = self.runtime.stack.get_table_addr(tableidx)?;
+        let elemaddr = self.runtime.stack.get_table_addr(elemidx)?;
         self.runtime
             .store
-            .copy_elems_to_table(0, elemidx, src, dst, n)
+            .copy_elems_to_table(tableaddr, elemaddr, src, dst, n)
     }
 
     fn elem_drop(&mut self) -> Result<()> {

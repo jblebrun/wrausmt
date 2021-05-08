@@ -151,7 +151,10 @@ pub trait Emitter {
                     self.emit32(*o);
                     self.emit32(*a)
                 }
-                syntax::Operands::TableInit(_, ei) => self.emit32(ei.value()),
+                syntax::Operands::TableInit(ti, ei) => {
+                    self.emit32(ti.value());
+                    self.emit32(ei.value());
+                }
                 syntax::Operands::HeapType(_) => (),
             }
         }

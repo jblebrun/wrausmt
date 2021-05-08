@@ -70,14 +70,15 @@ impl Runtime {
         &mut self,
         tp: &TablePosition<Resolved>,
         elemlist: &ElemList<Resolved>,
-        i: u32,
+        ei: u32,
     ) -> Result<()> {
         let n = elemlist.items.len() as u32;
+        let ti = tp.tableuse.tableidx.value();
         let initexpr: Vec<Instruction<Resolved>> = vec![
             Instruction::i32const(0),
             Instruction::i32const(n),
-            Instruction::tableinit(i),
-            Instruction::elemdrop(i),
+            Instruction::tableinit(ti, ei),
+            Instruction::elemdrop(ei),
         ];
         let mut init_code: Vec<u8> = vec![];
         // TODO - offset has and end marker 0x0b throwing off label count.
@@ -156,7 +157,7 @@ impl Runtime {
         let (count, offset) = self.store.alloc_elems(elem_insts.into_iter());
         module_instance.elem_count = count;
         module_instance.elem_offset = offset;
-        println!("LOADED ELEMS {} {}", table_count, table_offset);
+        println!("LOADED ELEMS {} {}", count, offset);
 
         // (Instantiation 8.) Get global init vals and allocate globals.
         let global_insts: Vec<GlobalInstance> = module
@@ -179,7 +180,7 @@ impl Runtime {
 
         for (i, elem) in module.elems.iter().enumerate() {
             if let ModeEntry::Active(tp) = &elem.mode {
-                println!("INIT ELEMS!");
+                println!("INIT ELEMS!i {:?}", elem);
                 self.init_table(tp, &elem.elemlist, i as u32)?
             }
         }
