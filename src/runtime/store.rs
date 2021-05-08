@@ -66,6 +66,16 @@ impl Store {
             .map(|g| g.val)
     }
 
+    pub fn set_global(&mut self, addr: addr::GlobalAddr, val: Value) -> Result<()> {
+        let g = self
+            .globals
+            .get_mut(addr as usize)
+            .ok_or_else(|| error!("no global at {}", addr))?;
+
+        g.val = val;
+        Ok(())
+    }
+
     pub fn mem(&mut self, addr: addr::MemoryAddr) -> Result<&mut MemInstance> {
         self.mems
             .get_mut(addr as usize)
