@@ -22,10 +22,12 @@ fn parse_and_run<S: AsRef<Path>>(path: S, runset: RunSet) -> Result<()> {
 
 static ENABLED: &[&str] = &[
     "br.wast",
+    "br_if.wast",
     "br_table.wast",
     "comments.wast",
     "i32.wast",
     "i64.wast",
+    "nop.wast",
 ];
 
 #[test]
@@ -43,39 +45,55 @@ fn spec_tests() -> Result<()> {
     Ok(())
 }
 
+#[allow(dead_code)]
+fn spec_tests_all() -> Result<()> {
+    for entry in std::fs::read_dir("testdata/spec")? {
+        let entry = entry?;
+        let path = entry.path();
+        if path.is_file() {
+            match parse_and_run(&path, RunSet::All) {
+                Ok(()) => (),
+                Err(e) => {
+                    println!("{:?} During {:?}", e, path);
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
+
 #[test]
 fn select() -> Result<()> {
-    parse_and_run("testdata/spec/select.wast", RunSet::First(82))
+    parse_and_run(
+        "testdata/spec/select.wast",
+        runset_exclude!("as-convert-operand"),
+    )
 }
 
 #[test]
 fn loopop() -> Result<()> {
-    parse_and_run("testdata/spec/loop.wast", RunSet::First(13))
-}
-
-#[test]
-fn nop() -> Result<()> {
-    parse_and_run("testdata/spec/nop.wast", RunSet::First(70))
-}
-
-#[test]
-fn br_if() -> Result<()> {
-    parse_and_run("testdata/spec/br_if.wast", RunSet::First(20))
+    parse_and_run(
+        "testdata/spec/loop.wast",
+        runset_exclude!(
+            "as-compare-operand",
+            "as-compare-operands",
+            "break-value",
+            "break-multi-value",
+            "param-break",
+            "params-break",
+            "params-id-break",
+            "while",
+            "for",
+            "nesting"
+        ),
+    )
 }
 
 #[test]
 fn callexclude() -> Result<()> {
     parse_and_run(
         "testdata/spec/call.wast",
-        runset_exclude!(
-            "as-store-first",
-            "as-store-last",
-            "as-memory.grow-value",
-            "as-local.tee-value",
-            "as-global.set-value",
-            "as-load-operand",
-            "as-unary-operand",
-            "as-convert-operand"
-        ),
+        runset_exclude!("as-load-operand", "as-unary-operand", "as-convert-operand"),
     )
 }

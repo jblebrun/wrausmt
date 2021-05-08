@@ -69,6 +69,7 @@ pub trait ExecutionContextActions {
 
     fn get_func_table(&mut self, tidx: u32, elemidx: u32) -> Result<u32>;
     fn get_global(&mut self, idx: u32) -> Result<Value>;
+    fn set_global(&mut self, idx: u32, val: Value) -> Result<()>;
     fn push_value(&mut self, val: Value) -> Result<()>;
     fn push_func_ref(&mut self, idx: u32) -> Result<()>;
     fn push_label(&mut self) -> Result<()>;
@@ -209,6 +210,12 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
         self.runtime
             .store
             .global(self.runtime.stack.get_global_addr(idx)?)
+    }
+
+    fn set_global(&mut self, idx: u32, val: Value) -> Result<()> {
+        self.runtime
+            .store
+            .set_global(self.runtime.stack.get_global_addr(idx)?, val)
     }
 
     fn push_value(&mut self, val: Value) -> Result<()> {

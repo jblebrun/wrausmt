@@ -100,12 +100,21 @@
 | _ec.set_local(i, v)
 
 0x22      ,local.tee                     ,(LocalIndex)
+| let i = _ec.op_u32()?;
+| let v = _ec.pop_value()?;
+| _ec.set_local(i, v)?;
+| _ec.push_value(v)
+
 0x23      ,global.get                    ,(GlobalIndex)
 | let i = _ec.op_u32()?;
 | let v = _ec.get_global(i)?;
 | _ec.push_value(v)
 
 0x24      ,global.set                    ,(GlobalIndex)
+| let i = _ec.op_u32()?;
+| let v = _ec.pop_value()?;
+| _ec.set_global(i, v)
+
 0x25      ,table.get                     ,(TableIndex)
 0x26      ,table.set                     ,(TableIndex)
 | panic!("table.set")
