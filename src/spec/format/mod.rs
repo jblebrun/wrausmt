@@ -1,5 +1,8 @@
-use crate::format::text::parse::error::{ParseError, Result};
 use crate::format::text::token::Token;
+use crate::format::{
+    text::parse::error::{ParseError, Result},
+    Location,
+};
 use crate::syntax as modulesyntax;
 use crate::{
     format::text::parse::Parser,
@@ -11,7 +14,7 @@ use std::io::Read;
 
 impl<R: Read> Parser<R> {
     pub fn parse_spec_test(&mut self) -> Result<SpecTestScript> {
-        match self.zero_or_more(Self::try_cmd) {
+        match self.zero_or_more(Self::try_cmd_entry) {
             Ok(cmds) => {
                 if self.current.token != Token::Eof {
                     return Err(self.with_context(ParseError::unexpected("cmd")));
@@ -20,6 +23,12 @@ impl<R: Read> Parser<R> {
             }
             Err(e) => Err(self.with_context(e)),
         }
+    }
+
+    fn try_cmd_entry(&mut self) -> Result<Option<CmdEntry>> {
+        let location = self.current.location;
+        self.try_cmd()
+            .map(|c| c.map(|cmd| CmdEntry { cmd, location }))
     }
 
     fn try_cmd(&mut self) -> Result<Option<Cmd>> {
@@ -334,7 +343,7 @@ impl<R: Read> Parser<R> {
 /// script: <cmd>*
 #[derive(Debug, Default)]
 pub struct SpecTestScript {
-    pub cmds: Vec<Cmd>,
+    pub cmds: Vec<CmdEntry>,
 }
 
 /// cmd:
@@ -350,6 +359,12 @@ pub enum Cmd {
     Action(Action),
     Assertion(Assertion),
     Meta(Meta),
+}
+
+#[derive(Debug)]
+pub struct CmdEntry {
+    pub cmd: Cmd,
+    pub location: Location,
 }
 
 /// module:

@@ -105,7 +105,7 @@ pub fn run_spec_test(script: SpecTestScript, runset: RunSet) -> Result<()> {
     let logger = PrintLogger::default();
 
     for cmd in script.cmds {
-        match cmd {
+        match cmd.cmd {
             Cmd::Module(m) => match m {
                 Module::Module(m) => {
                     module = Some(runtime.load(m)?);
@@ -140,7 +140,13 @@ pub fn run_spec_test(script: SpecTestScript, runset: RunSet) -> Result<()> {
                     }
                     let result = handle_action(&mut runtime, &module, action, &logger)?;
                     if let Some(result) = result {
-                        verify_result(result, results)?;
+                        match verify_result(result, results) {
+                            Ok(_) => (),
+                            Err(e) => {
+                                println!("At {:?}", cmd.location);
+                                return Err(e);
+                            }
+                        }
                     }
                 }
             }

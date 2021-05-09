@@ -42,6 +42,7 @@ impl<R: Read> Tokenizer<R> {
             eof: false,
             location: Location::default(),
         };
+        tokenizer.location.nextline();
         tokenizer.advance()?;
         Ok(tokenizer)
     }
