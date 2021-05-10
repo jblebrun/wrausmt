@@ -66,6 +66,20 @@ fn handle_action(
     }
 }
 
+pub trait TestCompare<T> {
+    fn same_bits(&self, other: &T) -> bool;
+}
+
+impl TestCompare<Value> for Value {
+    fn same_bits(&self, other: &Value) -> bool {
+        match (self, other) {
+            (Value::Num(Num::F32(a)), Value::Num(Num::F32(b))) => a.to_bits() == b.to_bits(),
+            (Value::Num(Num::F64(a)), Value::Num(Num::F64(b))) => a.to_bits() == b.to_bits(),
+            _ => self == other,
+        }
+    }
+}
+
 pub fn verify_result(results: Vec<Value>, expects: Vec<ActionResult>) -> Result<()> {
     if results.len() != expects.len() {
         return err!("Expect {} results but got {}", expects.len(), results.len());
@@ -77,7 +91,7 @@ pub fn verify_result(results: Vec<Value>, expects: Vec<ActionResult>) -> Result<
         match expect {
             ActionResult::Num(np) => {
                 let expect: Value = np.into();
-                if result != expect {
+                if !result.same_bits(&expect) {
                     return err!("Expected {:?}, got {:?}", expect, result);
                 }
             }

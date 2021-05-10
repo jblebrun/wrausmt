@@ -34,12 +34,23 @@ pub enum Value {
 /// A numeric value that a WebAssembly program can manipulate. [Spec][Spec]
 ///
 /// [Spec]: https://webassembly.github.io/spec/core/syntax/values.html#values
-#[derive(PartialEq, Debug, Clone, Copy)]
+#[derive(PartialEq, Clone, Copy)]
 pub enum Num {
     I32(u32),
     I64(u64),
     F32(f32),
     F64(f64),
+}
+
+impl std::fmt::Debug for Num {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Num::F32(i) => write!(f, "F32 {} ({:08x})", i, i.to_bits()),
+            Num::F64(i) => write!(f, "F64 {} ({:016x})", i, i.to_bits()),
+            Num::I32(i) => write!(f, "I32 {}", i),
+            Num::I64(i) => write!(f, "I64 {}", i),
+        }
+    }
 }
 
 /// A reference value that a WebAssembly program can manipulate. [Spec][Spec]
