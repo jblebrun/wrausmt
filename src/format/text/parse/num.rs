@@ -16,21 +16,6 @@ impl<R: Read> Parser<R> {
         }
     }
 
-    pub fn try_number(&mut self) -> Result<Option<u64>> {
-        if let Some(i) = self.try_integer()? {
-            return Ok(Some(i));
-        }
-        if let Some(f) = self.try_float()? {
-            return Ok(Some(f as u64));
-        }
-        Ok(None)
-    }
-
-    pub fn expect_number(&mut self) -> Result<u64> {
-        self.try_number()?
-            .ok_or_else(|| ParseError::unexpected("number token"))
-    }
-
     pub fn try_integer(&mut self) -> Result<Option<u64>> {
         match self.current.token {
             Token::Unsigned(val) => {
@@ -46,7 +31,7 @@ impl<R: Read> Parser<R> {
     }
 
     pub fn expect_integer(&mut self) -> Result<u64> {
-        self.try_number()?
+        self.try_integer()?
             .ok_or_else(|| ParseError::unexpected("integer token"))
     }
 

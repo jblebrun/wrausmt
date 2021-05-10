@@ -1,4 +1,3 @@
-use crate::format::text::token::Token;
 use crate::format::{
     text::parse::error::{ParseError, Result},
     Location,
@@ -8,8 +7,9 @@ use crate::{
     format::text::parse::Parser,
     runtime::values::{Num, Ref, Value},
     syntax::Resolved,
-    types::{NumType, RefType},
+    types::RefType,
 };
+use crate::{format::text::token::Token, types::NumType};
 use std::io::Read;
 
 impl<R: Read> Parser<R> {
@@ -317,23 +317,38 @@ impl<R: Read> Parser<R> {
             Some(kw) if kw == "nan:canonical" => Ok(Some(NumPat::CanonicalNaN)),
             Some(kw) if kw == "nan:arithmetic" => Ok(Some(NumPat::ArithmeticNaN)),
             Some(kw) if kw.ends_with(".const") => {
-                let numtype = kw.split('.').next();
-                let nt = match numtype {
-                    Some("i32") => Some(NumType::I32),
-                    Some("i64") => Some(NumType::I64),
-                    Some("f32") => Some(NumType::F32),
-                    Some("f64") => Some(NumType::F64),
-                    _ => None,
+                let numtype = kw.split('.').next().to_owned();
+
+                let result_type = match numtype {
+                    Some("i32") => NumType::I32,
+                    Some("i64") => NumType::I64,
+                    Some("f32") => NumType::F32,
+                    Some("f64") => NumType::F64,
+                    _ => return Ok(None),
                 };
-                if let Some(nt) = nt {
-                    self.advance()?;
-                    self.advance()?;
-                    let val = self.expect_number()?;
-                    self.expect_close()?;
-                    Ok(Some(NumPat::Num(nt, val)))
+
+                self.advance()?;
+                self.advance()?;
+
+                let result = if let Some(val) = self.try_integer()? {
+                    match result_type {
+                        NumType::I32 => NumPat::I32(val as u32),
+                        NumType::I64 => NumPat::I64(val as u64),
+                        NumType::F32 => NumPat::F32(val as f32),
+                        NumType::F64 => NumPat::F64(val as f64),
+                    }
+                } else if let Some(val) = self.try_float()? {
+                    match result_type {
+                        NumType::I32 => NumPat::I32(val as u32),
+                        NumType::I64 => NumPat::I64(val as u64),
+                        NumType::F32 => NumPat::F32(val as f32),
+                        NumType::F64 => NumPat::F64(val as f64),
+                    }
                 } else {
-                    Ok(None)
-                }
+                    return Err(ParseError::unexpected("number pattern"));
+                };
+                self.expect_close()?;
+                Ok(Some(result))
             }
             _ => Ok(None),
         }
@@ -429,12 +444,10 @@ impl From<Const> for Value {
 impl From<NumPat> for Value {
     fn from(np: NumPat) -> Value {
         match np {
-            NumPat::Num(t, v) => match t {
-                NumType::I32 => Value::Num(Num::I32(v as u32)),
-                NumType::I64 => Value::Num(Num::I64(v)),
-                NumType::F32 => Value::Num(Num::F32(v as f32)),
-                NumType::F64 => Value::Num(Num::F64(v as f64)),
-            },
+            NumPat::I32(v) => Value::Num(Num::I32(v as u32)),
+            NumPat::I64(v) => Value::Num(Num::I64(v)),
+            NumPat::F32(v) => Value::Num(Num::F32(v as f32)),
+            NumPat::F64(v) => Value::Num(Num::F64(v as f64)),
             NumPat::ArithmeticNaN => panic!("not yet"),
             NumPat::CanonicalNaN => panic!("not yet"),
         }
@@ -498,7 +511,10 @@ pub enum ActionResult {
 ///   nan:arithmetic                             ;; NaN with 1 in MSB of payload
 #[derive(Debug)]
 pub enum NumPat {
-    Num(NumType, u64),
+    I32(u32),
+    I64(u64),
+    F32(f32),
+    F64(f64),
     CanonicalNaN,
     ArithmeticNaN,
 }
