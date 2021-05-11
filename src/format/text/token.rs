@@ -1,5 +1,7 @@
 use crate::format::Location;
 
+use super::string::WasmString;
+
 /// A [Token] along with context about its location in the source file.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct FileToken {
@@ -36,7 +38,7 @@ pub enum Token {
     Unsigned(u64),
     Signed(i64),
     Float(f64),
-    String(String),
+    String(WasmString),
     Id(String),
     Open,
     Close,

@@ -1,6 +1,9 @@
 use super::super::token::{FileToken, Sign, Token};
 use super::Tokenizer;
-use crate::format::text::lex::error::{Result, WithContext};
+use crate::format::text::{
+    lex::error::{Result, WithContext},
+    string::WasmString,
+};
 
 macro_rules! expect_tokens {
     ( $to_parse:expr, $($t:expr),* ) => {
@@ -25,7 +28,7 @@ fn simple_parse() -> Result<()> {
         Token::Keyword("foo".into()),
         Token::Close,
         Token::Whitespace,
-        Token::String("hello".into()),
+        Token::String(WasmString::from_bytes("hello".as_bytes()).unwrap()),
         Token::Whitespace,
         Token::Open,
         Token::Float(5.6),
@@ -46,9 +49,20 @@ fn simple_parse() -> Result<()> {
 
 #[test]
 fn bare_string() -> Result<()> {
+    let expect = "this is a 😃 string".as_bytes();
     expect_tokens!(
         "\"this is a 😃 string\"",
-        Token::String("this is a 😃 string".into())
+        Token::String(WasmString::from_bytes(expect).unwrap())
+    );
+    Ok(())
+}
+
+#[test]
+fn bytes_string() -> Result<()> {
+    let expect = b"this has raw data\x01\x02\xE4";
+    expect_tokens!(
+        "\"this has raw data\\01\\02\\E4\"",
+        Token::String(WasmString::from_bytes(expect).unwrap())
     );
     Ok(())
 }

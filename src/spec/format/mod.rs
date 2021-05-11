@@ -1,5 +1,8 @@
 use crate::format::{
-    text::parse::error::{ParseError, Result},
+    text::{
+        parse::error::{ParseError, Result},
+        string::WasmString,
+    },
     Location,
 };
 use crate::syntax as modulesyntax;
@@ -58,12 +61,12 @@ impl<R: Read> Parser<R> {
 
         match kw.as_deref() {
             Some("binary") => {
-                let strings = self.zero_or_more(Self::try_string)?;
+                let strings = self.zero_or_more(Self::try_wasm_string)?;
                 self.expect_close()?;
                 Ok(Some(Module::Binary(strings)))
             }
             Some("quote") => {
-                let strings = self.zero_or_more(Self::try_string)?;
+                let strings = self.zero_or_more(Self::try_wasm_string)?;
                 self.expect_close()?;
                 Ok(Some(Module::Quote(strings)))
             }
@@ -389,8 +392,8 @@ pub struct CmdEntry {
 #[derive(Debug)]
 pub enum Module {
     Module(modulesyntax::Module<Resolved>),
-    Binary(Vec<String>),
-    Quote(Vec<String>),
+    Binary(Vec<WasmString>),
+    Quote(Vec<WasmString>),
 }
 
 /// action:
