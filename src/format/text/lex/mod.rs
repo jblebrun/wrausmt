@@ -1,7 +1,7 @@
 use self::error::LexError;
 
 use super::token::{FileToken, Token};
-use crate::format::Location;
+use crate::format::{text::string::WasmString, Location};
 mod chars;
 pub mod error;
 mod num;
@@ -154,9 +154,9 @@ impl<R: Read> Tokenizer<R> {
         loop {
             self.advance()?;
             if self.current == b'"' && prev != b'\\' {
-                let as_string = String::from_utf8(result).ctx("consuming string literal")?;
                 self.advance()?;
-                return Ok(Token::String(as_string));
+                let ws = WasmString::from_bytes(&result)?;
+                return Ok(Token::String(ws));
             }
             result.push(self.current);
             prev = self.current;

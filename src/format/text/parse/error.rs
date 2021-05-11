@@ -1,3 +1,5 @@
+use std::string::FromUtf8Error;
+
 use crate::format::text::{lex::error::LexError, resolve::ResolveError, token::FileToken};
 
 #[derive(Debug)]
@@ -15,6 +17,7 @@ pub enum ParseError {
     UnexpectedToken(String),
     UnrecognizedInstruction(String),
     ResolveError(ResolveError),
+    Utf8Error(FromUtf8Error),
     Incomplete,
 }
 
@@ -37,5 +40,11 @@ pub type Result<T> = std::result::Result<T, ParseError>;
 impl From<ResolveError> for ParseError {
     fn from(re: ResolveError) -> Self {
         ParseError::ResolveError(re)
+    }
+}
+
+impl From<FromUtf8Error> for ParseError {
+    fn from(e: FromUtf8Error) -> Self {
+        ParseError::Utf8Error(e)
     }
 }

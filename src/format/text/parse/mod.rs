@@ -1,5 +1,5 @@
-use super::lex::Tokenizer;
 use super::token::{FileToken, Token};
+use super::{lex::Tokenizer, string::WasmString};
 use error::{ParseError, Result};
 use std::io::Read;
 
@@ -125,7 +125,7 @@ impl<R: Read> Parser<R> {
         }
     }
 
-    pub fn try_string(&mut self) -> Result<Option<String>> {
+    pub fn try_wasm_string(&mut self) -> Result<Option<WasmString>> {
         match self.current.token {
             Token::String(ref mut data) => {
                 let data = std::mem::take(data);
@@ -134,6 +134,14 @@ impl<R: Read> Parser<R> {
             }
             _ => Ok(None),
         }
+    }
+
+    pub fn try_string(&mut self) -> Result<Option<String>> {
+        let result = self.try_wasm_string()?;
+        Ok(match result {
+            Some(ws) => Some(ws.into_string()?),
+            None => None,
+        })
     }
 
     pub fn expect_string(&mut self) -> Result<String> {
