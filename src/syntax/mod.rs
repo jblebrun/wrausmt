@@ -117,6 +117,7 @@ impl<I: ResolvedState> fmt::Debug for Module<I> {
         print_all!(&self.types);
         print_all!(&self.funcs);
         print_all!(&self.tables);
+        print_all!(&self.memories);
         print_all!(&self.globals);
         print_all!(&self.imports);
         print_all!(&self.exports);
@@ -328,7 +329,6 @@ pub struct MemoryField {
     pub id: Option<String>,
     pub exports: Vec<String>,
     pub memtype: MemType,
-    pub init: Vec<u8>,
 }
 
 // global := (global <id>? <globaltype> <expr>)
@@ -459,7 +459,7 @@ impl<R: ResolvedState> Instruction<R> {
     }
     pub fn tableinit(tableidx: u32, elemidx: u32) -> Self {
         Self {
-            name: "i32.const".to_owned(),
+            name: "table.init".to_owned(),
             opcode: 0xE0 + 0x0c,
             operands: Operands::TableInit(Index::unnamed(tableidx), Index::unnamed(elemidx)),
         }
@@ -469,6 +469,20 @@ impl<R: ResolvedState> Instruction<R> {
             name: "elem.drop".to_owned(),
             opcode: 0xE0 + 0x0d,
             operands: Operands::ElemIndex(Index::unnamed(elemidx)),
+        }
+    }
+    pub fn meminit(dataidx: u32) -> Self {
+        Self {
+            name: "mem.init".to_owned(),
+            opcode: 0xE0 + 0x08,
+            operands: Operands::DataIndex(Index::unnamed(dataidx)),
+        }
+    }
+    pub fn datadrop(dataidx: u32) -> Self {
+        Self {
+            name: "data.drop".to_owned(),
+            opcode: 0xE0 + 0x09,
+            operands: Operands::DataIndex(Index::unnamed(dataidx)),
         }
     }
 }
@@ -591,7 +605,7 @@ pub struct ElemField<R: ResolvedState> {
 
 #[derive(Debug, PartialEq)]
 pub struct DataInit<R: ResolvedState> {
-    pub memidx: Index<R, DataIndex>,
+    pub memidx: Index<R, MemoryIndex>,
     pub offset: Expr<R>,
 }
 
@@ -602,6 +616,6 @@ pub struct DataInit<R: ResolvedState> {
 #[derive(Debug, PartialEq)]
 pub struct DataField<R: ResolvedState> {
     pub id: Option<String>,
-    pub data: Vec<u8>,
+    pub data: Box<[u8]>,
     pub init: Option<DataInit<R>>,
 }

@@ -6,7 +6,6 @@ pub mod stack;
 pub mod store;
 pub mod values;
 
-use crate::error as mkerror;
 use crate::{
     err,
     error::{Result, ResultFrom},
@@ -18,6 +17,7 @@ use crate::{
     syntax::{self, ElemList, Expr, FuncField, Instruction, ModeEntry, Resolved, TablePosition},
     types::{FunctionType, ValueType},
 };
+use crate::{error as mkerror, runtime::instance::DataInstance, syntax::DataInit};
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use {
@@ -112,6 +112,23 @@ impl Runtime {
         for i in range {
             vec.push(i);
         }
+    }
+
+    fn init_mem(&mut self, datainit: &DataInit<Resolved>, n: u32, di: u32) -> Result<()> {
+        let initexpr: Vec<Instruction<Resolved>> = vec![
+            Instruction::i32const(0),
+            Instruction::i32const(n),
+            Instruction::meminit(di),
+            Instruction::datadrop(di),
+        ];
+        let mut init_code: Vec<u8> = vec![];
+        // TODO - offset has and end marker 0x0b throwing off label count.
+        init_code.emit_expr(&datainit.offset);
+        self.exec_expr(&init_code)?;
+        init_code.clear();
+        init_code.emit_expr(&Expr { instr: initexpr });
+        self.exec_expr(&init_code)?;
+        Ok(())
     }
 
     fn instantiate(&mut self, module: syntax::Module<Resolved>) -> Result<Rc<ModuleInstance>> {
@@ -209,6 +226,17 @@ impl Runtime {
             format!("LOADED ELEMS {:?}", modinst_builder.elems)
         });
 
+        let (data_inits, data_insts): (Vec<_>, Vec<_>) = module
+            .data
+            .into_iter()
+            .map(|d| ((d.init, d.data.len()), DataInstance { bytes: d.data }))
+            .unzip();
+
+        let range = self.store.alloc_data(data_insts.into_iter());
+        Self::extend_addr_vec(&mut modinst_builder.data, range);
+        self.logger
+            .log("LOAD", || format!("LOADED DATA {:?}", modinst_builder.data));
+
         // (Instantiation 8.) Get global init vals and allocate globals.
         let global_insts: Vec<GlobalInstance> = module
             .globals
@@ -246,6 +274,15 @@ impl Runtime {
                 self.logger
                     .log("LOAD", || format!("INIT ELEMS!i {:?}", elem));
                 self.init_table(tp, &elem.elemlist, i as u32)?
+            }
+        }
+
+        // (Instantiation 15.) Active mem inits.
+        for (i, initrec) in data_inits.iter().enumerate() {
+            if let Some(init) = &initrec.0 {
+                self.logger
+                    .log("LOAD", || format!("INIT MEMORY !i {:?}", init));
+                self.init_mem(init, initrec.1 as u32, i as u32)?
             }
         }
 

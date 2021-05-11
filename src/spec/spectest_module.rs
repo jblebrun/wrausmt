@@ -95,7 +95,6 @@ pub fn make_spectest_module() -> syntax::Module<Resolved> {
                 upper: Some(2),
             },
         },
-        init: vec![],
     });
 
     builder.add_funcfield(mkfunc("print", vec![]));

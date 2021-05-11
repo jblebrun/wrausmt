@@ -136,6 +136,11 @@ impl<R: Read> Parser<R> {
         }
     }
 
+    pub fn expect_wasm_string(&mut self) -> Result<WasmString> {
+        self.try_wasm_string()?
+            .ok_or_else(|| ParseError::unexpected("string literal"))
+    }
+
     pub fn try_string(&mut self) -> Result<Option<String>> {
         let result = self.try_wasm_string()?;
         Ok(match result {

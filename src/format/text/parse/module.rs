@@ -1,6 +1,5 @@
 use super::error::{ParseError, ParseErrorContext, Result};
 use super::Parser;
-use crate::types::MemType;
 use crate::types::{GlobalType, TableType};
 use crate::{
     format::text::{module_builder::ModuleBuilder, token::Token},
@@ -14,6 +13,10 @@ use crate::{
     },
     types::Limits,
 };
+use crate::{
+    syntax::{DataInit, Instruction, MemoryIndex},
+    types::MemType,
+};
 use std::{collections::HashMap, io::Read};
 
 #[derive(Debug, PartialEq)]
@@ -21,7 +24,7 @@ pub enum Field<R: ResolvedState> {
     Type(TypeField),
     Func(FuncField<R>),
     Table(TableField, Option<ElemField<R>>),
-    Memory(MemoryField),
+    Memory(MemoryField, Option<Box<[u8]>>),
     Import(ImportField<R>),
     Export(ExportField<R>),
     Global(GlobalField<R>),
@@ -96,7 +99,22 @@ impl<R: Read> Parser<R> {
                         module_builder.add_elemfield(e);
                     }
                 }
-                Field::Memory(f) => module_builder.add_memoryfield(f),
+                Field::Memory(f, d) => {
+                    let memidx = module_builder.memories();
+                    module_builder.add_memoryfield(f);
+                    if let Some(d) = d {
+                        module_builder.add_datafield(DataField {
+                            id: None,
+                            data: d,
+                            init: Some(DataInit {
+                                memidx: Index::unnamed(memidx),
+                                offset: Expr {
+                                    instr: vec![Instruction::i32const(0)],
+                                },
+                            }),
+                        });
+                    }
+                }
                 Field::Import(f) => module_builder.add_importfield(f),
                 Field::Export(f) => module_builder.add_exportfield(f),
                 Field::Global(f) => module_builder.add_globalfield(f),
@@ -232,14 +250,14 @@ impl<R: Read> Parser<R> {
         self.zero_or_more(Self::try_index)
     }
 
-    fn try_inline_memory_data(&mut self) -> Result<Option<String>> {
+    fn try_inline_memory_data(&mut self) -> Result<Option<Box<[u8]>>> {
         if !self.try_expr_start("data")? {
             return Ok(None);
         }
 
-        let data = self.expect_string()?;
+        let data = self.expect_wasm_string()?;
 
-        Ok(Some(data))
+        Ok(Some(data.into_boxed_bytes()))
     }
 
     pub fn try_memory_field(&mut self) -> Result<Option<Field<Unresolved>>> {
@@ -257,19 +275,21 @@ impl<R: Read> Parser<R> {
 
         if let Some(inline_data) = inline_data {
             self.expect_close()?;
-            let n = inline_data.as_bytes().len() as u32;
+            let n = inline_data.len() as u32;
             let memtype = MemType {
                 limits: Limits {
                     lower: n,
                     upper: Some(n),
                 },
             };
-            return Ok(Some(Field::Memory(MemoryField {
-                id,
-                exports,
-                memtype,
-                init: vec![],
-            })));
+            return Ok(Some(Field::Memory(
+                MemoryField {
+                    id,
+                    exports,
+                    memtype,
+                },
+                Some(inline_data),
+            )));
         }
 
         let limits = self.expect_limits()?;
@@ -285,12 +305,14 @@ impl<R: Read> Parser<R> {
             })));
         }
         self.expect_close()?;
-        Ok(Some(Field::Memory(MemoryField {
-            id,
-            exports,
-            memtype,
-            init: vec![],
-        })))
+        Ok(Some(Field::Memory(
+            MemoryField {
+                id,
+                exports,
+                memtype,
+            },
+            None,
+        )))
     }
 
     // import := (import <modname> <name> <exportdesc>)
@@ -448,13 +470,52 @@ impl<R: Read> Parser<R> {
         if !self.try_expr_start("data")? {
             return Ok(None);
         }
-        // TODO - data field
-        self.consume_expression()?;
-        Ok(Some(Field::Data(DataField {
-            id: None,
-            data: vec![],
-            init: None,
-        })))
+
+        let id = self.try_id()?;
+
+        let memidx = self.try_memuse()?;
+
+        let offset = self.try_offset_expression()?;
+
+        // The data is written as a string, which may be split up into a possibly empty sequence of
+        // individual string literals.
+        let datas = self.zero_or_more(Self::try_wasm_string)?;
+
+        let data = datas
+            .into_iter()
+            .flat_map(|d| d.into_boxed_bytes().into_vec())
+            .collect();
+
+        self.expect_close()?;
+
+        let init = offset.map(|offset| DataInit { memidx, offset });
+
+        Ok(Some(Field::Data(DataField { id, data, init })))
+    }
+
+    pub fn try_memuse(&mut self) -> Result<Index<Unresolved, MemoryIndex>> {
+        if !self.try_expr_start("memory")? {
+            return Ok(Index::unnamed(0));
+        }
+        let memidx = self.expect_index()?;
+
+        self.expect_close()?;
+        Ok(memidx)
+    }
+
+    pub fn try_offset_expression(&mut self) -> Result<Option<Expr<Unresolved>>> {
+        // (offset <instr>*)
+        if self.try_expr_start("offset")? {
+            let instr = self.parse_instructions()?;
+            self.expect_close()?;
+            return Ok(Some(Expr { instr }));
+        }
+
+        // offset may also be bare instruction
+        match self.try_instruction()? {
+            Some(instr) => Ok(Some(Expr { instr })),
+            None => Ok(None),
+        }
     }
 
     // Try to parse one "type use" section, in an import or function.

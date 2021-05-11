@@ -63,6 +63,10 @@ impl ModuleBuilder {
         self.module.tables.len() as u32
     }
 
+    pub fn memories(&self) -> u32 {
+        self.module.memories.len() as u32
+    }
+
     pub fn add_typefield(&mut self, typefield: TypeField) {
         add_ident!(self, typefield, typeindices, types, 0);
         self.module.types.push(typefield);
