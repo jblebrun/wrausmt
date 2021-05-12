@@ -25,10 +25,10 @@ impl From<syntax::Local> for ValueType {
 
 fn compile_export_desc(ast: syntax::ExportDesc<Resolved>, modinst: &ModuleInstance) -> ExternalVal {
     match ast {
-        syntax::ExportDesc::Func(idx) => ExternalVal::Func(idx.value() + modinst.func_offset),
-        syntax::ExportDesc::Table(idx) => ExternalVal::Table(idx.value() + modinst.table_offset),
-        syntax::ExportDesc::Mem(idx) => ExternalVal::Memory(idx.value() + modinst.mem_offset),
-        syntax::ExportDesc::Global(idx) => ExternalVal::Global(idx.value() + modinst.global_offset),
+        syntax::ExportDesc::Func(idx) => ExternalVal::Func(modinst.func(idx.value())),
+        syntax::ExportDesc::Table(idx) => ExternalVal::Table(modinst.table(idx.value())),
+        syntax::ExportDesc::Mem(idx) => ExternalVal::Memory(modinst.mem(idx.value())),
+        syntax::ExportDesc::Global(idx) => ExternalVal::Global(modinst.global(idx.value())),
     }
 }
 

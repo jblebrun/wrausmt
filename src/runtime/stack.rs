@@ -230,27 +230,29 @@ impl Stack {
 
     // Get the function address for the provided index in the current activation.
     pub fn get_function_addr(&self, idx: u32) -> Result<addr::FuncAddr> {
-        Ok(self.peek_activation()?.module.func_offset + idx)
+        Ok(self.peek_activation()?.module.func(idx))
     }
 
     // Get the function address for the provided index in the current activation.
     pub fn get_mem_addr(&self, idx: u32) -> Result<addr::FuncAddr> {
-        Ok(self.peek_activation()?.module.mem_offset + idx)
+        Ok(self.peek_activation()?.module.mem(idx))
     }
 
     // Get the global address for the provided index in the current activation.
     pub fn get_global_addr(&self, idx: u32) -> Result<addr::GlobalAddr> {
-        Ok(self.peek_activation()?.module.global_offset + idx)
+        Ok(self.peek_activation()?.module.global(idx))
     }
 
     // Get the function address for the provided index in the current activation.
     pub fn get_table_addr(&self, idx: u32) -> Result<addr::TableAddr> {
-        Ok(self.peek_activation()?.module.table_offset + idx)
+        println!("GET TABLE {}", idx);
+        Ok(self.peek_activation()?.module.table(idx))
     }
 
     // Get the function address for the provided index in the current activation.
     pub fn get_elem_addr(&self, idx: u32) -> Result<addr::ElemAddr> {
-        Ok(self.peek_activation()?.module.elem_offset + idx)
+        println!("GET ELEM {}", idx);
+        Ok(self.peek_activation()?.module.elem(idx))
     }
 
     pub fn get_label(&self, idx: u32) -> Result<&Label> {

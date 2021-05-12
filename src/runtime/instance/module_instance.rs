@@ -1,5 +1,5 @@
 use super::*;
-use crate::types::FunctionType;
+use crate::{runtime::store::addr, types::FunctionType};
 
 /// A module instance is the runtime representation of a module. [Spec][Spec]
 ///
@@ -18,38 +18,72 @@ use crate::types::FunctionType;
 /// [Spec]: https://webassembly.github.io/spec/core/exec/runtime.html#module-instances
 #[derive(Debug, Default, Clone)]
 pub struct ModuleInstance {
-    pub types: Box<[FunctionType]>,
-    pub exports: Box<[ExportInstance]>,
+    types: Box<[FunctionType]>,
+    exports: Box<[ExportInstance]>,
+    funcs: Box<[addr::FuncAddr]>,
+    tables: Box<[addr::TableAddr]>,
+    mems: Box<[addr::MemoryAddr]>,
+    globals: Box<[addr::GlobalAddr]>,
+    elems: Box<[addr::ElemAddr]>,
+    data: Box<[addr::DataAddr]>,
+}
 
-    pub func_offset: u32,
-    pub func_count: usize,
+#[derive(Debug, Default, Clone)]
+pub struct ModuleInstanceBuilder {
+    pub types: Vec<FunctionType>,
+    pub exports: Vec<ExportInstance>,
+    pub funcs: Vec<addr::FuncAddr>,
+    pub tables: Vec<addr::TableAddr>,
+    pub mems: Vec<addr::MemoryAddr>,
+    pub globals: Vec<addr::GlobalAddr>,
+    pub elems: Vec<addr::ElemAddr>,
+    pub data: Vec<addr::DataAddr>,
+}
 
-    pub table_offset: u32,
-    pub table_count: usize,
-
-    pub mem_offset: u32,
-    pub mem_count: usize,
-
-    pub elem_offset: u32,
-    pub elem_count: usize,
-
-    pub global_offset: u32,
-    pub global_count: usize,
+impl ModuleInstanceBuilder {
+    pub fn build(self) -> ModuleInstance {
+        ModuleInstance {
+            types: self.types.into_boxed_slice(),
+            exports: self.exports.into_boxed_slice(),
+            funcs: self.funcs.into_boxed_slice(),
+            tables: self.tables.into_boxed_slice(),
+            mems: self.mems.into_boxed_slice(),
+            globals: self.globals.into_boxed_slice(),
+            elems: self.elems.into_boxed_slice(),
+            data: self.data.into_boxed_slice(),
+        }
+    }
 }
 
 impl ModuleInstance {
+    pub fn func(&self, idx: u32) -> addr::FuncAddr {
+        self.funcs[idx as usize]
+    }
+
+    pub fn table(&self, idx: u32) -> addr::TableAddr {
+        self.tables[idx as usize]
+    }
+
+    pub fn mem(&self, idx: u32) -> addr::MemoryAddr {
+        self.mems[idx as usize]
+    }
+
+    pub fn global(&self, idx: u32) -> addr::GlobalAddr {
+        self.globals[idx as usize]
+    }
+
+    pub fn elem(&self, idx: u32) -> addr::ElemAddr {
+        println!("GET ELEM {} FROM {:?}", idx, self.elems);
+        self.elems[idx as usize]
+    }
+
+    pub fn data(&self, idx: u32) -> addr::DataAddr {
+        self.data[idx as usize]
+    }
+
     pub fn resolve(&self, name: &str) -> Option<&ExportInstance> {
         let found = self.exports.iter().find(|e| e.name == name);
 
         found
-    }
-
-    pub fn copy_for_init(&self) -> ModuleInstance {
-        ModuleInstance {
-            // TODO - globals and extern funcs
-            func_offset: self.func_offset,
-            func_count: self.func_count,
-            ..ModuleInstance::default()
-        }
     }
 }
