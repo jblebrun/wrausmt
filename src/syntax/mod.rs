@@ -436,6 +436,27 @@ impl<R: ResolvedState> Instruction<R> {
             operands: Operands::I32(val),
         }
     }
+    pub fn i64const(val: u64) -> Self {
+        Self {
+            name: "i64.const".to_owned(),
+            opcode: 0x42,
+            operands: Operands::I64(val),
+        }
+    }
+    pub fn f32const(val: f32) -> Self {
+        Self {
+            name: "i32.const".to_owned(),
+            opcode: 0x43,
+            operands: Operands::F32(val),
+        }
+    }
+    pub fn f64const(val: f64) -> Self {
+        Self {
+            name: "f64.const".to_owned(),
+            opcode: 0x44,
+            operands: Operands::F64(val),
+        }
+    }
     pub fn tableinit(tableidx: u32, elemidx: u32) -> Self {
         Self {
             name: "i32.const".to_owned(),

@@ -16,6 +16,8 @@ impl Default for PrintLogger {
     fn default() -> Self {
         let mut tags = HashSet::default();
         tags.insert("SPEC".to_owned());
+        tags.insert("LOAD".to_owned());
+        tags.insert("HOST".to_owned());
         Self { tags }
     }
 }
