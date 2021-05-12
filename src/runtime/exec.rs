@@ -182,7 +182,7 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
         let dst = self.pop::<u32>()? as usize;
         // TODO if s + n or d + n > sie of table 0, trap
         let tableaddr = self.runtime.stack.get_table_addr(tableidx)?;
-        let elemaddr = self.runtime.stack.get_table_addr(elemidx)?;
+        let elemaddr = self.runtime.stack.get_elem_addr(elemidx)?;
         self.runtime
             .store
             .copy_elems_to_table(tableaddr, elemaddr, src, dst, n)

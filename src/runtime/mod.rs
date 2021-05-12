@@ -11,11 +11,11 @@ use crate::{
     error::{Result, ResultFrom},
     logger::{Logger, PrintLogger},
     runtime::{
-        instance::{ElemInstance, TableInstance},
+        instance::{module_instance::ModuleInstanceBuilder, ElemInstance, TableInstance},
         values::Ref,
     },
     syntax::{self, ElemList, Expr, FuncField, Instruction, ModeEntry, Resolved, TablePosition},
-    types::ValueType,
+    types::{FunctionType, ValueType},
 };
 use std::{cell::RefCell, rc::Rc};
 
@@ -54,8 +54,8 @@ impl Runtime {
     }
 
     /// Instantiate a function from the provided FuncField and module instance.
-    fn instantiate_function(f: FuncField<Resolved>, modinst: &ModuleInstance) -> FunctionInstance {
-        let functype = modinst.types[f.typeuse.index_value() as usize].clone();
+    fn instantiate_function(f: FuncField<Resolved>, types: &[FunctionType]) -> FunctionInstance {
+        let functype = types[f.typeuse.index_value() as usize].clone();
         let locals: Box<[ValueType]> = f.locals.iter().map(|l| l.valtype).collect();
         let body = compile_function_body(&f);
         FunctionInstance {
@@ -90,15 +90,31 @@ impl Runtime {
         Ok(())
     }
 
+    fn extend_addr_vec(vec: &mut Vec<u32>, range: std::ops::Range<u32>) {
+        for i in range {
+            vec.push(i);
+        }
+    }
+
     fn instantiate(&mut self, module: syntax::Module<Resolved>) -> Result<Rc<ModuleInstance>> {
-        let mut module_instance = ModuleInstance {
+        let mut modinst_builder = ModuleInstanceBuilder {
             types: module
                 .types
                 .into_iter()
                 .map(|t| t.functiontype.into())
                 .collect(),
-            ..ModuleInstance::default()
+            ..ModuleInstanceBuilder::default()
         };
+
+        // TODO - actually resolve imports
+        for import in module.imports {
+            match import.desc {
+                syntax::ImportDesc::Func(_) => modinst_builder.funcs.push(0),
+                syntax::ImportDesc::Table(_) => modinst_builder.tables.push(0),
+                syntax::ImportDesc::Mem(_) => modinst_builder.mems.push(0),
+                syntax::ImportDesc::Global(_) => modinst_builder.globals.push(0),
+            }
+        }
 
         // (Alloc 2.) Allocate functions
         // https://webassembly.github.io/spec/core/exec/modules.html#functions
@@ -106,14 +122,14 @@ impl Runtime {
         let func_insts: Vec<Rc<FunctionInstance>> = module
             .funcs
             .into_iter()
-            .map(|f| Self::instantiate_function(f, &module_instance))
+            .map(|f| Self::instantiate_function(f, &modinst_builder.types))
             .map(Rc::new)
             .collect();
-        let (func_count, func_offset) = self.store.alloc_funcs(func_insts.iter().cloned());
-        module_instance.func_count = func_count;
-        module_instance.func_offset = func_offset;
+        let range = self.store.alloc_funcs(func_insts.iter().cloned());
+        Self::extend_addr_vec(&mut modinst_builder.funcs, range);
+
         self.logger.log("LOAD", || {
-            format!("LOADED FUNCTIONS {} {}", func_count, func_offset)
+            format!("LOADED FUNCTIONS {:?}", modinst_builder.funcs)
         });
 
         let table_insts: Vec<TableInstance> = module
@@ -121,21 +137,21 @@ impl Runtime {
             .into_iter()
             .map(|t| TableInstance::new(t.tabletype))
             .collect();
-        let (table_count, table_offset) = self.store.alloc_tables(table_insts.into_iter());
+        let range = self.store.alloc_tables(table_insts.into_iter());
+        Self::extend_addr_vec(&mut modinst_builder.tables, range);
         self.logger.log("LOAD", || {
-            format!("LOADED TABLES {} {}", table_count, table_offset)
+            format!("LOADED TABLES {:?}", modinst_builder.tables)
         });
-        module_instance.table_count = table_count;
-        module_instance.table_offset = table_offset;
 
         let mem_insts = module.memories.into_iter().map(MemInstance::new_ast);
-        let (count, offset) = self.store.alloc_mems(mem_insts);
-        module_instance.mem_count = count;
-        module_instance.mem_offset = offset;
+        let range = self.store.alloc_mems(mem_insts);
+        Self::extend_addr_vec(&mut modinst_builder.mems, range);
+        self.logger
+            .log("LOAD", || format!("LOADED MEMS {:?}", modinst_builder.mems));
 
         // (Instantiation 5-10.) Generate global and elem init values
         // (Instantiation 5.) Create the module instance for global initialization
-        let init_module_instance = Rc::new(module_instance.copy_for_init());
+        let init_module_instance = Rc::new(modinst_builder.clone().build());
 
         // (Instantiation 6-7.) Create a frame with the instance, push it.
         self.stack.push_dummy_activation(init_module_instance)?;
@@ -158,11 +174,11 @@ impl Runtime {
                 Ok(ElemInstance::new(refs.into_boxed_slice()))
             })
             .collect::<Result<_>>()?;
-        let (count, offset) = self.store.alloc_elems(elem_insts.into_iter());
-        module_instance.elem_count = count;
-        module_instance.elem_offset = offset;
-        self.logger
-            .log("LOAD", || format!("LOADED ELEMS {} {}", count, offset));
+        let range = self.store.alloc_elems(elem_insts.into_iter());
+        Self::extend_addr_vec(&mut modinst_builder.elems, range);
+        self.logger.log("LOAD", || {
+            format!("LOADED ELEMS {:?}", modinst_builder.elems)
+        });
 
         // (Instantiation 8.) Get global init vals and allocate globals.
         let global_insts: Vec<GlobalInstance> = module
@@ -180,10 +196,22 @@ impl Runtime {
                 })
             })
             .collect::<Result<_>>()?;
-        let (count, offset) = self.store.alloc_globals(global_insts.into_iter());
-        module_instance.global_count = count;
-        module_instance.global_offset = offset;
+        let range = self.store.alloc_globals(global_insts.into_iter());
+        Self::extend_addr_vec(&mut modinst_builder.globals, range);
+        self.logger.log("LOAD", || {
+            format!("LOADED GLOBALS {:?}", modinst_builder.globals)
+        });
 
+        // (Instantiation 10.) Pop Finit from the stack.
+        self.stack.pop_activation()?;
+
+        // (Instantiation 11, 12.) Create the module instance for global initialization
+        let init_module_instance = Rc::new(modinst_builder.clone().build());
+
+        // (Instantiation 13.) Create a frame with the instance, push it.
+        self.stack.push_dummy_activation(init_module_instance)?;
+
+        // (Instantiation 14.) Active table inits.
         for (i, elem) in module.elems.iter().enumerate() {
             if let ModeEntry::Active(tp) = &elem.mode {
                 self.logger
@@ -192,15 +220,16 @@ impl Runtime {
             }
         }
 
-        module_instance.exports = module
+        let init_module_instance = Rc::new(modinst_builder.clone().build());
+        modinst_builder.exports = module
             .exports
             .into_iter()
-            .map(|e| compile_export(e, &module_instance))
+            .map(|e| compile_export(e, &init_module_instance))
             .collect();
 
         self.stack.pop_activation()?;
 
-        let rcinst = Rc::new(module_instance);
+        let rcinst = Rc::new(modinst_builder.build());
 
         // As noted in the specification for module allocation: functions are defined before the
         // final [ModuleInstance] is available, so now we pass the completed instance to the store
