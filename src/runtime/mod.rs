@@ -6,6 +6,7 @@ pub mod stack;
 pub mod store;
 pub mod values;
 
+use crate::error as mkerror;
 use crate::{
     err,
     error::{Result, ResultFrom},
@@ -17,7 +18,7 @@ use crate::{
     syntax::{self, ElemList, Expr, FuncField, Instruction, ModeEntry, Resolved, TablePosition},
     types::{FunctionType, ValueType},
 };
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use {
     compile::{compile_export, compile_function_body, Emitter},
@@ -39,6 +40,9 @@ pub struct Runtime {
     /// The runtime stack.
     stack: Stack,
 
+    /// Modules registered for import
+    registered: HashMap<String, Rc<ModuleInstance>>,
+
     logger: PrintLogger,
 }
 
@@ -51,6 +55,21 @@ impl Runtime {
     pub fn load(&mut self, module: syntax::Module<Resolved>) -> Result<Rc<ModuleInstance>> {
         // TODO Resolve imports
         self.instantiate(module)
+    }
+
+    pub fn register<S: Into<String>>(&mut self, modname: S, module: Rc<ModuleInstance>) {
+        self.registered.insert(modname.into(), module);
+    }
+
+    fn find_import(&self, modname: &str, name: &str) -> Result<ExternalVal> {
+        let regmod = self
+            .registered
+            .get(modname)
+            .ok_or_else(|| mkerror!("No module {}", modname))?;
+        let exportinst = regmod
+            .resolve(name)
+            .ok_or_else(|| mkerror!("No {} in {}", name, modname))?;
+        Ok(exportinst.addr)
     }
 
     /// Instantiate a function from the provided FuncField and module instance.
@@ -108,11 +127,22 @@ impl Runtime {
 
         // TODO - actually resolve imports
         for import in module.imports {
-            match import.desc {
-                syntax::ImportDesc::Func(_) => modinst_builder.funcs.push(0),
-                syntax::ImportDesc::Table(_) => modinst_builder.tables.push(0),
-                syntax::ImportDesc::Mem(_) => modinst_builder.mems.push(0),
-                syntax::ImportDesc::Global(_) => modinst_builder.globals.push(0),
+            let found = self.find_import(&import.modname, &import.name)?;
+
+            match (&import.desc, found) {
+                (syntax::ImportDesc::Func(_), ExternalVal::Func(addr)) => {
+                    modinst_builder.funcs.push(addr);
+                }
+                (syntax::ImportDesc::Table(_), ExternalVal::Table(addr)) => {
+                    modinst_builder.tables.push(addr);
+                }
+                (syntax::ImportDesc::Mem(_), ExternalVal::Memory(addr)) => {
+                    modinst_builder.mems.push(addr);
+                }
+                (syntax::ImportDesc::Global(_), ExternalVal::Global(addr)) => {
+                    modinst_builder.globals.push(addr);
+                }
+                _ => return err!("Wrong export type {:?} for {:?}", found, import),
             }
         }
 
@@ -227,6 +257,9 @@ impl Runtime {
             .map(|e| compile_export(e, &init_module_instance))
             .collect();
 
+        self.logger
+            .log("LOAD", || format!("EXPORTS {:?}", modinst_builder.exports));
+
         self.stack.pop_activation()?;
 
         let rcinst = Rc::new(modinst_builder.build());
@@ -293,17 +326,18 @@ impl Runtime {
         let funcaddr = match mod_instance.resolve(name) {
             Some(ExportInstance {
                 name: _,
-                addr: ExternalVal::Func(addr),
-            }) => Ok(addr),
+                addr: ExternalVal::Func(idx),
+            }) => Ok(*idx),
             _ => err!("Method not found in module: {}", name),
         }?;
 
-        self.logger.log("HOST", || format!("calling {}", name));
+        self.logger
+            .log("HOST", || format!("calling {} at {}", name, funcaddr));
         // 1. Assert S.funcaddr exists
         // 2. Let funcinst = S.funcs[funcaddr]
         let funcinst = self
             .store
-            .func(*funcaddr)
+            .func(funcaddr)
             .wrap(&format!("for name {}", name))?;
 
         // 3. Let [tn_1] -> [tm_2] be the function type.
@@ -323,7 +357,7 @@ impl Runtime {
         }
 
         // 9. Invoke the function.
-        self.invoke(*funcaddr)?;
+        self.invoke(funcaddr)?;
 
         let mut results: Vec<Value> = vec![];
         for i in 0..funcinst.functype.result.len() {

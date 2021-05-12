@@ -7,6 +7,8 @@ type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 #[test]
 fn simplefunc() -> Result<()> {
     let mut runtime = Runtime::new();
+    let env_mod = runtime.load_wast("testdata/env.wat")?;
+    runtime.register("env", env_mod);
     let mod_inst = runtime.load_wast("testdata/simplefunc.wat")?;
 
     let res1 = runtime.call(&mod_inst, "test", &[100u32.into()])?;
@@ -19,6 +21,8 @@ fn simplefunc() -> Result<()> {
 #[test]
 fn locals() -> Result<()> {
     let mut runtime = Runtime::new();
+    let env_mod = runtime.load_wast("testdata/env.wat")?;
+    runtime.register("env", env_mod);
     let mod_inst = runtime.load_wast("testdata/locals.wat")?;
 
     let res1 = runtime.call(&mod_inst, "test", &[105u32.into()])?;
@@ -31,6 +35,8 @@ fn locals() -> Result<()> {
 #[test]
 fn multi_module() -> Result<()> {
     let mut runtime = Runtime::new();
+    let env_mod = runtime.load_wast("testdata/env.wat")?;
+    runtime.register("env", env_mod);
     let _ = runtime.load_wast("testdata/simplefunc.wat")?;
 
     let mod_inst = runtime.load_wast("testdata/locals.wat")?;
@@ -45,6 +51,8 @@ fn multi_module() -> Result<()> {
 #[test]
 fn blockbr() -> Result<()> {
     let mut runtime = Runtime::new();
+    let env_mod = runtime.load_wast("testdata/env.wat")?;
+    runtime.register("env", env_mod);
     let mod_inst = runtime.load_wast("testdata/blockbr.wat")?;
 
     let res1 = runtime.call(&mod_inst, "simpleblock", &[])?;
@@ -76,6 +84,8 @@ fn blockbr() -> Result<()> {
 #[test]
 fn ifs() -> Result<()> {
     let mut runtime = Runtime::new();
+    let env_mod = runtime.load_wast("testdata/env.wat")?;
+    runtime.register("env", env_mod);
     let mod_inst = runtime.load_wast("testdata/if.wat")?;
 
     let res1 = runtime.call(&mod_inst, "simpleif", &[0.into()])?;
@@ -123,6 +133,8 @@ fn ifs() -> Result<()> {
 #[test]
 fn table() -> Result<()> {
     let mut runtime = Runtime::new();
+    let env_mod = runtime.load_wast("testdata/env.wat")?;
+    runtime.register("env", env_mod);
     let mod_inst = runtime.load_wast("testdata/table.wat")?;
 
     let res1 = runtime.call(&mod_inst, "test", &[0.into()])?;
@@ -142,6 +154,8 @@ fn table() -> Result<()> {
 #[test]
 fn multiresult() -> Result<()> {
     let mut runtime = Runtime::new();
+    let env_mod = runtime.load_wast("testdata/env.wat")?;
+    runtime.register("env", env_mod);
     let mod_inst = runtime.load_wast("testdata/multiresult.wat")?;
 
     let res1 = runtime.call(&mod_inst, "test", &[])?;

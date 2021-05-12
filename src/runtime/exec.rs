@@ -147,7 +147,8 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
     }
 
     fn get_func_table(&mut self, tidx: u32, elemidx: u32) -> Result<u32> {
-        let table = &self.runtime.store.tables[tidx as usize];
+        let tableaddr = &self.runtime.stack.get_table_addr(tidx)?;
+        let table = self.runtime.store.table(*tableaddr)?;
         match table.elem[elemidx as usize] {
             Ref::Func(a) => Ok(a as u32),
             _ => panic!("not a func"),

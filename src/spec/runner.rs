@@ -1,6 +1,9 @@
 use std::rc::Rc;
 
-use super::format::{Action, ActionResult, SpecTestScript};
+use super::{
+    format::{Action, ActionResult, SpecTestScript},
+    spectest_module::make_spectest_module,
+};
 use crate::{
     err,
     error::Result,
@@ -109,8 +112,12 @@ pub fn verify_result(results: Vec<Value>, expects: Vec<ActionResult>) -> Result<
     }
     Ok(())
 }
+
 pub fn run_spec_test(script: SpecTestScript, runset: RunSet) -> Result<()> {
     let mut runtime = Runtime::new();
+
+    let spectest_module = runtime.load(make_spectest_module())?;
+    runtime.register("spectest", spectest_module);
 
     let mut module: Option<Rc<ModuleInstance>> = None;
 

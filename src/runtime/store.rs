@@ -82,6 +82,12 @@ impl Store {
             .ok_or_else(|| error!("no mem at {}", addr))
     }
 
+    pub fn table(&mut self, addr: addr::TableAddr) -> Result<&TableInstance> {
+        self.tables
+            .get(addr as usize)
+            .ok_or_else(|| error!("no table at {}", addr))
+    }
+
     pub fn table_mut(&mut self, addr: addr::TableAddr) -> Result<&mut TableInstance> {
         self.tables
             .get_mut(addr as usize)

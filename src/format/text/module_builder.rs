@@ -130,7 +130,7 @@ impl ModuleBuilder {
         add_ident!(self, f, funcindices, funcs, self.funcidx_offset);
 
         // export field may define new exports.
-        let funcidx = self.module.funcs.len() as u32;
+        let funcidx = self.module.funcs.len() as u32 + self.funcidx_offset;
         for export_name in &f.exports {
             self.module.exports.push(ExportField {
                 name: export_name.clone(),
@@ -144,7 +144,7 @@ impl ModuleBuilder {
         add_ident!(self, f, tableindices, tables, self.tableidx_offset);
 
         // export field may define new exports.
-        let tableidx = self.module.funcs.len() as u32;
+        let tableidx = self.module.funcs.len() as u32 + self.tableidx_offset;
         for export_name in &f.exports {
             self.module.exports.push(ExportField {
                 name: export_name.clone(),
@@ -158,7 +158,7 @@ impl ModuleBuilder {
         add_ident!(self, f, memindices, memories, self.memidx_offset);
 
         // export field may define new exports.
-        let memidx = self.module.funcs.len() as u32;
+        let memidx = self.module.memories.len() as u32 + self.memidx_offset;
         for export_name in &f.exports {
             self.module.exports.push(ExportField {
                 name: export_name.clone(),
@@ -180,10 +180,22 @@ impl ModuleBuilder {
         // in the module, so we track their counts of each type in order
         // to adjust indices.
         match f.desc {
-            ImportDesc::Func(_) => self.funcidx_offset += 1,
-            ImportDesc::Mem(_) => self.memidx_offset += 1,
-            ImportDesc::Table(_) => self.tableidx_offset += 1,
-            ImportDesc::Global(_) => self.globalidx_offset += 1,
+            ImportDesc::Func(_) => {
+                add_ident!(self, f, funcindices, funcs, self.funcidx_offset);
+                self.funcidx_offset += 1;
+            }
+            ImportDesc::Mem(_) => {
+                add_ident!(self, f, memindices, memories, self.memidx_offset);
+                self.memidx_offset += 1;
+            }
+            ImportDesc::Table(_) => {
+                add_ident!(self, f, tableindices, tables, self.tableidx_offset);
+                self.tableidx_offset += 1;
+            }
+            ImportDesc::Global(_) => {
+                add_ident!(self, f, globalindices, globals, self.globalidx_offset);
+                self.globalidx_offset += 1;
+            }
         }
         self.module.imports.push(f);
     }
@@ -195,11 +207,11 @@ impl ModuleBuilder {
     pub fn add_globalfield(&mut self, f: GlobalField<Unresolved>) {
         add_ident!(self, f, globalindices, globals, self.globalidx_offset);
 
-        let globalidx = self.module.funcs.len() as u32;
+        let globalidx = self.module.globals.len() as u32 + self.globalidx_offset;
         for export_name in &f.exports {
             self.module.exports.push(ExportField {
                 name: export_name.clone(),
-                exportdesc: ExportDesc::Mem(Index::unnamed(globalidx)),
+                exportdesc: ExportDesc::Global(Index::unnamed(globalidx)),
             })
         }
         // export field may define new exports.
