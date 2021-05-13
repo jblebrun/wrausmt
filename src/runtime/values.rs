@@ -58,8 +58,8 @@ impl std::fmt::Debug for Num {
 /// [Spec]: https://webassembly.github.io/spec/core/syntax/values.html#values
 #[derive(PartialEq, Debug, Clone, Copy)]
 pub enum Ref {
-    Func(u64),
-    Extern(u64),
+    Func(u32),
+    Extern(u32),
 }
 
 impl RefType {

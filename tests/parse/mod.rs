@@ -1,5 +1,9 @@
-use wrausmt::loader::load_ast;
+use wrausmt::format::text::token::Token;
 use wrausmt::typefield;
+use wrausmt::{
+    format::text::{lex::Tokenizer, token::NumToken},
+    loader::load_ast,
+};
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
@@ -39,5 +43,49 @@ fn folded_block_parse() -> Result<()> {
 fn table_parse() -> Result<()> {
     let module = load_ast("testdata/table.wat")?;
     println!("{:?}", module);
+    Ok(())
+}
+
+fn parse_numtoken(src: &str) -> Result<NumToken> {
+    let mut tokenizer = Tokenizer::new(src.as_bytes())?;
+    match tokenizer.next().unwrap()?.token {
+        Token::Number(nt) => Ok(nt),
+        t => panic!("didn't get num token {:?}", t),
+    }
+}
+
+#[test]
+fn parse_number() -> Result<()> {
+    let tok = parse_numtoken("-600")?;
+    assert_eq!(tok.as_i32()?, -600);
+    assert_eq!(tok.as_i64()?, -600);
+    assert_eq!(tok.as_f32()?, -600f32);
+    assert_eq!(tok.as_f64()?, -600f64);
+
+    let tok = parse_numtoken("601")?;
+    assert_eq!(tok.as_i32()?, 601);
+    assert_eq!(tok.as_i64()?, 601);
+    assert_eq!(tok.as_f32()?, 601f32);
+    assert_eq!(tok.as_f64()?, 601f64);
+
+    let tok = parse_numtoken("0xFFFFFFFF")?;
+    assert_eq!(tok.as_i32()?, -1);
+    assert_eq!(tok.as_u32()?, 0xFFFFFFFF);
+    assert_eq!(tok.as_i64()?, 0xFFFFFFFF);
+
+    let tok = parse_numtoken("67.45")?;
+    assert_eq!(tok.as_f32()?, 67.45);
+    assert_eq!(tok.as_f64()?, 67.45);
+
+    let tok = parse_numtoken("67.45e22")?;
+    assert_eq!(tok.as_f32()?, 67.45e22);
+    assert_eq!(tok.as_f64()?, 67.45e22f64);
+
+    let tok = parse_numtoken("67.45e220")?;
+    assert_eq!(tok.as_f64()?, 67.45e220f64);
+
+    let tok = parse_numtoken("nan")?;
+    assert!(tok.as_f32()?.is_nan());
+
     Ok(())
 }

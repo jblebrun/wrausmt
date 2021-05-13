@@ -1,4 +1,7 @@
-use std::string::FromUtf8Error;
+use std::{
+    num::{ParseFloatError, ParseIntError},
+    string::FromUtf8Error,
+};
 
 use crate::format::text::{lex::error::LexError, resolve::ResolveError, token::FileToken};
 
@@ -18,6 +21,8 @@ pub enum ParseError {
     UnrecognizedInstruction(String),
     ResolveError(ResolveError),
     Utf8Error(FromUtf8Error),
+    ParseIntError(ParseIntError),
+    ParseFloatError(ParseFloatError),
     Incomplete,
 }
 
@@ -46,5 +51,17 @@ impl From<ResolveError> for ParseError {
 impl From<FromUtf8Error> for ParseError {
     fn from(e: FromUtf8Error) -> Self {
         ParseError::Utf8Error(e)
+    }
+}
+
+impl From<ParseFloatError> for ParseError {
+    fn from(e: ParseFloatError) -> Self {
+        ParseError::ParseFloatError(e)
+    }
+}
+
+impl From<ParseIntError> for ParseError {
+    fn from(e: ParseIntError) -> Self {
+        ParseError::ParseIntError(e)
     }
 }

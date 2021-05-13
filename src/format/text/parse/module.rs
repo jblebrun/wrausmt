@@ -272,11 +272,9 @@ impl<R: Read> Parser<R> {
             })));
         }
 
-        let lower = self.expect_integer()? as u32;
-        let upper = self.try_integer()?.map(|v| v as u32);
-        let memtype = MemType {
-            limits: Limits { lower, upper },
-        };
+        let limits = self.expect_limits()?;
+
+        let memtype = MemType { limits };
 
         if let Some(import) = import {
             return Ok(Some(Field::Import(ImportField {
@@ -568,7 +566,7 @@ impl<R: Read> Parser<R> {
             return Ok(Some(Index::named(id, 0)));
         }
 
-        if let Some(val) = self.try_unsigned()? {
+        if let Some(val) = self.try_u32()? {
             return Ok(Some(Index::unnamed(val as u32)));
         }
 

@@ -274,7 +274,7 @@ impl<R: Read> Parser<R> {
         }
 
         if self.try_expr_start("ref.extern")? {
-            let _reftype = self.expect_integer()?;
+            let _reftype = self.expect_u32()?;
             self.expect_close()?;
             return Ok(Some(ActionResult::Extern));
         }
@@ -295,13 +295,13 @@ impl<R: Read> Parser<R> {
         }
 
         if self.try_expr_start("ref.host")? {
-            let val = self.expect_integer()?;
+            let val = self.expect_u32()?;
             self.expect_close()?;
             return Ok(Some(Const::RefHost(val)));
         }
 
         if self.try_expr_start("ref.extern")? {
-            let val = self.expect_integer()?;
+            let val = self.expect_u32()?;
             self.expect_close()?;
             return Ok(Some(Const::RefHost(val)));
         }
@@ -333,23 +333,13 @@ impl<R: Read> Parser<R> {
                 self.advance()?;
                 self.advance()?;
 
-                let result = if let Some(val) = self.try_integer()? {
-                    match result_type {
-                        NumType::I32 => NumPat::I32(val as u32),
-                        NumType::I64 => NumPat::I64(val as u64),
-                        NumType::F32 => NumPat::F32(val as f32),
-                        NumType::F64 => NumPat::F64(val as f64),
-                    }
-                } else if let Some(val) = self.try_float()? {
-                    match result_type {
-                        NumType::I32 => NumPat::I32(val as u32),
-                        NumType::I64 => NumPat::I64(val as u64),
-                        NumType::F32 => NumPat::F32(val as f32),
-                        NumType::F64 => NumPat::F64(val as f64),
-                    }
-                } else {
-                    return Err(ParseError::unexpected("number pattern"));
+                let result = match result_type {
+                    NumType::I32 => NumPat::I32(self.expect_i32()? as u32),
+                    NumType::I64 => NumPat::I64(self.expect_i64()? as u64),
+                    NumType::F32 => NumPat::F32(self.expect_f32()?),
+                    NumType::F64 => NumPat::F64(self.expect_f64()?),
                 };
+
                 self.expect_close()?;
                 Ok(Some(result))
             }
@@ -428,7 +418,7 @@ impl Action {
 pub enum Const {
     Num(NumPat),
     RefNull(RefType),
-    RefHost(u64),
+    RefHost(u32),
 }
 
 impl From<Const> for Value {

@@ -56,27 +56,10 @@ impl<R: Read> Parser<R> {
                         let typeuse = self.parse_type_use()?;
                         syntax::Operands::CallIndirect(idx, typeuse)
                     }
-                    Operands::I32 | Operands::I64 | Operands::F32 | Operands::F64 => {
-                        if let Some(val) = self.try_integer()? {
-                            match data.operands {
-                                Operands::I32 => syntax::Operands::I32(val as u32),
-                                Operands::I64 => syntax::Operands::I64(val as u64),
-                                Operands::F32 => syntax::Operands::F32(val as f32),
-                                Operands::F64 => syntax::Operands::F64(val as f64),
-                                _ => panic!("unreachable"),
-                            }
-                        } else if let Some(val) = self.try_float()? {
-                            match data.operands {
-                                Operands::I32 => syntax::Operands::I32(val as u32),
-                                Operands::I64 => syntax::Operands::I64(val as u64),
-                                Operands::F32 => syntax::Operands::F32(val as f32),
-                                Operands::F64 => syntax::Operands::F64(val as f64),
-                                _ => panic!("unreachable"),
-                            }
-                        } else {
-                            return Err(ParseError::unexpected("number pattern"));
-                        }
-                    }
+                    Operands::I32 => syntax::Operands::I32(self.expect_i32()? as u32),
+                    Operands::I64 => syntax::Operands::I64(self.expect_i64()? as u64),
+                    Operands::F32 => syntax::Operands::F32(self.expect_f32()?),
+                    Operands::F64 => syntax::Operands::F64(self.expect_f64()?),
                     Operands::Memargs => {
                         let align = self.try_align()?.unwrap_or(0);
                         let offset = self.try_offset()?.unwrap_or(0);
