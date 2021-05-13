@@ -3,6 +3,7 @@ use super::Tokenizer;
 use crate::format::text::{
     lex::error::{Result, WithContext},
     string::WasmString,
+    token::{Base, NumToken},
 };
 
 macro_rules! expect_tokens {
@@ -31,11 +32,17 @@ fn simple_parse() -> Result<()> {
         Token::String(WasmString::from_bytes("hello".as_bytes()).unwrap()),
         Token::Whitespace,
         Token::Open,
-        Token::Float(5.6),
+        Token::Number(NumToken::Float(
+            Sign::Unspecified,
+            Base::Dec,
+            "5".into(),
+            "6".into(),
+            "".into()
+        )),
         Token::Whitespace,
-        Token::Signed(-15),
+        Token::Number(NumToken::Integer(Sign::Negative, Base::Hex, "F".into())),
         Token::Whitespace,
-        Token::Unsigned(15),
+        Token::Number(NumToken::Integer(Sign::Unspecified, Base::Hex, "F".into())),
         Token::Close,
         Token::Whitespace,
         Token::BlockComment,
@@ -67,36 +74,50 @@ fn bytes_string() -> Result<()> {
     Ok(())
 }
 
+fn inttoken(sign: char, base: Base, digits: &str) -> Token {
+    Token::Number(NumToken::Integer(sign.into(), base, digits.into()))
+}
+
+fn floattoken(sign: char, base: Base, whole: &str, frac: &str, exp: &str) -> Token {
+    Token::Number(NumToken::Float(
+        sign.into(),
+        base,
+        whole.into(),
+        frac.into(),
+        exp.into(),
+    ))
+}
+
 #[test]
 fn bare_integer_dec() -> Result<()> {
-    expect_tokens!("3452", Token::Unsigned(3452));
-    expect_tokens!("0", Token::Unsigned(0));
-    expect_tokens!("+3452", Token::Signed(3452));
-    expect_tokens!("-3452", Token::Signed(-3452));
-    expect_tokens!("+0", Token::Signed(0));
-    expect_tokens!("-0", Token::Signed(0));
+    expect_tokens!("3452", inttoken(' ', Base::Dec, "3452"));
+    expect_tokens!("0", inttoken(' ', Base::Dec, "0"));
+    expect_tokens!("+3452", inttoken('+', Base::Dec, "3452"));
+    expect_tokens!("-3452", inttoken('-', Base::Dec, "3452"));
+    expect_tokens!("+0", inttoken('+', Base::Dec, "0"));
+    expect_tokens!("-0", inttoken('-', Base::Dec, "0"));
     Ok(())
 }
 
 #[test]
 fn bare_float_dec() -> Result<()> {
-    expect_tokens!("1.5", Token::Float(1.5));
-    expect_tokens!("-1.5", Token::Float(-1.5));
-    expect_tokens!("1.", Token::Float(1.));
-    expect_tokens!("-1.", Token::Float(-1.));
-    expect_tokens!("5e5", Token::Float(500000.0));
-    expect_tokens!("-5e5", Token::Float(-500000.0));
-    expect_tokens!("2.5e6", Token::Float(2500000.0));
-    expect_tokens!("-2.5e6", Token::Float(-2500000.0));
+    expect_tokens!("1.5", floattoken(' ', Base::Dec, "1", "5", ""));
+    expect_tokens!("-1.5", floattoken('-', Base::Dec, "1", "5", ""));
+    expect_tokens!("1.", floattoken(' ', Base::Dec, "1", "", ""));
+    expect_tokens!("-1.", floattoken('-', Base::Dec, "1", "", ""));
+    expect_tokens!("5e5", floattoken(' ', Base::Dec, "5", "", "5"));
+    expect_tokens!("-5e5", floattoken('-', Base::Dec, "5", "", "5"));
+    expect_tokens!("2.5e5", floattoken(' ', Base::Dec, "2", "5", "5"));
+    expect_tokens!("-2.5e5", floattoken('-', Base::Dec, "2", "5", "5"));
     Ok(())
 }
 
 #[test]
 fn bare_integer_hex() -> Result<()> {
-    expect_tokens!("0x60", Token::Unsigned(0x60));
-    expect_tokens!("0xFF", Token::Unsigned(0xFF));
-    expect_tokens!("-0xFF", Token::Signed(-0xFF));
-    expect_tokens!("+0xFF", Token::Signed(0xFF));
+    expect_tokens!("0x60", inttoken(' ', Base::Hex, "60"));
+    expect_tokens!("0xFF", inttoken(' ', Base::Hex, "FF"));
+    expect_tokens!("-0xFF", inttoken('-', Base::Hex, "FF"));
+    expect_tokens!("+0xFF", inttoken('+', Base::Hex, "FF"));
     Ok(())
 }
 
@@ -110,19 +131,31 @@ fn reserved() -> Result<()> {
 
 #[test]
 fn nans() -> Result<()> {
-    expect_tokens!("nan", Token::NaN(Sign::Unspecified));
-    expect_tokens!("-nan", Token::NaN(Sign::Negative));
-    expect_tokens!("+nan", Token::NaN(Sign::Positive));
-    expect_tokens!("nan:0x56", Token::NaNx(Sign::Unspecified, 0x56));
-    expect_tokens!("-nan:0x56", Token::NaNx(Sign::Negative, 0x56));
-    expect_tokens!("+nan:0x56", Token::NaNx(Sign::Positive, 0x56));
+    expect_tokens!("nan", Token::Number(NumToken::NaN(Sign::Unspecified)));
+    expect_tokens!("-nan", Token::Number(NumToken::NaN(Sign::Negative)));
+    expect_tokens!("+nan", Token::Number(NumToken::NaN(Sign::Positive)));
+    expect_tokens!(
+        "nan:0x56",
+        Token::Number(NumToken::NaNx(Sign::Unspecified, "56".into()))
+    );
+    expect_tokens!(
+        "-nan:0x56",
+        Token::Number(NumToken::NaNx(Sign::Negative, "56".into()))
+    );
+    expect_tokens!(
+        "+nan:0x56",
+        Token::Number(NumToken::NaNx(Sign::Positive, "56".into()))
+    );
     Ok(())
 }
 
 #[test]
 fn seps() -> Result<()> {
-    expect_tokens!("100_000", Token::Unsigned(100000));
-    expect_tokens!("100_000.500_000_1", Token::Float(100000.5000001));
+    expect_tokens!("100_000", inttoken(' ', Base::Dec, "100000"));
+    expect_tokens!(
+        "100_000.500_000_1",
+        floattoken(' ', Base::Dec, "100000", "5000001", "")
+    );
     Ok(())
 }
 

@@ -1,86 +1,133 @@
 use super::Token;
-use crate::format::text::token::Sign;
+use crate::format::text::token::{Base, NumToken, Sign};
 
-/// Interpret a discriminated nan, "nan:0xABCDE".
-fn maybe_nan_or_inf(numchars: &str, sign: Sign) -> Option<Token> {
-    match numchars {
-        nc if nc == "nan" => Some(Token::NaN(sign)),
-        nc if nc == "inf" => Some(Token::Inf(sign)),
-        nc if nc.starts_with("nan:0x") => {
-            let (_, numpart) = &numchars.split_at(6);
-            match u32::from_str_radix(numpart, 16) {
-                Ok(nanx) => Some(Token::NaNx(sign, nanx as u32)),
-                _ => None,
-            }
+fn is_digit(ch: char, hex: bool) -> bool {
+    if matches!(ch, '0'..='9' | '_') {
+        return true;
+    }
+    if !hex {
+        return false;
+    }
+
+    matches!(ch, 'a'..='f' | 'A'..='F')
+}
+
+#[derive(Debug)]
+struct StrCursor<'a> {
+    chars: &'a str,
+}
+
+impl<'a> StrCursor<'a> {
+    pub fn new(chars: &'a str) -> Self {
+        Self { chars }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.chars.is_empty()
+    }
+
+    pub fn cur(&self) -> Option<char> {
+        self.chars.chars().next()
+    }
+
+    pub fn advance_by(&mut self, amt: usize) {
+        let (_, rest) = self.chars.split_at(amt);
+        self.chars = rest;
+    }
+
+    pub fn matches(&self, other: &str) -> bool {
+        self.chars.starts_with(other)
+    }
+
+    pub fn is_exactly(&self, other: &str) -> bool {
+        self.chars == other
+    }
+
+    pub fn consume_while<F>(&mut self, pred: F) -> String
+    where
+        F: Fn(char) -> bool,
+    {
+        let mut i = 0;
+        let mut iter = self.chars.chars();
+        while matches!(iter.next(), Some(cur) if pred(cur)) {
+            i += 1;
         }
-        _ => None,
+
+        let result = self.chars.get(0..i).unwrap();
+
+        self.advance_by(i);
+        result.to_owned()
     }
 }
 
 /// Attempt to interpret the `idchars` as a number. If the conversion is successful, a [Token] is
 /// returned, otherwise, [None] is returned.
 pub fn maybe_number(idchars: &str) -> Option<Token> {
-    let snumchars = idchars.replace("_", "");
-    let mut numchars = snumchars.as_str();
+    let mut cursor = StrCursor::new(idchars);
 
-    if numchars.is_empty() {
-        return None;
-    }
+    let sign: Sign = cursor.cur().unwrap().into();
 
-    // Hack until hexfloats are implemented
-    // To get some spec tests passing.
-    if matches!(numchars, "0x0p+0" | "-0x0p+0") {
-        return Some(Token::Float(0.0));
-    }
-
-    let sign: Sign = numchars.chars().next().unwrap().into();
     if sign != Sign::Unspecified {
-        let (_, rest) = numchars.split_at(1);
-        numchars = rest;
+        cursor.advance_by(1);
     }
 
-    if let Some(t) = maybe_nan_or_inf(numchars, sign) {
-        return Some(t);
+    if cursor.is_exactly("nan") {
+        return Some(Token::Number(NumToken::NaN(sign)));
     }
 
-    let radix = match numchars {
-        bs if bs.starts_with("0x") => {
-            let (_, rest) = numchars.split_at(2);
-            numchars = rest;
-            16
-        }
-        _ => 10,
-    };
-
-    // Now try integer
-    if let Ok(val) = u64::from_str_radix(numchars, radix) {
-        return Some(match sign {
-            Sign::Unspecified => Token::Unsigned(val),
-            Sign::Positive => Token::Signed(val as i64),
-            Sign::Negative => {
-                let iv = val as i64;
-                if iv < 0 {
-                    Token::Signed(iv)
-                } else {
-                    Token::Signed(-iv)
-                }
-            }
-        });
+    if cursor.is_exactly("inf") {
+        return Some(Token::Number(NumToken::Inf(sign)));
     }
 
-    // Float w/o leading zero not accepted.
-    if numchars.as_bytes()[0] == b'.' {
-        return None;
-    }
-
-    // Now try decimal float:
-    if let Ok(val) = numchars.parse::<f64>() {
-        return match sign {
-            Sign::Positive | Sign::Unspecified => Some(Token::Float(val)),
-            Sign::Negative => Some(Token::Float(-val)),
+    if cursor.matches("nan:0x") {
+        cursor.advance_by(6);
+        let payload = cursor.consume_while(|c| is_digit(c, true));
+        return match cursor.is_empty() {
+            true => Some(Token::Number(NumToken::NaNx(sign, payload))),
+            false => None,
         };
     }
 
-    // TODO hex float
-    None
+    let hex = cursor.matches("0x");
+    if hex {
+        cursor.advance_by(2);
+    }
+
+    let base = if hex { Base::Hex } else { Base::Dec };
+
+    let whole = cursor.consume_while(|c| is_digit(c, hex));
+    let whole = whole.replace("_", "");
+
+    if whole.is_empty() {
+        return None;
+    }
+
+    let have_point = cursor.matches(".");
+    if have_point {
+        cursor.advance_by(1)
+    }
+
+    let frac = cursor.consume_while(|c| is_digit(c, hex));
+    let frac = frac.replace("_", "");
+
+    let expchars = if hex { ['p', 'P'] } else { ['e', 'E'] };
+
+    let have_exp = matches!(cursor.cur(), Some(cur) if expchars.contains(&cur));
+
+    if have_exp {
+        cursor.advance_by(1);
+    }
+
+    let exp = cursor.consume_while(|c| is_digit(c, false) || c == '+' || c == '-');
+    let exp = exp.replace("_", "");
+
+    if !cursor.is_empty() {
+        return None;
+    }
+
+    if have_point || have_exp {
+        Some(Token::Number(NumToken::Float(sign, base, whole, frac, exp)))
+    } else {
+        Some(Token::Number(NumToken::Integer(sign, base, whole)))
+    }
 }

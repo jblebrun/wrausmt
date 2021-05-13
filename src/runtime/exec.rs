@@ -225,7 +225,7 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
     }
 
     fn push_func_ref(&mut self, idx: u32) -> Result<()> {
-        self.runtime.stack.push_value(Ref::Func(idx as u64).into());
+        self.runtime.stack.push_value(Ref::Func(idx).into());
         Ok(())
     }
 

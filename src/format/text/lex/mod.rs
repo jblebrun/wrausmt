@@ -12,8 +12,6 @@ use std::io::Read;
 use std::iter::Iterator;
 
 #[cfg(test)]
-mod num_test;
-#[cfg(test)]
 mod test;
 
 /// A streaming WebAssembly tokenizer. It acts as an [Iterator] of [Tokens][Token],

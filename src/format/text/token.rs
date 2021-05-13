@@ -16,6 +16,16 @@ pub enum Sign {
     Positive,
 }
 
+impl Sign {
+    pub fn char(&self) -> &str {
+        match self {
+            Self::Unspecified => "",
+            Self::Negative => "-",
+            Self::Positive => "+",
+        }
+    }
+}
+
 impl<IC: Into<char>> From<IC> for Sign {
     fn from(ch: IC) -> Sign {
         match ch.into() {
@@ -35,17 +45,36 @@ pub enum Token {
     BlockComment,
     Keyword(String),
     Reserved(String),
-    Unsigned(u64),
-    Signed(i64),
-    Float(f64),
+    Number(NumToken),
     String(WasmString),
     Id(String),
     Open,
     Close,
-    Inf(Sign),
-    NaN(Sign),
-    NaNx(Sign, u32),
     Eof,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum Base {
+    Dec,
+    Hex,
+}
+
+impl Base {
+    pub fn radix(&self) -> u32 {
+        match self {
+            Self::Dec => 10,
+            Self::Hex => 16,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum NumToken {
+    NaN(Sign),
+    NaNx(Sign, String),
+    Inf(Sign),
+    Integer(Sign, Base, String),
+    Float(Sign, Base, String, String, String),
 }
 
 impl Default for Token {
