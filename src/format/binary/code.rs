@@ -87,9 +87,8 @@ pub trait ReadCode: ReadWasmValues {
         // 0xFC instructions are shifted into the normal opcode
         // table starting at 0xE0.
         let opcode = if opcode_buf[0] == 0xFC {
-            self.read_exact(&mut opcode_buf)
-                .wrap("parsing secondary opcode")?;
-            opcode_buf[0] + 0xE0
+            let second_opcode = self.read_u32_leb_128().wrap("parsing secondary opcode")?;
+            second_opcode as u8 + 0xE0
         } else {
             opcode_buf[0]
         };
@@ -110,7 +109,8 @@ pub trait ReadCode: ReadWasmValues {
             Operands::TableIndex => syntax::Operands::FuncIndex(self.read_index_use()?),
             Operands::MemIndex => syntax::Operands::FuncIndex(self.read_index_use()?),
             Operands::Br => syntax::Operands::LabelIndex(self.read_index_use()?),
-            Operands::I32 => syntax::Operands::I32(self.read_u32_leb_128()?),
+            Operands::I32 => syntax::Operands::I32(self.read_i32_leb_128()? as u32),
+            Operands::I64 => syntax::Operands::I64(self.read_i64_leb_128()? as u64),
             Operands::Memargs => {
                 syntax::Operands::Memargs(self.read_u32_leb_128()?, self.read_u32_leb_128()?)
             }

@@ -47,8 +47,8 @@ impl std::fmt::Debug for Num {
         match self {
             Num::F32(i) => write!(f, "F32 {} ({:08x})", i, i.to_bits()),
             Num::F64(i) => write!(f, "F64 {} ({:016x})", i, i.to_bits()),
-            Num::I32(i) => write!(f, "I32 {}", i),
-            Num::I64(i) => write!(f, "I64 {}", i),
+            Num::I32(i) => write!(f, "I32 {} ({:08x})", i, i),
+            Num::I64(i) => write!(f, "I64 {} ({:016x})", i, i),
         }
     }
 }

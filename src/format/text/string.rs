@@ -63,4 +63,8 @@ impl WasmString {
     pub fn into_string(self) -> Result<String, FromUtf8Error> {
         String::from_utf8(self.bytes.to_vec())
     }
+
+    pub fn into_boxed_bytes(self) -> Box<[u8]> {
+        self.bytes
+    }
 }

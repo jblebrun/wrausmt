@@ -53,7 +53,6 @@ impl Runtime {
 
     /// The load method allocates and instantiates the provided [Module].
     pub fn load(&mut self, module: syntax::Module<Resolved>) -> Result<Rc<ModuleInstance>> {
-        // TODO Resolve imports
         self.instantiate(module)
     }
 

@@ -259,7 +259,7 @@ impl std::fmt::Debug for TypeField {
 // Abbreviations:
 // func := (func id? (export  <name>)*  ...)
 // func := (func id? (import <modname> <name>) <typeuse>)
-#[derive(PartialEq)]
+#[derive(PartialEq, Default)]
 pub struct FuncField<R: ResolvedState> {
     pub id: Option<String>,
     pub exports: Vec<String>,

@@ -1,5 +1,6 @@
 use super::{code::ReadCode, values::ReadWasmValues};
 use crate::{
+    err,
     error::{Result, ResultFrom},
     syntax::{
         self, ElemField, ElemList, Expr, FuncIndex, Index, Instruction, ModeEntry, Resolved,
@@ -8,6 +9,7 @@ use crate::{
     types::RefType,
 };
 
+#[derive(Debug)]
 struct ElemVariant {
     bit0: bool,
     bit1: bool,
@@ -88,8 +90,12 @@ pub trait ReadElems: ReadWasmValues + ReadCode {
                     })
                     .collect(),
                 if variants.read_eltypekind() {
-                    // read elemnt type
-                    self.read_ref_type().wrap("parsing reftype")?
+                    // read elemkind type, always 0
+                    let elemkind = self.read_byte()?;
+                    if elemkind != 0 {
+                        return err!("wrong elemkind byte {}", elemkind);
+                    }
+                    RefType::Func
                 } else {
                     RefType::Func
                 },

@@ -17,6 +17,7 @@ fn validate_final_byte(result: &[u8], size: usize, signed: bool) -> Result<()> {
 
     let last = result.last().unwrap();
     if last & remainder_mask != expect {
+        println!("FOR SIGNED {}", signed);
         err!("value overflows requested size in final byte: {}", last)
     } else {
         Ok(())
