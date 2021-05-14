@@ -1,6 +1,9 @@
 use crate::{
     format::text::module_builder::ModuleBuilder,
-    syntax::{self, GlobalField, Instruction, MemoryField, Resolved, TableField},
+    syntax::{
+        self, FParam, FuncField, FunctionType, GlobalField, Instruction, MemoryField, Resolved,
+        TableField, TypeUse, Unresolved,
+    },
     types::{GlobalType, Limits, MemType, NumType, TableType, ValueType},
 };
 
@@ -95,5 +98,53 @@ pub fn make_spectest_module() -> syntax::Module<Resolved> {
         init: vec![],
     });
 
+    builder.add_funcfield(mkfunc("print", vec![]));
+
+    builder.add_funcfield(mkfunc(
+        "print_i32",
+        vec![FParam {
+            id: None,
+            valuetype: ValueType::Num(NumType::I32),
+        }],
+    ));
+
+    builder.add_funcfield(mkfunc(
+        "print_i64",
+        vec![FParam {
+            id: None,
+            valuetype: ValueType::Num(NumType::I64),
+        }],
+    ));
+
+    builder.add_funcfield(mkfunc(
+        "print_f32",
+        vec![FParam {
+            id: None,
+            valuetype: ValueType::Num(NumType::F32),
+        }],
+    ));
+
+    builder.add_funcfield(mkfunc(
+        "print_f64",
+        vec![FParam {
+            id: None,
+            valuetype: ValueType::Num(NumType::F64),
+        }],
+    ));
+
     builder.build().unwrap()
+}
+
+fn mkfunc<S: Into<String>>(name: S, params: Vec<FParam>) -> FuncField<Unresolved> {
+    FuncField {
+        exports: vec![name.into()],
+        typeuse: TypeUse {
+            typeidx: None,
+            functiontype: FunctionType {
+                params,
+                results: vec![],
+            },
+        },
+        ..FuncField::default()
+    }
 }

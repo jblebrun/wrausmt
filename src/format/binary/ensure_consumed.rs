@@ -7,7 +7,7 @@ pub trait EnsureConsumed {
     fn ensure_consumed(&self) -> Result<()> {
         let remaining = self.limit();
         if remaining > 0 {
-            err!("{} remaining", remaining)
+            err!("{} bytes remaining in section", remaining)
         } else {
             Ok(())
         }

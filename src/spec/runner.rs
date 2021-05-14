@@ -6,8 +6,8 @@ use super::{
 };
 use crate::{
     err,
-    error::{Error, ErrorFrom, Result},
-    format::Location,
+    error::{Error, ErrorFrom, Result, ResultFrom},
+    format::{binary::parse, Location},
     logger::{Logger, PrintLogger},
     runtime::{
         instance::ModuleInstance,
@@ -170,7 +170,14 @@ pub fn run_spec_test(script: SpecTestScript, runset: RunSet) -> Result<()> {
                 Module::Module(m) => {
                     module = Some(runtime.load(m)?);
                 }
-                Module::Binary(_) => println!("BINARY MODULE ACTION"),
+                Module::Binary(b) => {
+                    let data: Box<[u8]> = b
+                        .into_iter()
+                        .flat_map(|d| d.into_boxed_bytes().into_vec())
+                        .collect();
+                    let m = parse(&mut data.as_ref()).wrap("parsing binary")?;
+                    module = Some(runtime.load(m)?);
+                }
                 Module::Quote(_) => println!("QUOTE MODULE ACTION"),
             },
             Cmd::Register { modname, id } => println!("REGISTER {} {:?}", modname, id),

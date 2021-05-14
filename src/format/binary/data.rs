@@ -32,9 +32,11 @@ pub trait ReadData: ReadWasmValues + ReadCode {
             None
         };
 
+        let data = self.read_bytes()?.to_vec();
+
         Ok(DataField {
             id: None,
-            data: vec![],
+            data,
             init,
         })
     }
