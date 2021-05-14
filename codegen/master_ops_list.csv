@@ -569,11 +569,23 @@
 0xb8      ,f64.convert_i32_u             ,()
 0xb9      ,f64.convert_i64_s             ,()
 0xba      ,f64.convert_i64_u             ,()
-0xbb      ,f64.promotef32                ,()
-0xbc      ,i32.reinterpretf32            ,()
-0xbd      ,i64.reinterpretf64            ,()
+0xbb      ,f64.promote_f32               ,()
+0xbc      ,i32.reinterpret_f32           ,()
+| let o = _ec.pop::<f32>()?;
+| _ec.push(o.to_bits())
+
+0xbd      ,i64.reinterpret_f64           ,()
+| let o = _ec.pop::<f64>()?;
+| _ec.push(o.to_bits())
+
 0xbe      ,f32.reinterpret_i32           ,()
+| let o = _ec.pop::<f32>()?;
+| _ec.push(o.to_bits())
+
 0xbf      ,f64.reinterpret_i64           ,()
+| let o = _ec.pop::<f64>()?;
+| _ec.push(o.to_bits())
+
 0xc0      ,i32.extend8_s                 ,()
 | let o = (_ec.pop::<u32>()? & 0xFF) as i8;
 | _ec.push(o as u32)

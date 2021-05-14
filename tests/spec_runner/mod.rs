@@ -30,6 +30,7 @@ static ENABLED: &[&str] = &[
     "const.wast",
     "data.wast",
     "forward.wast",
+    "float_literals.wast",
     "i32.wast",
     "i64.wast",
     "int_literals.wast",
