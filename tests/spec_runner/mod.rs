@@ -1,8 +1,8 @@
 use std::path::Path;
 
+use wrausmt::format::text::parse::Parser;
 use wrausmt::spec::runner::run_spec_test;
 use wrausmt::{format::text::lex::Tokenizer, spec::runner::RunSet};
-use wrausmt::{format::text::parse::Parser, runset_specific};
 
 use wrausmt::runset_exclude;
 
@@ -25,8 +25,9 @@ static ENABLED: &[&str] = &[
     "br.wast",
     "br_if.wast",
     "br_table.wast",
-    "custom.wast",
     "comments.wast",
+    "custom.wast",
+    "const.wast",
     "data.wast",
     "forward.wast",
     "i32.wast",
@@ -123,9 +124,4 @@ fn callexclude() -> Result<()> {
         "testdata/spec/call.wast",
         runset_exclude!("as-load-operand", "as-unary-operand", "as-convert-operand"),
     )
-}
-
-#[test]
-fn callspecific() -> Result<()> {
-    parse_and_run("testdata/spec/call.wast", runset_specific!("odd"))
 }

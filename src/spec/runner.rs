@@ -6,7 +6,8 @@ use super::{
 };
 use crate::{
     err,
-    error::Result,
+    error::{Error, ErrorFrom, Result},
+    format::Location,
     logger::{Logger, PrintLogger},
     runtime::{
         instance::ModuleInstance,
@@ -41,6 +42,7 @@ pub enum RunSet {
     All,
     Specific(Vec<String>),
     Exclude(Vec<String>),
+    ExcludeIndexed(Vec<u32>),
     First(u32),
 }
 
@@ -113,6 +115,41 @@ pub fn verify_result(results: Vec<Value>, expects: Vec<ActionResult>) -> Result<
     Ok(())
 }
 
+pub struct Failure {
+    location: Location,
+    testindex: u32,
+    err: Error,
+}
+
+#[derive(Default)]
+pub struct Failures {
+    pub failures: Vec<Failure>,
+}
+
+impl std::error::Error for Failures {}
+
+impl std::fmt::Debug for Failure {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "Test {} Line {}", self.testindex, self.location.line)?;
+        writeln!(f, "{}\n", self.err)
+    }
+}
+
+impl std::fmt::Display for Failures {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "{:?}", self)
+    }
+}
+
+impl std::fmt::Debug for Failures {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for failure in &self.failures {
+            writeln!(f, "{:?}", failure)?;
+        }
+        writeln!(f, "{} failures", self.failures.len())
+    }
+}
+
 pub fn run_spec_test(script: SpecTestScript, runset: RunSet) -> Result<()> {
     let mut runtime = Runtime::new();
 
@@ -124,6 +161,8 @@ pub fn run_spec_test(script: SpecTestScript, runset: RunSet) -> Result<()> {
     let mut assert_returns = 0;
 
     let logger = PrintLogger::default();
+
+    let mut failures: Failures = Failures::default();
 
     for cmd in script.cmds {
         match cmd.cmd {
@@ -139,13 +178,20 @@ pub fn run_spec_test(script: SpecTestScript, runset: RunSet) -> Result<()> {
                 handle_action(&mut runtime, &module, a, &logger)?;
             }
             Cmd::Assertion(a) => {
+                println!("ACTION {:?}", a);
                 if let Assertion::Return { action, results } = a {
                     assert_returns += 1;
+                    println!("ASSERT RETURN {}", assert_returns);
                     match &runset {
                         RunSet::All => (),
                         RunSet::First(n) => {
                             if assert_returns > *n {
                                 return Ok(());
+                            }
+                        }
+                        RunSet::ExcludeIndexed(set) => {
+                            if set.iter().any(|i| *i == assert_returns) {
+                                continue;
                             }
                         }
                         RunSet::Specific(set) => {
@@ -163,16 +209,21 @@ pub fn run_spec_test(script: SpecTestScript, runset: RunSet) -> Result<()> {
                     if let Some(result) = result {
                         match verify_result(result, results) {
                             Ok(_) => (),
-                            Err(e) => {
-                                println!("At {:?}", cmd.location);
-                                return Err(e);
-                            }
+                            Err(e) => failures.failures.push(Failure {
+                                location: cmd.location,
+                                testindex: assert_returns,
+                                err: e,
+                            }),
                         }
                     }
                 }
             }
             Cmd::Meta(m) => println!("META {:?}", m),
         }
+    }
+
+    if !failures.failures.is_empty() {
+        return Err(failures.wrap("some tests failed"));
     }
     Ok(())
 }
