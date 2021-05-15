@@ -1,8 +1,9 @@
+use super::error::Result;
 use super::instance::{
     DataInstance, ElemInstance, FunctionInstance, GlobalInstance, MemInstance, TableInstance,
 };
 use super::values::Value;
-use crate::{error, error::Result, logger::PrintLogger};
+use crate::{impl_bug, logger::PrintLogger};
 use std::iter::Iterator;
 use std::rc::Rc;
 
@@ -59,13 +60,13 @@ impl Store {
         self.funcs
             .get(addr as usize)
             .cloned()
-            .ok_or_else(|| error!("no function at addr {}", addr))
+            .ok_or_else(|| impl_bug!("no function at addr {}", addr))
     }
 
     pub fn global(&self, addr: addr::GlobalAddr) -> Result<Value> {
         self.globals
             .get(addr as usize)
-            .ok_or_else(|| error!("no global at {}", addr))
+            .ok_or_else(|| impl_bug!("no global at addr {}", addr))
             .map(|g| g.val)
     }
 
@@ -73,7 +74,7 @@ impl Store {
         let g = self
             .globals
             .get_mut(addr as usize)
-            .ok_or_else(|| error!("no global at {}", addr))?;
+            .ok_or_else(|| impl_bug!("no global at addr {}", addr))?;
 
         g.val = val;
         Ok(())
@@ -82,19 +83,19 @@ impl Store {
     pub fn mem(&mut self, addr: addr::MemoryAddr) -> Result<&mut MemInstance> {
         self.mems
             .get_mut(addr as usize)
-            .ok_or_else(|| error!("no mem at {}", addr))
+            .ok_or_else(|| impl_bug!("no mem at addr {}", addr))
     }
 
     pub fn table(&mut self, addr: addr::TableAddr) -> Result<&TableInstance> {
         self.tables
             .get(addr as usize)
-            .ok_or_else(|| error!("no table at {}", addr))
+            .ok_or_else(|| impl_bug!("no table at addr {}", addr))
     }
 
     pub fn table_mut(&mut self, addr: addr::TableAddr) -> Result<&mut TableInstance> {
         self.tables
             .get_mut(addr as usize)
-            .ok_or_else(|| error!("no table at {}", addr))
+            .ok_or_else(|| impl_bug!("no table at addr {}", addr))
     }
 
     pub fn grow_mem(&mut self, addr: addr::MemoryAddr, pgs: u32) -> Result<Option<u32>> {
@@ -114,18 +115,32 @@ impl Store {
         let elems = &self
             .elems
             .get(elemaddr as usize)
-            .ok_or_else(|| error!("no elem at {}", elemaddr))?
+            .ok_or_else(|| impl_bug!("no elem at addr {}", elemaddr))?
             .elems
             .get(src..src + count)
-            .ok_or_else(|| error!("{} count={} out of bounds for {}", src, count, elemaddr))?;
+            .ok_or_else(|| {
+                impl_bug!(
+                    "elem: {} count={} out of bounds for {}",
+                    src,
+                    count,
+                    elemaddr
+                )
+            })?;
 
         let table = &mut self
             .tables
             .get_mut(tabaddr as usize)
-            .ok_or_else(|| error!("no table at {}", tabaddr))?
+            .ok_or_else(|| impl_bug!("no table at {}", tabaddr))?
             .elem
             .get_mut(dst..dst + count)
-            .ok_or_else(|| error!("{} count={} out of bounds for {}", dst, count, tabaddr))?;
+            .ok_or_else(|| {
+                impl_bug!(
+                    "table: {} count={} out of bounds for {}",
+                    dst,
+                    count,
+                    tabaddr
+                )
+            })?;
 
         table.copy_from_slice(elems);
         Ok(())
@@ -142,23 +157,27 @@ impl Store {
         let data = &self
             .datas
             .get(dataaddr as usize)
-            .ok_or_else(|| error!("no data at {}", dataaddr))?
+            .ok_or_else(|| impl_bug!("no data at {}", dataaddr))?
             .bytes
             .get(src..src + count)
             .ok_or_else(|| {
-                error!(
+                impl_bug!(
                     "{} count={} out of bounds for data {}",
-                    src, count, dataaddr
+                    src,
+                    count,
+                    dataaddr
                 )
             })?;
 
         let mem = &mut self
             .mems
             .get_mut(memaddr as usize)
-            .ok_or_else(|| error!("no mem at {}", memaddr))?
+            .ok_or_else(|| impl_bug!("no mem at {}", memaddr))?
             .data
             .get_mut(dst..dst + count)
-            .ok_or_else(|| error!("{} count={} out of bounds for mem {}", dst, count, memaddr))?;
+            .ok_or_else(|| {
+                impl_bug!("{} count={} out of bounds for mem {}", dst, count, memaddr)
+            })?;
 
         mem.copy_from_slice(data);
         Ok(())
@@ -168,7 +187,7 @@ impl Store {
         let elem = self
             .elems
             .get_mut(elemaddr as usize)
-            .ok_or_else(|| error!("no elem at {}", elemaddr))?;
+            .ok_or_else(|| impl_bug!("no elem at {}", elemaddr))?;
 
         elem.elems = Box::new([]);
         Ok(())
@@ -178,7 +197,7 @@ impl Store {
         let data = self
             .datas
             .get_mut(dataaddr as usize)
-            .ok_or_else(|| error!("no elem at {}", dataaddr))?;
+            .ok_or_else(|| impl_bug!("no elem at {}", dataaddr))?;
 
         data.bytes = Box::new([]);
         Ok(())

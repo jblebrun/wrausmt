@@ -1,10 +1,8 @@
+use super::error::Result;
 use super::ModuleInstance;
 use super::{instance::FunctionInstance, store::addr, values::Value};
-use crate::{err, error::Result};
-use crate::{
-    error,
-    logger::{Logger, PrintLogger},
-};
+use crate::impl_bug;
+use crate::logger::{Logger, PrintLogger};
 use std::rc::Rc;
 
 /// Besides the store, most instructions interact with an implicit stack.
@@ -100,7 +98,7 @@ impl Stack {
 
     pub fn push_activation(&mut self, funcinst: &FunctionInstance) -> Result<()> {
         if self.activation_stack.len() > 256 {
-            return err!("stack overflow");
+            return Err(impl_bug!("stack overflow"));
         }
 
         let frame_start = self.value_stack.len() - funcinst.functype.params.len();
@@ -141,14 +139,14 @@ impl Stack {
     pub fn pop_value(&mut self) -> Result<Value> {
         self.value_stack
             .pop()
-            .ok_or_else(|| error!("value stack underflow"))
+            .ok_or_else(|| impl_bug!("value stack underflow"))
     }
 
     pub fn pop_label(&mut self) -> Result<Label> {
         let label = self
             .label_stack_mut()?
             .pop()
-            .ok_or_else(|| error!("label stack underflow"))?;
+            .ok_or_else(|| impl_bug!("label stack underflow"))?;
         self.logger.log("LABSTACK", || format!("POP {:?}", label));
         Ok(label)
         // For non-break block exists, the stack is assumed to be proper,
@@ -162,7 +160,7 @@ impl Stack {
             label_stack.truncate(labelpos);
             label_stack
                 .pop()
-                .unwrap_or_else(|| panic!("break_to_label logic error"))
+                .ok_or_else(|| impl_bug!("break_to_label logic error"))?
         };
 
         self.logger.log("LABSTACK", || format!("BREAK {:?}", label));
@@ -201,7 +199,7 @@ impl Stack {
         let frame = self
             .activation_stack
             .pop()
-            .ok_or_else(|| error!("activation stack underflow"))?;
+            .ok_or_else(|| impl_bug!("activation stack underflow"))?;
 
         self.move_return_values(frame.arity, frame.local_start)?;
         Ok(())
@@ -214,19 +212,19 @@ impl Stack {
     pub fn peek_label(&self) -> Result<&Label> {
         self.label_stack()?
             .last()
-            .ok_or_else(|| error!("label stack underflow"))
+            .ok_or_else(|| impl_bug!("label stack underflow"))
     }
 
     fn peek_activation(&self) -> Result<&ActivationFrame> {
         self.activation_stack
             .last()
-            .ok_or_else(|| error!("activation stack underflow"))
+            .ok_or_else(|| impl_bug!("activation stack underflow"))
     }
 
     fn peek_activation_mut(&mut self) -> Result<&mut ActivationFrame> {
         self.activation_stack
             .last_mut()
-            .ok_or_else(|| error!("activation stack underflow"))
+            .ok_or_else(|| impl_bug!("activation stack underflow"))
     }
 
     // Get the local at the provided index for the current activation frame.

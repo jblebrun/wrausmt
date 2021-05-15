@@ -2,12 +2,11 @@ use std::rc::Rc;
 
 use super::{
     compile::compile_function_body,
+    error::Result,
     instance::{FunctionInstance, ModuleInstance},
     Runtime,
 };
 use crate::{
-    err, error,
-    error::{Result, ResultFrom},
     logger::Logger,
     runtime::{
         compile::compile_export,
@@ -16,6 +15,7 @@ use crate::{
     },
     runtime::{
         compile::Emitter,
+        error::RuntimeError,
         instance::{module_instance::ModuleInstanceBuilder, ExternalVal},
     },
     syntax::ModeEntry,
@@ -35,23 +35,21 @@ impl Runtime {
         let regmod = self
             .registered
             .get(&import.modname)
-            .ok_or_else(|| error!("No module {}", import.modname))?;
-        let exportinst = regmod
-            .resolve(&import.name)
-            .ok_or_else(|| error!("No {} in {}", import.name, import.modname))?;
+            .ok_or_else(|| RuntimeError::ModuleNotFound(import.modname.clone()))?;
+
+        let exportinst = regmod.resolve(&import.name).ok_or_else(|| {
+            RuntimeError::ImportNotFound(import.modname.clone(), import.name.clone())
+        })?;
         match (&import.desc, &exportinst.addr) {
             (ImportDesc::Func(_), ExternalVal::Func(_)) => (),
             (ImportDesc::Table(_), ExternalVal::Table(_)) => (),
             (ImportDesc::Mem(_), ExternalVal::Memory(_)) => (),
             (ImportDesc::Global(_), ExternalVal::Global(_)) => (),
             _ => {
-                return err!(
-                    "Import type mismatch {} {} expects {:?} but got {:?}",
-                    import.modname,
-                    import.name,
-                    import.desc,
-                    exportinst.addr
-                )
+                return Err(RuntimeError::ImportMismatch(
+                    import.desc.clone(),
+                    exportinst.addr,
+                ))
             }
         };
         Ok(exportinst.addr)
@@ -223,7 +221,7 @@ impl Runtime {
                     .log("LOAD", || format!("COMPILE GLOBAL INIT EXPR {:x?}", g.init));
                 let mut initexpr: Vec<u8> = Vec::new();
                 initexpr.emit_expr(&g.init);
-                let val = self.eval_expr(&initexpr).wrap("initializing global")?;
+                let val = self.eval_expr(&initexpr)?;
                 Ok(GlobalInstance {
                     typ: g.globaltype.valtype,
                     val,

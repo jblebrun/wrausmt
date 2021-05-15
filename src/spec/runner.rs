@@ -62,7 +62,11 @@ fn handle_action(
                 format!("INVOKE ACTION {:?} {} {:?}", id, name, params)
             });
             let values: Vec<Value> = params.into_iter().map(|p| p.into()).collect();
-            Ok(Some(runtime.call(&module_instance, &name, &values)?))
+            Ok(Some(
+                runtime
+                    .call(&module_instance, &name, &values)
+                    .wrap("calling")?,
+            ))
         }
         Action::Get { id, name } => {
             logger.log("SPEC", || format!("GET ACTION {:?} {}", id, name));
@@ -162,7 +166,7 @@ impl std::fmt::Debug for Failures {
 pub fn run_spec_test(script: SpecTestScript, runset: RunSet) -> Result<()> {
     let mut runtime = Runtime::new();
 
-    let spectest_module = runtime.load(make_spectest_module())?;
+    let spectest_module = runtime.load(make_spectest_module()).wrap("loading")?;
     runtime.register("spectest", spectest_module);
 
     let mut module: Option<Rc<ModuleInstance>> = None;
@@ -178,7 +182,7 @@ pub fn run_spec_test(script: SpecTestScript, runset: RunSet) -> Result<()> {
         match cmd.cmd {
             Cmd::Module(m) => match m {
                 Module::Module(m) => {
-                    module = Some(runtime.load(m)?);
+                    module = Some(runtime.load(m).wrap("loading")?);
                 }
                 Module::Binary(b) => {
                     let data: Box<[u8]> = b
@@ -186,7 +190,7 @@ pub fn run_spec_test(script: SpecTestScript, runset: RunSet) -> Result<()> {
                         .flat_map(|d| d.into_boxed_bytes().into_vec())
                         .collect();
                     let m = parse(&mut data.as_ref()).wrap("parsing binary")?;
-                    module = Some(runtime.load(m)?);
+                    module = Some(runtime.load(m).wrap("loading")?);
                 }
                 Module::Quote(_) => println!("QUOTE MODULE ACTION"),
             },

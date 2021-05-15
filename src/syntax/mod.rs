@@ -349,7 +349,7 @@ impl<R: ResolvedState> fmt::Debug for GlobalField<R> {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum ImportDesc<R: ResolvedState> {
     Func(TypeUse<R>),
     Table(TableType),
