@@ -33,10 +33,7 @@ pub struct InstructionData {
 }
 
 /// An enum representing the different combinations of immediate operands that a WebAssembly
-/// instruction can have. There are few enough unique combinations that each one is represented by
-/// its own entry in the enum set (rather than supporting generic combinations of any of the
-/// types). The names of the enum values are from the set (U32, U64, F32, F64, Vu32, D8). Vu32
-/// stands for a Vector of U32 values. D8 indicates a byte which can just be dropped.
+/// instruction can have.
 #[derive(PartialEq, Debug)]
 pub enum Operands {
     None,
@@ -96,16 +93,12 @@ pub const BAD_INSTRUCTION: InstructionData = InstructionData {
 pub fn exec_method(opcode: u8, ec: &mut ExecutionContext) -> Result<()> {
     match EXEC_TABLE.get(opcode as usize) {
         Some(ef) => ef(ec).wrap(&format!("while executing 0x{:x}", opcode)),
-        None => err!("unhandled opcode {}", opcode),
+        None => panic!("Exec table short"),
     }
 }
 
-pub fn instruction_data<'l>(opcode: u8) -> Result<&'l InstructionData> {
-    match INSTRUCTION_DATA.get(opcode as usize) {
-        Some(id) if id == &&BAD_INSTRUCTION => err!("invalid instruction {}", opcode),
-        Some(id) => Ok(id),
-        None => err!("unhandled opcode {}", opcode),
-    }
+pub fn instruction_data(opcode: u8) -> &'static InstructionData {
+    INSTRUCTION_DATA[opcode as usize]
 }
 
 // TODO - would it be significantly more performant to build a hash map here?
