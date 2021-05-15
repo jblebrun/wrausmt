@@ -2,7 +2,7 @@ use super::{ensure_consumed::EnsureConsumed, values::ReadWasmValues};
 use crate::{
     err,
     error::{Result, ResultFrom},
-    instructions::{instruction_data, Operands},
+    instructions::{instruction_data, Operands, BAD_INSTRUCTION},
     syntax::{self, Continuation, Expr, FuncField, Instruction, Local, Resolved, TypeUse},
 };
 use std::{
@@ -93,7 +93,11 @@ pub trait ReadCode: ReadWasmValues {
             opcode_buf[0]
         };
 
-        let instruction_data = instruction_data(opcode)?;
+        let instruction_data = instruction_data(opcode);
+
+        if instruction_data == &BAD_INSTRUCTION {
+            return err!("Bad instruction {}", opcode);
+        }
 
         // End of expression.
         if opcode == 0x0B {
