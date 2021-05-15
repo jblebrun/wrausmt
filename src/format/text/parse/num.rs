@@ -41,26 +41,31 @@ impl<R: Read> Parser<R> {
     }
 }
 
-fn nanx_f64(sign: Sign, _payload: &str) -> Result<f64> {
+fn nanx_f64(sign: Sign, payload: &str) -> Result<f64> {
+    let payload = payload.replace("_", "");
+    let payload_num = u64::from_str_radix(&payload, 16)?;
+    println!("PAYLOAD NUM {:013x}", payload_num);
     let base: u64 = match sign {
-        Sign::Negative => 0xFFF8000000000000,
-        _ => 0x7FF8000000000000,
+        Sign::Negative => 0xFFF0000000000000,
+        _ => 0x7FF0000000000000,
     };
-    Ok(<f64>::from_bits(base))
+    Ok(<f64>::from_bits(base | payload_num))
 }
 
-fn nanx_f32(sign: Sign, _payload: &str) -> Result<f32> {
+fn nanx_f32(sign: Sign, payload: &str) -> Result<f32> {
+    let payload = payload.replace("_", "");
+    let payload_num = u32::from_str_radix(&payload, 16)?;
+    println!("PAYLOAD NUM {:06x}", payload_num);
     let base: u32 = match sign {
-        Sign::Negative => 0xFFC00000,
-        _ => 0x7FC00000,
+        Sign::Negative => 0xFF800000,
+        _ => 0x7F800000,
     };
-    Ok(<f32>::from_bits(base))
+    Ok(<f32>::from_bits(base | payload_num))
 }
 
 macro_rules! parse_float {
     ( $name:ident, $ty:ty, $nanx:ident, $hex:ident ) => {
         pub fn $name(&self) -> Result<$ty> {
-            println!("ATTEMPT FLOAT {:?}", self);
             match self {
                 NumToken::NaN(sign) => match sign {
                     Sign::Negative => Ok(-<$ty>::NAN),
@@ -134,12 +139,40 @@ fn parse_hex_digit(digit_byte: u8) -> Result<u8> {
     }
 }
 
+/// A helper structure for aggregating the mantissa and adjusting the exponent.
+/// It carries enough information to eventually round a mantissa that's 60 bits or less.
+/// Can generate either f32 or f64.
 #[derive(Debug, Default)]
-struct Mantissa {
+struct FloatBuilder {
     bits: u64,
+    exp: i16,
 }
 
-impl Mantissa {
+impl FloatBuilder {
+    fn new(whole: &str, frac: &str, exp: &str) -> Result<Self> {
+        // Consume meaningless 0s
+        let whole = whole.trim_start_matches('0');
+        let frac = frac.trim_end_matches('0');
+        let exp = exp.parse::<i16>()?;
+
+        let mut builder = FloatBuilder { bits: 0, exp };
+
+        // Shift all fractional bytes in through the top.
+        for frac_byte in frac.bytes().rev() {
+            builder.add_frac_digit(frac_byte)?;
+        }
+
+        // Shift all whole bytes in through the top.
+        for whole_byte in whole.bytes().rev() {
+            builder.add_whole_digit(whole_byte)?;
+        }
+
+        builder.normalize();
+
+        Ok(builder)
+    }
+
+    /// Add a digit to the mantissa. Digits should be added most-significant first.
     fn add_digit(&mut self, dbyte: u8) -> Result<()> {
         let d = parse_hex_digit(dbyte)?;
         let round_bits = self.bits & 0xF;
@@ -152,113 +185,114 @@ impl Mantissa {
         Ok(())
     }
 
-    fn normalize(&mut self) -> u32 {
+    fn add_frac_digit(&mut self, dbyte: u8) -> Result<()> {
+        self.add_digit(dbyte)
+    }
+
+    fn add_whole_digit(&mut self, dbyte: u8) -> Result<()> {
+        self.exp += 4;
+        self.add_digit(dbyte)
+    }
+
+    /// Normalize the mantissa. This should be called once all digits have been shifted
+    /// in, if the mantissa is for a normal number (there are any non-0 whole number digits).
+    fn normalize(&mut self) {
+        if self.bits == 0 {
+            return;
+        }
         let lz = self.bits.leading_zeros();
-        self.bits <<= lz + 1;
-        lz
+        self.bits <<= lz;
+        self.exp -= lz as i16;
     }
 
-    /// Handle round-to-nearest for a mantissa of the provided size.
+    /// Handle round-to-nearest, ties-to-even for a mantissa of the provided size.
+    /// Round up when the out-of-range digits are more than half LSB,
+    /// Round down when out-of-range digits are less than half LSB,
+    /// When out-of-range digits are exactly half, LSB, round to nearest even, i.e.:
+    ///   round up when MSB 1, down when MSB 0.
     fn round(&mut self, size: u32) {
-        let mask = u64::MAX >> size;
-        let round_part = self.bits & mask;
-        let mantissa_lsb = self.bits >> (64 - size) & 0x1;
-        let round_max = 1 << (64 - size - 1);
-        let round = round_part > round_max || round_part == round_max && mantissa_lsb == 1;
+        let roundmask = u64::MAX >> size;
+        let even = 0x8000000000000000u64 >> size;
+        let roundpart = self.bits & roundmask;
+        let mantissa_lsb = self.bits & even << 1;
+        let round = roundpart > even || roundpart == even && mantissa_lsb != 0;
+        println!("  SUBJECT: {:016x}", self.bits);
+        println!("ROUNDMASK: {:016x}", roundmask);
+        println!("ROUNDPART: {:016x}", roundpart);
+        println!("     EVEN: {:016x}", even);
+
         self.bits >>= 64 - size;
+
         if round {
-            self.bits += 1
+            self.bits += 1;
         }
     }
-}
 
-/// Return mantissa bits, exp offset
-/// Returns a 64 bit mantissa with enough information
-/// to properly round both f32 and f64
-fn parse_mantissa_64(whole: &str, frac: &str) -> Result<(Mantissa, i16)> {
-    // Consume meaningless 0s
-    let whole = whole.trim_start_matches('0');
-    let frac = frac.trim_end_matches('0');
-
-    let mut mantissa = Mantissa::default();
-
-    // Shift all fractional bytes in through the top.
-    for frac_byte in frac.bytes().rev() {
-        mantissa.add_digit(frac_byte)?;
+    /// Adjust the mantissa so that the exp is in range.
+    fn range(&mut self, minexp: i16) {
+        if self.exp <= minexp + 1 {
+            self.bits >>= 1;
+            while self.exp <= minexp {
+                // When ranging, also "gather" bits in the least significant nybble for
+                // rounding purposes.
+                let round_bits = self.bits & 0xF;
+                self.bits >>= 1;
+                self.bits |= round_bits;
+                self.exp += 1;
+            }
+        }
+        self.exp -= 1;
     }
 
-    let exp_offset = if !whole.is_empty() {
-        // While handling whole digits, we may go supernormal,
-        // so track the exponent offset here.
-        let mut exp_offset = 0i16;
-        for whole_byte in whole.bytes().rev() {
-            mantissa.add_digit(whole_byte)?;
-            exp_offset += 4;
+    fn build(mut self, mantissa_size: u32, expmax: u32) -> Result<u64> {
+        self.range(-(expmax as i16));
+        self.round(mantissa_size);
+
+        if self.bits == 0 {
+            return Ok(0);
         }
 
-        let normalize_offset = mantissa.normalize();
-        exp_offset -= normalize_offset as i16 + 1;
-        exp_offset
-    } else {
-        0
-    };
+        if self.exp > expmax as i16 {
+            return Err(ParseError::unexpected("floatrange"));
+        }
 
-    println!("MANTISSA: {:016x}, {}", mantissa.bits, exp_offset);
+        let mask = u64::MAX >> (64 - mantissa_size + 1);
+        self.bits &= mask;
 
-    Ok((mantissa, exp_offset))
+        let offset_exp = (self.exp + expmax as i16) as u64;
+        self.bits |= offset_exp << (mantissa_size - 1);
+
+        Ok(self.bits)
+    }
 }
 
 fn parse_hex_f32(sign: Sign, whole: &str, frac: &str, exp: &str) -> Result<f32> {
-    println!("PARSE HEX F32 {:?} {} {} {}", sign, whole, frac, exp);
-    let exp = exp.parse::<i16>()?;
+    println!("\n\nPARSE HEX F32 {:?} {} {} {}", sign, whole, frac, exp);
 
-    let (mut mantissa, exp_offset) = parse_mantissa_64(whole, frac)?;
+    let builder = FloatBuilder::new(whole, frac, exp)?;
 
-    mantissa.round(f32::MANTISSA_DIGITS - 1);
-
-    let mut result_bits = mantissa.bits as u32;
-
-    let exp = exp + exp_offset;
-
-    if exp > 127 || exp < -127 {
-        return Err(ParseError::unexpected("f32"));
-    }
-
-    let offset_exp = (exp + 127) as u32;
-    result_bits |= offset_exp << 23;
+    let mut result_bits = builder.build(f32::MANTISSA_DIGITS, 127)? as u32;
 
     if sign == Sign::Negative {
         result_bits |= 0x80000000;
     }
 
-    println!("f32 bits: {:x}", result_bits);
+    println!("f32 bits: {:08x}", result_bits);
     Ok(f32::from_bits(result_bits))
 }
 
 fn parse_hex_f64(sign: Sign, whole: &str, frac: &str, exp: &str) -> Result<f64> {
     println!("PARSE HEX F64 {:?} {} {} {}", sign, whole, frac, exp);
-    let exp = exp.parse::<i16>()?;
 
-    let (mut mantissa, exp_offset) = parse_mantissa_64(whole, frac)?;
+    let builder = FloatBuilder::new(whole, frac, exp)?;
 
-    mantissa.round(f64::MANTISSA_DIGITS - 1);
-
-    let mut result_bits = mantissa.bits;
-
-    let exp = exp + exp_offset;
-
-    if exp > 1023 || exp < -1022 {
-        return Err(ParseError::unexpected("f64"));
-    }
-
-    let offset_exp = (exp + 1023) as u64;
-    result_bits |= offset_exp << 52;
+    let mut result_bits = builder.build(f64::MANTISSA_DIGITS, 1023)?;
 
     if sign == Sign::Negative {
         result_bits |= 0x8000000000000000;
     }
 
-    println!("f64 bits: {:x}", result_bits);
+    println!("f64 bits: {:08x}", result_bits);
     Ok(f64::from_bits(result_bits))
 }
 
@@ -286,14 +320,71 @@ mod tests {
 
     #[test]
     fn hex32_normal() -> Result<()> {
+        let result = parse_hex_f32(Sign::Unspecified, "1", "", "-1")?;
+        assert_eq!(result, 0.5);
+
+        let result = parse_hex_f32(Sign::Unspecified, "0", "8", "0")?;
+        assert_eq!(result, 0.5);
+
+        let result = parse_hex_f32(Sign::Unspecified, "0", "4", "1")?;
+        assert_eq!(result, 0.5);
+
         let result = parse_hex_f32(Sign::Unspecified, "145", "23", "12")?;
         assert_eq!(result, (0x14523 as f32) * 2f32.powi(4));
+
+        let result = parse_hex_f32(Sign::Unspecified, "1", "000002", "-50")?;
+        assert_eq!(result, f32::from_bits(0x26800001));
 
         let result = parse_hex_f32(Sign::Unspecified, "1", "000001fffffffffff", "-50")?;
         assert_eq!(result, f32::from_bits(0x26800001));
 
-        let result = parse_hex_f32(Sign::Unspecified, "1", "000002", "-50")?;
-        assert_eq!(result, f32::from_bits(0x26800001));
+        let result = parse_hex_f32(Sign::Unspecified, "0", "0", "0")?;
+        assert_eq!(result, 0f32);
+        Ok(())
+    }
+
+    #[test]
+    fn hex32_subnormal() -> Result<()> {
+        let result = parse_hex_f32(Sign::Unspecified, "1", "", "-149")?;
+        assert_eq!(result.to_bits(), 1);
+
+        let result = parse_hex_f32(Sign::Unspecified, "0", "8", "-148")?;
+        println!("HEX32SN BITS {:08x}", result.to_bits());
+        assert_eq!(result.to_bits(), 1);
+
+        let result = parse_hex_f32(Sign::Unspecified, "0", "000001", "-126")?;
+        println!("HEX32SN BITS {:08x}", result.to_bits());
+        assert_eq!(result.to_bits(), 0);
+
+        let result = parse_hex_f32(Sign::Unspecified, "1", "fffffc", "-127")?;
+        println!("HEX32SN BITS {:08x}", result.to_bits());
+        assert_eq!(result.to_bits(), 0x7fffff);
+
+        let result = parse_hex_f32(Sign::Unspecified, "0", "00000100000000000", "-126")?;
+        println!("HEX32SN BITS {:08x}", result.to_bits());
+        assert_eq!(result.to_bits(), 0);
+
+        let result = parse_hex_f32(Sign::Unspecified, "0", "00000100000000001", "-126")?;
+        println!("HEX32SN BITS {:08x}", result.to_bits());
+        assert_eq!(result.to_bits(), 1);
+
+        let result = parse_hex_f32(Sign::Unspecified, "0", "000000", "-126")?;
+        println!("HEX32SN BITS {:08x}", result.to_bits());
+        assert_eq!(result.to_bits(), 0);
+
+        Ok(())
+    }
+
+    #[test]
+    fn hex64_subnormal() -> Result<()> {
+        let result = parse_hex_f64(Sign::Unspecified, "1", "", "-1074")?;
+        println!("HEX64SN BITS {:016x}", result.to_bits());
+        assert_eq!(result.to_bits(), 1);
+
+        let result = parse_hex_f64(Sign::Unspecified, "0", "0000000000001", "-1022")?;
+        println!("HEX64SN BITS {:016x}", result.to_bits());
+        assert_eq!(result.to_bits(), 1);
+
         Ok(())
     }
 }

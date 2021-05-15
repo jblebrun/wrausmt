@@ -111,6 +111,18 @@ pub trait ReadCode: ReadWasmValues {
             Operands::Br => syntax::Operands::LabelIndex(self.read_index_use()?),
             Operands::I32 => syntax::Operands::I32(self.read_i32_leb_128()? as u32),
             Operands::I64 => syntax::Operands::I64(self.read_i64_leb_128()? as u64),
+            Operands::F32 => {
+                let mut buf = [0u8; 4];
+                self.read_exact(&mut buf).wrap("reading f32 byte")?;
+                let val = f32::from_bits(u32::from_le_bytes(buf));
+                syntax::Operands::F32(val)
+            }
+            Operands::F64 => {
+                let mut buf = [0u8; 8];
+                self.read_exact(&mut buf).wrap("reading f64 byte")?;
+                let val = f64::from_bits(u64::from_le_bytes(buf));
+                syntax::Operands::F64(val)
+            }
             Operands::Memargs => {
                 syntax::Operands::Memargs(self.read_u32_leb_128()?, self.read_u32_leb_128()?)
             }
