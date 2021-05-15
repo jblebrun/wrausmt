@@ -44,7 +44,7 @@ impl IdentifierContext {
         let mut lt = self.labeltracker.clone();
         lt.push(labelname);
         let mut li = HashMap::default();
-        for (i, n) in lt.iter().enumerate() {
+        for (i, n) in lt.iter().rev().enumerate() {
             li.insert(n.clone(), i as u32);
         }
         IdentifierContext {

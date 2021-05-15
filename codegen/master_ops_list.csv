@@ -582,6 +582,9 @@
 0xa5      ,f64.max                       ,()
 0xa6      ,f64.copysign                  ,()
 0xa7      ,i32.wrap_i64                  ,()
+| let r = _ec.pop::<u64>()?;
+| _ec.push(r as u32)
+
 0xa8      ,i32.trunc_f32_s               ,()
 0xa9      ,i32.trunc_f32_u               ,()
 0xaa      ,i32.trunc_f64_s               ,()

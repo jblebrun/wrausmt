@@ -165,6 +165,7 @@ pub fn run_spec_test(script: SpecTestScript, runset: RunSet) -> Result<()> {
     let mut failures: Failures = Failures::default();
 
     for cmd in script.cmds {
+        logger.log("SPEC", || format!("EXECUTE CMD {:?}", cmd));
         match cmd.cmd {
             Cmd::Module(m) => match m {
                 Module::Module(m) => {
