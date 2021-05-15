@@ -57,6 +57,8 @@ impl<R: Read> Parser<R> {
             return Ok(None);
         }
 
+        let id = self.try_id()?;
+
         let kw = self.try_keyword()?;
 
         match kw.as_deref() {
@@ -71,7 +73,7 @@ impl<R: Read> Parser<R> {
                 Ok(Some(Module::Quote(strings)))
             }
             _ => {
-                if let Some(module) = self.try_module_rest()? {
+                if let Some(module) = self.try_module_rest(id)? {
                     Ok(Some(Module::Module(module)))
                 } else {
                     Ok(None)

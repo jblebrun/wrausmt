@@ -47,6 +47,29 @@ pub trait ReadElems: ReadWasmValues + ReadCode {
         self.read_vec(|_, s| s.read_elem())
     }
 
+    fn read_elem_kind(&mut self) -> Result<RefType> {
+        // read elemkind type, always 0
+        let elemkind = self.read_byte()?;
+        if elemkind != 0 {
+            return Err(BinaryParseError::InvalidElemKind(elemkind));
+        }
+        Ok(RefType::Func)
+    }
+
+    fn read_init_funcs(&mut self) -> Result<Vec<Expr<Resolved>>> {
+        Ok(self
+            .read_vec_funcidx()?
+            .into_iter()
+            .map(|idx| Expr {
+                instr: vec![Instruction {
+                    name: "ref.func".to_owned(),
+                    opcode: 0xD2,
+                    operands: syntax::Operands::FuncIndex(idx),
+                }],
+            })
+            .collect())
+    }
+
     fn read_elem(&mut self) -> Result<ElemField<Resolved>> {
         let variants = ElemVariant::new(self.read_byte()?);
 
@@ -64,42 +87,23 @@ pub trait ReadElems: ReadWasmValues + ReadCode {
             Expr::default()
         };
 
-        let (init_expr, typekind) = if variants.use_initexpr() {
-            (
-                self.read_vec_exprs()?,
-                if variants.read_eltypekind() {
-                    // read element kind
-                    self.read_u32_leb_128().ctx("parsing element kind")?;
-                    // Only expect 0 -> funcref for now
-                    RefType::Func
-                } else {
-                    RefType::Func
-                },
-            )
+        let (typekind, init_expr) = if variants.use_initexpr() {
+            let reftype = if variants.read_eltypekind() {
+                // read element kind
+                self.read_ref_type().ctx("parsing ref type")?
+            } else {
+                RefType::Func
+            };
+            (reftype, self.read_vec_exprs()?)
         } else {
-            (
-                // read vec(funcidx), generate ref.func expr
-                self.read_vec_funcidx()?
-                    .into_iter()
-                    .map(|idx| Expr {
-                        instr: vec![Instruction {
-                            name: "ref.func".to_owned(),
-                            opcode: 0xD2,
-                            operands: syntax::Operands::FuncIndex(idx),
-                        }],
-                    })
-                    .collect(),
-                if variants.read_eltypekind() {
-                    // read elemkind type, always 0
-                    let elemkind = self.read_byte()?;
-                    if elemkind != 0 {
-                        return Err(BinaryParseError::InvalidElemKind(elemkind));
-                    }
-                    RefType::Func
-                } else {
-                    RefType::Func
-                },
-            )
+            let elemkind = if variants.read_eltypekind() {
+                self.read_elem_kind().ctx("parsing elem kind")?
+            } else {
+                RefType::Func
+            };
+            // read vec(funcidx), generate ref.func expr
+            let init_exprs = self.read_init_funcs()?;
+            (elemkind, init_exprs)
         };
 
         let mode = if variants.active() {

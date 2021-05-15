@@ -10,6 +10,24 @@ use std::{
 
 use super::error::{Result, WithContext};
 
+#[derive(Debug)]
+pub enum ExpressionEnd {
+    End,
+    Else,
+}
+
+#[derive(Debug)]
+pub enum InstructionOrEnd {
+    End(ExpressionEnd),
+    Instruction(Instruction<Resolved>),
+}
+
+#[derive(Debug)]
+pub struct ExpressionWithEnd {
+    expr: Expr<Resolved>,
+    end: ExpressionEnd,
+}
+
 /// Read the Code section of a binary module.
 /// codesec := section vec(code)
 /// code := size:u32 code:func
@@ -63,24 +81,31 @@ pub trait ReadCode: ReadWasmValues {
         Ok(result)
     }
 
+    fn read_expr(&mut self) -> Result<Expr<Resolved>> {
+        self.read_expr_with_end().map(|ee| ee.expr)
+    }
+
     /// Read the instructions from one function in the code section.
     /// The code is stored in the module as raw bytes, mostly following the
     /// same structure that it has in the binary module ,but with LEB128 numbers
     /// converted to little-endian format.
     /// expr := (instr)* 0x0B
-    fn read_expr(&mut self) -> Result<Expr<Resolved>> {
-        let mut result = Expr::default();
-        while let Some(inst) = self.read_inst()? {
-            result.instr.push(inst);
-        }
-        Ok(result)
+    fn read_expr_with_end(&mut self) -> Result<ExpressionWithEnd> {
+        let mut expr = Expr::default();
+        let end = loop {
+            match self.read_inst()? {
+                InstructionOrEnd::Instruction(inst) => expr.instr.push(inst),
+                InstructionOrEnd::End(end) => break end,
+            }
+        };
+        Ok(ExpressionWithEnd { expr, end })
     }
 
     /// Returns -1 if EOF or end instruction was reached while parsing an opcode.
     /// Returns 1 if a new block was started
     /// Returns 0 if a normal instruction was parsed.
     /// Returns Err result otherwise.
-    fn read_inst(&mut self) -> Result<Option<Instruction<Resolved>>> {
+    fn read_inst(&mut self) -> Result<InstructionOrEnd> {
         let mut opcode_buf = [0u8; 1];
         self.read_exact(&mut opcode_buf).ctx("parsing opcode")?;
 
@@ -101,7 +126,10 @@ pub trait ReadCode: ReadWasmValues {
 
         // End of expression.
         if opcode == 0x0B {
-            return Ok(None);
+            return Ok(InstructionOrEnd::End(ExpressionEnd::End));
+        }
+        if opcode == 0x05 {
+            return Ok(InstructionOrEnd::End(ExpressionEnd::Else));
         }
 
         // Handle any additional behavior
@@ -113,6 +141,12 @@ pub trait ReadCode: ReadWasmValues {
             Operands::TableIndex => syntax::Operands::FuncIndex(self.read_index_use()?),
             Operands::MemIndex => syntax::Operands::FuncIndex(self.read_index_use()?),
             Operands::Br => syntax::Operands::LabelIndex(self.read_index_use()?),
+            Operands::BrTable => {
+                let mut idxs = self.read_vec(|_, s| s.read_index_use())?;
+                let last = self.read_index_use()?;
+                idxs.push(last);
+                syntax::Operands::BrTable(idxs)
+            }
             Operands::I32 => syntax::Operands::I32(self.read_i32_leb_128().ctx("i32")? as u32),
             Operands::I64 => syntax::Operands::I64(self.read_i64_leb_128().ctx("i64")? as u64),
             Operands::F32 => {
@@ -153,6 +187,20 @@ pub trait ReadCode: ReadWasmValues {
                 let expr = self.read_expr()?;
                 syntax::Operands::Block(None, bt, expr, Continuation::Start)
             }
+            Operands::If => {
+                let bt = self.read_type_use()?;
+                let th = self.read_expr_with_end()?;
+                let el = if matches!(th.end, ExpressionEnd::Else) {
+                    self.read_expr()?
+                } else {
+                    Expr::default()
+                };
+                syntax::Operands::If(None, bt, th.expr, el)
+            }
+            Operands::HeapType => {
+                let ht = self.read_ref_type()?;
+                syntax::Operands::HeapType(ht)
+            }
             _ => {
                 panic!(
                     "unsupported operands {:x?} for {:x}",
@@ -161,7 +209,7 @@ pub trait ReadCode: ReadWasmValues {
             }
         };
 
-        Ok(Some(Instruction {
+        Ok(InstructionOrEnd::Instruction(Instruction {
             name: "".to_owned(),
             opcode,
             operands,

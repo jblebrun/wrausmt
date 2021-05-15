@@ -42,7 +42,9 @@ impl<R: Read> Parser<R> {
         if !self.try_expr_start("module")? {
             return Ok(None);
         }
-        self.try_module_rest()
+
+        let id = self.try_id()?;
+        self.try_module_rest(id)
     }
 
     pub fn parse_full_module(&mut self) -> Result<Module<Resolved>> {
@@ -78,9 +80,7 @@ impl<R: Read> Parser<R> {
     /// This is split away as a convenience for spec test parsing, so that we can
     /// parse the module expression header, and then check for binary/quote modules
     /// first, before attempting a normal module parse.
-    pub fn try_module_rest(&mut self) -> Result<Option<Module<Resolved>>> {
-        let id = self.try_id()?;
-
+    pub fn try_module_rest(&mut self, id: Option<String>) -> Result<Option<Module<Resolved>>> {
         let mut module_builder = ModuleBuilder::new(id);
 
         // section*
