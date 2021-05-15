@@ -150,18 +150,18 @@ impl Stack {
         // no adjustment needed.
     }
 
-    fn break_label(&mut self) -> Result<Label> {
-        let label = self.pop_label()?;
-        self.move_return_values(label.arity, label.return_spot)?;
-        Ok(label)
-    }
-
     pub fn break_to_label(&mut self, labelidx: u32) -> Result<Label> {
-        let mut label: Option<Label> = None;
-        for _ in 0..=labelidx {
-            label = Some(self.break_label()?);
-        }
-        let label = label.ok_or("failed to finish break")?;
+        let label = {
+            let label_stack = self.label_stack_mut()?;
+            let labelpos = label_stack.len() - labelidx as usize;
+            label_stack.truncate(labelpos);
+            label_stack
+                .pop()
+                .unwrap_or_else(|| panic!("break_to_label logic error"))
+        };
+
+        self.move_return_values(label.arity, label.return_spot)?;
+
         Ok(label)
     }
 

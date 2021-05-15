@@ -39,7 +39,9 @@ static ENABLED: &[&str] = &[
     "nop.wast",
     "ref_null.wast",
     "return.wast",
+    "select.wast",
     "store.wast",
+    "switch.wast",
     "table.wast",
     "token.wast",
     "traps.wast",
@@ -91,14 +93,6 @@ fn spec_tests_all_run_ignore_failure() -> Result<()> {
     }
 
     Ok(())
-}
-
-#[test]
-fn select() -> Result<()> {
-    parse_and_run(
-        "testdata/spec/select.wast",
-        runset_exclude!("as-convert-operand"),
-    )
 }
 
 #[test]
