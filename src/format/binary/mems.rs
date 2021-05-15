@@ -15,7 +15,6 @@ pub trait ReadMems: ReadWasmValues {
             id: None,
             memtype: self.read_memory_type()?,
             exports: vec![],
-            init: vec![],
         })
     }
 }

@@ -82,6 +82,8 @@ pub trait ExecutionContextActions {
     fn grow_mem(&mut self, pgs: u32) -> Result<Option<u32>>;
     fn table_init(&mut self) -> Result<()>;
     fn elem_drop(&mut self) -> Result<()>;
+    fn mem_init(&mut self) -> Result<()>;
+    fn data_drop(&mut self) -> Result<()>;
 
     fn br(&mut self, labelidx: u32) -> Result<()>;
     fn continuation(&mut self, cnt: u32) -> Result<()>;
@@ -156,7 +158,9 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
     }
 
     fn mem(&mut self, idx: u32) -> Result<&mut MemInstance> {
-        self.runtime.store.mem(idx)
+        let memaddr = self.runtime.stack.get_mem_addr(idx)?;
+        self.log("MEM", || format!("USING MEM {:?}", memaddr));
+        self.runtime.store.mem(memaddr)
     }
 
     fn grow_mem(&mut self, pgs: u32) -> Result<Option<u32>> {
@@ -189,9 +193,27 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
             .copy_elems_to_table(tableaddr, elemaddr, src, dst, n)
     }
 
+    fn mem_init(&mut self) -> Result<()> {
+        let dataidx = self.op_u32()?;
+        let n = self.pop::<u32>()? as usize;
+        let src = self.pop::<u32>()? as usize;
+        let dst = self.pop::<u32>()? as usize;
+        // TODO if s + n or d + n > sie of table 0, trap
+        let memaddr = self.runtime.stack.get_mem_addr(0)?;
+        let dataaddr = self.runtime.stack.get_data_addr(dataidx)?;
+        self.runtime
+            .store
+            .copy_data_to_mem(memaddr, dataaddr, src, dst, n)
+    }
+
     fn elem_drop(&mut self) -> Result<()> {
         let elemidx = self.op_u32()?;
         self.runtime.store.elem_drop(elemidx)
+    }
+
+    fn data_drop(&mut self) -> Result<()> {
+        let dataidx = self.op_u32()?;
+        self.runtime.store.data_drop(dataidx)
     }
 
     fn continuation(&mut self, cnt: u32) -> Result<()> {

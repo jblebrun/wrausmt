@@ -61,8 +61,8 @@ impl<R: Read> Parser<R> {
                     Operands::F32 => syntax::Operands::F32(self.expect_f32()?),
                     Operands::F64 => syntax::Operands::F64(self.expect_f64()?),
                     Operands::Memargs => {
-                        let align = self.try_align()?.unwrap_or(0);
                         let offset = self.try_offset()?.unwrap_or(0);
+                        let align = self.try_align()?.unwrap_or(0);
                         syntax::Operands::Memargs(align, offset)
                     }
                     Operands::TableInit => {

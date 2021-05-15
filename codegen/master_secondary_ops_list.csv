@@ -7,7 +7,11 @@
 0x06      ,i64.trunc_sat_f64_s           ,()
 0x07      ,i64.trunc_sat_f64_u           ,()
 0x08      ,memory.init                   ,(MemoryInit)
+| _ec.mem_init()
+
 0x09      ,data.drop                     ,(DataIndex)
+| _ec.data_drop()
+
 0x0a      ,memory.copy                   ,(MemoryCopy)
 0x0b      ,memory.fill                   ,(MemoryFill)
 0x0c      ,table.init                    ,(TableInit)

@@ -1,4 +1,6 @@
-use super::instance::{ElemInstance, FunctionInstance, GlobalInstance, MemInstance, TableInstance};
+use super::instance::{
+    DataInstance, ElemInstance, FunctionInstance, GlobalInstance, MemInstance, TableInstance,
+};
 use super::values::Value;
 use crate::{error, error::Result, logger::PrintLogger};
 use std::iter::Iterator;
@@ -49,6 +51,7 @@ pub struct Store {
     pub mems: Vec<MemInstance>,
     pub globals: Vec<GlobalInstance>,
     pub elems: Vec<ElemInstance>,
+    pub datas: Vec<DataInstance>,
 }
 
 impl Store {
@@ -128,6 +131,39 @@ impl Store {
         Ok(())
     }
 
+    pub fn copy_data_to_mem(
+        &mut self,
+        memaddr: addr::MemoryAddr,
+        dataaddr: addr::DataAddr,
+        src: usize,
+        dst: usize,
+        count: usize,
+    ) -> Result<()> {
+        let data = &self
+            .datas
+            .get(dataaddr as usize)
+            .ok_or_else(|| error!("no data at {}", dataaddr))?
+            .bytes
+            .get(src..src + count)
+            .ok_or_else(|| {
+                error!(
+                    "{} count={} out of bounds for data {}",
+                    src, count, dataaddr
+                )
+            })?;
+
+        let mem = &mut self
+            .mems
+            .get_mut(memaddr as usize)
+            .ok_or_else(|| error!("no mem at {}", memaddr))?
+            .data
+            .get_mut(dst..dst + count)
+            .ok_or_else(|| error!("{} count={} out of bounds for mem {}", dst, count, memaddr))?;
+
+        mem.copy_from_slice(data);
+        Ok(())
+    }
+
     pub fn elem_drop(&mut self, elemaddr: addr::ElemAddr) -> Result<()> {
         let elem = self
             .elems
@@ -135,6 +171,16 @@ impl Store {
             .ok_or_else(|| error!("no elem at {}", elemaddr))?;
 
         elem.elems = Box::new([]);
+        Ok(())
+    }
+
+    pub fn data_drop(&mut self, dataaddr: addr::DataAddr) -> Result<()> {
+        let data = self
+            .datas
+            .get_mut(dataaddr as usize)
+            .ok_or_else(|| error!("no elem at {}", dataaddr))?;
+
+        data.bytes = Box::new([]);
         Ok(())
     }
 
@@ -194,6 +240,16 @@ impl Store {
         let base_addr = self.elems.len() as u32;
         self.elems.extend(elems);
         let count = self.elems.len() as u32 - base_addr;
+        base_addr..base_addr + count
+    }
+
+    pub fn alloc_data<I>(&mut self, datas: I) -> std::ops::Range<addr::DataAddr>
+    where
+        I: Iterator<Item = DataInstance>,
+    {
+        let base_addr = self.datas.len() as u32;
+        self.datas.extend(datas);
+        let count = self.datas.len() as u32 - base_addr;
         base_addr..base_addr + count
     }
 }

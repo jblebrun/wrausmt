@@ -103,21 +103,6 @@ impl<R: Read> Parser<R> {
         Ok(Some(TableUse { tableidx }))
     }
 
-    fn try_elem_offset(&mut self) -> Result<Option<Expr<Unresolved>>> {
-        // (offset <instr>*)
-        if self.try_expr_start("offset")? {
-            let instr = self.parse_instructions()?;
-            self.expect_close()?;
-            return Ok(Some(Expr { instr }));
-        }
-
-        // offset may also be bare instruction
-        match self.try_instruction()? {
-            Some(instr) => Ok(Some(Expr { instr })),
-            None => Ok(None),
-        }
-    }
-
     // <reftype> vec<elemexpr>
     // elemexpr := ('item' <expr>)
     //           | <instr>
@@ -155,7 +140,7 @@ impl<R: Read> Parser<R> {
 
         let declarative = self.take_keyword_if(|kw| kw == "declare")?;
 
-        let offset = self.try_elem_offset()?;
+        let offset = self.try_offset_expression()?;
 
         let elemlist = self.try_elemlist(tableuse.is_none())?;
 

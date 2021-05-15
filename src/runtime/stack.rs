@@ -245,14 +245,17 @@ impl Stack {
 
     // Get the function address for the provided index in the current activation.
     pub fn get_table_addr(&self, idx: u32) -> Result<addr::TableAddr> {
-        println!("GET TABLE {}", idx);
         Ok(self.peek_activation()?.module.table(idx))
     }
 
     // Get the function address for the provided index in the current activation.
     pub fn get_elem_addr(&self, idx: u32) -> Result<addr::ElemAddr> {
-        println!("GET ELEM {}", idx);
         Ok(self.peek_activation()?.module.elem(idx))
+    }
+
+    // Get the function address for the provided index in the current activation.
+    pub fn get_data_addr(&self, idx: u32) -> Result<addr::DataAddr> {
+        Ok(self.peek_activation()?.module.data(idx))
     }
 
     pub fn get_label(&self, idx: u32) -> Result<&Label> {

@@ -3,7 +3,7 @@
 /// It holds a vector of bytes.
 ///
 /// [Spec]: https://webassembly.github.io/spec/core/exec/runtime.html#data-instances
-#[allow(dead_code)]
+#[derive(Default, Debug)]
 pub struct DataInstance {
     pub bytes: Box<[u8]>,
 }

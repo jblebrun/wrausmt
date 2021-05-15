@@ -21,6 +21,7 @@ fn parse_and_run<S: AsRef<Path>>(path: S, runset: RunSet) -> Result<()> {
 }
 
 static ENABLED: &[&str] = &[
+    "address.wast",
     "binary-leb128.wast",
     "br.wast",
     "br_if.wast",
