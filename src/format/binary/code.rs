@@ -1,7 +1,5 @@
-use super::{ensure_consumed::EnsureConsumed, values::ReadWasmValues};
+use super::{ensure_consumed::EnsureConsumed, error::BinaryParseError, values::ReadWasmValues};
 use crate::{
-    err,
-    error::{Result, ResultFrom},
     instructions::{instruction_data, Operands, BAD_INSTRUCTION},
     syntax::{self, Continuation, Expr, FuncField, Instruction, Local, Resolved, TypeUse},
 };
@@ -9,6 +7,8 @@ use std::{
     collections::HashMap,
     io::{Read, Write},
 };
+
+use super::error::{Result, WithContext};
 
 /// Read the Code section of a binary module.
 /// codesec := section vec(code)
@@ -18,26 +18,26 @@ use std::{
 /// expr := (instr)*
 pub trait ReadCode: ReadWasmValues {
     fn read_code_section(&mut self) -> Result<Vec<FuncField<Resolved>>> {
-        self.read_vec(|_, s| s.read_func().wrap("reading func"))
+        self.read_vec(|_, s| s.read_func().ctx("reading func"))
     }
 
     fn read_vec_exprs(&mut self) -> Result<Vec<Expr<Resolved>>> {
-        self.read_vec(|_, s| s.read_expr().wrap("reading expr"))
+        self.read_vec(|_, s| s.read_expr().ctx("reading expr"))
     }
 
     /// code := size:u32 code:func
     /// func := (t*)*:vec(locals) e:expr
     /// The size is the size in bytes of the entire section, locals + exprs
     fn read_func(&mut self) -> Result<FuncField<Resolved>> {
-        let codesize = self.read_u32_leb_128().wrap("parsing func")?;
+        let codesize = self.read_u32_leb_128().ctx("parsing func")?;
         let mut code_reader = self.take(codesize as u64);
         let function = FuncField {
             id: None,
             exports: vec![],
             // The types are parsed earlier and will be set on the returned values.
             typeuse: TypeUse::default(),
-            locals: code_reader.read_locals().wrap("parsing locals")?,
-            body: code_reader.read_expr().wrap("parsing code")?,
+            locals: code_reader.read_locals().ctx("parsing locals")?,
+            body: code_reader.read_expr().ctx("parsing code")?,
             localindices: HashMap::default(),
         };
         code_reader.ensure_consumed()?;
@@ -47,12 +47,12 @@ pub trait ReadCode: ReadWasmValues {
     /// Read the locals description for the function.
     /// locals := n:u32 t:type
     fn read_locals(&mut self) -> Result<Vec<Local>> {
-        let items = self.read_u32_leb_128().wrap("parsing item count")?;
+        let items = self.read_u32_leb_128().ctx("parsing item count")?;
         let mut result: Vec<Local> = vec![];
 
         for _ in 0..items {
-            let reps = self.read_u32_leb_128().wrap("parsing type rep")?;
-            let val = self.read_value_type().wrap("parsing value type")?;
+            let reps = self.read_u32_leb_128().ctx("parsing type rep")?;
+            let val = self.read_value_type().ctx("parsing value type")?;
             for _ in 0..reps {
                 result.push(Local {
                     id: None,
@@ -82,12 +82,12 @@ pub trait ReadCode: ReadWasmValues {
     /// Returns Err result otherwise.
     fn read_inst(&mut self) -> Result<Option<Instruction<Resolved>>> {
         let mut opcode_buf = [0u8; 1];
-        self.read_exact(&mut opcode_buf).wrap("parsing opcode")?;
+        self.read_exact(&mut opcode_buf).ctx("parsing opcode")?;
 
         // 0xFC instructions are shifted into the normal opcode
         // table starting at 0xE0.
         let opcode = if opcode_buf[0] == 0xFC {
-            let second_opcode = self.read_u32_leb_128().wrap("parsing secondary opcode")?;
+            let second_opcode = self.read_u32_leb_128().ctx("parsing secondary opcode")?;
             second_opcode as u8 + 0xE0
         } else {
             opcode_buf[0]
@@ -96,7 +96,7 @@ pub trait ReadCode: ReadWasmValues {
         let instruction_data = instruction_data(opcode);
 
         if instruction_data == &BAD_INSTRUCTION {
-            return err!("Bad instruction {}", opcode);
+            return Err(BinaryParseError::InvalidOpcode(opcode));
         }
 
         // End of expression.
@@ -113,23 +113,23 @@ pub trait ReadCode: ReadWasmValues {
             Operands::TableIndex => syntax::Operands::FuncIndex(self.read_index_use()?),
             Operands::MemIndex => syntax::Operands::FuncIndex(self.read_index_use()?),
             Operands::Br => syntax::Operands::LabelIndex(self.read_index_use()?),
-            Operands::I32 => syntax::Operands::I32(self.read_i32_leb_128().wrap("i32")? as u32),
-            Operands::I64 => syntax::Operands::I64(self.read_i64_leb_128().wrap("i64")? as u64),
+            Operands::I32 => syntax::Operands::I32(self.read_i32_leb_128().ctx("i32")? as u32),
+            Operands::I64 => syntax::Operands::I64(self.read_i64_leb_128().ctx("i64")? as u64),
             Operands::F32 => {
                 let mut buf = [0u8; 4];
-                self.read_exact(&mut buf).wrap("reading f32 byte")?;
+                self.read_exact(&mut buf).ctx("reading f32 byte")?;
                 let val = f32::from_bits(u32::from_le_bytes(buf));
                 syntax::Operands::F32(val)
             }
             Operands::F64 => {
                 let mut buf = [0u8; 8];
-                self.read_exact(&mut buf).wrap("reading f64 byte")?;
+                self.read_exact(&mut buf).ctx("reading f64 byte")?;
                 let val = f64::from_bits(u64::from_le_bytes(buf));
                 syntax::Operands::F64(val)
             }
             Operands::Memargs => syntax::Operands::Memargs(
-                self.read_u32_leb_128().wrap("memarg1")?,
-                self.read_u32_leb_128().wrap("memarg2")?,
+                self.read_u32_leb_128().ctx("memarg1")?,
+                self.read_u32_leb_128().ctx("memarg2")?,
             ),
             Operands::MemorySize
             | Operands::MemoryGrow
@@ -154,10 +154,9 @@ pub trait ReadCode: ReadWasmValues {
                 syntax::Operands::Block(None, bt, expr, Continuation::Start)
             }
             _ => {
-                return err!(
+                panic!(
                     "unsupported operands {:x?} for {:x}",
-                    instruction_data.operands,
-                    opcode
+                    instruction_data.operands, opcode
                 )
             }
         };
@@ -171,7 +170,7 @@ pub trait ReadCode: ReadWasmValues {
 
     /// Clarity method: use to read a single LEB128 argument for an instruction.
     fn read_u32_arg<W: Write>(&mut self, out: &mut W) -> Result<()> {
-        self.emit_read_u32_leb_128(out).wrap("parsing arg 1/1")
+        self.emit_read_u32_leb_128(out).ctx("parsing arg 1/1")
     }
 
     /// Read one LEB128 value and emit it to the provided writer.
@@ -179,10 +178,10 @@ pub trait ReadCode: ReadWasmValues {
         out.write(
             &self
                 .read_u32_leb_128()
-                .wrap("reading leb 128")?
+                .ctx("reading leb 128")?
                 .to_le_bytes(),
         )
-        .wrap("writing leb 128")?;
+        .ctx("writing leb 128")?;
         Ok(())
     }
 }

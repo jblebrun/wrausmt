@@ -1,9 +1,6 @@
-use super::values::ReadWasmValues;
-use crate::{
-    err,
-    error::{Result, ResultFrom},
-    syntax::{ExportDesc, ExportField, Resolved},
-};
+use super::error::{Result, WithContext};
+use super::{error::BinaryParseError, values::ReadWasmValues};
+use crate::syntax::{ExportDesc, ExportField, Resolved};
 
 /// A trait to allow parsing of an exports section from something implementing
 /// std::io::Read.
@@ -21,27 +18,25 @@ pub trait ReadExports: ReadWasmValues {
     }
 
     fn read_export_desc(&mut self) -> Result<ExportDesc<Resolved>> {
-        let kind = self.read_byte().wrap("parsing kind")?;
+        let kind = self.read_byte().ctx("parsing kind")?;
         match kind {
-            0 => Ok(ExportDesc::Func(
-                self.read_index_use().wrap("parsing func")?,
-            )),
+            0 => Ok(ExportDesc::Func(self.read_index_use().ctx("parsing func")?)),
             1 => Ok(ExportDesc::Table(
-                self.read_index_use().wrap("parsing table")?,
+                self.read_index_use().ctx("parsing table")?,
             )),
             2 => Ok(ExportDesc::Mem(
-                self.read_index_use().wrap("parsing memory")?,
+                self.read_index_use().ctx("parsing memory")?,
             )),
             3 => Ok(ExportDesc::Global(
-                self.read_index_use().wrap("parsing global")?,
+                self.read_index_use().ctx("parsing global")?,
             )),
-            _ => err!("unknown import desc {:x}", kind),
+            _ => Err(BinaryParseError::InvalidExportType(kind)),
         }
     }
 
     fn read_export_field(&mut self) -> Result<ExportField<Resolved>> {
         Ok(ExportField {
-            name: self.read_name().wrap("parsing name")?,
+            name: self.read_name().ctx("parsing name")?,
             exportdesc: self.read_export_desc()?,
         })
     }

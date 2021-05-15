@@ -1,5 +1,6 @@
+use super::error::Result;
 use super::{leb128::ReadLeb128, values::ReadWasmValues};
-use crate::{error::Result, syntax::MemoryField};
+use crate::syntax::MemoryField;
 
 /// Read the tables section of a binary module from a std::io::Read.
 pub trait ReadMems: ReadWasmValues {
