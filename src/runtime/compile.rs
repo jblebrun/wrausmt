@@ -77,6 +77,7 @@ pub trait Emitter {
         }
 
         self.emit_expr(expr);
+        self.push(END_OPCODE);
 
         // If the continuation is at the end of the block, we go back to the space
         // we reserved (just above), and write self the position of the last item
@@ -110,12 +111,14 @@ pub trait Emitter {
 
         self.emit_expr(th);
 
-        self.splice32(else_location, self.len() as u32);
+        self.splice32(else_location, self.len() as u32 + 1);
         if !el.instr.is_empty() {
             // Replace the `end` for the then expression with the else opcode.
-            self.splice8(self.len() - 1, ELSE_OPCODE);
+            self.push(ELSE_OPCODE);
             self.emit_expr(el);
         }
+
+        self.push(END_OPCODE);
         self.splice32(end_location, self.len() as u32);
     }
 
@@ -162,7 +165,6 @@ pub trait Emitter {
                 syntax::Operands::HeapType(_) => (),
             }
         }
-        self.push(END_OPCODE);
     }
 }
 
@@ -203,6 +205,7 @@ pub fn compile_function_body(func: &syntax::FuncField<Resolved>) -> Box<[u8]> {
     let mut out: Vec<u8> = Vec::new();
 
     out.emit_expr(&func.body);
+    out.push(END_OPCODE);
 
     // ???
     // profit!
