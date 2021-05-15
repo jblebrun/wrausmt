@@ -28,33 +28,6 @@ pub struct ModuleInstance {
     data: Box<[addr::DataAddr]>,
 }
 
-#[derive(Debug, Default, Clone)]
-pub struct ModuleInstanceBuilder {
-    pub types: Vec<FunctionType>,
-    pub exports: Vec<ExportInstance>,
-    pub funcs: Vec<addr::FuncAddr>,
-    pub tables: Vec<addr::TableAddr>,
-    pub mems: Vec<addr::MemoryAddr>,
-    pub globals: Vec<addr::GlobalAddr>,
-    pub elems: Vec<addr::ElemAddr>,
-    pub data: Vec<addr::DataAddr>,
-}
-
-impl ModuleInstanceBuilder {
-    pub fn build(self) -> ModuleInstance {
-        ModuleInstance {
-            types: self.types.into_boxed_slice(),
-            exports: self.exports.into_boxed_slice(),
-            funcs: self.funcs.into_boxed_slice(),
-            tables: self.tables.into_boxed_slice(),
-            mems: self.mems.into_boxed_slice(),
-            globals: self.globals.into_boxed_slice(),
-            elems: self.elems.into_boxed_slice(),
-            data: self.data.into_boxed_slice(),
-        }
-    }
-}
-
 impl ModuleInstance {
     pub fn func(&self, idx: u32) -> addr::FuncAddr {
         self.funcs[idx as usize]
@@ -85,5 +58,40 @@ impl ModuleInstance {
         let found = self.exports.iter().find(|e| e.name == name);
 
         found
+    }
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct ModuleInstanceBuilder {
+    pub types: Vec<FunctionType>,
+    pub exports: Vec<ExportInstance>,
+    pub funcs: Vec<addr::FuncAddr>,
+    pub tables: Vec<addr::TableAddr>,
+    pub mems: Vec<addr::MemoryAddr>,
+    pub globals: Vec<addr::GlobalAddr>,
+    pub elems: Vec<addr::ElemAddr>,
+    pub data: Vec<addr::DataAddr>,
+}
+
+impl ModuleInstanceBuilder {
+    pub fn add_external_val(&mut self, ev: ExternalVal) {
+        match ev {
+            ExternalVal::Func(addr) => self.funcs.push(addr),
+            ExternalVal::Table(addr) => self.tables.push(addr),
+            ExternalVal::Memory(addr) => self.mems.push(addr),
+            ExternalVal::Global(addr) => self.globals.push(addr),
+        }
+    }
+    pub fn build(self) -> ModuleInstance {
+        ModuleInstance {
+            types: self.types.into_boxed_slice(),
+            exports: self.exports.into_boxed_slice(),
+            funcs: self.funcs.into_boxed_slice(),
+            tables: self.tables.into_boxed_slice(),
+            mems: self.mems.into_boxed_slice(),
+            globals: self.globals.into_boxed_slice(),
+            elems: self.elems.into_boxed_slice(),
+            data: self.data.into_boxed_slice(),
+        }
     }
 }
