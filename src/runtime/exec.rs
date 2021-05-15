@@ -314,7 +314,6 @@ impl Runtime {
     }
 
     pub fn exec_expr(&mut self, body: &[u8]) -> Result<()> {
-        self.stack.push_label(0, 1, body.len() as u32 - 1)?;
         self.enter(body)
     }
 
@@ -324,8 +323,7 @@ impl Runtime {
     }
 
     pub fn eval_ref_expr(&mut self, body: &[u8]) -> Result<Ref> {
-        self.exec_expr(body)?;
-        match self.stack.pop_value()? {
+        match self.eval_expr(body)? {
             Value::Ref(r) => Ok(r),
             _ => err!("non-ref result for expression"),
         }
