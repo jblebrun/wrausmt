@@ -18,7 +18,7 @@ use crate::{
     types::{FunctionType, ValueType},
 };
 use crate::{error as mkerror, runtime::instance::DataInstance, syntax::DataInit};
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::{collections::HashMap, rc::Rc};
 
 use {
     compile::{compile_export, compile_function_body, Emitter},
@@ -72,13 +72,17 @@ impl Runtime {
     }
 
     /// Instantiate a function from the provided FuncField and module instance.
-    fn instantiate_function(f: FuncField<Resolved>, types: &[FunctionType]) -> FunctionInstance {
+    fn instantiate_function(
+        f: FuncField<Resolved>,
+        types: &[FunctionType],
+        modinst: Rc<ModuleInstance>,
+    ) -> FunctionInstance {
         let functype = types[f.typeuse.index_value() as usize].clone();
         let locals: Box<[ValueType]> = f.locals.iter().map(|l| l.valtype).collect();
         let body = compile_function_body(&f);
         FunctionInstance {
             functype,
-            module_instance: RefCell::new(None),
+            module_instance: modinst,
             locals,
             body,
         }
@@ -162,15 +166,21 @@ impl Runtime {
             }
         }
 
+        let rcinst = Rc::new(modinst_builder.clone().build());
+
+        // During init, we will reset this a few times.
+        let rcptr = Rc::as_ptr(&rcinst) as *mut ModuleInstance;
+
         // (Alloc 2.) Allocate functions
         // https://webassembly.github.io/spec/core/exec/modules.html#functions
         // We hold onto these so we can update the module instance at the end.
         let func_insts: Vec<Rc<FunctionInstance>> = module
             .funcs
             .into_iter()
-            .map(|f| Self::instantiate_function(f, &modinst_builder.types))
+            .map(|f| Self::instantiate_function(f, &modinst_builder.types, rcinst.clone()))
             .map(Rc::new)
             .collect();
+
         let range = self.store.alloc_funcs(func_insts.iter().cloned());
         Self::extend_addr_vec(&mut modinst_builder.funcs, range);
 
@@ -197,10 +207,12 @@ impl Runtime {
 
         // (Instantiation 5-10.) Generate global and elem init values
         // (Instantiation 5.) Create the module instance for global initialization
-        let init_module_instance = Rc::new(modinst_builder.clone().build());
+        unsafe {
+            *rcptr = modinst_builder.clone().build();
+        }
 
         // (Instantiation 6-7.) Create a frame with the instance, push it.
-        self.stack.push_dummy_activation(init_module_instance)?;
+        self.stack.push_dummy_activation(rcinst.clone())?;
 
         // (Instantiation 9.) Elems
         let elem_insts: Vec<ElemInstance> = module
@@ -263,10 +275,13 @@ impl Runtime {
         self.stack.pop_activation()?;
 
         // (Instantiation 11, 12.) Create the module instance for global initialization
-        let init_module_instance = Rc::new(modinst_builder.clone().build());
+        // This is OK, nothing should be referencing the old ModuleInstance.
+        unsafe {
+            *rcptr = modinst_builder.clone().build();
+        }
 
         // (Instantiation 13.) Create a frame with the instance, push it.
-        self.stack.push_dummy_activation(init_module_instance)?;
+        self.stack.push_dummy_activation(rcinst.clone())?;
 
         // (Instantiation 14.) Active table inits.
         for (i, elem) in module.elems.iter().enumerate() {
@@ -286,11 +301,15 @@ impl Runtime {
             }
         }
 
-        let init_module_instance = Rc::new(modinst_builder.clone().build());
+        // This is OK, nothing should be referencing the old ModuleInstance.
+        unsafe {
+            *rcptr = modinst_builder.clone().build();
+        }
+
         modinst_builder.exports = module
             .exports
             .into_iter()
-            .map(|e| compile_export(e, &init_module_instance))
+            .map(|e| compile_export(e, &rcinst))
             .collect();
 
         self.logger
@@ -298,13 +317,9 @@ impl Runtime {
 
         self.stack.pop_activation()?;
 
-        let rcinst = Rc::new(modinst_builder.build());
-
-        // As noted in the specification for module allocation: functions are defined before the
-        // final [ModuleInstance] is available, so now we pass the completed instance to the store
-        // so it can update the value.
-        for f in func_insts {
-            f.module_instance.replace(Some(rcinst.clone()));
+        // This is OK, nothing should be referencing the old ModuleInstance.
+        unsafe {
+            *rcptr = modinst_builder.build();
         }
 
         Ok(rcinst)

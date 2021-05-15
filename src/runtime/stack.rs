@@ -112,7 +112,7 @@ impl Stack {
         self.activation_stack.push(ActivationFrame {
             arity,
             local_start: frame_start,
-            module: funcinst.module_instance()?,
+            module: funcinst.module_instance(),
             label_stack: vec![],
         });
         self.logger.log("ACTIVATE", || {

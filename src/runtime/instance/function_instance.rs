@@ -1,4 +1,3 @@
-use crate::error;
 use crate::runtime::error::ArgumentCountError;
 use crate::runtime::instance::ModuleInstance;
 use crate::runtime::Value;
@@ -8,7 +7,6 @@ use crate::{
     instructions::Expr,
     types::ValueType,
 };
-use std::cell::RefCell;
 use std::rc::Rc;
 
 /// A function instance is the runtime representation of a function. [Spec][Spec]
@@ -21,7 +19,7 @@ use std::rc::Rc;
 #[derive(Debug)]
 pub struct FunctionInstance {
     pub functype: FunctionType,
-    pub module_instance: RefCell<Option<Rc<ModuleInstance>>>,
+    pub module_instance: Rc<ModuleInstance>,
 
     /// The locals declare a vector of mutable local variables and their types. These variables are
     /// referenced through local indices in the function's body. The index of the first local is
@@ -56,10 +54,7 @@ impl FunctionInstance {
         Ok(())
     }
 
-    pub fn module_instance(&self) -> Result<Rc<ModuleInstance>> {
-        self.module_instance
-            .borrow()
-            .clone()
-            .ok_or_else(|| error!("no module instance on function"))
+    pub fn module_instance(&self) -> Rc<ModuleInstance> {
+        self.module_instance.clone()
     }
 }
