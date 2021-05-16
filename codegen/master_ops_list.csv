@@ -103,7 +103,6 @@
 | let i = _ec.op_u32()?;
 | let v = _ec.pop_value()?;
 | _ec.push_value(v)?;
-| _ec.push_value(v)?;
 | _ec.set_local(i, v)
 
 0x23      ,global.get                    ,(GlobalIndex)
@@ -672,25 +671,65 @@
 | _ec.convop::<u64, u32, _>(|o| o as u32)
 
 0xa8      ,i32.trunc_f32_s               ,()
+| _ec.convop::<f32, i32, _>(|o| o as i32)
+
 0xa9      ,i32.trunc_f32_u               ,()
+| _ec.convop::<f32, u32, _>(|o| o as u32)
+
 0xaa      ,i32.trunc_f64_s               ,()
+| _ec.convop::<f64, i32, _>(|o| o as i32)
+
 0xab      ,i32.trunc_f64_u               ,()
+| _ec.convop::<f64, u32, _>(|o| o as u32)
+
 0xac      ,i64.extend_i32_s              ,()
+| _ec.convop::<i32, i64, _>(|o| o as i64)
+
 0xad      ,i64.extend_i32_u              ,()
+| _ec.convop::<u32, u64, _>(|o| o as u64)
+
 0xae      ,i64.trunc_f32_s               ,()
+| _ec.convop::<f32, i64, _>(|o| o as i64)
+
 0xaf      ,i64.trunc_f32_u               ,()
+| _ec.convop::<f32, u64, _>(|o| o as u64)
+
 0xb0      ,i64.trunc_f64_s               ,()
+| _ec.convop::<f64, i64, _>(|o| o as i64)
+
 0xb1      ,i64.trunc_f64_u               ,()
+| _ec.convop::<f64, u64, _>(|o| o as u64)
+
 0xb2      ,f32.convert_i32_s             ,()
+| _ec.convop::<i32, f32, _>(|o| o as f32)
+
 0xb3      ,f32.convert_i32_u             ,()
+| _ec.convop::<u32, f32, _>(|o| o as f32)
+
 0xb4      ,f32.convert_i64_s             ,()
+| _ec.convop::<i64, f32, _>(|o| o as f32)
+
 0xb5      ,f32.convert_i64_u             ,()
+| _ec.convop::<u64, f32, _>(|o| o as f32)
+
 0xb6      ,f32.demote_f64                ,()
+| _ec.convop::<f64, f32, _>(|o| o as f32)
+
 0xb7      ,f64.convert_i32_s             ,()
+| _ec.convop::<i32, f64, _>(|o| o as f64)
+
 0xb8      ,f64.convert_i32_u             ,()
+| _ec.convop::<u32, f64, _>(|o| o as f64)
+
 0xb9      ,f64.convert_i64_s             ,()
+| _ec.convop::<i64, f64, _>(|o| o as f64)
+
 0xba      ,f64.convert_i64_u             ,()
+| _ec.convop::<u64, f64, _>(|o| o as f64)
+
 0xbb      ,f64.promote_f32               ,()
+| _ec.convop::<f32, f64, _>(|o| o as f64)
+
 0xbc      ,i32.reinterpret_f32           ,()
 | _ec.convop::<f32, u32, _>(|o| o.to_bits())
 
