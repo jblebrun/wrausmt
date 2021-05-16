@@ -504,7 +504,7 @@ pub enum Assertion {
 ///   ( <num_type>.const <num_pat> )
 ///   ( ref.extern )
 ///   ( ref.func )
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 pub enum ActionResult {
     NumPat(NumPat),
     Extern,
@@ -515,13 +515,13 @@ pub enum ActionResult {
 ///   <value>                                    ;; literal result
 ///   nan:canonical                              ;; NaN in canonical form
 ///   nan:arithmetic                             ;; NaN with 1 in MSB of payload
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 pub enum NumPat {
     Num(Num),
     NaNPat(NaNPat),
 }
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum NaNPat {
     Canonical(NumType),
     Arithmetic(NumType),

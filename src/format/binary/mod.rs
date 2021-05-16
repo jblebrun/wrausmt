@@ -93,7 +93,7 @@ fn parse_inner<R: Read>(reader: &mut R, module: &mut Module<Resolved>) -> Result
 /// Attempt to interpret the data in the provided std::io:Read as a WASM binary module.
 /// If an error occurs, a ParseError will be returned containing the portion of the
 /// module that was successfully decoded.
-pub fn parse<R>(src: &mut R) -> Result<Module<Resolved>>
+pub fn parse<R>(src: R) -> Result<Module<Resolved>>
 where
     R: Read,
 {

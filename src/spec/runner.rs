@@ -1,13 +1,12 @@
 use std::rc::Rc;
 
 use super::{
+    error::{Failures, Result, SpecTestError},
     format::{Action, ActionResult, NumPat, SpecTestScript},
     spectest_module::make_spectest_module,
 };
 use crate::{
-    err,
-    error::{Error, ErrorFrom, Result, ResultFrom},
-    format::{binary::parse, Location},
+    loader::Loader,
     logger::{Logger, PrintLogger},
     runtime::{
         instance::ModuleInstance,
@@ -38,6 +37,7 @@ macro_rules! runset_exclude {
         ])
     }
 }
+
 pub enum RunSet {
     All,
     Specific(Vec<String>),
@@ -54,7 +54,7 @@ fn handle_action(
 ) -> Result<Option<Vec<Value>>> {
     let module_instance = match module_instance {
         Some(mi) => mi,
-        None => return err!("action invoked with no module"),
+        None => return Err(SpecTestError::NoModule(action)),
     };
     match action {
         Action::Invoke { id, name, params } => {
@@ -62,11 +62,7 @@ fn handle_action(
                 format!("INVOKE ACTION {:?} {} {:?}", id, name, params)
             });
             let values: Vec<Value> = params.into_iter().map(|p| p.into()).collect();
-            Ok(Some(
-                runtime
-                    .call(&module_instance, &name, &values)
-                    .wrap("calling")?,
-            ))
+            Ok(Some(runtime.call(&module_instance, &name, &values)?))
         }
         Action::Get { id, name } => {
             logger.log("SPEC", || format!("GET ACTION {:?} {}", id, name));
@@ -91,7 +87,7 @@ impl TestCompare<Value> for Value {
 
 pub fn verify_result(results: Vec<Value>, expects: Vec<ActionResult>) -> Result<()> {
     if results.len() != expects.len() {
-        return err!("Expect {} results but got {}", expects.len(), results.len());
+        return Err(SpecTestError::ResultLengthMismatch { results, expects });
     }
 
     let mut expects = expects;
@@ -99,28 +95,28 @@ pub fn verify_result(results: Vec<Value>, expects: Vec<ActionResult>) -> Result<
         let expect = expects.pop().unwrap();
         match expect {
             ActionResult::NumPat(NumPat::Num(num)) => {
-                let expect: Value = num.into();
-                if !result.same_bits(&expect) {
-                    return err!("Expected {:?}, got {:?}", expect, result);
+                let expectnum: Value = num.into();
+                if !result.same_bits(&expectnum) {
+                    return Err(SpecTestError::ResultMismatch { result, expect });
                 }
             }
             ActionResult::NumPat(NumPat::NaNPat(nanpat)) => {
                 let resultnum = match result.as_num() {
                     Some(n) => n,
-                    _ => return err!("Expected num result, got {:?}", result),
+                    _ => return Err(SpecTestError::ResultMismatch { result, expect }),
                 };
                 if !nanpat.accepts(resultnum) {
-                    return err!("Expected result type {:?}, got {:?}", nanpat, result);
+                    return Err(SpecTestError::ResultMismatch { result, expect });
                 }
             }
             ActionResult::Func => {
                 if !matches!(result, Value::Ref(Ref::Func(_))) {
-                    return err!("Expected Func, got {:?}", result);
+                    return Err(SpecTestError::ResultMismatch { result, expect });
                 }
             }
             ActionResult::Extern => {
                 if !matches!(result, Value::Ref(Ref::Extern(_))) {
-                    return err!("Expected Extern, got {:?}", result);
+                    return Err(SpecTestError::ResultMismatch { result, expect });
                 }
             }
         }
@@ -128,45 +124,10 @@ pub fn verify_result(results: Vec<Value>, expects: Vec<ActionResult>) -> Result<
     Ok(())
 }
 
-pub struct Failure {
-    location: Location,
-    testindex: u32,
-    err: Error,
-}
-
-#[derive(Default)]
-pub struct Failures {
-    pub failures: Vec<Failure>,
-}
-
-impl std::error::Error for Failures {}
-
-impl std::fmt::Debug for Failure {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "Test {} Line {}", self.testindex, self.location.line)?;
-        writeln!(f, "{}\n", self.err)
-    }
-}
-
-impl std::fmt::Display for Failures {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "{:?}", self)
-    }
-}
-
-impl std::fmt::Debug for Failures {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for failure in &self.failures {
-            writeln!(f, "{:?}", failure)?;
-        }
-        writeln!(f, "{} failures", self.failures.len())
-    }
-}
-
 pub fn run_spec_test(script: SpecTestScript, runset: RunSet) -> Result<()> {
     let mut runtime = Runtime::new();
 
-    let spectest_module = runtime.load(make_spectest_module()).wrap("loading")?;
+    let spectest_module = runtime.load(make_spectest_module())?;
     runtime.register("spectest", spectest_module);
 
     let mut module: Option<Rc<ModuleInstance>> = None;
@@ -182,15 +143,14 @@ pub fn run_spec_test(script: SpecTestScript, runset: RunSet) -> Result<()> {
         match cmd.cmd {
             Cmd::Module(m) => match m {
                 Module::Module(m) => {
-                    module = Some(runtime.load(m).wrap("loading")?);
+                    module = Some(runtime.load(m)?);
                 }
                 Module::Binary(b) => {
                     let data: Box<[u8]> = b
                         .into_iter()
                         .flat_map(|d| d.into_boxed_bytes().into_vec())
                         .collect();
-                    let m = parse(&mut data.as_ref()).wrap("parsing binary")?;
-                    module = Some(runtime.load(m).wrap("loading")?);
+                    module = Some(runtime.load_wasm_data(&data)?);
                 }
                 Module::Quote(_) => println!("QUOTE MODULE ACTION"),
             },
@@ -230,11 +190,9 @@ pub fn run_spec_test(script: SpecTestScript, runset: RunSet) -> Result<()> {
                     if let Some(result) = result {
                         match verify_result(result, results) {
                             Ok(_) => (),
-                            Err(e) => failures.failures.push(Failure {
-                                location: cmd.location,
-                                testindex: assert_returns,
-                                err: e,
-                            }),
+                            Err(e) => failures
+                                .failures
+                                .push(e.into_failure(cmd.location, assert_returns)),
                         }
                     }
                 }
@@ -244,7 +202,7 @@ pub fn run_spec_test(script: SpecTestScript, runset: RunSet) -> Result<()> {
     }
 
     if !failures.failures.is_empty() {
-        return Err(failures.wrap("some tests failed"));
+        return Err(SpecTestError::Failures(failures));
     }
     Ok(())
 }
