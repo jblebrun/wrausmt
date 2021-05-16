@@ -1,4 +1,7 @@
-use super::{values::Ref, values::Value, Runtime};
+use super::{
+    values::{Ref, Value},
+    Runtime,
+};
 use crate::err;
 use crate::instructions::exec_method;
 use crate::logger::Logger;
@@ -30,7 +33,8 @@ pub trait ExecutionContextActions {
     fn set_global(&mut self, idx: u32, val: Value) -> Result<()>;
     fn push_value(&mut self, val: Value) -> Result<()>;
     fn push_func_ref(&mut self, idx: u32) -> Result<()>;
-    fn push_label(&mut self) -> Result<()>;
+    fn push_label_end(&mut self) -> Result<()>;
+    fn push_label_start(&mut self) -> Result<()>;
     fn push<T: Into<Value>>(&mut self, val: T) -> Result<()>;
     fn pop_value(&mut self) -> Result<Value>;
     fn pop_label(&mut self) -> Result<Label>;
@@ -241,7 +245,19 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
         Ok(())
     }
 
-    fn push_label(&mut self) -> Result<()> {
+    fn push_label_start(&mut self) -> Result<()> {
+        let param_arity = self.op_u32()?;
+        let _result_arity = self.op_u32()?;
+        let continuation = self.op_u32()?;
+        self.runtime
+            .stack
+            // Subtle difference: when the continuation is the start of the block,
+            // The "result" is considered to be the parameters.
+            .push_label(param_arity, param_arity, continuation)?;
+        Ok(())
+    }
+
+    fn push_label_end(&mut self) -> Result<()> {
         let param_arity = self.op_u32()?;
         let result_arity = self.op_u32()?;
         let continuation = self.op_u32()?;

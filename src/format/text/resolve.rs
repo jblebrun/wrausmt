@@ -40,7 +40,11 @@ impl IdentifierContext {
         }
     }
 
-    pub fn with_label(&self, labelname: String) -> IdentifierContext {
+    pub fn with_label(&self, id: &Option<String>) -> IdentifierContext {
+        let labelname: String = match id {
+            Some(ref name) => name.clone(),
+            _ => "".into(),
+        };
         let mut lt = self.labeltracker.clone();
         lt.push(labelname);
         let mut li = HashMap::default();
@@ -129,7 +133,8 @@ impl Resolve<Operands<Resolved>> for Operands<Unresolved> {
         Ok(match self {
             Operands::None => Operands::None,
             Operands::If(id, typ, th, el) => {
-                Operands::If(id, typ.resolve(&ic)?, th.resolve(&ic)?, el.resolve(&ic)?)
+                let bic = ic.with_label(&id);
+                Operands::If(id, typ.resolve(&bic)?, th.resolve(&bic)?, el.resolve(&bic)?)
             }
             Operands::BrTable(idxs) => {
                 resolve_all!(ridxs, idxs, ic);
@@ -140,11 +145,7 @@ impl Resolve<Operands<Resolved>> for Operands<Unresolved> {
                 Operands::CallIndirect(idx.resolve(&ic)?, tu.resolve(&ic)?)
             }
             Operands::Block(id, typ, expr, cnt) => {
-                let lid = match id {
-                    Some(ref id) => id.clone(),
-                    _ => "".into(),
-                };
-                let bic = ic.with_label(lid);
+                let bic = ic.with_label(&id);
                 Operands::Block(id, typ.resolve(&bic)?, expr.resolve(&bic)?, cnt)
             }
             Operands::FuncIndex(idx) => Operands::FuncIndex(idx.resolve(&ic)?),

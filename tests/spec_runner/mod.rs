@@ -32,6 +32,7 @@ static ENABLED: &[&str] = &[
     "custom.wast",
     "const.wast",
     "data.wast",
+    "fac.wast",
     "forward.wast",
     "float_literals.wast",
     "i32.wast",
@@ -57,7 +58,7 @@ static ENABLED: &[&str] = &[
 ];
 
 #[test]
-fn spec_tests() -> Result<()> {
+fn spec_tests_passing() -> Result<()> {
     for item in ENABLED {
         let item = format!("testdata/spec/{}", item);
         match parse_and_run(&item, RunSet::All) {
@@ -101,18 +102,7 @@ fn spec_tests_all_run_ignore_failure() -> Result<()> {
 fn loopop() -> Result<()> {
     parse_and_run(
         "testdata/spec/loop.wast",
-        runset_exclude!(
-            "as-compare-operand",
-            "as-compare-operands",
-            "break-value",
-            "break-multi-value",
-            "param-break",
-            "params-break",
-            "params-id-break",
-            "while",
-            "for",
-            "nesting"
-        ),
+        runset_exclude!("as-compare-operand", "as-compare-operands", "nesting"),
     )
 }
 

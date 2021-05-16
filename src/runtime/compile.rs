@@ -58,6 +58,8 @@ pub trait Emitter {
         expr: &syntax::Expr<Resolved>,
         cnt: &syntax::Continuation,
     ) {
+        let startcnt = self.len() as u32 - 1;
+
         let param_arity = typeuse.functiontype.params.len();
         self.emit32(param_arity as u32);
 
@@ -69,8 +71,8 @@ pub trait Emitter {
         // of the compiled selfput so far, adding 4 to account for the 4-byte value
         // that we are abself to write.
         if matches!(cnt, syntax::Continuation::Start) {
-            // Account for the value we are abself to write.
-            self.emit32(self.len() as u32 + 4);
+            // Account for the value we are about to write.
+            self.emit32(startcnt);
         } else {
             // Remember the spot to write continuation, and reserve a spot.
             self.emit32(0x00);

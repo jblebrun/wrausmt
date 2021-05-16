@@ -5,10 +5,10 @@
 | Ok(())
 
 0x02      ,block                         ,(Block)
-| _ec.push_label()
+| _ec.push_label_end()
 
 0x03      ,loop                          ,(Loop)
-| _ec.push_label()
+| _ec.push_label_start()
 
 0x04      ,if                            ,(If)
 | // Note: pop the condition first, 
@@ -16,7 +16,7 @@
 | // return location.
 | let cnd = _ec.pop::<i32>()?;
 |
-| _ec.push_label()?;
+| _ec.push_label_end()?;
 | let el = _ec.op_u32()?;
 |
 | if cnd == 0 {
@@ -102,8 +102,9 @@
 0x22      ,local.tee                     ,(LocalIndex)
 | let i = _ec.op_u32()?;
 | let v = _ec.pop_value()?;
-| _ec.set_local(i, v)?;
-| _ec.push_value(v)
+| _ec.push_value(v)?;
+| _ec.push_value(v)?;
+| _ec.set_local(i, v)
 
 0x23      ,global.get                    ,(GlobalIndex)
 | let i = _ec.op_u32()?;
