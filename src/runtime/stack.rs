@@ -84,6 +84,8 @@ impl Stack {
         result_arity: u32,
         continuation: u32,
     ) -> Result<()> {
+        self.logger
+            .log("DUMPSTACK", || format!("STACK {:?}", self.value_stack));
         let label = Label {
             arity: result_arity,
             continuation,
@@ -180,6 +182,9 @@ impl Stack {
 
         let truncated_size = newtop + arity as usize;
         self.value_stack.truncate(truncated_size);
+        self.logger.log("DUMPSTACK", || {
+            format!("AFTER TRUNCATE STACK {:?}", self.value_stack)
+        });
 
         Ok(())
     }
