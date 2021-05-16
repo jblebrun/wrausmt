@@ -145,9 +145,12 @@ impl Stack {
     }
 
     pub fn pop_label(&mut self) -> Result<Label> {
-        self.label_stack_mut()?
+        let label = self
+            .label_stack_mut()?
             .pop()
-            .ok_or_else(|| error!("label stack underflow"))
+            .ok_or_else(|| error!("label stack underflow"))?;
+        self.logger.log("LABSTACK", || format!("POP {:?}", label));
+        Ok(label)
         // For non-break block exists, the stack is assumed to be proper,
         // no adjustment needed.
     }
@@ -162,6 +165,8 @@ impl Stack {
                 .unwrap_or_else(|| panic!("break_to_label logic error"))
         };
 
+        self.logger.log("LABSTACK", || format!("BREAK {:?}", label));
+
         self.move_return_values(label.arity, label.return_spot)?;
 
         Ok(label)
@@ -170,7 +175,7 @@ impl Stack {
     // Handle adjusting return values to a new stack top for breaks and returns.
     fn move_return_values(&mut self, arity: u32, newtop: usize) -> Result<()> {
         self.logger.log("STACK", || {
-            format!("MOVING RETURN VALUES FOR {} {}", arity, newtop)
+            format!("MOVING RETURN VALUES FOR arity {} newtop {}", arity, newtop)
         });
         self.logger
             .log("DUMPSTACK", || format!("STACK {:?}", self.value_stack));
@@ -181,6 +186,9 @@ impl Stack {
         });
 
         let truncated_size = newtop + arity as usize;
+        self.logger.log("DUMPSTACK", || {
+            format!("AFTER TRUNCATE STACK {:?}", self.value_stack)
+        });
         self.value_stack.truncate(truncated_size);
         self.logger.log("DUMPSTACK", || {
             format!("AFTER TRUNCATE STACK {:?}", self.value_stack)

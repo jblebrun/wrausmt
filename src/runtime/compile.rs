@@ -71,7 +71,6 @@ pub trait Emitter {
         // of the compiled selfput so far, adding 4 to account for the 4-byte value
         // that we are abself to write.
         if matches!(cnt, syntax::Continuation::Start) {
-            // Account for the value we are about to write.
             self.emit32(startcnt);
         } else {
             // Remember the spot to write continuation, and reserve a spot.

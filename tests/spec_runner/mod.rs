@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::{path::Path, time::Instant};
 
 use wrausmt::format::text::parse::Parser;
 use wrausmt::spec::runner::run_spec_test;
@@ -25,6 +25,7 @@ static ENABLED: &[&str] = &[
     "align.wast",
     "binary-leb128.wast",
     "binary.wast",
+    "block.wast",
     "br.wast",
     "br_if.wast",
     "br_table.wast",
@@ -32,13 +33,22 @@ static ENABLED: &[&str] = &[
     "custom.wast",
     "const.wast",
     "data.wast",
+    "f32.wast",
+    "f32_bitwise.wast",
+    "f32_cmp.wast",
+    "f64.wast",
+    "f64_bitwise.wast",
+    "f64_cmp.wast",
     "fac.wast",
     "forward.wast",
     "float_literals.wast",
+    "func_ptrs.wast",
     "i32.wast",
     "i64.wast",
     "int_literals.wast",
     "load.wast",
+    "loop.wast",
+    "names.wast",
     "nop.wast",
     "ref_null.wast",
     "return.wast",
@@ -61,6 +71,7 @@ static ENABLED: &[&str] = &[
 fn spec_tests_passing() -> Result<()> {
     for item in ENABLED {
         let item = format!("testdata/spec/{}", item);
+        let start = Instant::now();
         match parse_and_run(&item, RunSet::All) {
             Ok(()) => (),
             Err(e) => {
@@ -68,6 +79,8 @@ fn spec_tests_passing() -> Result<()> {
                 return Err(e);
             }
         }
+        let finish = Instant::now();
+        println!("{} IN {:?}", item, (finish - start));
     }
     Ok(())
 }
@@ -83,6 +96,7 @@ fn spec_tests_all_run_ignore_failure() -> Result<()> {
                 println!("SKIP ALREADY SUCCEEDING {}", filename);
                 continue;
             }
+            let start = Instant::now();
             println!("RUNNING {:?}", path);
             match parse_and_run(&path, RunSet::All) {
                 Ok(()) => {
@@ -92,6 +106,8 @@ fn spec_tests_all_run_ignore_failure() -> Result<()> {
                     println!("{:?} During {:?}", e, path);
                 }
             }
+            let finish = Instant::now();
+            println!("TIMING {} IN {:?}", filename, (finish - start));
         }
     }
 
@@ -99,17 +115,9 @@ fn spec_tests_all_run_ignore_failure() -> Result<()> {
 }
 
 #[test]
-fn loopop() -> Result<()> {
-    parse_and_run(
-        "testdata/spec/loop.wast",
-        runset_exclude!("as-compare-operand", "as-compare-operands", "nesting"),
-    )
-}
-
-#[test]
 fn callexclude() -> Result<()> {
     parse_and_run(
         "testdata/spec/call.wast",
-        runset_exclude!("as-load-operand", "as-unary-operand", "as-convert-operand"),
+        runset_exclude!("as-convert-operand", "as-load-operand", "as-unary-operand"),
     )
 }
