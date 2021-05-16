@@ -82,6 +82,7 @@ pub trait ReadWasmValues: ReadLeb128 + Sized {
         F: Fn(u32, &mut Self) -> Result<T>,
     {
         let item_count = self.read_u32_leb_128().ctx("parsing count")?;
+        println!("VECTOR COUNT {}", item_count);
         (0..item_count).map(|i| f(i, self)).collect()
     }
 
