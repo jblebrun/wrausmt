@@ -4,11 +4,17 @@
 ///
 pub trait ResolvedState: std::fmt::Debug {}
 
-/// A module parameterized by the [Resolved] type will have undergone index resolution, and should
-/// be safe to compile further.
+/// A module parameterized by the [Resolved] type will have undergone index resolution,  and type
+/// use resolution, and should be safe to compile further.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Resolved {}
 impl ResolvedState for Resolved {}
+
+/// A module parameterized by the [IndicesResolved] type will have undergone index resolution, but
+/// not type use resolution.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct IndicesResolved {}
+impl ResolvedState for IndicesResolved {}
 
 /// A module parameterized by the [Resolved] type will have undergone index resolution, and must be
 /// compiled before it can be used by the runtime.

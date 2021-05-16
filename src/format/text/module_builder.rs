@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 
-use super::resolve::{IdentifierContext, Resolve, Result};
+use super::resolve::{ResolveModule, Result};
 use crate::syntax::{
-    DataField, ElemField, ExportDesc, ExportField, Expr, FuncField, FunctionType, GlobalField,
-    ImportDesc, ImportField, Index, MemoryField, Module, Operands, Resolved, StartField,
-    TableField, TypeField, TypeUse, Unresolved,
+    DataField, ElemField, ExportDesc, ExportField, FuncField, FunctionType, GlobalField,
+    ImportDesc, ImportField, Index, MemoryField, Module, Resolved, StartField, TableField,
+    TypeField, Unresolved,
 };
 
 #[derive(Clone, Default, Debug, PartialEq)]
@@ -55,8 +55,8 @@ impl ModuleBuilder {
     }
 
     pub fn build(self) -> Result<Module<Resolved>> {
-        let ic = IdentifierContext::new(self.module_identifiers);
-        self.module.resolve(&ic)
+        let mod_idents = self.module_identifiers;
+        self.module.resolve(mod_idents)
     }
 
     pub fn tables(&self) -> u32 {
@@ -91,48 +91,7 @@ impl ModuleBuilder {
         }
     }
 
-    // Resolves the type use, and updates the index of the provided typeuse if needed.
-    fn resolve_typeuse(&mut self, tu: &mut TypeUse<Unresolved>) {
-        if let Some(inline_typefield) = tu.get_inline_def() {
-            let idx = self.add_inline_typeuse(inline_typefield);
-            let mut tu = tu;
-            tu.typeidx = Some(Index::unnamed(idx));
-        }
-    }
-
-    // Travel through the function body looking for operations that have a typeuse.
-    // When one is found, handle anonymous/inline usages if needed.
-    fn resolve_func_body_typeuse(&mut self, expr: &mut Expr<Unresolved>) {
-        for instr in expr.instr.iter_mut() {
-            match &mut instr.operands {
-                Operands::CallIndirect(_, tu) => {
-                    self.resolve_typeuse(tu);
-                }
-                Operands::Block(_, tu, e, _) => {
-                    self.resolve_typeuse(tu);
-                    self.resolve_func_body_typeuse(e);
-                }
-                Operands::If(_, tu, th, el) => {
-                    self.resolve_typeuse(tu);
-                    self.resolve_func_body_typeuse(th);
-                    self.resolve_func_body_typeuse(el);
-                }
-                _ => (),
-            };
-        }
-    }
-
     pub fn add_funcfield(&mut self, f: FuncField<Unresolved>) {
-        let mut f = f;
-        // type use may define new type
-        if let Some(inline_typefield) = f.typeuse.get_inline_def() {
-            let idx = self.add_inline_typeuse(inline_typefield);
-            f.typeuse.typeidx = Some(Index::unnamed(idx))
-        }
-
-        // Resolve call_indirect type usages
-        self.resolve_func_body_typeuse(&mut f.body);
-
         add_ident!(self, f, funcindices, funcs, self.funcidx_offset);
 
         // export field may define new exports.
@@ -176,11 +135,6 @@ impl ModuleBuilder {
     }
 
     pub fn add_importfield(&mut self, f: ImportField<Unresolved>) {
-        let mut f = f;
-        if let ImportDesc::Func(ref mut tu) = &mut f.desc {
-            self.resolve_typeuse(tu);
-        }
-
         // Imports contribute to index counts in their corresponding
         // space, and must appear before any declarations of that type
         // in the module, so we track their counts of each type in order
