@@ -4,8 +4,6 @@ use wrausmt::format::text::parse::Parser;
 use wrausmt::spec::runner::run_spec_test;
 use wrausmt::{format::text::lex::Tokenizer, spec::runner::RunSet};
 
-use wrausmt::runset_exclude;
-
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
 fn parse_and_run<S: AsRef<Path>>(path: S, runset: RunSet) -> Result<()> {
@@ -29,10 +27,13 @@ static ENABLED: &[&str] = &[
     "br.wast",
     "br_if.wast",
     "br_table.wast",
+    "call.wast",
+    "call_indirect.wast",
     "comments.wast",
     "custom.wast",
     "const.wast",
     "data.wast",
+    "endianness.wast",
     "f32.wast",
     "f32_bitwise.wast",
     "f32_cmp.wast",
@@ -41,13 +42,20 @@ static ENABLED: &[&str] = &[
     "f64_cmp.wast",
     "fac.wast",
     "forward.wast",
+    "float_exprs.wast",
     "float_literals.wast",
+    "float_memory.wast",
     "func_ptrs.wast",
     "i32.wast",
     "i64.wast",
+    "int_exprs.wast",
     "int_literals.wast",
     "load.wast",
+    "local_get.wast",
+    "local_set.wast",
+    "local_tee.wast",
     "loop.wast",
+    "memory_redundancy.wast",
     "names.wast",
     "nop.wast",
     "ref_null.wast",
@@ -103,7 +111,8 @@ fn spec_tests_all_run_ignore_failure() -> Result<()> {
                     println!("Tests succeeded {:?}", path);
                 }
                 Err(e) => {
-                    println!("{:?} During {:?}", e, path);
+                    println!("During {:?}", path);
+                    println!("{:?}", e);
                 }
             }
             let finish = Instant::now();
@@ -112,12 +121,4 @@ fn spec_tests_all_run_ignore_failure() -> Result<()> {
     }
 
     Ok(())
-}
-
-#[test]
-fn callexclude() -> Result<()> {
-    parse_and_run(
-        "testdata/spec/call.wast",
-        runset_exclude!("as-convert-operand", "as-load-operand", "as-unary-operand"),
-    )
 }

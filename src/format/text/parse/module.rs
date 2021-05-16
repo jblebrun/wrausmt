@@ -255,9 +255,18 @@ impl<R: Read> Parser<R> {
             return Ok(None);
         }
 
-        let data = self.expect_wasm_string()?;
+        // The data is written as a string, which may be split up into a possibly empty sequence of
+        // individual string literals.
+        let datas = self.zero_or_more(Self::try_wasm_string)?;
 
-        Ok(Some(data.into_boxed_bytes()))
+        let data = datas
+            .into_iter()
+            .flat_map(|d| d.into_boxed_bytes().into_vec())
+            .collect();
+
+        self.expect_close()?;
+
+        Ok(Some(data))
     }
 
     pub fn try_memory_field(&mut self) -> Result<Option<Field<Unresolved>>> {

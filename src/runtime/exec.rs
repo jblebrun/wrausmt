@@ -134,11 +134,13 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
     }
 
     fn get_local(&mut self, idx: u32) -> Result<Value> {
-        self.log("LOCAL", || format!("GET {}", idx));
-        self.runtime.stack.get_local(idx)
+        let val = self.runtime.stack.get_local(idx);
+        self.log("LOCAL", || format!("GET {} {:?}", idx, val));
+        val
     }
 
     fn set_local(&mut self, idx: u32, val: Value) -> Result<()> {
+        self.log("LOCAL", || format!("SET {} {:?}", idx, val));
         self.runtime.stack.set_local(idx, val)
     }
 
