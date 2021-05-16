@@ -64,6 +64,45 @@ pub trait ExecutionContextActions {
         m.data[i..i + S].clone_from_slice(&bytes);
         Ok(())
     }
+
+    fn binop<T, F>(&mut self, op: F) -> Result<()>
+    where
+        T: TryFrom<Value, Error = Error> + Into<Value>,
+        F: Fn(T, T) -> T,
+    {
+        let r = self.pop::<T>()?;
+        let l = self.pop::<T>()?;
+        self.push(op(l, r))
+    }
+
+    fn convop<I, O, F>(&mut self, op: F) -> Result<()>
+    where
+        I: TryFrom<Value, Error = Error>,
+        O: Into<Value>,
+        F: Fn(I) -> O,
+    {
+        let i = self.pop::<I>()?;
+        self.push(op(i))
+    }
+
+    fn unop<T, F>(&mut self, op: F) -> Result<()>
+    where
+        T: TryFrom<Value, Error = Error> + Into<Value>,
+        F: Fn(T) -> T,
+    {
+        let o = self.pop::<T>()?;
+        self.push(op(o))
+    }
+
+    fn testop<T, F>(&mut self, op: F) -> Result<()>
+    where
+        T: TryFrom<Value, Error = Error> + Into<Value>,
+        F: Fn(T, T) -> bool,
+    {
+        let r = self.pop::<T>()?;
+        let l = self.pop::<T>()?;
+        self.push(if op(l, r) { 1 } else { 0 })
+    }
 }
 
 impl<'l> ExecutionContextActions for ExecutionContext<'l> {
