@@ -1,7 +1,5 @@
 use std::rc::Rc;
 
-use crate::error::Error;
-use crate::format::text::lex::error::LexError;
 use crate::format::text::lex::Tokenizer;
 use crate::format::text::parse::Parser;
 use crate::format::{
@@ -9,6 +7,7 @@ use crate::format::{
 };
 use crate::runtime::{instance::ModuleInstance, Runtime};
 use crate::syntax::{Module, Resolved};
+use crate::{format::text::lex::error::LexError, runtime::error::RuntimeError};
 
 #[derive(Debug)]
 pub enum LoaderError {
@@ -45,8 +44,8 @@ impl From<ParseError> for LoaderError {
     }
 }
 
-impl From<Error> for LoaderError {
-    fn from(e: Error) -> Self {
+impl From<RuntimeError> for LoaderError {
+    fn from(e: RuntimeError) -> Self {
         LoaderError::GenericError(Box::new(e))
     }
 }

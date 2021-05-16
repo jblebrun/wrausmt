@@ -1,12 +1,8 @@
-use crate::runtime::error::ArgumentCountError;
+use super::super::error::{Result, RuntimeError};
 use crate::runtime::instance::ModuleInstance;
 use crate::runtime::Value;
 use crate::types::FunctionType;
-use crate::{
-    error::{Result, ResultFrom},
-    instructions::Expr,
-    types::ValueType,
-};
+use crate::{instructions::Expr, types::ValueType};
 use std::rc::Rc;
 
 /// A function instance is the runtime representation of a function. [Spec][Spec]
@@ -49,7 +45,10 @@ impl FunctionInstance {
     pub fn validate_args(&self, args: &[Value]) -> Result<()> {
         let params_arity = self.functype.params.len();
         if params_arity != args.len() {
-            return Err(ArgumentCountError::new(params_arity, args.len())).wrap("");
+            return Err(RuntimeError::ArgumentCountError {
+                expected: params_arity,
+                got: args.len(),
+            });
         }
         Ok(())
     }

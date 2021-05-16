@@ -3,8 +3,8 @@
 //! more details on the generation process.
 mod generated;
 
-use crate::err;
-use crate::error::{Result, ResultFrom};
+use crate::impl_bug;
+use crate::runtime::error::Result;
 use crate::runtime::exec::ExecutionContext;
 use generated::data_table::INSTRUCTION_DATA;
 use generated::exec_table::EXEC_TABLE;
@@ -76,12 +76,12 @@ pub type ExecFn = fn(ec: &mut ExecutionContext) -> Result<()>;
 /// This function appears in the lookup table for opcodes that don't have a
 /// corresponding operation in the specification.
 pub fn bad(_ec: &mut ExecutionContext) -> Result<()> {
-    err!("unknown opcode")
+    Err(impl_bug!("unknown opcode"))
 }
 
 /// This function is used to mark not-yet-implemented instructions in the table.
 pub fn unimpl(_ec: &mut ExecutionContext) -> Result<()> {
-    err!("not yet implemented")
+    Err(impl_bug!("not yet implemented"))
 }
 
 pub const BAD_INSTRUCTION: InstructionData = InstructionData {
@@ -92,8 +92,8 @@ pub const BAD_INSTRUCTION: InstructionData = InstructionData {
 
 pub fn exec_method(opcode: u8, ec: &mut ExecutionContext) -> Result<()> {
     match EXEC_TABLE.get(opcode as usize) {
-        Some(ef) => ef(ec).wrap(&format!("while executing 0x{:x}", opcode)),
-        None => panic!("Exec table short"),
+        Some(ef) => ef(ec),
+        None => Err(impl_bug!("Exec table short")),
     }
 }
 

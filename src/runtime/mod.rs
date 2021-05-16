@@ -8,13 +8,14 @@ pub mod store;
 pub mod values;
 
 use crate::{
-    err,
-    error::{Result, ResultFrom},
+    impl_bug,
     logger::{Logger, PrintLogger},
+    runtime::error::RuntimeError,
 };
 use std::{collections::HashMap, rc::Rc};
 
 use {
+    error::Result,
     instance::{ExportInstance, ExternalVal, ModuleInstance},
     stack::Stack,
     store::addr,
@@ -106,24 +107,19 @@ impl Runtime {
                 name: _,
                 addr: ExternalVal::Func(idx),
             }) => Ok(*idx),
-            _ => err!("Method not found in module: {}", name),
+            _ => Err(RuntimeError::MethodNotFound(name.to_owned())),
         }?;
 
         self.logger
             .log("HOST", || format!("calling {} at {}", name, funcaddr));
         // 1. Assert S.funcaddr exists
         // 2. Let funcinst = S.funcs[funcaddr]
-        let funcinst = self
-            .store
-            .func(funcaddr)
-            .wrap(&format!("for name {}", name))?;
+        let funcinst = self.store.func(funcaddr)?;
 
         // 3. Let [tn_1] -> [tm_2] be the function type.
         // 4. If the length of vals is different then the number of vals provided, fail.
         // 5. For each value type, if not matching declared type, fail.
-        funcinst
-            .validate_args(vals)
-            .wrap(&format!("for {}", name))?;
+        funcinst.validate_args(vals)?;
 
         // 6. Let F be a dummy frame. (Represents a dummy "caller" for the function to invoke).
         // 7. Push F to the stack.
@@ -138,11 +134,9 @@ impl Runtime {
         self.invoke(funcaddr)?;
 
         let mut results: Vec<Value> = vec![];
-        for i in 0..funcinst.functype.result.len() {
-            let result = self
-                .stack
-                .pop_value()
-                .wrap(&format!("popping result {} for {}", i, name))?;
+        for _ in 0..funcinst.functype.result.len() {
+            let result = self.stack.pop_value()?;
+
             self.logger
                 .log("HOST", || format!("POPPED HOST RESULT {:?}", result));
             results.push(result);
@@ -154,15 +148,15 @@ impl Runtime {
 
         // Since we don't do validation yet, do some checking here to make sure things seem ok.
         if let Ok(v) = self.stack.pop_value() {
-            return err!("values still on stack {:?}", v);
+            return Err(impl_bug!("values still on stack {:?}", v));
         }
 
         if let Ok(l) = self.stack.peek_label() {
-            return err!("labels still on stack {:?}", l);
+            return Err(impl_bug!("labels still on stack {:?}", l));
         }
 
         if self.stack.activation_depth() != 0 {
-            return err!("frames still on stack");
+            return Err(impl_bug!("frames still on stack"));
         }
         Ok(results)
     }

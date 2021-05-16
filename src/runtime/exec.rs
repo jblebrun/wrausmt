@@ -1,15 +1,13 @@
+use super::error::Result;
 use super::{
+    error::RuntimeError,
     values::{Ref, Value},
     Runtime,
 };
-use crate::err;
-use crate::instructions::exec_method;
 use crate::logger::Logger;
 use crate::runtime::instance::MemInstance;
-use crate::{
-    error::{Error, Result, ResultFrom},
-    runtime::stack::Label,
-};
+use crate::runtime::stack::Label;
+use crate::{impl_bug, instructions::exec_method};
 use std::{borrow::Borrow, convert::TryFrom, convert::TryInto, fmt::Display, hash::Hash};
 
 pub struct ExecutionContext<'l> {
@@ -38,7 +36,7 @@ pub trait ExecutionContextActions {
     fn push<T: Into<Value>>(&mut self, val: T) -> Result<()>;
     fn pop_value(&mut self) -> Result<Value>;
     fn pop_label(&mut self) -> Result<Label>;
-    fn pop<T: TryFrom<Value, Error = Error>>(&mut self) -> Result<T>;
+    fn pop<T: TryFrom<Value, Error = RuntimeError>>(&mut self) -> Result<T>;
     fn call(&mut self, idx: u32) -> Result<()>;
     fn mem(&mut self, idx: u32) -> Result<&mut MemInstance>;
     fn grow_mem(&mut self, pgs: u32) -> Result<Option<u32>>;
@@ -56,7 +54,9 @@ pub trait ExecutionContextActions {
         let o = self.op_u32()?;
         let b = self.pop::<u32>()?;
         let i = (b + o) as usize;
-        self.mem(0)?.data[i..i + S].try_into().wrap("into")
+        self.mem(0)?.data[i..i + S]
+            .try_into()
+            .map_err(|e| impl_bug!("conversion error {:?}", e))
     }
 
     fn put_mem<const S: usize>(&mut self, bytes: [u8; S]) -> Result<()> {
@@ -71,7 +71,7 @@ pub trait ExecutionContextActions {
 
     fn binop<T, F>(&mut self, op: F) -> Result<()>
     where
-        T: TryFrom<Value, Error = Error> + Into<Value>,
+        T: TryFrom<Value, Error = RuntimeError> + Into<Value>,
         F: Fn(T, T) -> T,
     {
         let r = self.pop::<T>()?;
@@ -81,7 +81,7 @@ pub trait ExecutionContextActions {
 
     fn convop<I, O, F>(&mut self, op: F) -> Result<()>
     where
-        I: TryFrom<Value, Error = Error>,
+        I: TryFrom<Value, Error = RuntimeError>,
         O: Into<Value>,
         F: Fn(I) -> O,
     {
@@ -91,7 +91,7 @@ pub trait ExecutionContextActions {
 
     fn unop<T, F>(&mut self, op: F) -> Result<()>
     where
-        T: TryFrom<Value, Error = Error> + Into<Value>,
+        T: TryFrom<Value, Error = RuntimeError> + Into<Value>,
         F: Fn(T) -> T,
     {
         let o = self.pop::<T>()?;
@@ -100,7 +100,7 @@ pub trait ExecutionContextActions {
 
     fn testop<T, F>(&mut self, op: F) -> Result<()>
     where
-        T: TryFrom<Value, Error = Error> + Into<Value>,
+        T: TryFrom<Value, Error = RuntimeError> + Into<Value>,
         F: Fn(T, T) -> bool,
     {
         let r = self.pop::<T>()?;
@@ -122,13 +122,21 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
     }
 
     fn op_u32(&mut self) -> Result<u32> {
-        let result = u32::from_le_bytes(self.body[self.pc..self.pc + 4].try_into().wrap("idx")?);
+        let result = u32::from_le_bytes(
+            self.body[self.pc..self.pc + 4]
+                .try_into()
+                .map_err(|e| impl_bug!("conversion error {:?}", e))?,
+        );
         self.pc += 4;
         Ok(result)
     }
 
     fn op_u64(&mut self) -> Result<u64> {
-        let result = u64::from_le_bytes(self.body[self.pc..self.pc + 8].try_into().wrap("idx")?);
+        let result = u64::from_le_bytes(
+            self.body[self.pc..self.pc + 8]
+                .try_into()
+                .map_err(|e| impl_bug!("conversion error {:?}", e))?,
+        );
         self.pc += 8;
         Ok(result)
     }
@@ -281,9 +289,9 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
         self.runtime.stack.pop_value()
     }
 
-    fn pop<T: TryFrom<Value, Error = Error>>(&mut self) -> Result<T> {
+    fn pop<T: TryFrom<Value, Error = RuntimeError>>(&mut self) -> Result<T> {
         let val = self.pop_value()?;
-        val.try_into().wrap("pop convert")
+        val.try_into()
     }
 
     fn call(&mut self, idx: u32) -> Result<()> {
@@ -333,7 +341,7 @@ impl Runtime {
     pub fn eval_ref_expr(&mut self, body: &[u8]) -> Result<Ref> {
         match self.eval_expr(body)? {
             Value::Ref(r) => Ok(r),
-            _ => err!("non-ref result for expression"),
+            _ => Err(impl_bug!("non-ref result for expression")),
         }
     }
 }

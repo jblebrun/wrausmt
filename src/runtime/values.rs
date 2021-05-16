@@ -16,8 +16,8 @@
 //! [Spec]: https://webassembly.github.io/spec/core/syntax/values.html#values
 
 use crate::{
-    err,
-    error::Error,
+    impl_bug,
+    runtime::error::RuntimeError,
     types::{NumType, RefType, ValueType},
 };
 use std::convert::TryFrom;
@@ -156,12 +156,16 @@ macro_rules! froms {
         }
 
         impl TryFrom<Value> for $ty {
-            type Error = Error;
+            type Error = RuntimeError;
 
             fn try_from(val: Value) -> Result<$ty, Self::Error> {
                 match val {
                     Value::Num(Num::$name(v)) => Ok(v as $ty),
-                    _ => err!("couldn't convert {:?} {}", val, stringify!($name)),
+                    _ => Err(impl_bug!(
+                        "couldn't convert {:?} {}",
+                        val,
+                        stringify!($name)
+                    )),
                 }
             }
         }
