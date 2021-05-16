@@ -61,6 +61,7 @@ pub type Result<T> = std::result::Result<T, LoaderError>;
 pub trait Loader {
     fn load_wast(&mut self, filename: &str) -> Result<Rc<ModuleInstance>>;
     fn load_wasm(&mut self, filename: &str) -> Result<Rc<ModuleInstance>>;
+    fn load_wasm_data(&mut self, filename: &[u8]) -> Result<Rc<ModuleInstance>>;
 }
 
 pub fn load_ast(filename: &str) -> Result<Module<Resolved>> {
@@ -86,6 +87,13 @@ impl Loader for Runtime {
         let mut f = std::fs::File::open(filename)?;
 
         let module = parse(&mut f)?;
+
+        let mod_inst = self.load(module)?;
+        Ok(mod_inst)
+    }
+
+    fn load_wasm_data(&mut self, data: &[u8]) -> Result<Rc<ModuleInstance>> {
+        let module = parse(data)?;
 
         let mod_inst = self.load(module)?;
         Ok(mod_inst)
