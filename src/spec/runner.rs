@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use super::{
-    format::{Action, ActionResult, SpecTestScript},
+    format::{Action, ActionResult, NumPat, SpecTestScript},
     spectest_module::make_spectest_module,
 };
 use crate::{
@@ -94,10 +94,19 @@ pub fn verify_result(results: Vec<Value>, expects: Vec<ActionResult>) -> Result<
     for result in results {
         let expect = expects.pop().unwrap();
         match expect {
-            ActionResult::Num(np) => {
-                let expect: Value = np.into();
+            ActionResult::NumPat(NumPat::Num(num)) => {
+                let expect: Value = num.into();
                 if !result.same_bits(&expect) {
                     return err!("Expected {:?}, got {:?}", expect, result);
+                }
+            }
+            ActionResult::NumPat(NumPat::NaNPat(nanpat)) => {
+                let resultnum = match result.as_num() {
+                    Some(n) => n,
+                    _ => return err!("Expected num result, got {:?}", result),
+                };
+                if !nanpat.accepts(resultnum) {
+                    return err!("Expected result type {:?}, got {:?}", nanpat, result);
                 }
             }
             ActionResult::Func => {

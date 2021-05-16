@@ -42,6 +42,46 @@ pub enum Num {
     F64(f64),
 }
 
+impl Num {
+    pub fn numtype(&self) -> NumType {
+        match self {
+            Num::I32(_) => NumType::I32,
+            Num::I64(_) => NumType::I64,
+            Num::F32(_) => NumType::F32,
+            Num::F64(_) => NumType::F64,
+        }
+    }
+}
+
+impl Ref {
+    pub fn reftype(&self) -> RefType {
+        match self {
+            Ref::Func(_) => RefType::Func,
+            Ref::Extern(_) => RefType::Extern,
+        }
+    }
+}
+
+impl Value {
+    pub fn valtype(&self) -> ValueType {
+        match self {
+            Value::Num(n) => ValueType::Num(n.numtype()),
+            Value::Ref(r) => ValueType::Ref(r.reftype()),
+        }
+    }
+
+    pub fn is(&self, vt: ValueType) -> bool {
+        self.valtype() == vt
+    }
+
+    pub fn as_num(&self) -> Option<Num> {
+        match self {
+            Value::Num(n) => Some(*n),
+            _ => None,
+        }
+    }
+}
+
 impl std::fmt::Debug for Num {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

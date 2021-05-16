@@ -329,17 +329,45 @@
 | _ec.testop::<u64, _>(|l, r| l >= r)
 
 0x5b      ,f32.eq                        ,()
+| #[allow(clippy::float_cmp)]
+| _ec.testop::<f32, _>(|l, r| l == r)
+
 0x5c      ,f32.ne                        ,()
+| #[allow(clippy::float_cmp)]
+| _ec.testop::<f32, _>(|l, r| l != r)
+
 0x5d      ,f32.lt                        ,()
+| _ec.testop::<f32, _>(|l, r| l < r)
+
 0x5e      ,f32.gt                        ,()
+| _ec.testop::<f32, _>(|l, r| l > r)
+
 0x5f      ,f32.le                        ,()
+| _ec.testop::<f32, _>(|l, r| l <= r)
+
 0x60      ,f32.ge                        ,()
+| _ec.testop::<f32, _>(|l, r| l >= r)
+
 0x61      ,f64.eq                        ,()
+| #[allow(clippy::float_cmp)]
+| _ec.testop::<f64, _>(|l, r| l == r)
+
 0x62      ,f64.ne                        ,()
+| #[allow(clippy::float_cmp)]
+| _ec.testop::<f64, _>(|l, r| l != r)
+
 0x63      ,f64.lt                        ,()
+| _ec.testop::<f64, _>(|l, r| l < r)
+
 0x64      ,f64.gt                        ,()
+| _ec.testop::<f64, _>(|l, r| l > r)
+
 0x65      ,f64.le                        ,()
-0x66      ,f64ge                         ,()
+| _ec.testop::<f64, _>(|l, r| l <= r)
+
+0x66      ,f64.ge                         ,()
+| _ec.testop::<f64, _>(|l, r| l >= r)
+
 0x67      ,i32.clz                       ,()
 | _ec.unop::<u32, _>(|o| o.leading_zeros())
 
@@ -449,33 +477,197 @@
 | _ec.binop::<u64, _>(|l, r| l.rotate_right(r as u32))
 
 0x8b      ,f32.abs                       ,()
+| _ec.unop::<f32, _>(|i| i.abs())
+
 0x8c      ,f32.neg                       ,()
+| _ec.unop::<f32, _>(|i| -i)
+
 0x8d      ,f32.ceil                      ,()
+| _ec.unop::<f32, _>(|i| i.ceil())
+
 0x8e      ,f32.floor                     ,()
+| _ec.unop::<f32, _>(|i| i.floor())
+
 0x8f      ,f32.trunc                     ,()
+| _ec.unop::<f32, _>(|i| i.trunc())
+
 0x90      ,f32.nearest                   ,()
+| _ec.unop::<f32, _>(|i| {
+|     if (-0.5..0.0).contains(&i) {
+|         return -0.0;
+|     }
+|     if i > 0.0 && i <= 0.5 {
+|         return 0.0;
+|     }
+|     i.round()
+| })
+
 0x91      ,f32.sqrt                      ,()
+| _ec.unop::<f32, _>(|i| i.sqrt())
+
 0x92      ,f32.add                       ,()
+| _ec.binop::<f32, _>(|l, r| l + r)
+
 0x93      ,f32.sub                       ,()
+| _ec.binop::<f32, _>(|l, r| l - r)
+
 0x94      ,f32.mul                       ,()
+| _ec.binop::<f32, _>(|l, r| l * r)
+
 0x95      ,f32.div                       ,()
+| _ec.binop::<f32, _>(|l, r| l / r)
+
 0x96      ,f32.min                       ,()
+| _ec.binop::<f32, _>(|l, r| {
+|     if l.is_nan() {
+|         return l;
+|     }
+|     if r.is_nan() {
+|         return r;
+|     }
+|     if l == f32::NEG_INFINITY || r == f32::NEG_INFINITY {
+|         return f32::NEG_INFINITY;
+|     }
+|     if l == f32::INFINITY { 
+|         return r;
+|     }
+|     if r == f32::INFINITY { 
+|         return l;
+|     }
+|     if l == 0.0 && r == 0.0 {
+|         if l.is_sign_negative() { 
+|             return l;
+|         }
+|         return r;
+|     }
+|     l.min(r)
+| })
+
 0x97      ,f32.max                       ,()
+| _ec.binop::<f32, _>(|l, r| {
+|     if l.is_nan() {
+|         return l;
+|     }
+|     if r.is_nan() {
+|         return r;
+|     }
+|     if l == f32::INFINITY || r == f32::INFINITY {
+|         return f32::INFINITY;
+|     }
+|     if l == f32::NEG_INFINITY { 
+|         return r;
+|     }
+|     if r == f32::NEG_INFINITY { 
+|         return l;
+|     }
+|     if l == 0.0 && r == 0.0 {
+|         if l.is_sign_positive() { 
+|             return l; 
+|         }
+|         return r;
+|     }
+|     l.max(r)
+| })
+
 0x98      ,f32.copysign                  ,()
+| _ec.binop::<f32, _>(|l, r| l.copysign(r))
+
 0x99      ,f64.abs                       ,()
+| _ec.unop::<f64, _>(|i| i.abs())
+
 0x9a      ,f64.neg                       ,()
+| _ec.unop::<f64, _>(|i| -i)
+
 0x9b      ,f64.ceil                      ,()
+| _ec.unop::<f64, _>(|i| i.ceil())
+
 0x9c      ,f64.floor                     ,()
+| _ec.unop::<f64, _>(|i| i.floor())
+
 0x9d      ,f64.trunc                     ,()
+| _ec.unop::<f64, _>(|i| i.trunc())
+
 0x9e      ,f64.nearest                   ,()
+| _ec.unop::<f64, _>(|i| {
+|     if (-0.5..0.0).contains(&i) {
+|         return -0.0;
+|     }
+|     if i > 0.0 && i <= 0.5 {
+|         return 0.0;
+|     }
+|     i.round()
+| })
+
 0x9f      ,f64.sqrt                      ,()
+| _ec.unop::<f64, _>(|i| i.sqrt())
+
 0xa0      ,f64.add                       ,()
+| _ec.binop::<f64, _>(|l, r| l + r)
+
 0xa1      ,f64.sub                       ,()
+| _ec.binop::<f64, _>(|l, r| l - r)
+
 0xa2      ,f64.mul                       ,()
+| _ec.binop::<f64, _>(|l, r| l * r)
+
 0xa3      ,f64.div                       ,()
+| _ec.binop::<f64, _>(|l, r| l / r)
+
 0xa4      ,f64.min                       ,()
+| _ec.binop::<f64, _>(|l, r| {
+|     if l.is_nan() {
+|         return l;
+|     }
+|     if r.is_nan() {
+|         return r;
+|     }
+|     if l == f64::NEG_INFINITY || r == f64::NEG_INFINITY {
+|         return f64::NEG_INFINITY;
+|     }
+|     if l == f64::INFINITY { 
+|         return r;
+|     }
+|     if r == f64::INFINITY { 
+|         return l;
+|     }
+|     if l == 0.0 && r == 0.0 {
+|         if l.is_sign_negative() { 
+|             return l;
+|         }
+|         return r;
+|     }
+|     l.min(r)
+| })
+
 0xa5      ,f64.max                       ,()
+| _ec.binop::<f64, _>(|l, r| {
+|     if l.is_nan() {
+|         return l;
+|     }
+|     if r.is_nan() {
+|         return r;
+|     }
+|     if l == f64::INFINITY || r == f64::INFINITY {
+|         return f64::INFINITY;
+|     }
+|     if l == f64::NEG_INFINITY { 
+|         return r;
+|     }
+|     if r == f64::NEG_INFINITY { 
+|         return l;
+|     }
+|     if l == 0.0 && r == 0.0 {
+|         if l.is_sign_positive() { 
+|             return l;
+|         }
+|         return r;
+|     }
+|     l.max(r)
+| })
+
 0xa6      ,f64.copysign                  ,()
+| _ec.binop::<f64, _>(|l, r| l.copysign(r))
+
 0xa7      ,i32.wrap_i64                  ,()
 | _ec.convop::<u64, u32, _>(|o| o as u32)
 

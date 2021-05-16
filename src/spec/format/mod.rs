@@ -281,10 +281,19 @@ impl<R: Read> Parser<R> {
             return Ok(Some(ActionResult::Extern));
         }
 
-        let num = self.try_num_pat()?;
+        let nt = self.try_num_type()?;
 
-        match num {
-            Some(pat) => Ok(Some(ActionResult::Num(pat))),
+        match nt {
+            Some(nt) => {
+                if let Some(nanpat) = self.try_nan_pat(nt)? {
+                    self.expect_close()?;
+                    Ok(Some(ActionResult::NumPat(NumPat::NaNPat(nanpat))))
+                } else {
+                    let num = self.expect_num(nt)?;
+                    self.expect_close()?;
+                    Ok(Some(ActionResult::NumPat(NumPat::Num(num))))
+                }
+            }
             _ => Ok(None),
         }
     }
@@ -308,45 +317,60 @@ impl<R: Read> Parser<R> {
             return Ok(Some(Const::RefHost(val)));
         }
 
-        let num = self.try_num_pat()?;
+        let nt = self.try_num_type()?;
 
-        match num {
-            Some(pat) => Ok(Some(Const::Num(pat))),
+        match nt {
+            Some(nt) => {
+                let num = self.expect_num(nt)?;
+                self.expect_close()?;
+                Ok(Some(Const::Num(num)))
+            }
             _ => Ok(None),
         }
     }
 
-    fn try_num_pat(&mut self) -> Result<Option<NumPat>> {
+    fn try_num_type(&mut self) -> Result<Option<NumType>> {
         let kw = self.peek_next_keyword()?;
-        match kw {
-            Some(kw) if kw == "nan:canonical" => Ok(Some(NumPat::CanonicalNaN)),
-            Some(kw) if kw == "nan:arithmetic" => Ok(Some(NumPat::ArithmeticNaN)),
-            Some(kw) if kw.ends_with(".const") => {
-                let numtype = kw.split('.').next().to_owned();
-
-                let result_type = match numtype {
-                    Some("i32") => NumType::I32,
-                    Some("i64") => NumType::I64,
-                    Some("f32") => NumType::F32,
-                    Some("f64") => NumType::F64,
-                    _ => return Ok(None),
-                };
-
+        let found = match kw {
+            Some("i32.const") => Some(NumType::I32),
+            Some("i64.const") => Some(NumType::I64),
+            Some("f32.const") => Some(NumType::F32),
+            Some("f64.const") => Some(NumType::F64),
+            _ => None,
+        };
+        match found {
+            Some(nt) => {
                 self.advance()?;
                 self.advance()?;
-
-                let result = match result_type {
-                    NumType::I32 => NumPat::I32(self.expect_i32()? as u32),
-                    NumType::I64 => NumPat::I64(self.expect_i64()? as u64),
-                    NumType::F32 => NumPat::F32(self.expect_f32()?),
-                    NumType::F64 => NumPat::F64(self.expect_f64()?),
-                };
-
-                self.expect_close()?;
-                Ok(Some(result))
+                Ok(Some(nt))
             }
             _ => Ok(None),
         }
+    }
+
+    fn try_nan_pat(&mut self, nt: NumType) -> Result<Option<NaNPat>> {
+        let kw = self.peek_keyword()?;
+        match kw {
+            Some("nan:canonical") => {
+                self.advance()?;
+                Ok(Some(NaNPat::Canonical(nt)))
+            }
+            Some("nan:arithmetic") => {
+                self.advance()?;
+                Ok(Some(NaNPat::Arithmetic(nt)))
+            }
+            _ => Ok(None),
+        }
+    }
+
+    fn expect_num(&mut self, nt: NumType) -> Result<Num> {
+        let result = match nt {
+            NumType::I32 => Num::I32(self.expect_i32()? as u32),
+            NumType::I64 => Num::I64(self.expect_i64()? as u64),
+            NumType::F32 => Num::F32(self.expect_f32()?),
+            NumType::F64 => Num::F64(self.expect_f64()?),
+        };
+        Ok(result)
     }
 }
 
@@ -418,7 +442,7 @@ impl Action {
 ///   ( ref.host <nat> )                         ;; host reference
 #[derive(Debug)]
 pub enum Const {
-    Num(NumPat),
+    Num(Num),
     RefNull(RefType),
     RefHost(u32),
 }
@@ -432,19 +456,6 @@ impl From<Const> for Value {
                 RefType::Func => Value::Ref(Ref::Func(0)),
                 RefType::Extern => Value::Ref(Ref::Extern(0)),
             },
-        }
-    }
-}
-
-impl From<NumPat> for Value {
-    fn from(np: NumPat) -> Value {
-        match np {
-            NumPat::I32(v) => Value::Num(Num::I32(v as u32)),
-            NumPat::I64(v) => Value::Num(Num::I64(v)),
-            NumPat::F32(v) => Value::Num(Num::F32(v as f32)),
-            NumPat::F64(v) => Value::Num(Num::F64(v as f64)),
-            NumPat::ArithmeticNaN => panic!("not yet"),
-            NumPat::CanonicalNaN => panic!("not yet"),
         }
     }
 }
@@ -495,7 +506,7 @@ pub enum Assertion {
 ///   ( ref.func )
 #[derive(Debug)]
 pub enum ActionResult {
-    Num(NumPat),
+    NumPat(NumPat),
     Extern,
     Func,
 }
@@ -506,12 +517,31 @@ pub enum ActionResult {
 ///   nan:arithmetic                             ;; NaN with 1 in MSB of payload
 #[derive(Debug)]
 pub enum NumPat {
-    I32(u32),
-    I64(u64),
-    F32(f32),
-    F64(f64),
-    CanonicalNaN,
-    ArithmeticNaN,
+    Num(Num),
+    NaNPat(NaNPat),
+}
+
+#[derive(Debug)]
+pub enum NaNPat {
+    Canonical(NumType),
+    Arithmetic(NumType),
+}
+
+impl NaNPat {
+    pub fn accepts(&self, n: Num) -> bool {
+        match self {
+            NaNPat::Canonical(nt) => match n {
+                Num::F32(f) if &n.numtype() == nt => f.is_nan(),
+                Num::F64(f) if &n.numtype() == nt => f.is_nan(),
+                _ => false,
+            },
+            NaNPat::Arithmetic(nt) => match n {
+                Num::F32(f) if &n.numtype() == nt => f.is_nan(),
+                Num::F64(f) if &n.numtype() == nt => f.is_nan(),
+                _ => false,
+            },
+        }
+    }
 }
 
 /// meta:
