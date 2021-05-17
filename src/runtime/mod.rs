@@ -10,7 +10,7 @@ pub mod values;
 use crate::{
     impl_bug,
     logger::{Logger, PrintLogger},
-    runtime::error::RuntimeError,
+    runtime::error::RuntimeErrorKind,
 };
 use std::{collections::HashMap, rc::Rc};
 
@@ -107,7 +107,7 @@ impl Runtime {
                 name: _,
                 addr: ExternalVal::Func(idx),
             }) => Ok(*idx),
-            _ => Err(RuntimeError::MethodNotFound(name.to_owned())),
+            _ => Err(RuntimeErrorKind::MethodNotFound(name.to_owned()).error()),
         }?;
 
         self.logger

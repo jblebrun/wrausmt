@@ -53,6 +53,7 @@ pub enum SpecTestError {
         result: Value,
         expect: ActionResult,
     },
+    RegisterMissingModule(String),
 }
 
 impl SpecTestError {
