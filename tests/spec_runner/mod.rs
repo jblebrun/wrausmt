@@ -45,6 +45,7 @@ static ENABLED: &[&str] = &[
     "float_exprs.wast",
     "float_literals.wast",
     "float_memory.wast",
+    "func.wast",
     "func_ptrs.wast",
     "i32.wast",
     "i64.wast",
@@ -52,6 +53,7 @@ static ENABLED: &[&str] = &[
     "int_exprs.wast",
     "int_literals.wast",
     "left-to-right.wast",
+    "labels.wast",
     "load.wast",
     "local_get.wast",
     "local_set.wast",
@@ -125,4 +127,9 @@ fn spec_tests_all_run_ignore_failure() -> Result<()> {
     }
 
     Ok(())
+}
+
+#[test]
+fn funcspec() -> Result<()> {
+    parse_and_run("testdata/spec/func.wast", RunSet::All)
 }

@@ -1,11 +1,9 @@
 //! Methods implementing index usage resolution.
-use std::collections::HashMap;
-
 use super::module_builder::ModuleIdentifiers;
 use crate::syntax::{
     DataField, DataIndex, DataInit, ElemField, ElemIndex, ElemList, ExportDesc, ExportField, Expr,
-    FuncField, FuncIndex, FunctionType, GlobalField, GlobalIndex, ImportDesc, ImportField, Index,
-    Instruction, LabelIndex, LocalIndex, MemoryIndex, ModeEntry, Module, Operands, Resolved,
+    FParam, FuncField, FuncIndex, FunctionType, GlobalField, GlobalIndex, ImportDesc, ImportField,
+    Index, Instruction, LabelIndex, LocalIndex, MemoryIndex, ModeEntry, Module, Operands, Resolved,
     StartField, TableIndex, TablePosition, TableUse, TypeField, TypeIndex, TypeUse, Unresolved,
 };
 
@@ -20,47 +18,88 @@ pub type Result<T> = std::result::Result<T, ResolveError>;
 #[derive(Debug)]
 pub struct ResolutionContext {
     pub modulescope: ModuleIdentifiers,
-    pub localindices: HashMap<String, u32>,
-    labeltracker: Vec<String>,
-    pub labelindices: HashMap<String, u32>,
+    pub localindices: Vec<String>,
+    pub labelindices: Vec<String>,
 }
 
 impl ResolutionContext {
+    pub fn typeindex(&self, name: &str) -> Option<u32> {
+        self.modulescope.typeindices.get(name).copied()
+    }
+
+    pub fn funcindex(&self, name: &str) -> Option<u32> {
+        self.modulescope.funcindices.get(name).copied()
+    }
+
+    pub fn tableindex(&self, name: &str) -> Option<u32> {
+        self.modulescope.tableindices.get(name).copied()
+    }
+
+    pub fn memindex(&self, name: &str) -> Option<u32> {
+        self.modulescope.memindices.get(name).copied()
+    }
+
+    pub fn globalindex(&self, name: &str) -> Option<u32> {
+        self.modulescope.globalindices.get(name).copied()
+    }
+
+    pub fn dataindex(&self, name: &str) -> Option<u32> {
+        self.modulescope.dataindices.get(name).copied()
+    }
+
+    pub fn elemindex(&self, name: &str) -> Option<u32> {
+        self.modulescope.elemindices.get(name).copied()
+    }
+
+    pub fn localindex(&self, name: &str) -> Option<u32> {
+        self.localindices
+            .iter()
+            .position(|i| i == name)
+            .map(|s| s as u32)
+    }
+
+    pub fn labelindex(&self, name: &str) -> Option<u32> {
+        self.labelindices
+            .iter()
+            .rev()
+            .position(|i| i == name)
+            .map(|s| s as u32)
+    }
+
     pub fn new(modulescope: ModuleIdentifiers) -> Self {
         ResolutionContext {
             modulescope,
-            localindices: HashMap::new(),
-            labeltracker: Vec::new(),
-            labelindices: HashMap::new(),
+            localindices: Vec::new(),
+            labelindices: Vec::new(),
         }
     }
 
-    pub fn for_func(&self, li: HashMap<String, u32>) -> Self {
+    pub fn for_func(&self, li: Vec<String>) -> Self {
         Self {
             modulescope: self.modulescope.clone(),
             localindices: li,
-            labeltracker: self.labeltracker.clone(),
             labelindices: self.labelindices.clone(),
         }
     }
 
-    pub fn with_label(&self, id: &Option<String>) -> ResolutionContext {
-        let labelname: String = match id {
-            Some(ref name) => name.clone(),
-            _ => "".into(),
-        };
-        let mut lt = self.labeltracker.clone();
-        lt.push(labelname);
-        let mut li = HashMap::default();
-        for (i, n) in lt.iter().rev().enumerate() {
-            li.insert(n.clone(), i as u32);
-        }
+    pub fn with_label(&self, id: String) -> ResolutionContext {
+        let mut li = self.labelindices.clone();
+        li.push(id);
         ResolutionContext {
             modulescope: self.modulescope.clone(),
             localindices: self.localindices.clone(),
-            labeltracker: lt,
             labelindices: li,
         }
+    }
+}
+
+trait OrEmpty<T> {
+    fn or_empty(&self) -> T;
+}
+
+impl OrEmpty<String> for Option<String> {
+    fn or_empty(&self) -> String {
+        self.clone().unwrap_or_else(|| "".to_owned())
     }
 }
 
@@ -89,7 +128,7 @@ macro_rules! resolve_option {
 
 /// This generates each of the [Resolve] impls for the [Index] in each [IndexSpace].
 macro_rules! index_resolver {
-    ( $it:ty, $ic:ident, $src:expr  ) => {
+    ( $it:ty, $ic:ident, $src:ident ) => {
         impl Resolve<Index<Resolved, $it>> for Index<Unresolved, $it> {
             fn resolve(
                 self,
@@ -100,10 +139,10 @@ macro_rules! index_resolver {
                     self.value()
                 } else {
                     // TODO - how to handle the different index types?
-                    let value = $src
-                        .get(self.name())
+                    let value = $ic
+                        .$src(self.name())
                         .ok_or_else(|| ResolveError::UnresolvedIndex(self.name().to_owned()))?;
-                    *value
+                    value
                 };
                 Ok(self.resolved(value))
             }
@@ -111,15 +150,15 @@ macro_rules! index_resolver {
     };
 }
 
-index_resolver! {TypeIndex, ic, ic.modulescope.typeindices}
-index_resolver! {FuncIndex, ic, ic.modulescope.funcindices}
-index_resolver! {TableIndex, ic, ic.modulescope.tableindices}
-index_resolver! {GlobalIndex, ic, ic.modulescope.globalindices}
-index_resolver! {MemoryIndex, ic, ic.modulescope.memindices}
-index_resolver! {ElemIndex, ic, ic.modulescope.elemindices}
-index_resolver! {DataIndex, ic, ic.modulescope.dataindices}
-index_resolver! {LocalIndex, ic, ic.localindices}
-index_resolver! {LabelIndex, ic, ic.labelindices}
+index_resolver! {TypeIndex, ic, typeindex}
+index_resolver! {FuncIndex, ic, funcindex}
+index_resolver! {TableIndex, ic, tableindex}
+index_resolver! {GlobalIndex, ic, globalindex}
+index_resolver! {MemoryIndex, ic, memindex}
+index_resolver! {ElemIndex, ic, elemindex}
+index_resolver! {DataIndex, ic, dataindex}
+index_resolver! {LocalIndex, ic, localindex}
+index_resolver! {LabelIndex, ic, labelindex}
 
 impl Resolve<Expr<Resolved>> for Expr<Unresolved> {
     fn resolve(self, ic: &ResolutionContext, types: &mut Vec<TypeField>) -> Result<Expr<Resolved>> {
@@ -151,7 +190,7 @@ impl Resolve<Operands<Resolved>> for Operands<Unresolved> {
         Ok(match self {
             Operands::None => Operands::None,
             Operands::If(id, tu, th, el) => {
-                let bic = ic.with_label(&id);
+                let bic = ic.with_label(id.or_empty());
                 let tu = tu.resolve(&bic, types)?;
                 let th = th.resolve(&bic, types)?;
                 let el = el.resolve(&bic, types)?;
@@ -165,7 +204,7 @@ impl Resolve<Operands<Resolved>> for Operands<Unresolved> {
                 Operands::CallIndirect(idx, tu)
             }
             Operands::Block(id, tu, expr, cnt) => {
-                let bic = ic.with_label(&id);
+                let bic = ic.with_label(id.or_empty());
                 let tu = tu.resolve(&bic, types)?;
                 let expr = expr.resolve(&bic, types)?;
                 Operands::Block(id, tu, expr, cnt)
@@ -446,6 +485,23 @@ impl Resolve<TypeUse<Resolved>> for TypeUse<Unresolved> {
     }
 }
 
+fn get_func_params(typeuse: &TypeUse<Resolved>, types: &[TypeField]) -> Vec<FParam> {
+    if !typeuse.functiontype.params.is_empty() {
+        return typeuse.functiontype.params.clone();
+    }
+
+    match &typeuse.typeidx {
+        Some(typeidx) => {
+            let existing = types
+                .get(typeidx.value() as usize)
+                .map(|tf| tf.functiontype.clone())
+                .unwrap_or_else(FunctionType::default);
+            existing.params
+        }
+        _ => vec![],
+    }
+}
+
 impl Resolve<FuncField<Resolved>> for FuncField<Unresolved> {
     fn resolve(
         self,
@@ -454,7 +510,15 @@ impl Resolve<FuncField<Resolved>> for FuncField<Unresolved> {
     ) -> Result<FuncField<Resolved>> {
         let typeuse = self.typeuse.resolve(&ic, types)?;
 
-        let fic = ic.for_func(self.localindices.clone());
+        let params = get_func_params(&typeuse, types);
+
+        let localindices = params
+            .iter()
+            .map(|fp| fp.id.or_empty())
+            .chain(self.locals.iter().map(|l| l.id.or_empty()))
+            .collect();
+
+        let fic = ic.for_func(localindices);
 
         let body = self.body.resolve(&fic, types)?;
 
@@ -464,7 +528,6 @@ impl Resolve<FuncField<Resolved>> for FuncField<Unresolved> {
             typeuse,
             locals: self.locals,
             body,
-            localindices: self.localindices,
         })
     }
 }
