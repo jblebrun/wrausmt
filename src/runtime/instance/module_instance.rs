@@ -29,6 +29,10 @@ pub struct ModuleInstance {
 }
 
 impl ModuleInstance {
+    pub fn func_type(&self, idx: u32) -> &FunctionType {
+        &self.types[idx as usize]
+    }
+
     pub fn func(&self, idx: u32) -> addr::FuncAddr {
         self.funcs[idx as usize]
     }

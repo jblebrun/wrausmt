@@ -256,21 +256,25 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
     }
 
     fn push_label_start(&mut self) -> Result<()> {
-        let param_arity = self.op_u32()?;
-        let _result_arity = self.op_u32()?;
+        let typeidx = self.op_u32()?;
         let continuation = self.op_u32()?;
+        let (param_arity, result_arity) = {
+            let functype = self.runtime.stack.get_func_type(typeidx)?;
+            (functype.params.len() as u32, functype.params.len() as u32)
+        };
         self.runtime
             .stack
-            // Subtle difference: when the continuation is the start of the block,
-            // The "result" is considered to be the parameters.
-            .push_label(param_arity, param_arity, continuation)?;
+            .push_label(param_arity, result_arity, continuation)?;
         Ok(())
     }
 
     fn push_label_end(&mut self) -> Result<()> {
-        let param_arity = self.op_u32()?;
-        let result_arity = self.op_u32()?;
+        let typeidx = self.op_u32()?;
         let continuation = self.op_u32()?;
+        let (param_arity, result_arity) = {
+            let functype = self.runtime.stack.get_func_type(typeidx)?;
+            (functype.params.len() as u32, functype.result.len() as u32)
+        };
         self.runtime
             .stack
             .push_label(param_arity, result_arity, continuation)?;

@@ -60,11 +60,7 @@ pub trait Emitter {
     ) {
         let startcnt = self.len() as u32 - 1;
 
-        let param_arity = typeuse.functiontype.params.len();
-        self.emit32(param_arity as u32);
-
-        let result_arity = typeuse.functiontype.results.len();
-        self.emit32(result_arity as u32);
+        self.emit32(typeuse.index_value());
 
         let continuation_location = self.len();
         // If the continuation is at the start, we write self the current length
@@ -96,11 +92,7 @@ pub trait Emitter {
     }
 
     fn emit_if(&mut self, typeuse: &TypeUse<Resolved>, th: &Expr<Resolved>, el: &Expr<Resolved>) {
-        let param_arity = typeuse.functiontype.params.len();
-        self.emit32(param_arity as u32);
-
-        let result_arity = typeuse.functiontype.results.len();
-        self.emit32(result_arity as u32);
+        self.emit32(typeuse.index_value());
 
         // Store the space for end continuation
         let end_location = self.len();
