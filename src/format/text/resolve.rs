@@ -69,15 +69,17 @@ pub trait Resolve<T> {
 
 /// For an iterable of unresolved items, returns a Vector with all of the items resolved.
 macro_rules! resolve_all {
-    ( $dst:ident, $src:expr, $ic:expr ) => {
-        let $dst: Result<Vec<_>> = $src.into_iter().map(|i| i.resolve(&$ic)).collect();
+    ( $src:expr, $ic:expr ) => {
+        $src.into_iter()
+            .map(|i| i.resolve(&$ic))
+            .collect::<Result<_>>();
     };
 }
 
 /// For an option of an unresolved items, returns an option of the resolved item.
 macro_rules! resolve_option {
-    ( $dst:ident, $src:expr, $ic:expr ) => {
-        let $dst = $src.map(|i| i.resolve(&$ic)).transpose()?;
+    ( $src:expr, $ic:expr ) => {
+        $src.map(|i| i.resolve(&$ic)).transpose()?;
     };
 }
 
@@ -113,8 +115,8 @@ index_resolver! {LabelIndex, ic, ic.labelindices}
 
 impl Resolve<Expr<Resolved>> for Expr<Unresolved> {
     fn resolve(self, ic: &IdentifierContext) -> Result<Expr<Resolved>> {
-        resolve_all!(instr, self.instr, ic);
-        Ok(Expr { instr: instr? })
+        let instr = resolve_all!(self.instr, ic)?;
+        Ok(Expr { instr })
     }
 }
 
@@ -136,10 +138,7 @@ impl Resolve<Operands<Resolved>> for Operands<Unresolved> {
                 let bic = ic.with_label(&id);
                 Operands::If(id, typ.resolve(&bic)?, th.resolve(&bic)?, el.resolve(&bic)?)
             }
-            Operands::BrTable(idxs) => {
-                resolve_all!(ridxs, idxs, ic);
-                Operands::BrTable(ridxs?)
-            }
+            Operands::BrTable(idxs) => Operands::BrTable(resolve_all!(idxs, ic)?),
             Operands::Select(r) => Operands::Select(r),
             Operands::CallIndirect(idx, tu) => {
                 Operands::CallIndirect(idx.resolve(&ic)?, tu.resolve(&ic)?)
@@ -173,10 +172,10 @@ impl Resolve<Operands<Resolved>> for Operands<Unresolved> {
 
 impl Resolve<ElemList<Resolved>> for ElemList<Unresolved> {
     fn resolve(self, ic: &IdentifierContext) -> Result<ElemList<Resolved>> {
-        resolve_all!(items, self.items, ic);
+        let items = resolve_all!(self.items, ic)?;
         Ok(ElemList {
             reftype: self.reftype,
-            items: items?,
+            items,
         })
     }
 }
@@ -281,7 +280,7 @@ impl Resolve<TableUse<Resolved>> for TableUse<Unresolved> {
 
 impl Resolve<DataField<Resolved>> for DataField<Unresolved> {
     fn resolve(self, ic: &IdentifierContext) -> Result<DataField<Resolved>> {
-        resolve_option!(init, self.init, ic);
+        let init = resolve_option!(self.init, ic);
         Ok(DataField {
             id: self.id,
             data: self.data,
@@ -301,32 +300,32 @@ impl Resolve<DataInit<Resolved>> for DataInit<Unresolved> {
 
 impl Resolve<Module<Resolved>> for Module<Unresolved> {
     fn resolve(self, ic: &IdentifierContext) -> Result<Module<Resolved>> {
-        resolve_all!(funcs, self.funcs, ic);
-        resolve_all!(imports, self.imports, ic);
-        resolve_all!(exports, self.exports, ic);
-        resolve_all!(globals, self.globals, ic);
-        resolve_all!(elems, self.elems, ic);
-        resolve_option!(start, self.start, ic);
-        resolve_all!(data, self.data, ic);
+        let funcs: Vec<_> = resolve_all!(self.funcs, ic)?;
+        let imports = resolve_all!(self.imports, ic)?;
+        let exports = resolve_all!(self.exports, ic)?;
+        let globals = resolve_all!(self.globals, ic)?;
+        let elems = resolve_all!(self.elems, ic)?;
+        let start = resolve_option!(self.start, ic);
+        let data = resolve_all!(self.data, ic)?;
         Ok(Module {
             id: self.id,
             types: self.types,
-            funcs: funcs?,
+            funcs,
             tables: self.tables,
             memories: self.memories,
-            imports: imports?,
-            exports: exports?,
-            globals: globals?,
+            imports,
+            exports,
+            globals,
             start,
-            elems: elems?,
-            data: data?,
+            elems,
+            data,
         })
     }
 }
 
 impl Resolve<TypeUse<Resolved>> for TypeUse<Unresolved> {
     fn resolve(self, ic: &IdentifierContext) -> Result<TypeUse<Resolved>> {
-        resolve_option!(typeidx, self.typeidx, ic);
+        let typeidx = resolve_option!(self.typeidx, ic);
         Ok(TypeUse {
             typeidx,
             functiontype: self.functiontype,
