@@ -260,112 +260,110 @@
 | _ec.push_value(d.into())
 
 0x45      ,i32.eqz                       ,()
-| let o = _ec.pop::<u32>()?;
-| _ec.push(if o == 0 { 1 } else { 0 })
+| _ec.testop::<u32, _>(|i| i == 0)
 
 0x46      ,i32.eq                        ,()
-| _ec.testop::<u32, _>(|l, r| l == r)
+| _ec.relop::<u32, _>(|l, r| l == r)
 
 0x47      ,i32.ne                        ,()
-| _ec.testop::<u32, _>(|l, r| l != r)
+| _ec.relop::<u32, _>(|l, r| l != r)
 
 0x48      ,i32.lt_s                      ,()
-| _ec.testop::<i32, _>(|l, r| l < r)
+| _ec.relop::<i32, _>(|l, r| l < r)
 
 0x49      ,i32.lt_u                      ,()
-| _ec.testop::<u32, _>(|l, r| l < r)
+| _ec.relop::<u32, _>(|l, r| l < r)
 
 0x4a      ,i32.gt_s                      ,()
-| _ec.testop::<i32, _>(|l, r| l > r)
+| _ec.relop::<i32, _>(|l, r| l > r)
 
 0x4b      ,i32.gt_u                      ,()
-| _ec.testop::<u32, _>(|l, r| l > r)
+| _ec.relop::<u32, _>(|l, r| l > r)
 
 0x4c      ,i32.le_s                      ,()
-| _ec.testop::<i32, _>(|l, r| l <= r)
+| _ec.relop::<i32, _>(|l, r| l <= r)
 
 0x4d      ,i32.le_u                      ,()
-| _ec.testop::<u32, _>(|l, r| l <= r)
+| _ec.relop::<u32, _>(|l, r| l <= r)
 
 0x4e      ,i32.ge_s                      ,()
-| _ec.testop::<i32, _>(|l, r| l >= r)
+| _ec.relop::<i32, _>(|l, r| l >= r)
 
 0x4f      ,i32.ge_u                      ,()
-| _ec.testop::<u32, _>(|l, r| l >= r)
+| _ec.relop::<u32, _>(|l, r| l >= r)
 
 0x50      ,i64.eqz                       ,()
-| let o = _ec.pop::<u64>()?;
-| _ec.push(if o == 0 { 1 } else { 0 })
+| _ec.testop::<u64, _>(|i| i == 0)
 
 0x51      ,i64.eq                        ,()
-| _ec.testop::<u64, _>(|l, r| l == r)
+| _ec.relop::<u64, _>(|l, r| l == r)
 
 0x52      ,i64.ne                        ,()
-| _ec.testop::<u64, _>(|l, r| l != r)
+| _ec.relop::<u64, _>(|l, r| l != r)
 
 0x53      ,i64.lt_s                      ,()
-| _ec.testop::<i64, _>(|l, r| l < r)
+| _ec.relop::<i64, _>(|l, r| l < r)
 
 0x54      ,i64.lt_u                      ,()
-| _ec.testop::<u64, _>(|l, r| l < r)
+| _ec.relop::<u64, _>(|l, r| l < r)
 
 0x55      ,i64.gt_s                      ,()
-| _ec.testop::<i64, _>(|l, r| l > r)
+| _ec.relop::<i64, _>(|l, r| l > r)
 
 0x56      ,i64.gt_u                      ,()
-| _ec.testop::<u64, _>(|l, r| l > r)
+| _ec.relop::<u64, _>(|l, r| l > r)
 
 0x57      ,i64.le_s                      ,()
-| _ec.testop::<i64, _>(|l, r| l <= r)
+| _ec.relop::<i64, _>(|l, r| l <= r)
 
 0x58      ,i64.le_u                      ,()
-| _ec.testop::<u64, _>(|l, r| l <= r)
+| _ec.relop::<u64, _>(|l, r| l <= r)
 
 0x59      ,i64.ge_s                      ,()
-| _ec.testop::<i64, _>(|l, r| l >= r)
+| _ec.relop::<i64, _>(|l, r| l >= r)
 
 0x5a      ,i64.ge_u                      ,()
-| _ec.testop::<u64, _>(|l, r| l >= r)
+| _ec.relop::<u64, _>(|l, r| l >= r)
 
 0x5b      ,f32.eq                        ,()
 | #[allow(clippy::float_cmp)]
-| _ec.testop::<f32, _>(|l, r| l == r)
+| _ec.relop::<f32, _>(|l, r| l == r)
 
 0x5c      ,f32.ne                        ,()
 | #[allow(clippy::float_cmp)]
-| _ec.testop::<f32, _>(|l, r| l != r)
+| _ec.relop::<f32, _>(|l, r| l != r)
 
 0x5d      ,f32.lt                        ,()
-| _ec.testop::<f32, _>(|l, r| l < r)
+| _ec.relop::<f32, _>(|l, r| l < r)
 
 0x5e      ,f32.gt                        ,()
-| _ec.testop::<f32, _>(|l, r| l > r)
+| _ec.relop::<f32, _>(|l, r| l > r)
 
 0x5f      ,f32.le                        ,()
-| _ec.testop::<f32, _>(|l, r| l <= r)
+| _ec.relop::<f32, _>(|l, r| l <= r)
 
 0x60      ,f32.ge                        ,()
-| _ec.testop::<f32, _>(|l, r| l >= r)
+| _ec.relop::<f32, _>(|l, r| l >= r)
 
 0x61      ,f64.eq                        ,()
 | #[allow(clippy::float_cmp)]
-| _ec.testop::<f64, _>(|l, r| l == r)
+| _ec.relop::<f64, _>(|l, r| l == r)
 
 0x62      ,f64.ne                        ,()
 | #[allow(clippy::float_cmp)]
-| _ec.testop::<f64, _>(|l, r| l != r)
+| _ec.relop::<f64, _>(|l, r| l != r)
 
 0x63      ,f64.lt                        ,()
-| _ec.testop::<f64, _>(|l, r| l < r)
+| _ec.relop::<f64, _>(|l, r| l < r)
 
 0x64      ,f64.gt                        ,()
-| _ec.testop::<f64, _>(|l, r| l > r)
+| _ec.relop::<f64, _>(|l, r| l > r)
 
 0x65      ,f64.le                        ,()
-| _ec.testop::<f64, _>(|l, r| l <= r)
+| _ec.relop::<f64, _>(|l, r| l <= r)
 
 0x66      ,f64.ge                         ,()
-| _ec.testop::<f64, _>(|l, r| l >= r)
+| _ec.relop::<f64, _>(|l, r| l >= r)
 
 0x67      ,i32.clz                       ,()
 | _ec.unop::<u32, _>(|o| o.leading_zeros())
