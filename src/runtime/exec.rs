@@ -42,6 +42,7 @@ pub trait ExecutionContextActions {
     fn mem(&mut self, idx: u32) -> Result<&mut MemInstance>;
     fn grow_mem(&mut self, pgs: u32) -> Result<Option<u32>>;
     fn table_init(&mut self) -> Result<()>;
+    fn table_copy(&mut self) -> Result<()>;
     fn get_table_elem(&mut self, tidx: u32, eidx: u32) -> Result<Ref>;
     fn set_table_elem<V: TryInto<Ref, Error = RuntimeError>>(
         &mut self,
@@ -201,7 +202,7 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
     fn get_func_table(&mut self, tidx: u32, elemidx: u32) -> Result<u32> {
         match self.get_table_elem(tidx, elemidx)? {
             Ref::Func(a) => Ok(a as u32),
-            _ => panic!("not a func"),
+            e => Err(impl_bug!("not a func {:?}", e)),
         }
     }
 
@@ -239,6 +240,20 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
         self.runtime
             .store
             .copy_elems_to_table(tableaddr, elemaddr, src, dst, n)
+    }
+
+    fn table_copy(&mut self) -> Result<()> {
+        let dstidx = self.op_u32()?;
+        let srcidx = self.op_u32()?;
+        let n = self.pop::<u32>()? as usize;
+        let src = self.pop::<u32>()? as usize;
+        let dst = self.pop::<u32>()? as usize;
+        // TODO if s + n or d + n > sie of table 0, trap
+        let dstaddr = self.runtime.stack.get_table_addr(dstidx)?;
+        let srcaddr = self.runtime.stack.get_table_addr(srcidx)?;
+        self.runtime
+            .store
+            .copy_table_to_table(dstaddr, srcaddr, src, dst, n)
     }
 
     fn mem_init(&mut self) -> Result<()> {
