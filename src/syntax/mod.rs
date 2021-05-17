@@ -11,7 +11,6 @@ pub use indices::{
 };
 pub use indices::{Resolved, ResolvedState, Unresolved};
 use std::{
-    collections::HashMap,
     fmt::{self, Debug},
     marker::PhantomData,
 };
@@ -258,7 +257,6 @@ pub struct FuncField<R: ResolvedState> {
     pub typeuse: TypeUse<R>,
     pub locals: Vec<Local>,
     pub body: Expr<R>,
-    pub localindices: HashMap<String, u32>,
 }
 
 impl<R: ResolvedState> std::fmt::Debug for FuncField<R> {

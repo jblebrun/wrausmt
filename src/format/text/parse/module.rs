@@ -17,7 +17,7 @@ use crate::{
     syntax::{DataInit, Instruction, MemoryIndex},
     types::MemType,
 };
-use std::{collections::HashMap, io::Read};
+use std::io::Read;
 
 #[derive(Debug, PartialEq)]
 pub enum Field<R: ResolvedState> {
@@ -201,28 +201,12 @@ impl<R: Read> Parser<R> {
         let instr = self.parse_instructions()?;
         self.expect_close()?;
 
-        let mut idx = 0;
-        let mut localindices = HashMap::default();
-        for p in &typeuse.functiontype.params {
-            if let Some(id) = &p.id {
-                localindices.insert(id.to_owned(), idx);
-            }
-            idx += 1;
-        }
-        for l in &locals {
-            if let Some(id) = &l.id {
-                localindices.insert(id.to_owned(), idx);
-            }
-            idx += 1;
-        }
-
         Ok(Some(Field::Func(FuncField {
             id,
             exports,
             typeuse,
             locals,
             body: Expr { instr },
-            localindices,
         })))
     }
 

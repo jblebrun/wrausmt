@@ -3,10 +3,7 @@ use crate::{
     instructions::{instruction_data, Operands, BAD_INSTRUCTION},
     syntax::{self, Continuation, Expr, FuncField, Instruction, Local, Resolved, TypeUse},
 };
-use std::{
-    collections::HashMap,
-    io::{Read, Write},
-};
+use std::io::{Read, Write};
 
 use super::error::{Result, WithContext};
 
@@ -56,7 +53,6 @@ pub trait ReadCode: ReadWasmValues {
             typeuse: TypeUse::default(),
             locals: code_reader.read_locals().ctx("parsing locals")?,
             body: code_reader.read_expr().ctx("parsing code")?,
-            localindices: HashMap::default(),
         };
         code_reader.ensure_consumed()?;
         Ok(function)
