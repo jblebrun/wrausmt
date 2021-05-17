@@ -82,9 +82,12 @@
 
 0x1C      ,selectt                       ,(SelectT)
 0xD0      ,ref.null                      ,(HeapType)
-| _ec.push_func_ref(0)
+| let rt = _ec.op_reftype()?;
+| _ec.push(Ref::Null(rt))
 
 0xD1      ,ref.is_null                   ,()
+| _ec.testop::<Ref, _>(|i| i.is_null())
+
 0xD2      ,ref.func                      ,(FuncIndex)
 | let fi = _ec.op_u32()?;
 | _ec.push_func_ref(fi)
@@ -116,7 +119,17 @@
 | _ec.set_global(i, v)
 
 0x25      ,table.get                     ,(TableIndex)
+| let t = _ec.op_u32()?;
+| let i = _ec.pop::<u32>()?;
+| let v = _ec.get_table_elem(t, i)?;
+| _ec.push_value(v.into())
+
 0x26      ,table.set                     ,(TableIndex)
+| let t = _ec.op_u32()?;
+| let v = _ec.pop_value()?;
+| let i = _ec.pop::<u32>()?;
+| _ec.set_table_elem(t, i, v)
+
 0x28      ,i32.load                      ,(Memargs)
 | let bs = _ec.get_mem::<4>()?;
 | let v = u32::from_le_bytes(bs);

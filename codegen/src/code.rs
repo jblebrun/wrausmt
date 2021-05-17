@@ -23,6 +23,7 @@ impl<W: Write + std::fmt::Debug> EmitCode for W {}
 pub static CODE_HEADER: &str = &"use crate::runtime::error::Result;
 use crate::runtime::exec::ExecutionContext;
 use crate::runtime::exec::ExecutionContextActions;
+use crate::runtime::values::Ref;
 ";
 
 fn code_item(inst: &Instruction) -> String {

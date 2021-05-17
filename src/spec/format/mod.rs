@@ -265,9 +265,13 @@ impl<R: Read> Parser<R> {
 
     fn try_result(&mut self) -> Result<Option<ActionResult>> {
         if self.try_expr_start("ref.null")? {
-            let _reftype = self.expect_heaptype()?;
+            let reftype = self.expect_heaptype()?;
             self.expect_close()?;
-            return Ok(Some(ActionResult::Func));
+            let result = match reftype {
+                RefType::Func => ActionResult::Func,
+                RefType::Extern => ActionResult::Extern,
+            };
+            return Ok(Some(result));
         }
 
         if self.try_expr_start("ref.func")? {
@@ -453,8 +457,8 @@ impl From<Const> for Value {
             Const::Num(p) => p.into(),
             Const::RefHost(h) => Value::Ref(Ref::Extern(h)),
             Const::RefNull(t) => match t {
-                RefType::Func => Value::Ref(Ref::Func(0)),
-                RefType::Extern => Value::Ref(Ref::Extern(0)),
+                RefType::Func => Value::Ref(Ref::Null(RefType::Func)),
+                RefType::Extern => Value::Ref(Ref::Null(RefType::Extern)),
             },
         }
     }
