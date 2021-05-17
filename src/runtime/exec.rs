@@ -4,10 +4,10 @@ use super::{
     values::{Ref, Value},
     Runtime,
 };
-use crate::logger::Logger;
 use crate::runtime::instance::MemInstance;
 use crate::runtime::stack::Label;
 use crate::{impl_bug, instructions::exec_method};
+use crate::{logger::Logger, types::RefType};
 use std::{borrow::Borrow, convert::TryFrom, convert::TryInto, fmt::Display, hash::Hash};
 
 pub struct ExecutionContext<'l> {
@@ -23,6 +23,7 @@ pub trait ExecutionContextActions {
     fn next_byte(&mut self) -> u8;
     fn op_u32(&mut self) -> Result<u32>;
     fn op_u64(&mut self) -> Result<u64>;
+    fn op_reftype(&mut self) -> Result<RefType>;
     fn get_local(&mut self, idx: u32) -> Result<Value>;
     fn set_local(&mut self, idx: u32, val: Value) -> Result<()>;
 
@@ -41,6 +42,13 @@ pub trait ExecutionContextActions {
     fn mem(&mut self, idx: u32) -> Result<&mut MemInstance>;
     fn grow_mem(&mut self, pgs: u32) -> Result<Option<u32>>;
     fn table_init(&mut self) -> Result<()>;
+    fn get_table_elem(&mut self, tidx: u32, eidx: u32) -> Result<Ref>;
+    fn set_table_elem<V: TryInto<Ref, Error = RuntimeError>>(
+        &mut self,
+        tidx: u32,
+        eidx: u32,
+        val: V,
+    ) -> Result<()>;
     fn elem_drop(&mut self) -> Result<()>;
     fn mem_init(&mut self) -> Result<()>;
     fn data_drop(&mut self) -> Result<()>;
@@ -140,6 +148,17 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
         Ok(result)
     }
 
+    fn op_reftype(&mut self) -> Result<RefType> {
+        let byte = self.body[self.pc];
+        self.pc += 1;
+        // Use the binary format encoding of ref type.
+        match byte {
+            0x70 => Ok(RefType::Func),
+            0x6F => Ok(RefType::Extern),
+            _ => Err(impl_bug!("{} does not encode a ref type", byte)),
+        }
+    }
+
     fn op_u64(&mut self) -> Result<u64> {
         let result = u64::from_le_bytes(
             self.body[self.pc..self.pc + 8]
@@ -161,10 +180,26 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
         self.runtime.stack.set_local(idx, val)
     }
 
-    fn get_func_table(&mut self, tidx: u32, elemidx: u32) -> Result<u32> {
+    fn get_table_elem(&mut self, tidx: u32, elemidx: u32) -> Result<Ref> {
         let tableaddr = &self.runtime.stack.get_table_addr(tidx)?;
         let table = self.runtime.store.table(*tableaddr)?;
-        match table.elem[elemidx as usize] {
+        Ok(table.elem[elemidx as usize])
+    }
+
+    fn set_table_elem<V: TryInto<Ref, Error = RuntimeError>>(
+        &mut self,
+        tidx: u32,
+        elemidx: u32,
+        val: V,
+    ) -> Result<()> {
+        let tableaddr = &self.runtime.stack.get_table_addr(tidx)?;
+        let table = self.runtime.store.table_mut(*tableaddr)?;
+        table.elem[elemidx as usize] = val.try_into()?;
+        Ok(())
+    }
+
+    fn get_func_table(&mut self, tidx: u32, elemidx: u32) -> Result<u32> {
+        match self.get_table_elem(tidx, elemidx)? {
             Ref::Func(a) => Ok(a as u32),
             _ => panic!("not a func"),
         }

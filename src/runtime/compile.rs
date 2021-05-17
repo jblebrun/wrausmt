@@ -1,5 +1,5 @@
-use crate::runtime::instance::ModuleInstance;
 use crate::syntax::{self, Expr, Resolved, TypeUse};
+use crate::{runtime::instance::ModuleInstance, types::RefType};
 use crate::{
     runtime::instance::{ExportInstance, ExternalVal},
     types::{FunctionType, ValueType},
@@ -155,7 +155,14 @@ pub trait Emitter {
                     self.emit32(ti.value());
                     self.emit32(t2i.value());
                 }
-                syntax::Operands::HeapType(_) => (),
+                syntax::Operands::HeapType(ht) => {
+                    // Use the binary format encoding of ref type.
+                    let htbyte = match ht {
+                        RefType::Func => 0x70,
+                        RefType::Extern => 0x6F,
+                    };
+                    self.push(htbyte);
+                }
             }
         }
     }

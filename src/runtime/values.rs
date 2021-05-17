@@ -58,7 +58,12 @@ impl Ref {
         match self {
             Ref::Func(_) => RefType::Func,
             Ref::Extern(_) => RefType::Extern,
+            Ref::Null(rt) => *rt,
         }
+    }
+
+    pub fn is_null(&self) -> bool {
+        matches!(self, Ref::Null(_))
     }
 }
 
@@ -100,13 +105,14 @@ impl std::fmt::Debug for Num {
 pub enum Ref {
     Func(u32),
     Extern(u32),
+    Null(RefType),
 }
 
 impl RefType {
     pub fn default(&self) -> Ref {
         match &self {
-            RefType::Func => Ref::Func(0),
-            RefType::Extern => Ref::Extern(0),
+            RefType::Func => Ref::Null(RefType::Func),
+            RefType::Extern => Ref::Null(RefType::Extern),
         }
     }
 }
@@ -188,5 +194,15 @@ impl From<Num> for Value {
 impl From<Ref> for Value {
     fn from(r: Ref) -> Value {
         Value::Ref(r)
+    }
+}
+
+impl TryFrom<Value> for Ref {
+    type Error = RuntimeError;
+    fn try_from(v: Value) -> Result<Ref, Self::Error> {
+        match v {
+            Value::Ref(r) => Ok(r),
+            _ => Err(impl_bug!("{:?} is not a ref", v)),
+        }
     }
 }

@@ -14,6 +14,7 @@ use crate::{
         Runtime,
     },
     spec::format::{Assertion, Cmd, Module},
+    types::RefType,
 };
 
 #[macro_export]
@@ -110,12 +111,18 @@ pub fn verify_result(results: Vec<Value>, expects: Vec<ActionResult>) -> Result<
                 }
             }
             ActionResult::Func => {
-                if !matches!(result, Value::Ref(Ref::Func(_))) {
+                if !matches!(
+                    result,
+                    Value::Ref(Ref::Null(RefType::Func)) | Value::Ref(Ref::Func(_))
+                ) {
                     return Err(SpecTestError::ResultMismatch { result, expect });
                 }
             }
             ActionResult::Extern => {
-                if !matches!(result, Value::Ref(Ref::Extern(_))) {
+                if !matches!(
+                    result,
+                    Value::Ref(Ref::Null(RefType::Extern)) | Value::Ref(Ref::Extern(_))
+                ) {
                     return Err(SpecTestError::ResultMismatch { result, expect });
                 }
             }
