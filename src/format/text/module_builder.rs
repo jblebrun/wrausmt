@@ -108,10 +108,12 @@ impl ModuleBuilder {
                 Operands::CallIndirect(_, tu) => {
                     self.resolve_typeuse(tu);
                 }
-                Operands::Block(_, _, e, _) => {
+                Operands::Block(_, tu, e, _) => {
+                    self.resolve_typeuse(tu);
                     self.resolve_func_body_typeuse(e);
                 }
-                Operands::If(_, _, th, el) => {
+                Operands::If(_, tu, th, el) => {
+                    self.resolve_typeuse(tu);
                     self.resolve_func_body_typeuse(th);
                     self.resolve_func_body_typeuse(el);
                 }

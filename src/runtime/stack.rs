@@ -1,8 +1,8 @@
 use super::error::Result;
 use super::ModuleInstance;
 use super::{instance::FunctionInstance, store::addr, values::Value};
-use crate::impl_bug;
 use crate::logger::{Logger, PrintLogger};
+use crate::{impl_bug, types::FunctionType};
 use std::rc::Rc;
 
 /// Besides the store, most instructions interact with an implicit stack.
@@ -237,6 +237,10 @@ impl Stack {
         let localidx = self.peek_activation()?.local_start;
         self.value_stack[localidx + idx as usize] = val;
         Ok(())
+    }
+
+    pub fn get_func_type(&self, idx: u32) -> Result<&FunctionType> {
+        Ok(self.peek_activation()?.module.func_type(idx))
     }
 
     // Get the function address for the provided index in the current activation.
