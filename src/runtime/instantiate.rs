@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use super::{
     compile::compile_function_body,
-    error::Result,
+    error::{Result, RuntimeErrorKind},
     instance::{FunctionInstance, ModuleInstance},
     Runtime,
 };
@@ -15,7 +15,6 @@ use crate::{
     },
     runtime::{
         compile::Emitter,
-        error::RuntimeError,
         instance::{module_instance::ModuleInstanceBuilder, ExternalVal},
     },
     syntax::ModeEntry,
@@ -35,10 +34,10 @@ impl Runtime {
         let regmod = self
             .registered
             .get(&import.modname)
-            .ok_or_else(|| RuntimeError::ModuleNotFound(import.modname.clone()))?;
+            .ok_or_else(|| RuntimeErrorKind::ModuleNotFound(import.modname.clone()).error())?;
 
         let exportinst = regmod.resolve(&import.name).ok_or_else(|| {
-            RuntimeError::ImportNotFound(import.modname.clone(), import.name.clone())
+            RuntimeErrorKind::ImportNotFound(import.modname.clone(), import.name.clone()).error()
         })?;
         match (&import.desc, &exportinst.addr) {
             (ImportDesc::Func(_), ExternalVal::Func(_)) => (),
@@ -46,10 +45,9 @@ impl Runtime {
             (ImportDesc::Mem(_), ExternalVal::Memory(_)) => (),
             (ImportDesc::Global(_), ExternalVal::Global(_)) => (),
             _ => {
-                return Err(RuntimeError::ImportMismatch(
-                    import.desc.clone(),
-                    exportinst.addr,
-                ))
+                return Err(
+                    RuntimeErrorKind::ImportMismatch(import.desc.clone(), exportinst.addr).error(),
+                )
             }
         };
         Ok(exportinst.addr)

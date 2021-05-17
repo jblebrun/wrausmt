@@ -154,7 +154,10 @@ pub fn run_spec_test(script: SpecTestScript, runset: RunSet) -> Result<()> {
                 }
                 Module::Quote(_) => println!("QUOTE MODULE ACTION"),
             },
-            Cmd::Register { modname, id } => println!("REGISTER {} {:?}", modname, id),
+            Cmd::Register { modname, .. } => match &module {
+                Some(module) => runtime.register(modname, module.clone()),
+                _ => return Err(SpecTestError::RegisterMissingModule(modname)),
+            },
             Cmd::Action(a) => {
                 handle_action(&mut runtime, &module, a, &logger)?;
             }

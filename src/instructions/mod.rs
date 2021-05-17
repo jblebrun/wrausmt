@@ -3,9 +3,9 @@
 //! more details on the generation process.
 mod generated;
 
-use crate::impl_bug;
 use crate::runtime::error::Result;
 use crate::runtime::exec::ExecutionContext;
+use crate::{impl_bug, runtime::error::WithContext};
 use generated::data_table::INSTRUCTION_DATA;
 use generated::exec_table::EXEC_TABLE;
 
@@ -92,7 +92,7 @@ pub const BAD_INSTRUCTION: InstructionData = InstructionData {
 
 pub fn exec_method(opcode: u8, ec: &mut ExecutionContext) -> Result<()> {
     match EXEC_TABLE.get(opcode as usize) {
-        Some(ef) => ef(ec),
+        Some(ef) => ef(ec).ctx(|| format!("for op {:x} - {:?}", opcode, instruction_data(opcode))),
         None => Err(impl_bug!("Exec table short")),
     }
 }
