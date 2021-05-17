@@ -19,8 +19,8 @@ fn basic_parse() -> Result<()> {
     assert_eq!(module.types[2], typefield! { [I32 "$x"] -> [] });
     assert_eq!(module.types[3], typefield! { [Func] -> [] });
     assert_eq!(module.types[4], typefield! { [Extern] -> [] });
-    assert_eq!(module.types[5], typefield! { [] -> [I32] });
-    assert_eq!(module.types[6], typefield! { "$void2"; [F32] -> [F32] });
+    assert_eq!(module.types[5], typefield! { "$void2"; [F32] -> [F32] });
+    assert_eq!(module.types[6], typefield! { [] -> [I32] });
 
     Ok(())
 }

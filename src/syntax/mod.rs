@@ -175,20 +175,11 @@ pub struct TypeUse<R: ResolvedState> {
     pub functiontype: FunctionType,
 }
 
-impl<R: ResolvedState> TypeUse<R> {
-    pub fn get_inline_def(&self) -> Option<FunctionType> {
-        match self.typeidx {
-            Some(_) => None,
-            None => Some(self.functiontype.anonymous()),
-        }
-    }
-}
-
 impl TypeUse<Resolved> {
     pub fn index_value(&self) -> u32 {
         match &self.typeidx {
             Some(idx) => idx.value(),
-            None => panic!("improperly resolved typeuse (compiler error)"),
+            None => panic!("improperly resolved typeuse (compiler error) {:?}", self),
         }
     }
 }
@@ -233,7 +224,7 @@ impl std::fmt::Debug for FResult {
 
 // type := (type id? <functype>)
 // functype := (func <param>* <result>*)
-#[derive(PartialEq, Default)]
+#[derive(Clone, PartialEq, Default)]
 pub struct TypeField {
     pub id: Option<String>,
     pub functiontype: FunctionType,

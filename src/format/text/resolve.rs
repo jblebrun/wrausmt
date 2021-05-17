@@ -4,35 +4,39 @@ use std::collections::HashMap;
 use super::module_builder::ModuleIdentifiers;
 use crate::syntax::{
     DataField, DataIndex, DataInit, ElemField, ElemIndex, ElemList, ExportDesc, ExportField, Expr,
-    FuncField, FuncIndex, GlobalField, GlobalIndex, ImportDesc, ImportField, Index, Instruction,
-    LabelIndex, LocalIndex, MemoryIndex, ModeEntry, Module, Operands, Resolved, StartField,
-    TableIndex, TablePosition, TableUse, TypeIndex, TypeUse, Unresolved,
+    FuncField, FuncIndex, FunctionType, GlobalField, GlobalIndex, ImportDesc, ImportField, Index,
+    Instruction, LabelIndex, LocalIndex, MemoryIndex, ModeEntry, Module, Operands, Resolved,
+    StartField, TableIndex, TablePosition, TableUse, TypeField, TypeIndex, TypeUse, Unresolved,
 };
 
 #[derive(Debug)]
 pub enum ResolveError {
     UnresolvedIndex(String),
+    UnresolvedType(Index<Resolved, TypeIndex>),
 }
 
 pub type Result<T> = std::result::Result<T, ResolveError>;
 /// A structure to hold the currently resolvable set of identifiers.
-#[derive(Debug, Default)]
-pub struct IdentifierContext {
+#[derive(Debug)]
+pub struct ResolutionContext {
     pub modulescope: ModuleIdentifiers,
     pub localindices: HashMap<String, u32>,
     labeltracker: Vec<String>,
     pub labelindices: HashMap<String, u32>,
 }
 
-impl IdentifierContext {
+impl ResolutionContext {
     pub fn new(modulescope: ModuleIdentifiers) -> Self {
-        IdentifierContext {
+        ResolutionContext {
             modulescope,
-            ..IdentifierContext::default()
+            localindices: HashMap::new(),
+            labeltracker: Vec::new(),
+            labelindices: HashMap::new(),
         }
     }
-    pub fn for_func(&self, li: HashMap<String, u32>) -> IdentifierContext {
-        IdentifierContext {
+
+    pub fn for_func(&self, li: HashMap<String, u32>) -> Self {
+        Self {
             modulescope: self.modulescope.clone(),
             localindices: li,
             labeltracker: self.labeltracker.clone(),
@@ -40,7 +44,7 @@ impl IdentifierContext {
         }
     }
 
-    pub fn with_label(&self, id: &Option<String>) -> IdentifierContext {
+    pub fn with_label(&self, id: &Option<String>) -> ResolutionContext {
         let labelname: String = match id {
             Some(ref name) => name.clone(),
             _ => "".into(),
@@ -51,7 +55,7 @@ impl IdentifierContext {
         for (i, n) in lt.iter().rev().enumerate() {
             li.insert(n.clone(), i as u32);
         }
-        IdentifierContext {
+        ResolutionContext {
             modulescope: self.modulescope.clone(),
             localindices: self.localindices.clone(),
             labeltracker: lt,
@@ -64,22 +68,22 @@ impl IdentifierContext {
 /// usage, should implement this trait with logic describing how to return the
 /// element in a resolved state.
 pub trait Resolve<T> {
-    fn resolve(self, ic: &IdentifierContext) -> Result<T>;
+    fn resolve(self, ic: &ResolutionContext, types: &mut Vec<TypeField>) -> Result<T>;
 }
 
 /// For an iterable of unresolved items, returns a Vector with all of the items resolved.
 macro_rules! resolve_all {
-    ( $src:expr, $ic:expr ) => {
+    ( $src:expr, $ic:expr, $types:expr ) => {
         $src.into_iter()
-            .map(|i| i.resolve(&$ic))
+            .map(|i| i.resolve(&$ic, $types))
             .collect::<Result<_>>();
     };
 }
 
 /// For an option of an unresolved items, returns an option of the resolved item.
 macro_rules! resolve_option {
-    ( $src:expr, $ic:expr ) => {
-        $src.map(|i| i.resolve(&$ic)).transpose()?;
+    ( $src:expr, $ic:expr, $types:expr ) => {
+        $src.map(|i| i.resolve(&$ic, $types)).transpose()?;
     };
 }
 
@@ -87,7 +91,11 @@ macro_rules! resolve_option {
 macro_rules! index_resolver {
     ( $it:ty, $ic:ident, $src:expr  ) => {
         impl Resolve<Index<Resolved, $it>> for Index<Unresolved, $it> {
-            fn resolve(self, $ic: &IdentifierContext) -> Result<Index<Resolved, $it>> {
+            fn resolve(
+                self,
+                $ic: &ResolutionContext,
+                _: &mut Vec<TypeField>,
+            ) -> Result<Index<Resolved, $it>> {
                 let value = if self.name().is_empty() {
                     self.value()
                 } else {
@@ -114,51 +122,66 @@ index_resolver! {LocalIndex, ic, ic.localindices}
 index_resolver! {LabelIndex, ic, ic.labelindices}
 
 impl Resolve<Expr<Resolved>> for Expr<Unresolved> {
-    fn resolve(self, ic: &IdentifierContext) -> Result<Expr<Resolved>> {
-        let instr = resolve_all!(self.instr, ic)?;
+    fn resolve(self, ic: &ResolutionContext, types: &mut Vec<TypeField>) -> Result<Expr<Resolved>> {
+        let instr = resolve_all!(self.instr, ic, types)?;
         Ok(Expr { instr })
     }
 }
 
 impl Resolve<Instruction<Resolved>> for Instruction<Unresolved> {
-    fn resolve(self, ic: &IdentifierContext) -> Result<Instruction<Resolved>> {
+    fn resolve(
+        self,
+        ic: &ResolutionContext,
+        types: &mut Vec<TypeField>,
+    ) -> Result<Instruction<Resolved>> {
         Ok(Instruction {
             name: self.name,
             opcode: self.opcode,
-            operands: self.operands.resolve(&ic)?,
+            operands: self.operands.resolve(&ic, types)?,
         })
     }
 }
 
 impl Resolve<Operands<Resolved>> for Operands<Unresolved> {
-    fn resolve(self, ic: &IdentifierContext) -> Result<Operands<Resolved>> {
+    fn resolve(
+        self,
+        ic: &ResolutionContext,
+        types: &mut Vec<TypeField>,
+    ) -> Result<Operands<Resolved>> {
         Ok(match self {
             Operands::None => Operands::None,
-            Operands::If(id, typ, th, el) => {
+            Operands::If(id, tu, th, el) => {
                 let bic = ic.with_label(&id);
-                Operands::If(id, typ.resolve(&bic)?, th.resolve(&bic)?, el.resolve(&bic)?)
+                let tu = tu.resolve(&bic, types)?;
+                let th = th.resolve(&bic, types)?;
+                let el = el.resolve(&bic, types)?;
+                Operands::If(id, tu, th, el)
             }
-            Operands::BrTable(idxs) => Operands::BrTable(resolve_all!(idxs, ic)?),
+            Operands::BrTable(idxs) => Operands::BrTable(resolve_all!(idxs, ic, types)?),
             Operands::Select(r) => Operands::Select(r),
             Operands::CallIndirect(idx, tu) => {
-                Operands::CallIndirect(idx.resolve(&ic)?, tu.resolve(&ic)?)
+                let idx = idx.resolve(&ic, types)?;
+                let tu = tu.resolve(&ic, types)?;
+                Operands::CallIndirect(idx, tu)
             }
-            Operands::Block(id, typ, expr, cnt) => {
+            Operands::Block(id, tu, expr, cnt) => {
                 let bic = ic.with_label(&id);
-                Operands::Block(id, typ.resolve(&bic)?, expr.resolve(&bic)?, cnt)
+                let tu = tu.resolve(&bic, types)?;
+                let expr = expr.resolve(&bic, types)?;
+                Operands::Block(id, tu, expr, cnt)
             }
-            Operands::FuncIndex(idx) => Operands::FuncIndex(idx.resolve(&ic)?),
-            Operands::TableIndex(idx) => Operands::TableIndex(idx.resolve(&ic)?),
-            Operands::GlobalIndex(idx) => Operands::GlobalIndex(idx.resolve(&ic)?),
-            Operands::ElemIndex(idx) => Operands::ElemIndex(idx.resolve(&ic)?),
-            Operands::DataIndex(idx) => Operands::DataIndex(idx.resolve(&ic)?),
-            Operands::LocalIndex(idx) => Operands::LocalIndex(idx.resolve(&ic)?),
-            Operands::LabelIndex(idx) => Operands::LabelIndex(idx.resolve(&ic)?),
+            Operands::FuncIndex(idx) => Operands::FuncIndex(idx.resolve(&ic, types)?),
+            Operands::TableIndex(idx) => Operands::TableIndex(idx.resolve(&ic, types)?),
+            Operands::GlobalIndex(idx) => Operands::GlobalIndex(idx.resolve(&ic, types)?),
+            Operands::ElemIndex(idx) => Operands::ElemIndex(idx.resolve(&ic, types)?),
+            Operands::DataIndex(idx) => Operands::DataIndex(idx.resolve(&ic, types)?),
+            Operands::LocalIndex(idx) => Operands::LocalIndex(idx.resolve(&ic, types)?),
+            Operands::LabelIndex(idx) => Operands::LabelIndex(idx.resolve(&ic, types)?),
             Operands::TableInit(tidx, eidx) => {
-                Operands::TableInit(tidx.resolve(&ic)?, eidx.resolve(&ic)?)
+                Operands::TableInit(tidx.resolve(&ic, types)?, eidx.resolve(&ic, types)?)
             }
             Operands::TableCopy(tidx, t2idx) => {
-                Operands::TableCopy(tidx.resolve(&ic)?, t2idx.resolve(&ic)?)
+                Operands::TableCopy(tidx.resolve(&ic, types)?, t2idx.resolve(&ic, types)?)
             }
             Operands::Memargs(a, o) => Operands::Memargs(a, o),
             Operands::HeapType(r) => Operands::HeapType(r),
@@ -171,8 +194,12 @@ impl Resolve<Operands<Resolved>> for Operands<Unresolved> {
 }
 
 impl Resolve<ElemList<Resolved>> for ElemList<Unresolved> {
-    fn resolve(self, ic: &IdentifierContext) -> Result<ElemList<Resolved>> {
-        let items = resolve_all!(self.items, ic)?;
+    fn resolve(
+        self,
+        ic: &ResolutionContext,
+        types: &mut Vec<TypeField>,
+    ) -> Result<ElemList<Resolved>> {
+        let items = resolve_all!(self.items, ic, types)?;
         Ok(ElemList {
             reftype: self.reftype,
             items,
@@ -181,20 +208,28 @@ impl Resolve<ElemList<Resolved>> for ElemList<Unresolved> {
 }
 
 impl Resolve<ImportField<Resolved>> for ImportField<Unresolved> {
-    fn resolve(self, ic: &IdentifierContext) -> Result<ImportField<Resolved>> {
+    fn resolve(
+        self,
+        ic: &ResolutionContext,
+        types: &mut Vec<TypeField>,
+    ) -> Result<ImportField<Resolved>> {
         Ok(ImportField {
             modname: self.modname,
             name: self.name,
             id: self.id,
-            desc: self.desc.resolve(&ic)?,
+            desc: self.desc.resolve(&ic, types)?,
         })
     }
 }
 
 impl Resolve<ImportDesc<Resolved>> for ImportDesc<Unresolved> {
-    fn resolve(self, ic: &IdentifierContext) -> Result<ImportDesc<Resolved>> {
+    fn resolve(
+        self,
+        ic: &ResolutionContext,
+        types: &mut Vec<TypeField>,
+    ) -> Result<ImportDesc<Resolved>> {
         Ok(match self {
-            ImportDesc::Func(tu) => ImportDesc::Func(tu.resolve(&ic)?),
+            ImportDesc::Func(tu) => ImportDesc::Func(tu.resolve(&ic, types)?),
             ImportDesc::Table(tt) => ImportDesc::Table(tt),
             ImportDesc::Mem(mt) => ImportDesc::Mem(mt),
             ImportDesc::Global(gt) => ImportDesc::Global(gt),
@@ -203,84 +238,120 @@ impl Resolve<ImportDesc<Resolved>> for ImportDesc<Unresolved> {
 }
 
 impl Resolve<ExportField<Resolved>> for ExportField<Unresolved> {
-    fn resolve(self, ic: &IdentifierContext) -> Result<ExportField<Resolved>> {
+    fn resolve(
+        self,
+        ic: &ResolutionContext,
+        types: &mut Vec<TypeField>,
+    ) -> Result<ExportField<Resolved>> {
         Ok(ExportField {
             name: self.name,
-            exportdesc: self.exportdesc.resolve(&ic)?,
+            exportdesc: self.exportdesc.resolve(&ic, types)?,
         })
     }
 }
 
 impl Resolve<ExportDesc<Resolved>> for ExportDesc<Unresolved> {
-    fn resolve(self, ic: &IdentifierContext) -> Result<ExportDesc<Resolved>> {
+    fn resolve(
+        self,
+        ic: &ResolutionContext,
+        types: &mut Vec<TypeField>,
+    ) -> Result<ExportDesc<Resolved>> {
         Ok(match self {
-            ExportDesc::Func(idx) => ExportDesc::Func(idx.resolve(&ic)?),
-            ExportDesc::Table(idx) => ExportDesc::Table(idx.resolve(&ic)?),
-            ExportDesc::Mem(idx) => ExportDesc::Mem(idx.resolve(&ic)?),
-            ExportDesc::Global(idx) => ExportDesc::Global(idx.resolve(&ic)?),
+            ExportDesc::Func(idx) => ExportDesc::Func(idx.resolve(&ic, types)?),
+            ExportDesc::Table(idx) => ExportDesc::Table(idx.resolve(&ic, types)?),
+            ExportDesc::Mem(idx) => ExportDesc::Mem(idx.resolve(&ic, types)?),
+            ExportDesc::Global(idx) => ExportDesc::Global(idx.resolve(&ic, types)?),
         })
     }
 }
 
 impl Resolve<GlobalField<Resolved>> for GlobalField<Unresolved> {
-    fn resolve(self, ic: &IdentifierContext) -> Result<GlobalField<Resolved>> {
+    fn resolve(
+        self,
+        ic: &ResolutionContext,
+        types: &mut Vec<TypeField>,
+    ) -> Result<GlobalField<Resolved>> {
         Ok(GlobalField {
             id: self.id,
             exports: self.exports,
             globaltype: self.globaltype,
-            init: self.init.resolve(&ic)?,
+            init: self.init.resolve(&ic, types)?,
         })
     }
 }
 
 impl Resolve<StartField<Resolved>> for StartField<Unresolved> {
-    fn resolve(self, ic: &IdentifierContext) -> Result<StartField<Resolved>> {
+    fn resolve(
+        self,
+        ic: &ResolutionContext,
+        types: &mut Vec<TypeField>,
+    ) -> Result<StartField<Resolved>> {
         Ok(StartField {
-            idx: self.idx.resolve(&ic)?,
+            idx: self.idx.resolve(&ic, types)?,
         })
     }
 }
 
 impl Resolve<ElemField<Resolved>> for ElemField<Unresolved> {
-    fn resolve(self, ic: &IdentifierContext) -> Result<ElemField<Resolved>> {
+    fn resolve(
+        self,
+        ic: &ResolutionContext,
+        types: &mut Vec<TypeField>,
+    ) -> Result<ElemField<Resolved>> {
         Ok(ElemField {
             id: self.id,
-            mode: self.mode.resolve(&ic)?,
-            elemlist: self.elemlist.resolve(&ic)?,
+            mode: self.mode.resolve(&ic, types)?,
+            elemlist: self.elemlist.resolve(&ic, types)?,
         })
     }
 }
 
 impl Resolve<ModeEntry<Resolved>> for ModeEntry<Unresolved> {
-    fn resolve(self, ic: &IdentifierContext) -> Result<ModeEntry<Resolved>> {
+    fn resolve(
+        self,
+        ic: &ResolutionContext,
+        types: &mut Vec<TypeField>,
+    ) -> Result<ModeEntry<Resolved>> {
         Ok(match self {
             ModeEntry::Passive => ModeEntry::Passive,
-            ModeEntry::Active(tp) => ModeEntry::Active(tp.resolve(&ic)?),
+            ModeEntry::Active(tp) => ModeEntry::Active(tp.resolve(&ic, types)?),
             ModeEntry::Declarative => ModeEntry::Declarative,
         })
     }
 }
 
 impl Resolve<TablePosition<Resolved>> for TablePosition<Unresolved> {
-    fn resolve(self, ic: &IdentifierContext) -> Result<TablePosition<Resolved>> {
+    fn resolve(
+        self,
+        ic: &ResolutionContext,
+        types: &mut Vec<TypeField>,
+    ) -> Result<TablePosition<Resolved>> {
         Ok(TablePosition {
-            tableuse: self.tableuse.resolve(&ic)?,
-            offset: self.offset.resolve(&ic)?,
+            tableuse: self.tableuse.resolve(&ic, types)?,
+            offset: self.offset.resolve(&ic, types)?,
         })
     }
 }
 
 impl Resolve<TableUse<Resolved>> for TableUse<Unresolved> {
-    fn resolve(self, ic: &IdentifierContext) -> Result<TableUse<Resolved>> {
+    fn resolve(
+        self,
+        ic: &ResolutionContext,
+        types: &mut Vec<TypeField>,
+    ) -> Result<TableUse<Resolved>> {
         Ok(TableUse {
-            tableidx: self.tableidx.resolve(&ic)?,
+            tableidx: self.tableidx.resolve(&ic, types)?,
         })
     }
 }
 
 impl Resolve<DataField<Resolved>> for DataField<Unresolved> {
-    fn resolve(self, ic: &IdentifierContext) -> Result<DataField<Resolved>> {
-        let init = resolve_option!(self.init, ic);
+    fn resolve(
+        self,
+        ic: &ResolutionContext,
+        types: &mut Vec<TypeField>,
+    ) -> Result<DataField<Resolved>> {
+        let init = resolve_option!(self.init, ic, types);
         Ok(DataField {
             id: self.id,
             data: self.data,
@@ -290,23 +361,34 @@ impl Resolve<DataField<Resolved>> for DataField<Unresolved> {
 }
 
 impl Resolve<DataInit<Resolved>> for DataInit<Unresolved> {
-    fn resolve(self, ic: &IdentifierContext) -> Result<DataInit<Resolved>> {
+    fn resolve(
+        self,
+        ic: &ResolutionContext,
+        types: &mut Vec<TypeField>,
+    ) -> Result<DataInit<Resolved>> {
         Ok(DataInit {
-            memidx: self.memidx.resolve(&ic)?,
-            offset: self.offset.resolve(&ic)?,
+            memidx: self.memidx.resolve(&ic, types)?,
+            offset: self.offset.resolve(&ic, types)?,
         })
     }
 }
 
-impl Resolve<Module<Resolved>> for Module<Unresolved> {
-    fn resolve(self, ic: &IdentifierContext) -> Result<Module<Resolved>> {
-        let funcs: Vec<_> = resolve_all!(self.funcs, ic)?;
-        let imports = resolve_all!(self.imports, ic)?;
-        let exports = resolve_all!(self.exports, ic)?;
-        let globals = resolve_all!(self.globals, ic)?;
-        let elems = resolve_all!(self.elems, ic)?;
-        let start = resolve_option!(self.start, ic);
-        let data = resolve_all!(self.data, ic)?;
+pub trait ResolveModule {
+    fn resolve(self, idents: ModuleIdentifiers) -> Result<Module<Resolved>>;
+}
+
+impl ResolveModule for Module<Unresolved> {
+    fn resolve(mut self, mi: ModuleIdentifiers) -> Result<Module<Resolved>> {
+        let rc = ResolutionContext::new(mi);
+        let types = &mut self.types;
+        let funcs = resolve_all!(self.funcs, rc, types)?;
+        let imports = resolve_all!(self.imports, rc, types)?;
+        let exports = resolve_all!(self.exports, rc, types)?;
+        let globals = resolve_all!(self.globals, rc, types)?;
+        let elems = resolve_all!(self.elems, rc, types)?;
+        let start = resolve_option!(self.start, rc, types);
+        let data = resolve_all!(self.data, rc, types)?;
+
         Ok(Module {
             id: self.id,
             types: self.types,
@@ -324,22 +406,57 @@ impl Resolve<Module<Resolved>> for Module<Unresolved> {
 }
 
 impl Resolve<TypeUse<Resolved>> for TypeUse<Unresolved> {
-    fn resolve(self, ic: &IdentifierContext) -> Result<TypeUse<Resolved>> {
-        let typeidx = resolve_option!(self.typeidx, ic);
+    fn resolve(
+        self,
+        ic: &ResolutionContext,
+        types: &mut Vec<TypeField>,
+    ) -> Result<TypeUse<Resolved>> {
+        let typeidx = resolve_option!(self.typeidx.clone(), ic, types);
+
+        // If there is a typeidx, look up the existing type.
+        let (typeidx, functiontype) = if let Some(typeidx) = &typeidx {
+            // We don't care about populating the existing functiontype, since the index is
+            // sufficient.
+            //  Don't actually validate the index here, or spec tests will fail at parse time.
+            (typeidx.clone(), FunctionType::default())
+        } else {
+            let functiontype = self.functiontype;
+            let existing = types
+                .iter()
+                .position(|t| t.functiontype.anonymous() == functiontype.anonymous());
+
+            let typeidx = match existing {
+                Some(existing) => Index::unnamed(existing as u32),
+                None => {
+                    let newidx = types.len();
+                    types.push(TypeField {
+                        id: None,
+                        functiontype: functiontype.clone(),
+                    });
+                    Index::unnamed(newidx as u32)
+                }
+            };
+            (typeidx, functiontype)
+        };
+
         Ok(TypeUse {
-            typeidx,
-            functiontype: self.functiontype,
+            typeidx: Some(typeidx),
+            functiontype,
         })
     }
 }
 
 impl Resolve<FuncField<Resolved>> for FuncField<Unresolved> {
-    fn resolve(self, ic: &IdentifierContext) -> Result<FuncField<Resolved>> {
-        let typeuse = self.typeuse.resolve(&ic)?;
+    fn resolve(
+        self,
+        ic: &ResolutionContext,
+        types: &mut Vec<TypeField>,
+    ) -> Result<FuncField<Resolved>> {
+        let typeuse = self.typeuse.resolve(&ic, types)?;
 
         let fic = ic.for_func(self.localindices.clone());
 
-        let body = self.body.resolve(&fic)?;
+        let body = self.body.resolve(&fic, types)?;
 
         Ok(FuncField {
             id: self.id,

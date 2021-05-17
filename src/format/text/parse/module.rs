@@ -133,7 +133,6 @@ impl<R: Read> Parser<R> {
     fn try_field(&mut self) -> Result<Option<Field<Unresolved>>> {
         self.first_of(&[
             Self::try_type_field,
-            Self::try_type_field,
             Self::try_func_field,
             Self::try_table_field,
             Self::try_memory_field,
