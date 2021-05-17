@@ -98,7 +98,7 @@ pub trait ExecutionContextActions {
         self.push(op(o))
     }
 
-    fn testop<T, F>(&mut self, op: F) -> Result<()>
+    fn relop<T, F>(&mut self, op: F) -> Result<()>
     where
         T: TryFrom<Value, Error = RuntimeError> + Into<Value>,
         F: Fn(T, T) -> bool,
@@ -106,6 +106,15 @@ pub trait ExecutionContextActions {
         let r = self.pop::<T>()?;
         let l = self.pop::<T>()?;
         self.push(if op(l, r) { 1 } else { 0 })
+    }
+
+    fn testop<T, F>(&mut self, op: F) -> Result<()>
+    where
+        T: TryFrom<Value, Error = RuntimeError> + Into<Value>,
+        F: Fn(T) -> bool,
+    {
+        let i = self.pop::<T>()?;
+        self.push(if op(i) { 1 } else { 0 })
     }
 }
 
