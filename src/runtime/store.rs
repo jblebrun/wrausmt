@@ -4,8 +4,8 @@ use super::instance::{
 };
 use super::values::Value;
 use crate::{impl_bug, logger::PrintLogger};
-use std::iter::Iterator;
 use std::rc::Rc;
+use std::{iter::Iterator, slice};
 
 /// Function instances, table instances, memory instances, and global instances,
 /// element instances, and data instances in the store are referenced with
@@ -53,6 +53,18 @@ pub struct Store {
     pub globals: Vec<GlobalInstance>,
     pub elems: Vec<ElemInstance>,
     pub datas: Vec<DataInstance>,
+}
+
+trait UnsafeCopyFromSlice<T> {
+    unsafe fn copy_from_slice_unsafe(&self, src: &[T]);
+}
+
+impl<T: Copy> UnsafeCopyFromSlice<T> for [T] {
+    unsafe fn copy_from_slice_unsafe(&self, src: &[T]) {
+        let dstptr = self.as_ptr() as *mut T;
+        let dstitems = slice::from_raw_parts_mut(dstptr, self.len());
+        dstitems.copy_from_slice(src);
+    }
 }
 
 impl Store {
@@ -143,6 +155,55 @@ impl Store {
             })?;
 
         table.copy_from_slice(elems);
+        Ok(())
+    }
+
+    // Use by the table.set and table.init ops
+    pub fn copy_table_to_table(
+        &mut self,
+        srcaddr: addr::TableAddr,
+        dstaddr: addr::TableAddr,
+        src: usize,
+        dst: usize,
+        count: usize,
+    ) -> Result<()> {
+        let tables = &self.tables;
+        let srcitems = tables
+            .get(srcaddr as usize)
+            .ok_or_else(|| impl_bug!("no table at addr {}", srcaddr))?
+            .elem
+            .get(src..src + count)
+            .ok_or_else(|| {
+                impl_bug!(
+                    "elem: {} count={} out of bounds for {}",
+                    src,
+                    count,
+                    srcaddr
+                )
+            })?;
+
+        let dstitems = tables
+            .get(dstaddr as usize)
+            .ok_or_else(|| impl_bug!("no table at {}", dstaddr))?
+            .elem
+            .get(dst..dst + count)
+            .ok_or_else(|| {
+                impl_bug!(
+                    "table: {} count={} out of bounds for {}",
+                    dst,
+                    count,
+                    dstaddr
+                )
+            })?;
+
+        // Can't get a mut ref to one table in the vector of tables while we have a const ref to
+        // another one.
+        // But we are ok here: nothing is touching the tables themselves, and the copy_from_slice
+        // will not trigger any re-allocation, so we can force the ref to a mutable pointer, then
+        // convert it back into a mutable slice.
+        unsafe {
+            dstitems.copy_from_slice_unsafe(srcitems);
+        }
         Ok(())
     }
 

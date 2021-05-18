@@ -68,7 +68,7 @@ impl<R: Read> Parser<R> {
                     Operands::TableInit => {
                         let tabidx = self.try_index()?;
                         let elemidx = self.try_index()?;
-                        let (tabidx, elemidx) = match (elemidx, tabidx) {
+                        let (tabidx, elemidx) = match (tabidx, elemidx) {
                             (None, None) => return Err(ParseError::unexpected("elem idx")),
                             (None, Some(elemidx)) => (Index::unnamed(0), elemidx),
                             (Some(tabidx), None) => (Index::unnamed(0), tabidx.convert()),
