@@ -1,8 +1,8 @@
-use super::error::Result;
 use super::instance::{
     DataInstance, ElemInstance, FunctionInstance, GlobalInstance, MemInstance, TableInstance,
 };
 use super::values::Value;
+use super::{error::Result, values::Ref};
 use crate::{impl_bug, logger::PrintLogger};
 use std::rc::Rc;
 use std::{iter::Iterator, slice};
@@ -113,6 +113,17 @@ impl Store {
     pub fn grow_mem(&mut self, addr: addr::MemoryAddr, pgs: u32) -> Result<Option<u32>> {
         let mem = self.mem(addr)?;
         Ok(mem.grow(pgs))
+    }
+
+    pub fn grow_table(
+        &mut self,
+        addr: addr::TableAddr,
+        elems: u32,
+        val: Ref,
+    ) -> Result<Option<u32>> {
+        let table = self.table_mut(addr)?;
+        let growres = table.grow(elems, val);
+        Ok(growres)
     }
 
     // Use by the table.set and table.init ops

@@ -26,4 +26,17 @@ impl TableInstance {
             .collect();
         TableInstance { tabletype, elem }
     }
+
+    pub fn grow(&mut self, amt: u32, val: Ref) -> Option<u32> {
+        let oldsize = self.elem.len();
+        let newsize = self.elem.len() + amt as usize;
+        if newsize > i32::MAX as usize {
+            return None;
+        }
+        if matches!(self.tabletype.limits.upper, Some(upper) if newsize > upper as usize) {
+            return None;
+        }
+        self.elem.resize(newsize, val);
+        Some(oldsize as u32)
+    }
 }
