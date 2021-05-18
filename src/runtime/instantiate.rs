@@ -85,7 +85,6 @@ impl Runtime {
             Instruction::elemdrop(ei),
         ];
         let mut init_code: Vec<u8> = vec![];
-        // TODO - offset has and end marker 0x0b throwing off label count.
         init_code.emit_expr(&tp.offset);
         self.exec_expr(&init_code)?;
         init_code.clear();
@@ -102,7 +101,6 @@ impl Runtime {
             Instruction::datadrop(di),
         ];
         let mut init_code: Vec<u8> = vec![];
-        // TODO - offset has and end marker 0x0b throwing off label count.
         init_code.emit_expr(&datainit.offset);
         self.exec_expr(&init_code)?;
         init_code.clear();

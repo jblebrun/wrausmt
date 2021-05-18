@@ -71,6 +71,8 @@ static ENABLED: &[&str] = &[
     "store.wast",
     "switch.wast",
     "table.wast",
+    "table_copy.wast",
+    "table_fill.wast",
     "table_get.wast",
     "table_grow.wast",
     "table_init.wast",

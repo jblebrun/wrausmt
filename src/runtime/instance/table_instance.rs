@@ -39,4 +39,8 @@ impl TableInstance {
         self.elem.resize(newsize, val);
         Some(oldsize as u32)
     }
+
+    pub fn fill(&mut self, n: usize, val: Ref, i: usize) {
+        self.elem[i..i + n].fill(val)
+    }
 }

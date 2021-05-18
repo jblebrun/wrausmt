@@ -126,6 +126,18 @@ impl Store {
         Ok(growres)
     }
 
+    pub fn fill_table(
+        &mut self,
+        addr: addr::TableAddr,
+        n: usize,
+        val: Ref,
+        i: usize,
+    ) -> Result<()> {
+        let table = self.table_mut(addr)?;
+        table.fill(n, val, i);
+        Ok(())
+    }
+
     // Use by the table.set and table.init ops
     pub fn copy_elems_to_table(
         &mut self,
@@ -172,10 +184,10 @@ impl Store {
     // Use by the table.set and table.init ops
     pub fn copy_table_to_table(
         &mut self,
-        srcaddr: addr::TableAddr,
         dstaddr: addr::TableAddr,
-        src: usize,
+        srcaddr: addr::TableAddr,
         dst: usize,
+        src: usize,
         count: usize,
     ) -> Result<()> {
         let tables = &self.tables;
