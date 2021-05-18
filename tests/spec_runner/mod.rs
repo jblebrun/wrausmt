@@ -59,7 +59,12 @@ static ENABLED: &[&str] = &[
     "local_set.wast",
     "local_tee.wast",
     "loop.wast",
+    "memory_copy.wast",
+    "memory_fill.wast",
+    "memory_grow.wast",
+    "memory_init.wast",
     "memory_redundancy.wast",
+    "memory_size.wast",
     "names.wast",
     "nop.wast",
     "ref_func.wast",
@@ -104,7 +109,7 @@ fn spec_tests_passing() -> Result<()> {
             }
         }
         let finish = Instant::now();
-        println!("{} IN {:?}", item, (finish - start));
+        println!("{} FINISHED IN {:?}", item, (finish - start));
     }
     Ok(())
 }
@@ -121,7 +126,7 @@ fn spec_tests_all_run_ignore_failure() -> Result<()> {
                 continue;
             }
             let start = Instant::now();
-            println!("RUNNING {:?}", path);
+            println!("\n\n*****  RUNNING {:?} *****\n\n", path);
             match parse_and_run(&path, RunSet::All) {
                 Ok(()) => {
                     println!("Tests succeeded {:?}", path);
@@ -140,6 +145,6 @@ fn spec_tests_all_run_ignore_failure() -> Result<()> {
 }
 
 #[test]
-fn funcspec() -> Result<()> {
-    parse_and_run("testdata/spec/func.wast", RunSet::All)
+fn memcopy() -> Result<()> {
+    parse_and_run("testdata/spec/memory_copy.wast", RunSet::All)
 }

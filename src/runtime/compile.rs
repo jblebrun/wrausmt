@@ -104,11 +104,13 @@ pub trait Emitter {
 
         self.emit_expr(th);
 
-        self.splice32(else_location, self.len() as u32 + 1);
         if !el.instr.is_empty() {
+            self.splice32(else_location, self.len() as u32 + 1);
             // Replace the `end` for the then expression with the else opcode.
             self.push(ELSE_OPCODE);
             self.emit_expr(el);
+        } else {
+            self.splice32(else_location, self.len() as u32);
         }
 
         self.push(END_OPCODE);

@@ -126,15 +126,9 @@ impl Store {
         Ok(growres)
     }
 
-    pub fn fill_table(
-        &mut self,
-        addr: addr::TableAddr,
-        n: usize,
-        val: Ref,
-        i: usize,
-    ) -> Result<()> {
-        let table = self.table_mut(addr)?;
-        table.fill(n, val, i);
+    pub fn fill_mem(&mut self, addr: addr::MemoryAddr, n: usize, val: u8, i: usize) -> Result<()> {
+        let mem = self.mem(addr)?;
+        mem.data[i..i + n].fill(val);
         Ok(())
     }
 
@@ -147,6 +141,9 @@ impl Store {
         dst: usize,
         count: usize,
     ) -> Result<()> {
+        if count == 0 {
+            return Ok(());
+        }
         let elems = &self
             .elems
             .get(elemaddr as usize)
@@ -190,6 +187,9 @@ impl Store {
         src: usize,
         count: usize,
     ) -> Result<()> {
+        if count == 0 {
+            return Ok(());
+        }
         let tables = &self.tables;
         let srcitems = tables
             .get(srcaddr as usize)
@@ -238,6 +238,9 @@ impl Store {
         dst: usize,
         count: usize,
     ) -> Result<()> {
+        if count == 0 {
+            return Ok(());
+        }
         let data = &self
             .datas
             .get(dataaddr as usize)
@@ -264,6 +267,48 @@ impl Store {
             })?;
 
         mem.copy_from_slice(data);
+        Ok(())
+    }
+
+    pub fn copy_mem_to_mem(
+        &mut self,
+        memaddr: addr::MemoryAddr,
+        src: usize,
+        dst: usize,
+        count: usize,
+    ) -> Result<()> {
+        if count == 0 {
+            return Ok(());
+        }
+        let mem = &self.mem(memaddr)?;
+        let srcitems = mem.data.get(src..src + count).ok_or_else(|| {
+            impl_bug!("{} count={} out of bounds for data {}", src, count, memaddr)
+        })?;
+
+        let dstitems = mem.data.get(dst..dst + count).ok_or_else(|| {
+            impl_bug!("{} count={} out of bounds for mem {}", dst, count, memaddr)
+        })?;
+
+        // Can't get a mut ref to one table in the vector of tables while we have a const ref to
+        // another one.
+        // But we are ok here: nothing is touching the tables themselves, and the copy_from_slice
+        // will not trigger any re-allocation, so we can force the ref to a mutable pointer, then
+        // convert it back into a mutable slice.
+        unsafe {
+            dstitems.copy_from_slice_unsafe(srcitems);
+        }
+        Ok(())
+    }
+
+    pub fn fill_table(
+        &mut self,
+        addr: addr::TableAddr,
+        n: usize,
+        val: Ref,
+        i: usize,
+    ) -> Result<()> {
+        let table = self.table_mut(addr)?;
+        table.fill(n, val, i);
         Ok(())
     }
 

@@ -13,7 +13,11 @@
 | _ec.data_drop()
 
 0x0a      ,memory.copy                   ,(MemoryCopy)
+| _ec.mem_copy()
+
 0x0b      ,memory.fill                   ,(MemoryFill)
+| _ec.mem_fill()
+
 0x0c      ,table.init                    ,(TableInit)
 | _ec.table_init()
 

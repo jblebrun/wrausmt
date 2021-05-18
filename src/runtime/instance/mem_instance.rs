@@ -39,16 +39,24 @@ impl MemInstance {
         MemInstance { memtype, data }
     }
 
+    pub fn size(&self) -> usize {
+        self.data.len() / PAGE_SIZE
+    }
+
     pub fn grow(&mut self, pgs: u32) -> Option<u32> {
+        if pgs as usize > i32::MAX as usize / PAGE_SIZE {
+            return None;
+        }
+
+        let old_size_in_pages = self.data.len() / PAGE_SIZE;
+
         if let Some(upper) = self.memtype.limits.upper {
-            if pgs * PAGE_SIZE as u32 > upper {
+            if old_size_in_pages as u32 + pgs > upper {
                 return None;
             }
         }
 
         let newsize = self.data.len() + (pgs as usize * PAGE_SIZE);
-        let old_size_in_pages = self.data.len() / PAGE_SIZE;
-
         self.data.resize(newsize, 0);
 
         Some(old_size_in_pages as u32)

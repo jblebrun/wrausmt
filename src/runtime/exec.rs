@@ -27,7 +27,6 @@ pub trait ExecutionContextActions {
     fn get_local(&mut self, idx: u32) -> Result<Value>;
     fn set_local(&mut self, idx: u32, val: Value) -> Result<()>;
 
-    fn get_func_table(&mut self, tidx: u32, elemidx: u32) -> Result<u32>;
     fn get_global(&mut self, idx: u32) -> Result<Value>;
     fn set_global(&mut self, idx: u32, val: Value) -> Result<()>;
     fn push_value(&mut self, val: Value) -> Result<()>;
@@ -40,12 +39,17 @@ pub trait ExecutionContextActions {
     fn pop<T: TryFrom<Value, Error = RuntimeError>>(&mut self) -> Result<T>;
     fn call(&mut self, idx: u32) -> Result<()>;
     fn mem(&mut self, idx: u32) -> Result<&mut MemInstance>;
-    fn grow_mem(&mut self, pgs: u32) -> Result<Option<u32>>;
+    fn mem_init(&mut self) -> Result<()>;
+    fn mem_size(&mut self) -> Result<()>;
+    fn mem_grow(&mut self) -> Result<()>;
+    fn mem_fill(&mut self) -> Result<()>;
+    fn mem_copy(&mut self) -> Result<()>;
     fn table_init(&mut self) -> Result<()>;
     fn table_size(&mut self) -> Result<()>;
     fn table_grow(&mut self) -> Result<()>;
     fn table_fill(&mut self) -> Result<()>;
     fn table_copy(&mut self) -> Result<()>;
+    fn get_func_table(&mut self, tidx: u32, elemidx: u32) -> Result<u32>;
     fn get_table_elem(&mut self, tidx: u32, eidx: u32) -> Result<Ref>;
     fn set_table_elem<V: TryInto<Ref, Error = RuntimeError>>(
         &mut self,
@@ -54,7 +58,6 @@ pub trait ExecutionContextActions {
         val: V,
     ) -> Result<()>;
     fn elem_drop(&mut self) -> Result<()>;
-    fn mem_init(&mut self) -> Result<()>;
     fn data_drop(&mut self) -> Result<()>;
 
     fn br(&mut self, labelidx: u32) -> Result<()>;
@@ -66,7 +69,10 @@ pub trait ExecutionContextActions {
         let o = self.op_u32()?;
         let b = self.pop::<u32>()?;
         let i = (b + o) as usize;
-        self.mem(0)?.data[i..i + S]
+        self.mem(0)?
+            .data
+            .get(i..i + S)
+            .ok_or_else(|| impl_bug!("mem bounds {} {}", i, i + S))?
             .try_into()
             .map_err(|e| impl_bug!("conversion error {:?}", e))
     }
@@ -215,9 +221,54 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
         self.runtime.store.mem(memaddr)
     }
 
-    fn grow_mem(&mut self, pgs: u32) -> Result<Option<u32>> {
+    fn mem_init(&mut self) -> Result<()> {
+        let dataidx = self.op_u32()?;
+        let n = self.pop::<u32>()? as usize;
+        let src = self.pop::<u32>()? as usize;
+        let dst = self.pop::<u32>()? as usize;
+        // TODO if s + n or d + n > sie of table 0, trap
         let memaddr = self.runtime.stack.get_mem_addr(0)?;
-        self.runtime.store.grow_mem(memaddr, pgs)
+        let dataaddr = self.runtime.stack.get_data_addr(dataidx)?;
+        self.runtime
+            .store
+            .copy_data_to_mem(memaddr, dataaddr, src, dst, n)
+    }
+
+    fn mem_size(&mut self) -> Result<()> {
+        let memaddr = self.runtime.stack.get_mem_addr(0)?;
+        let size = self.runtime.store.mem(memaddr)?.size() as u32;
+        self.runtime.stack.push_value(size.into());
+        Ok(())
+    }
+
+    fn mem_grow(&mut self) -> Result<()> {
+        let pgs = self.pop::<u32>()?;
+        let memaddr = self.runtime.stack.get_mem_addr(0)?;
+        let result = self.runtime.store.grow_mem(memaddr, pgs)?;
+        match result {
+            None => self.push_value((-1i32).into()),
+            Some(s) => self.push_value(s.into()),
+        }
+    }
+
+    fn mem_fill(&mut self) -> Result<()> {
+        let n = self.pop::<usize>()?;
+        let val = self.pop::<u8>()?;
+        let d = self.pop::<usize>()?;
+        let memaddr = self.runtime.stack.get_mem_addr(0)?;
+        // Note: the spec describes table fill as a recursive set of calls to table set + table
+        // fill, we use a function here to emulate the same behavior with less overhead.
+        self.runtime.store.fill_mem(memaddr, n, val, d)
+    }
+
+    fn mem_copy(&mut self) -> Result<()> {
+        let n = self.pop::<usize>()?;
+        let s = self.pop::<usize>()?;
+        let d = self.pop::<usize>()?;
+        let memaddr = self.runtime.stack.get_mem_addr(0)?;
+        // Note: the spec describes table fill as a recursive set of calls to table set + table
+        // fill, we use a function here to emulate the same behavior with less overhead.
+        self.runtime.store.copy_mem_to_mem(memaddr, s, d, n)
     }
 
     fn br(&mut self, labelidx: u32) -> Result<()> {
@@ -257,19 +308,6 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
         self.runtime
             .store
             .copy_table_to_table(dstaddr, srcaddr, dst, src, n)
-    }
-
-    fn mem_init(&mut self) -> Result<()> {
-        let dataidx = self.op_u32()?;
-        let n = self.pop::<u32>()? as usize;
-        let src = self.pop::<u32>()? as usize;
-        let dst = self.pop::<u32>()? as usize;
-        // TODO if s + n or d + n > sie of table 0, trap
-        let memaddr = self.runtime.stack.get_mem_addr(0)?;
-        let dataaddr = self.runtime.stack.get_data_addr(dataidx)?;
-        self.runtime
-            .store
-            .copy_data_to_mem(memaddr, dataaddr, src, dst, n)
     }
 
     fn table_size(&mut self) -> Result<()> {
@@ -414,6 +452,20 @@ impl<'l> ExecutionContext<'l> {
     }
 }
 
+struct Body<'a>(&'a [u8]);
+
+impl<'a> std::fmt::Display for Body<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut idx = 0usize;
+        while idx < self.0.len() {
+            let end = std::cmp::min(self.0.len(), idx + 16);
+            writeln!(f, "{:02x?}", &self.0[idx..end])?;
+            idx = end;
+        }
+        Ok(())
+    }
+}
+
 /// Implementation of instruction implementation for this runtime.
 impl Runtime {
     fn log<S: Borrow<str> + Eq + Hash + Display, F: Fn() -> String>(&self, tag: S, msg: F) {
@@ -421,7 +473,7 @@ impl Runtime {
     }
 
     pub fn enter(&mut self, body: &[u8]) -> Result<()> {
-        self.log("ENTER", || format!("ENTER EXPR {:x?}", body));
+        self.log("ENTER", || format!("ENTER EXPR {}", Body(body)));
         let mut ic = ExecutionContext {
             runtime: self,
             body,
