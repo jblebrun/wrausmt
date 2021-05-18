@@ -42,6 +42,8 @@ pub trait ExecutionContextActions {
     fn mem(&mut self, idx: u32) -> Result<&mut MemInstance>;
     fn grow_mem(&mut self, pgs: u32) -> Result<Option<u32>>;
     fn table_init(&mut self) -> Result<()>;
+    fn table_size(&mut self) -> Result<()>;
+    fn table_grow(&mut self) -> Result<()>;
     fn table_copy(&mut self) -> Result<()>;
     fn get_table_elem(&mut self, tidx: u32, eidx: u32) -> Result<Ref>;
     fn set_table_elem<V: TryInto<Ref, Error = RuntimeError>>(
@@ -267,6 +269,28 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
         self.runtime
             .store
             .copy_data_to_mem(memaddr, dataaddr, src, dst, n)
+    }
+
+    fn table_size(&mut self) -> Result<()> {
+        let tabidx = self.op_u32()?;
+        let tabaddr = self.runtime.stack.get_table_addr(tabidx)?;
+        let size = self.runtime.store.table(tabaddr)?.elem.len() as u32;
+        self.runtime.stack.push_value(size.into());
+        Ok(())
+    }
+
+    fn table_grow(&mut self) -> Result<()> {
+        let tabidx = self.op_u32()?;
+        let amt = self.pop::<u32>()?;
+        let val = self.pop::<Ref>()?;
+        let tabaddr = self.runtime.stack.get_table_addr(tabidx)?;
+        let result = self.runtime.store.grow_table(tabaddr, amt, val)?;
+        let result = match result {
+            Some(result) => result as i32,
+            None => -1,
+        };
+        self.runtime.stack.push_value(result.into());
+        Ok(())
     }
 
     fn elem_drop(&mut self) -> Result<()> {
