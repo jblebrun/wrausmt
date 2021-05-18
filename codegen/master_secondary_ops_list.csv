@@ -30,3 +30,6 @@
 | _ec.table_size()
 
 0x11      ,table.fill                    ,(TableIndex)
+| _ec.table_fill()
+
+0x12      ,DUMMY                         ,()

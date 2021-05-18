@@ -44,6 +44,7 @@ pub trait ExecutionContextActions {
     fn table_init(&mut self) -> Result<()>;
     fn table_size(&mut self) -> Result<()>;
     fn table_grow(&mut self) -> Result<()>;
+    fn table_fill(&mut self) -> Result<()>;
     fn table_copy(&mut self) -> Result<()>;
     fn get_table_elem(&mut self, tidx: u32, eidx: u32) -> Result<Ref>;
     fn set_table_elem<V: TryInto<Ref, Error = RuntimeError>>(
@@ -184,8 +185,8 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
     }
 
     fn get_table_elem(&mut self, tidx: u32, elemidx: u32) -> Result<Ref> {
-        let tableaddr = &self.runtime.stack.get_table_addr(tidx)?;
-        let table = self.runtime.store.table(*tableaddr)?;
+        let tableaddr = self.runtime.stack.get_table_addr(tidx)?;
+        let table = self.runtime.store.table(tableaddr)?;
         Ok(table.elem[elemidx as usize])
     }
 
@@ -204,7 +205,7 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
     fn get_func_table(&mut self, tidx: u32, elemidx: u32) -> Result<u32> {
         match self.get_table_elem(tidx, elemidx)? {
             Ref::Func(a) => Ok(a as u32),
-            e => Err(impl_bug!("not a func {:?}", e)),
+            e => Err(impl_bug!("not a func {:?} FOR {} {}", e, tidx, elemidx)),
         }
     }
 
@@ -255,7 +256,7 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
         let srcaddr = self.runtime.stack.get_table_addr(srcidx)?;
         self.runtime
             .store
-            .copy_table_to_table(dstaddr, srcaddr, src, dst, n)
+            .copy_table_to_table(dstaddr, srcaddr, dst, src, n)
     }
 
     fn mem_init(&mut self) -> Result<()> {
@@ -290,6 +291,19 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
             None => -1,
         };
         self.runtime.stack.push_value(result.into());
+        Ok(())
+    }
+
+    fn table_fill(&mut self) -> Result<()> {
+        let tabidx = self.op_u32()?;
+        let n = self.pop::<usize>()?;
+        let val = self.pop::<Ref>()?;
+        let i = self.pop::<usize>()?;
+        // TODO if i + n > sie of table 0, trap
+        let tabaddr = self.runtime.stack.get_table_addr(tabidx)?;
+        // Note: the spec describes table fill as a recursive set of calls to table set + table
+        // fill, we use a function here to emulate the same behavior with less overhead.
+        self.runtime.store.fill_table(tabaddr, n, val, i)?;
         Ok(())
     }
 

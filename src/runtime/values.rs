@@ -179,6 +179,7 @@ macro_rules! froms {
 }
 
 froms! { u32, u32, I32 }
+froms! { usize, u32, I32 }
 froms! { u64, u64, I64 }
 froms! { i32, u32, I32 }
 froms! { i64, u64, I64 }
