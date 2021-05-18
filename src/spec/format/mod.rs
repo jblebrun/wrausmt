@@ -57,7 +57,7 @@ impl<R: Read> Parser<R> {
             return Ok(None);
         }
 
-        let id = self.try_id()?;
+        let modname = self.try_id()?;
 
         let kw = self.try_keyword()?;
 
@@ -65,15 +65,15 @@ impl<R: Read> Parser<R> {
             Some("binary") => {
                 let strings = self.zero_or_more(Self::try_wasm_string)?;
                 self.expect_close()?;
-                Ok(Some(Module::Binary(strings)))
+                Ok(Some(Module::Binary(modname, strings)))
             }
             Some("quote") => {
                 let strings = self.zero_or_more(Self::try_wasm_string)?;
                 self.expect_close()?;
-                Ok(Some(Module::Quote(strings)))
+                Ok(Some(Module::Quote(modname, strings)))
             }
             _ => {
-                if let Some(module) = self.try_module_rest(id)? {
+                if let Some(module) = self.try_module_rest(modname)? {
                     Ok(Some(Module::Module(module)))
                 } else {
                     Ok(None)
@@ -133,7 +133,14 @@ impl<R: Read> Parser<R> {
         if !self.try_expr_start("get")? {
             return Ok(None);
         }
-        Ok(None)
+
+        let modname = self.try_id()?;
+
+        let name = self.expect_string()?;
+
+        self.expect_close()?;
+
+        Ok(Some(Action::Get { modname, name }))
     }
 
     fn try_assertion_cmd(&mut self) -> Result<Option<Cmd>> {
@@ -416,8 +423,8 @@ pub struct CmdEntry {
 #[derive(Debug)]
 pub enum Module {
     Module(modulesyntax::Module<Resolved>),
-    Binary(Vec<WasmString>),
-    Quote(Vec<WasmString>),
+    Binary(Option<String>, Vec<WasmString>),
+    Quote(Option<String>, Vec<WasmString>),
 }
 
 /// action:

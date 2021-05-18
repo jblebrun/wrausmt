@@ -65,7 +65,7 @@ impl RunSet {
 pub struct SpecTestRunner {
     runtime: Runtime,
     latest_module: Option<Rc<ModuleInstance>>,
-    registered_modules: HashMap<String, Rc<ModuleInstance>>,
+    named_modules: HashMap<String, Rc<ModuleInstance>>,
     assert_returns: u32,
     logger: PrintLogger,
 }
@@ -83,7 +83,7 @@ impl SpecTestRunner {
 
     fn module_for_action(&self, modname: &Option<String>) -> Result<Rc<ModuleInstance>> {
         match modname {
-            Some(name) => self.registered_modules.get(name).cloned(),
+            Some(name) => self.named_modules.get(name).cloned(),
             None => self.latest_module.clone(),
         }
         .ok_or_else(|| SpecTestError::NoModule(modname.clone()))
@@ -104,9 +104,10 @@ impl SpecTestRunner {
                 Ok(self.runtime.call(&module_instance, &name, &values)?)
             }
             Action::Get { modname, name } => {
+                let module_instance = self.module_for_action(&modname)?;
                 self.logger
                     .log("SPEC", || format!("GET ACTION {:?} {}", modname, name));
-                Ok(vec![Value::Num(Num::I32(0))])
+                Ok(vec![self.runtime.get_global(&module_instance, &name)?])
             }
         }
     }
@@ -161,19 +162,25 @@ impl SpecTestRunner {
         for cmd in script.cmds {
             self.logger.log("SPEC", || format!("EXECUTE CMD {:?}", cmd));
             match cmd.cmd {
-                Cmd::Module(m) => match m {
-                    Module::Module(m) => {
-                        self.latest_module = Some(self.runtime.load(m)?);
+                Cmd::Module(m) => {
+                    let (name, modinst) = match m {
+                        Module::Module(m) => (m.id.clone(), self.runtime.load(m)?),
+                        Module::Binary(n, b) => {
+                            let data: Box<[u8]> = b
+                                .into_iter()
+                                .flat_map(|d| d.into_boxed_bytes().into_vec())
+                                .collect();
+                            (n, self.runtime.load_wasm_data(&data)?)
+                        }
+                        Module::Quote(_, _) => {
+                            panic!("no quote module support yet")
+                        }
+                    };
+                    if let Some(name) = name {
+                        self.named_modules.insert(name, modinst.clone());
                     }
-                    Module::Binary(b) => {
-                        let data: Box<[u8]> = b
-                            .into_iter()
-                            .flat_map(|d| d.into_boxed_bytes().into_vec())
-                            .collect();
-                        self.latest_module = Some(self.runtime.load_wasm_data(&data)?);
-                    }
-                    Module::Quote(_) => println!("QUOTE MODULE ACTION"),
-                },
+                    self.latest_module = Some(modinst);
+                }
                 Cmd::Register { modname, .. } => match &self.latest_module {
                     Some(module) => self.runtime.register(modname, module.clone()),
                     _ => return Err(SpecTestError::RegisterMissingModule(modname)),
