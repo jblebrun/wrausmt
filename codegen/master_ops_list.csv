@@ -70,6 +70,7 @@
 0x1A      ,drop                          ,()
 | _ec.pop_value()?;
 | Ok(())
+
 0x1B      ,select                        ,(Select)
 | let s = _ec.pop::<u32>()?;
 | let v2 = _ec.pop_value()?;
@@ -246,13 +247,10 @@
 | _ec.put_mem::<4>(bs)
 
 0x3f      ,memory.size                   ,(MemorySize)
+| _ec.mem_size()
+
 0x40      ,memory.grow                   ,(MemoryGrow)
-| let pgs = _ec.pop::<u32>()?;
-| let res = _ec.grow_mem(pgs)?;
-| match res {
-|     None => _ec.push_value((-1i32).into()),
-|     Some(s) => _ec.push_value(s.into()),
-| }
+| _ec.mem_grow()
 
 0x41      ,i32.const                      ,(I32)
 | let v = _ec.op_u32()?;

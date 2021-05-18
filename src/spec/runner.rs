@@ -42,6 +42,7 @@ macro_rules! runset_exclude {
 pub enum RunSet {
     All,
     Specific(Vec<String>),
+    SpecificIndex(Vec<u32>),
     Exclude(Vec<String>),
     ExcludeIndexed(Vec<u32>),
     First(u32),
@@ -178,6 +179,11 @@ pub fn run_spec_test(script: SpecTestScript, runset: RunSet) -> Result<()> {
                         RunSet::First(n) => {
                             if assert_returns > *n {
                                 return Ok(());
+                            }
+                        }
+                        RunSet::SpecificIndex(set) => {
+                            if !set.iter().any(|i| *i == assert_returns) {
+                                continue;
                             }
                         }
                         RunSet::ExcludeIndexed(set) => {
