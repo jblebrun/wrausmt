@@ -1,150 +1,556 @@
-use std::{path::Path, time::Instant};
+use std::{fs::File, path::Path, time::Instant};
 
-use wrausmt::format::text::parse::Parser;
 use wrausmt::spec::runner::run_spec_test;
 use wrausmt::{format::text::lex::Tokenizer, spec::runner::RunSet};
+use wrausmt::{format::text::parse::Parser, spec::format::SpecTestScript};
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
-fn parse_and_run<S: AsRef<Path>>(path: S, runset: RunSet) -> Result<()> {
-    let f = std::fs::File::open(path)?;
+enum FailMode {
+    None,
+    Parse,
+    Run,
+}
 
+fn parse(f: File) -> Result<SpecTestScript> {
     let tokenizer = Tokenizer::new(f)?;
     let mut parser = Parser::new(tokenizer)?;
-    let spectest = parser.parse_spec_test()?;
-
-    run_spec_test(spectest, runset)?;
-
-    Ok(())
+    let result = parser.parse_spec_test()?;
+    Ok(result)
 }
 
-static ENABLED: &[&str] = &[
-    "address.wast",
-    "align.wast",
-    "binary-leb128.wast",
-    "binary.wast",
-    "block.wast",
-    "br.wast",
-    "br_if.wast",
-    "br_table.wast",
-    "call.wast",
-    "call_indirect.wast",
-    "comments.wast",
-    "custom.wast",
-    "const.wast",
-    "data.wast",
-    "endianness.wast",
-    "f32.wast",
-    "f32_bitwise.wast",
-    "f32_cmp.wast",
-    "f64.wast",
-    "f64_bitwise.wast",
-    "f64_cmp.wast",
-    "fac.wast",
-    "forward.wast",
-    "float_exprs.wast",
-    "float_literals.wast",
-    "float_memory.wast",
-    "func.wast",
-    "func_ptrs.wast",
-    "i32.wast",
-    "i64.wast",
-    "if.wast",
-    "int_exprs.wast",
-    "int_literals.wast",
-    "left-to-right.wast",
-    "labels.wast",
-    "load.wast",
-    "local_get.wast",
-    "local_set.wast",
-    "local_tee.wast",
-    "loop.wast",
-    "memory_copy.wast",
-    "memory_fill.wast",
-    "memory_grow.wast",
-    "memory_init.wast",
-    "memory_redundancy.wast",
-    "memory_size.wast",
-    "names.wast",
-    "nop.wast",
-    "ref_func.wast",
-    "ref_null.wast",
-    "ref_is_null.wast",
-    "return.wast",
-    "select.wast",
-    "skip-stack-guard-page.wast",
-    "store.wast",
-    "switch.wast",
-    "table.wast",
-    "table_copy.wast",
-    "table_fill.wast",
-    "table_get.wast",
-    "table_grow.wast",
-    "table_init.wast",
-    "table_set.wast",
-    "table_size.wast",
-    "table-sub.wast",
-    "token.wast",
-    "traps.wast",
-    "type.wast",
-    "unreachable.wast",
-    "unreached-invalid.wast",
-    "unwind.wast",
-    "utf8-custom-section-id.wast",
-    "utf8-import-field.wast",
-    "utf8-import-module.wast",
-    "utf8-invalid-encoding.wast",
-];
+fn parse_and_run<S: std::fmt::Debug + AsRef<Path>>(
+    path: S,
+    runset: RunSet,
+    mode: FailMode,
+) -> Result<()> {
+    let f = std::fs::File::open(&path)?;
 
-#[test]
-fn spec_tests_passing() -> Result<()> {
-    for item in ENABLED {
-        let item = format!("testdata/spec/{}", item);
-        let start = Instant::now();
-        match parse_and_run(&item, RunSet::All) {
-            Ok(()) => (),
-            Err(e) => {
-                println!("During {:?}", item);
-                return Err(e);
-            }
+    let result = parse(f);
+    let spectest = match (result, &mode) {
+        (Err(e), FailMode::None) => {
+            println!("{:?} Error while parseing (but ignoring)\n{:?}", path, e);
+            return Ok(());
         }
-        let finish = Instant::now();
-        println!("{} FINISHED IN {:?}", item, (finish - start));
-    }
-    Ok(())
-}
+        (Err(e), _) => return Err(e),
+        (Ok(s), _) => s,
+    };
 
-#[test]
-fn spec_tests_all_run_ignore_failure() -> Result<()> {
-    for entry in std::fs::read_dir("testdata/spec")? {
-        let entry = entry?;
-        let path = entry.path();
-        if path.is_file() {
-            let filename = &path.file_name().unwrap().to_str().unwrap();
-            if ENABLED.iter().any(|n| n == filename) {
-                println!("SKIP ALREADY SUCCEEDING {}", filename);
-                continue;
-            }
-            let start = Instant::now();
-            println!("\n\n*****  RUNNING {:?} *****\n\n", path);
-            match parse_and_run(&path, RunSet::All) {
-                Ok(()) => {
-                    println!("Tests succeeded {:?}", path);
-                }
-                Err(e) => {
-                    println!("During {:?}", path);
-                    println!("{:?}", e);
-                }
-            }
-            let finish = Instant::now();
-            println!("TIMING {} IN {:?}", filename, (finish - start));
+    let start = Instant::now();
+    println!("\n\n*****  RUNNING {:?} *****\n\n", path);
+    let result = run_spec_test(spectest, runset);
+    let finish = Instant::now();
+    println!("TIMING {:?} IN {:?}", path, (finish - start));
+    match (result, mode) {
+        (Err(e), FailMode::Run) => Err(e.into()),
+        (Err(e), _) => {
+            println!("{:?}, Error while running (but igoring)\n{:?}", path, e);
+            Ok(())
         }
+        (Ok(()), _) => Ok(()),
     }
-
-    Ok(())
 }
 
 #[test]
-fn memcopy() -> Result<()> {
-    parse_and_run("testdata/spec/memory_copy.wast", RunSet::All)
+fn r#address() -> Result<()> {
+    parse_and_run("testdata/spec/address.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#align() -> Result<()> {
+    parse_and_run("testdata/spec/align.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#binary_leb128() -> Result<()> {
+    parse_and_run(
+        "testdata/spec/binary-leb128.wast",
+        RunSet::All,
+        FailMode::Run,
+    )
+}
+
+#[test]
+fn r#binary() -> Result<()> {
+    parse_and_run("testdata/spec/binary.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#block() -> Result<()> {
+    parse_and_run("testdata/spec/block.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#br() -> Result<()> {
+    parse_and_run("testdata/spec/br.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#br_if() -> Result<()> {
+    parse_and_run("testdata/spec/br_if.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#br_table() -> Result<()> {
+    parse_and_run("testdata/spec/br_table.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#bulk() -> Result<()> {
+    parse_and_run("testdata/spec/bulk.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#call() -> Result<()> {
+    parse_and_run("testdata/spec/call.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#call_indirect() -> Result<()> {
+    parse_and_run(
+        "testdata/spec/call_indirect.wast",
+        RunSet::All,
+        FailMode::Run,
+    )
+}
+
+#[test]
+fn r#comments() -> Result<()> {
+    parse_and_run("testdata/spec/comments.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#const() -> Result<()> {
+    parse_and_run("testdata/spec/const.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#conversions() -> Result<()> {
+    parse_and_run(
+        "testdata/spec/conversions.wast",
+        RunSet::All,
+        FailMode::Parse,
+    )
+}
+
+#[test]
+fn r#custom() -> Result<()> {
+    parse_and_run("testdata/spec/custom.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#data() -> Result<()> {
+    parse_and_run("testdata/spec/data.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#elem() -> Result<()> {
+    parse_and_run("testdata/spec/elem.wast", RunSet::All, FailMode::Parse)
+}
+
+#[test]
+fn r#endianness() -> Result<()> {
+    parse_and_run("testdata/spec/endianness.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#exports() -> Result<()> {
+    parse_and_run("testdata/spec/exports.wast", RunSet::All, FailMode::None)
+}
+
+#[test]
+fn r#f32() -> Result<()> {
+    parse_and_run("testdata/spec/f32.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#f32_bitwise() -> Result<()> {
+    parse_and_run("testdata/spec/f32_bitwise.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#f32_cmp() -> Result<()> {
+    parse_and_run("testdata/spec/f32_cmp.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#f64() -> Result<()> {
+    parse_and_run("testdata/spec/f64.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#f64_bitwise() -> Result<()> {
+    parse_and_run("testdata/spec/f64_bitwise.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#f64_cmp() -> Result<()> {
+    parse_and_run("testdata/spec/f64_cmp.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#fac() -> Result<()> {
+    parse_and_run("testdata/spec/fac.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#float_exprs() -> Result<()> {
+    parse_and_run("testdata/spec/float_exprs.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#float_literals() -> Result<()> {
+    parse_and_run(
+        "testdata/spec/float_literals.wast",
+        RunSet::All,
+        FailMode::Run,
+    )
+}
+
+#[test]
+fn r#float_memory() -> Result<()> {
+    parse_and_run(
+        "testdata/spec/float_memory.wast",
+        RunSet::All,
+        FailMode::Run,
+    )
+}
+
+#[test]
+fn r#float_misc() -> Result<()> {
+    parse_and_run(
+        "testdata/spec/float_misc.wast",
+        RunSet::All,
+        FailMode::Parse,
+    )
+}
+
+#[test]
+fn r#forward() -> Result<()> {
+    parse_and_run("testdata/spec/forward.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#func() -> Result<()> {
+    parse_and_run("testdata/spec/func.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#func_ptrs() -> Result<()> {
+    parse_and_run("testdata/spec/func_ptrs.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#global() -> Result<()> {
+    parse_and_run("testdata/spec/global.wast", RunSet::All, FailMode::Parse)
+}
+
+#[test]
+fn r#i32() -> Result<()> {
+    parse_and_run("testdata/spec/i32.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#i64() -> Result<()> {
+    parse_and_run("testdata/spec/i64.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#if() -> Result<()> {
+    parse_and_run("testdata/spec/if.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#imports() -> Result<()> {
+    parse_and_run("testdata/spec/imports.wast", RunSet::All, FailMode::None)
+}
+
+#[test]
+fn r#inline_module() -> Result<()> {
+    parse_and_run(
+        "testdata/spec/inline-module.wast",
+        RunSet::All,
+        FailMode::None,
+    )
+}
+
+#[test]
+fn r#int_exprs() -> Result<()> {
+    parse_and_run("testdata/spec/int_exprs.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#int_literals() -> Result<()> {
+    parse_and_run(
+        "testdata/spec/int_literals.wast",
+        RunSet::All,
+        FailMode::Run,
+    )
+}
+
+#[test]
+fn r#labels() -> Result<()> {
+    parse_and_run("testdata/spec/labels.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#left_to_right() -> Result<()> {
+    parse_and_run(
+        "testdata/spec/left-to-right.wast",
+        RunSet::All,
+        FailMode::Run,
+    )
+}
+
+#[test]
+fn r#linking() -> Result<()> {
+    parse_and_run("testdata/spec/linking.wast", RunSet::All, FailMode::None)
+}
+
+#[test]
+fn r#load() -> Result<()> {
+    parse_and_run("testdata/spec/load.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#local_get() -> Result<()> {
+    parse_and_run("testdata/spec/local_get.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#local_set() -> Result<()> {
+    parse_and_run("testdata/spec/local_set.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#local_tee() -> Result<()> {
+    parse_and_run("testdata/spec/local_tee.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#loop() -> Result<()> {
+    parse_and_run("testdata/spec/loop.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#memory() -> Result<()> {
+    parse_and_run("testdata/spec/memory.wast", RunSet::All, FailMode::None)
+}
+
+#[test]
+fn r#memory_copy() -> Result<()> {
+    parse_and_run("testdata/spec/memory_copy.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#memory_fill() -> Result<()> {
+    parse_and_run("testdata/spec/memory_fill.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#memory_grow() -> Result<()> {
+    parse_and_run("testdata/spec/memory_grow.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#memory_init() -> Result<()> {
+    parse_and_run("testdata/spec/memory_init.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#memory_redundancy() -> Result<()> {
+    parse_and_run(
+        "testdata/spec/memory_redundancy.wast",
+        RunSet::All,
+        FailMode::Run,
+    )
+}
+
+#[test]
+fn r#memory_size() -> Result<()> {
+    parse_and_run("testdata/spec/memory_size.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#memory_trap() -> Result<()> {
+    parse_and_run("testdata/spec/memory_trap.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#names() -> Result<()> {
+    parse_and_run("testdata/spec/names.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#nop() -> Result<()> {
+    parse_and_run("testdata/spec/nop.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#ref_func() -> Result<()> {
+    parse_and_run("testdata/spec/ref_func.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#ref_is_null() -> Result<()> {
+    parse_and_run("testdata/spec/ref_is_null.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#ref_null() -> Result<()> {
+    parse_and_run("testdata/spec/ref_null.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#return() -> Result<()> {
+    parse_and_run("testdata/spec/return.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#select() -> Result<()> {
+    parse_and_run("testdata/spec/select.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#skip_stack_guard_page() -> Result<()> {
+    parse_and_run(
+        "testdata/spec/skip-stack-guard-page.wast",
+        RunSet::All,
+        FailMode::Run,
+    )
+}
+
+#[test]
+fn r#stack() -> Result<()> {
+    parse_and_run("testdata/spec/stack.wast", RunSet::All, FailMode::None)
+}
+
+#[test]
+fn r#start() -> Result<()> {
+    parse_and_run("testdata/spec/start.wast", RunSet::All, FailMode::Parse)
+}
+
+#[test]
+fn r#store() -> Result<()> {
+    parse_and_run("testdata/spec/store.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#switch() -> Result<()> {
+    parse_and_run("testdata/spec/switch.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#table_sub() -> Result<()> {
+    parse_and_run("testdata/spec/table-sub.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#table() -> Result<()> {
+    parse_and_run("testdata/spec/table.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#table_copy() -> Result<()> {
+    parse_and_run("testdata/spec/table_copy.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#table_fill() -> Result<()> {
+    parse_and_run("testdata/spec/table_fill.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#table_get() -> Result<()> {
+    parse_and_run("testdata/spec/table_get.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#table_grow() -> Result<()> {
+    parse_and_run("testdata/spec/table_grow.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#table_init() -> Result<()> {
+    parse_and_run("testdata/spec/table_init.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#table_set() -> Result<()> {
+    parse_and_run("testdata/spec/table_set.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#table_size() -> Result<()> {
+    parse_and_run("testdata/spec/table_size.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#token() -> Result<()> {
+    parse_and_run("testdata/spec/token.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#traps() -> Result<()> {
+    parse_and_run("testdata/spec/traps.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#type() -> Result<()> {
+    parse_and_run("testdata/spec/type.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#unreachable() -> Result<()> {
+    parse_and_run("testdata/spec/unreachable.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#unreached_invalid() -> Result<()> {
+    parse_and_run(
+        "testdata/spec/unreached-invalid.wast",
+        RunSet::All,
+        FailMode::Run,
+    )
+}
+
+#[test]
+fn r#unwind() -> Result<()> {
+    parse_and_run("testdata/spec/unwind.wast", RunSet::All, FailMode::Run)
+}
+
+#[test]
+fn r#utf8_custom_section_id() -> Result<()> {
+    parse_and_run(
+        "testdata/spec/utf8-custom-section-id.wast",
+        RunSet::All,
+        FailMode::Run,
+    )
+}
+
+#[test]
+fn r#utf8_import_field() -> Result<()> {
+    parse_and_run(
+        "testdata/spec/utf8-import-field.wast",
+        RunSet::All,
+        FailMode::Run,
+    )
+}
+
+#[test]
+fn r#utf8_import_module() -> Result<()> {
+    parse_and_run(
+        "testdata/spec/utf8-import-module.wast",
+        RunSet::All,
+        FailMode::Run,
+    )
+}
+
+#[test]
+fn r#utf8_invalid_encoding() -> Result<()> {
+    parse_and_run(
+        "testdata/spec/utf8-invalid-encoding.wast",
+        RunSet::All,
+        FailMode::Run,
+    )
 }
