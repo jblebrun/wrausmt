@@ -281,6 +281,13 @@ impl Runtime {
             *rcptr = modinst_builder.build();
         }
 
+        if let Some(start) = module.start {
+            let startaddr = rcinst.func(start.idx.value());
+            self.stack.push_dummy_activation(rcinst.clone())?;
+            self.invoke(startaddr)?;
+            self.stack.pop_activation()?;
+        }
+
         Ok(rcinst)
     }
 }
