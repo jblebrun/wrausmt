@@ -351,7 +351,7 @@ fn r#loop() -> Result<()> {
 
 #[test]
 fn r#memory() -> Result<()> {
-    parse_and_run("testdata/spec/memory.wast", RunSet::All, FailMode::None)
+    parse_and_run("testdata/spec/memory.wast", RunSet::All, FailMode::Run)
 }
 
 #[test]
