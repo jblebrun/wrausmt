@@ -4,7 +4,7 @@ use crate::{
     runtime::{error::RuntimeError, values::Value},
 };
 
-use super::format::{Action, ActionResult};
+use super::format::ActionResult;
 
 #[derive(Default)]
 pub struct Failures {
@@ -41,9 +41,9 @@ pub struct Failure {
 
 #[derive(Debug)]
 pub enum SpecTestError {
-    NoModule(Action),
+    NoModule(Option<String>),
     Failures(Failures),
-    LoaderError(LoaderError),
+    LoaderError(Box<LoaderError>),
     InvocationError(RuntimeError),
     ResultLengthMismatch {
         results: Vec<Value>,
@@ -86,6 +86,6 @@ impl From<RuntimeError> for SpecTestError {
 
 impl From<LoaderError> for SpecTestError {
     fn from(e: LoaderError) -> Self {
-        SpecTestError::LoaderError(e)
+        SpecTestError::LoaderError(Box::new(e))
     }
 }

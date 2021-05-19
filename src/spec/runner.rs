@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::{collections::HashMap, rc::Rc};
 
 use super::{
     error::{Failures, Result, SpecTestError},
@@ -48,28 +48,164 @@ pub enum RunSet {
     First(u32),
 }
 
-fn handle_action(
-    runtime: &mut Runtime,
-    module_instance: &Option<Rc<ModuleInstance>>,
-    action: Action,
-    logger: &PrintLogger,
-) -> Result<Option<Vec<Value>>> {
-    let module_instance = match module_instance {
-        Some(mi) => mi,
-        None => return Err(SpecTestError::NoModule(action)),
-    };
-    match action {
-        Action::Invoke { id, name, params } => {
-            logger.log("SPEC", || {
-                format!("INVOKE ACTION {:?} {} {:?}", id, name, params)
-            });
-            let values: Vec<Value> = params.into_iter().map(|p| p.into()).collect();
-            Ok(Some(runtime.call(&module_instance, &name, &values)?))
+impl RunSet {
+    fn should_run(&self, name: &str, index: u32) -> bool {
+        match self {
+            RunSet::All => true,
+            RunSet::First(n) => index <= *n,
+            RunSet::SpecificIndex(set) => set.iter().any(|i| *i == index),
+            RunSet::ExcludeIndexed(set) => !set.iter().any(|i| *i == index),
+            RunSet::Specific(set) => set.iter().any(|i| *i == name),
+            RunSet::Exclude(set) => !set.iter().any(|i| *i == name),
         }
-        Action::Get { id, name } => {
-            logger.log("SPEC", || format!("GET ACTION {:?} {}", id, name));
-            Ok(Some(vec![Value::Num(Num::I32(0))]))
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct SpecTestRunner {
+    runtime: Runtime,
+    latest_module: Option<Rc<ModuleInstance>>,
+    registered_modules: HashMap<String, Rc<ModuleInstance>>,
+    assert_returns: u32,
+    logger: PrintLogger,
+}
+
+impl SpecTestRunner {
+    pub fn new() -> Self {
+        let mut runtime = Runtime::new();
+        let spectest_module = runtime.load(make_spectest_module()).unwrap();
+        runtime.register("spectest", spectest_module);
+        SpecTestRunner {
+            runtime,
+            ..Self::default()
         }
+    }
+
+    fn module_for_action(&self, modname: &Option<String>) -> Result<Rc<ModuleInstance>> {
+        match modname {
+            Some(name) => self.registered_modules.get(name).cloned(),
+            None => self.latest_module.clone(),
+        }
+        .ok_or_else(|| SpecTestError::NoModule(modname.clone()))
+    }
+
+    fn handle_action(&mut self, action: Action) -> Result<Vec<Value>> {
+        match action {
+            Action::Invoke {
+                modname,
+                name,
+                params,
+            } => {
+                let module_instance = self.module_for_action(&modname)?;
+                self.logger.log("SPEC", || {
+                    format!("INVOKE ACTION {:?} {} {:?}", modname, name, params)
+                });
+                let values: Vec<Value> = params.into_iter().map(|p| p.into()).collect();
+                Ok(self.runtime.call(&module_instance, &name, &values)?)
+            }
+            Action::Get { modname, name } => {
+                self.logger
+                    .log("SPEC", || format!("GET ACTION {:?} {}", modname, name));
+                Ok(vec![Value::Num(Num::I32(0))])
+            }
+        }
+    }
+
+    pub fn verify_result(results: Vec<Value>, expects: Vec<ActionResult>) -> Result<()> {
+        if results.len() != expects.len() {
+            return Err(SpecTestError::ResultLengthMismatch { results, expects });
+        }
+
+        let mut expects = expects;
+        for result in results {
+            let expect = expects.pop().unwrap();
+            match expect {
+                ActionResult::NumPat(NumPat::Num(num)) => {
+                    let expectnum: Value = num.into();
+                    if !result.same_bits(&expectnum) {
+                        return Err(SpecTestError::ResultMismatch { result, expect });
+                    }
+                }
+                ActionResult::NumPat(NumPat::NaNPat(nanpat)) => {
+                    let resultnum = match result.as_num() {
+                        Some(n) => n,
+                        _ => return Err(SpecTestError::ResultMismatch { result, expect }),
+                    };
+                    if !nanpat.accepts(resultnum) {
+                        return Err(SpecTestError::ResultMismatch { result, expect });
+                    }
+                }
+                ActionResult::Func => {
+                    if !matches!(
+                        result,
+                        Value::Ref(Ref::Null(RefType::Func)) | Value::Ref(Ref::Func(_))
+                    ) {
+                        return Err(SpecTestError::ResultMismatch { result, expect });
+                    }
+                }
+                ActionResult::Extern => {
+                    if !matches!(
+                        result,
+                        Value::Ref(Ref::Null(RefType::Extern)) | Value::Ref(Ref::Extern(_))
+                    ) {
+                        return Err(SpecTestError::ResultMismatch { result, expect });
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    pub fn run_spec_test(mut self, script: SpecTestScript, runset: RunSet) -> Result<()> {
+        let mut failures: Failures = Failures::default();
+        for cmd in script.cmds {
+            self.logger.log("SPEC", || format!("EXECUTE CMD {:?}", cmd));
+            match cmd.cmd {
+                Cmd::Module(m) => match m {
+                    Module::Module(m) => {
+                        self.latest_module = Some(self.runtime.load(m)?);
+                    }
+                    Module::Binary(b) => {
+                        let data: Box<[u8]> = b
+                            .into_iter()
+                            .flat_map(|d| d.into_boxed_bytes().into_vec())
+                            .collect();
+                        self.latest_module = Some(self.runtime.load_wasm_data(&data)?);
+                    }
+                    Module::Quote(_) => println!("QUOTE MODULE ACTION"),
+                },
+                Cmd::Register { modname, .. } => match &self.latest_module {
+                    Some(module) => self.runtime.register(modname, module.clone()),
+                    _ => return Err(SpecTestError::RegisterMissingModule(modname)),
+                },
+                Cmd::Action(a) => {
+                    self.handle_action(a)?;
+                }
+                Cmd::Assertion(a) => {
+                    println!("ACTION {:?}", a);
+                    if let Assertion::Return { action, results } = a {
+                        self.assert_returns += 1;
+                        if !runset.should_run(action.name(), self.assert_returns) {
+                            return Ok(());
+                        }
+                        println!("ASSERT RETURN {}", self.assert_returns);
+                        let result = self.handle_action(action)?;
+                        match Self::verify_result(result, results) {
+                            Ok(()) => (),
+                            Err(e) => failures
+                                .failures
+                                .push(e.into_failure(cmd.location, self.assert_returns)),
+                        }
+                    }
+                }
+                Cmd::Meta(m) => println!("META {:?}", m),
+            }
+        }
+
+        if !failures.failures.is_empty() {
+            return Err(SpecTestError::Failures(failures));
+        }
+        Ok(())
     }
 }
 
@@ -85,140 +221,4 @@ impl TestCompare<Value> for Value {
             _ => self == other,
         }
     }
-}
-
-pub fn verify_result(results: Vec<Value>, expects: Vec<ActionResult>) -> Result<()> {
-    if results.len() != expects.len() {
-        return Err(SpecTestError::ResultLengthMismatch { results, expects });
-    }
-
-    let mut expects = expects;
-    for result in results {
-        let expect = expects.pop().unwrap();
-        match expect {
-            ActionResult::NumPat(NumPat::Num(num)) => {
-                let expectnum: Value = num.into();
-                if !result.same_bits(&expectnum) {
-                    return Err(SpecTestError::ResultMismatch { result, expect });
-                }
-            }
-            ActionResult::NumPat(NumPat::NaNPat(nanpat)) => {
-                let resultnum = match result.as_num() {
-                    Some(n) => n,
-                    _ => return Err(SpecTestError::ResultMismatch { result, expect }),
-                };
-                if !nanpat.accepts(resultnum) {
-                    return Err(SpecTestError::ResultMismatch { result, expect });
-                }
-            }
-            ActionResult::Func => {
-                if !matches!(
-                    result,
-                    Value::Ref(Ref::Null(RefType::Func)) | Value::Ref(Ref::Func(_))
-                ) {
-                    return Err(SpecTestError::ResultMismatch { result, expect });
-                }
-            }
-            ActionResult::Extern => {
-                if !matches!(
-                    result,
-                    Value::Ref(Ref::Null(RefType::Extern)) | Value::Ref(Ref::Extern(_))
-                ) {
-                    return Err(SpecTestError::ResultMismatch { result, expect });
-                }
-            }
-        }
-    }
-    Ok(())
-}
-
-pub fn run_spec_test(script: SpecTestScript, runset: RunSet) -> Result<()> {
-    let mut runtime = Runtime::new();
-
-    let spectest_module = runtime.load(make_spectest_module())?;
-    runtime.register("spectest", spectest_module);
-
-    let mut module: Option<Rc<ModuleInstance>> = None;
-
-    let mut assert_returns = 0;
-
-    let logger = PrintLogger::default();
-
-    let mut failures: Failures = Failures::default();
-
-    for cmd in script.cmds {
-        logger.log("SPEC", || format!("EXECUTE CMD {:?}", cmd));
-        match cmd.cmd {
-            Cmd::Module(m) => match m {
-                Module::Module(m) => {
-                    module = Some(runtime.load(m)?);
-                }
-                Module::Binary(b) => {
-                    let data: Box<[u8]> = b
-                        .into_iter()
-                        .flat_map(|d| d.into_boxed_bytes().into_vec())
-                        .collect();
-                    module = Some(runtime.load_wasm_data(&data)?);
-                }
-                Module::Quote(_) => println!("QUOTE MODULE ACTION"),
-            },
-            Cmd::Register { modname, .. } => match &module {
-                Some(module) => runtime.register(modname, module.clone()),
-                _ => return Err(SpecTestError::RegisterMissingModule(modname)),
-            },
-            Cmd::Action(a) => {
-                handle_action(&mut runtime, &module, a, &logger)?;
-            }
-            Cmd::Assertion(a) => {
-                println!("ACTION {:?}", a);
-                if let Assertion::Return { action, results } = a {
-                    assert_returns += 1;
-                    println!("ASSERT RETURN {}", assert_returns);
-                    match &runset {
-                        RunSet::All => (),
-                        RunSet::First(n) => {
-                            if assert_returns > *n {
-                                return Ok(());
-                            }
-                        }
-                        RunSet::SpecificIndex(set) => {
-                            if !set.iter().any(|i| *i == assert_returns) {
-                                continue;
-                            }
-                        }
-                        RunSet::ExcludeIndexed(set) => {
-                            if set.iter().any(|i| *i == assert_returns) {
-                                continue;
-                            }
-                        }
-                        RunSet::Specific(set) => {
-                            if set.iter().find(|i| *i == action.name()).is_none() {
-                                continue;
-                            }
-                        }
-                        RunSet::Exclude(set) => {
-                            if set.iter().any(|i| *i == action.name()) {
-                                continue;
-                            }
-                        }
-                    }
-                    let result = handle_action(&mut runtime, &module, action, &logger)?;
-                    if let Some(result) = result {
-                        match verify_result(result, results) {
-                            Ok(_) => (),
-                            Err(e) => failures
-                                .failures
-                                .push(e.into_failure(cmd.location, assert_returns)),
-                        }
-                    }
-                }
-            }
-            Cmd::Meta(m) => println!("META {:?}", m),
-        }
-    }
-
-    if !failures.failures.is_empty() {
-        return Err(SpecTestError::Failures(failures));
-    }
-    Ok(())
 }
