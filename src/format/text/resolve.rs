@@ -256,6 +256,7 @@ impl Resolve<ImportField<Resolved>> for ImportField<Unresolved> {
             modname: self.modname,
             name: self.name,
             id: self.id,
+            exports: self.exports,
             desc: self.desc.resolve(&ic, types)?,
         })
     }

@@ -36,7 +36,7 @@ pub fn make_spectest_module() -> syntax::Module<Resolved> {
             valtype: ValueType::Num(NumType::I32),
         },
         init: syntax::Expr {
-            instr: vec![Instruction::i32const(0)],
+            instr: vec![Instruction::i32const(666)],
         },
     });
 
@@ -48,7 +48,7 @@ pub fn make_spectest_module() -> syntax::Module<Resolved> {
             valtype: ValueType::Num(NumType::I64),
         },
         init: syntax::Expr {
-            instr: vec![Instruction::i64const(0)],
+            instr: vec![Instruction::i64const(666u64)],
         },
     });
     builder.add_globalfield(GlobalField {
@@ -59,7 +59,7 @@ pub fn make_spectest_module() -> syntax::Module<Resolved> {
             valtype: ValueType::Num(NumType::F32),
         },
         init: syntax::Expr {
-            instr: vec![Instruction::f32const(0f32)],
+            instr: vec![Instruction::f32const(666f32)],
         },
     });
 
@@ -71,7 +71,7 @@ pub fn make_spectest_module() -> syntax::Module<Resolved> {
             valtype: ValueType::Num(NumType::F64),
         },
         init: syntax::Expr {
-            instr: vec![Instruction::f64const(0f64)],
+            instr: vec![Instruction::f64const(666f64)],
         },
     });
 
@@ -129,6 +129,34 @@ pub fn make_spectest_module() -> syntax::Module<Resolved> {
             id: None,
             valuetype: ValueType::Num(NumType::F64),
         }],
+    ));
+
+    builder.add_funcfield(mkfunc(
+        "print_i32_f32",
+        vec![
+            FParam {
+                id: None,
+                valuetype: ValueType::Num(NumType::I32),
+            },
+            FParam {
+                id: None,
+                valuetype: ValueType::Num(NumType::F32),
+            },
+        ],
+    ));
+
+    builder.add_funcfield(mkfunc(
+        "print_f64_f64",
+        vec![
+            FParam {
+                id: None,
+                valuetype: ValueType::Num(NumType::F64),
+            },
+            FParam {
+                id: None,
+                valuetype: ValueType::Num(NumType::F64),
+            },
+        ],
     ));
 
     builder.build().unwrap()

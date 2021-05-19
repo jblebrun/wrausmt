@@ -259,7 +259,7 @@ impl<R: Read> Parser<R> {
     }
 
     fn try_assert_unlinkable(&mut self) -> Result<Option<Assertion>> {
-        if !self.try_expr_start("assert_invalid")? {
+        if !self.try_expr_start("assert_unlinkable")? {
             return Ok(None);
         }
 

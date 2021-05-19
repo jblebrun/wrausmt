@@ -192,6 +192,7 @@ impl<R: Read> Parser<R> {
                 modname,
                 name,
                 id,
+                exports,
                 desc: ImportDesc::Func(typeuse),
             })));
         }
@@ -294,6 +295,7 @@ impl<R: Read> Parser<R> {
                 id,
                 modname: import.0,
                 name: import.1,
+                exports,
                 desc: ImportDesc::Mem(memtype),
             })));
         }
@@ -330,6 +332,7 @@ impl<R: Read> Parser<R> {
             modname,
             name,
             desc,
+            exports: vec![],
         })))
     }
 
@@ -433,6 +436,7 @@ impl<R: Read> Parser<R> {
                 modname: import.0,
                 name: import.1,
                 desc: ImportDesc::Global(globaltype),
+                exports,
             })));
         }
 

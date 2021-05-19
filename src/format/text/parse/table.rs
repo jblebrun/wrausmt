@@ -64,6 +64,7 @@ impl<R: Read> Parser<R> {
                 id,
                 modname: import.0,
                 name: import.1,
+                exports,
                 desc: ImportDesc::Table(tabletype),
             })));
         }

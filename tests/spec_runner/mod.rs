@@ -279,7 +279,7 @@ fn r#if() -> Result<()> {
 
 #[test]
 fn r#imports() -> Result<()> {
-    parse_and_run("testdata/spec/imports.wast", RunSet::All, FailMode::None)
+    parse_and_run("testdata/spec/imports.wast", RunSet::All, FailMode::Run)
 }
 
 #[test]
@@ -321,7 +321,7 @@ fn r#left_to_right() -> Result<()> {
 
 #[test]
 fn r#linking() -> Result<()> {
-    parse_and_run("testdata/spec/linking.wast", RunSet::All, FailMode::None)
+    parse_and_run("testdata/spec/linking.wast", RunSet::All, FailMode::Parse)
 }
 
 #[test]
