@@ -114,7 +114,7 @@ impl<R: Read> Parser<R> {
             return Ok(None);
         }
 
-        let id = self.try_id()?;
+        let modname = self.try_id()?;
 
         let name = self.expect_string()?;
 
@@ -122,7 +122,11 @@ impl<R: Read> Parser<R> {
 
         self.expect_close()?;
 
-        Ok(Some(Action::Invoke { id, name, params }))
+        Ok(Some(Action::Invoke {
+            modname,
+            name,
+            params,
+        }))
     }
 
     fn try_get_action(&mut self) -> Result<Option<Action>> {
@@ -422,12 +426,12 @@ pub enum Module {
 #[derive(Debug)]
 pub enum Action {
     Invoke {
-        id: Option<String>,
+        modname: Option<String>,
         name: String,
         params: Vec<Const>,
     },
     Get {
-        id: Option<String>,
+        modname: Option<String>,
         name: String,
     },
 }

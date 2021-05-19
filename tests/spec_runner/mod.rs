@@ -1,6 +1,6 @@
 use std::{fs::File, path::Path, time::Instant};
 
-use wrausmt::spec::runner::run_spec_test;
+use wrausmt::spec::runner::SpecTestRunner;
 use wrausmt::{format::text::lex::Tokenizer, spec::runner::RunSet};
 use wrausmt::{format::text::parse::Parser, spec::format::SpecTestScript};
 
@@ -26,6 +26,7 @@ fn parse_and_run<S: std::fmt::Debug + AsRef<Path>>(
 ) -> Result<()> {
     let f = std::fs::File::open(&path)?;
 
+    println!("\n\n*****  PARSING {:?} *****\n\n", path);
     let result = parse(f);
     let spectest = match (result, &mode) {
         (Err(e), FailMode::None) => {
@@ -38,7 +39,8 @@ fn parse_and_run<S: std::fmt::Debug + AsRef<Path>>(
 
     let start = Instant::now();
     println!("\n\n*****  RUNNING {:?} *****\n\n", path);
-    let result = run_spec_test(spectest, runset);
+    let runner = SpecTestRunner::new();
+    let result = runner.run_spec_test(spectest, runset);
     let finish = Instant::now();
     println!("TIMING {:?} IN {:?}", path, (finish - start));
     match (result, mode) {
