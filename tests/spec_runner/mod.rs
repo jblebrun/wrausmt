@@ -283,7 +283,7 @@ fn r#inline_module() -> Result<()> {
     parse_and_run(
         "testdata/spec/inline-module.wast",
         RunSet::All,
-        FailMode::None,
+        FailMode::Run,
     )
 }
 

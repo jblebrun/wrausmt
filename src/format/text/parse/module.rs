@@ -39,12 +39,13 @@ impl<R: Read> Parser<R> {
     /// On success, a vector of sections is returned. They can be organized into a
     /// module object.
     pub fn try_module(&mut self) -> Result<Option<Module<Resolved>>> {
-        if !self.try_expr_start("module")? {
-            return Ok(None);
-        }
+        let (expect_close, id) = if self.try_expr_start("module")? {
+            (true, self.try_id()?)
+        } else {
+            (false, None)
+        };
 
-        let id = self.try_id()?;
-        self.try_module_rest(id)
+        self.try_module_rest(id, expect_close)
     }
 
     pub fn parse_full_module(&mut self) -> Result<Module<Resolved>> {
@@ -80,7 +81,11 @@ impl<R: Read> Parser<R> {
     /// This is split away as a convenience for spec test parsing, so that we can
     /// parse the module expression header, and then check for binary/quote modules
     /// first, before attempting a normal module parse.
-    pub fn try_module_rest(&mut self, id: Option<String>) -> Result<Option<Module<Resolved>>> {
+    pub fn try_module_rest(
+        &mut self,
+        id: Option<String>,
+        expect_close: bool,
+    ) -> Result<Option<Module<Resolved>>> {
         let mut module_builder = ModuleBuilder::new(id);
 
         // section*
@@ -124,9 +129,18 @@ impl<R: Read> Parser<R> {
             }
         }
 
-        self.expect_close()?;
+        let result = if expect_close {
+            self.expect_close()?;
+            true
+        } else {
+            !module_builder.empty()
+        };
 
-        Ok(Some(module_builder.build()?))
+        if result {
+            Ok(Some(module_builder.build()?))
+        } else {
+            Ok(None)
+        }
     }
 
     // Parser should be located at the token immediately following a '('

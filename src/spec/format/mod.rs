@@ -36,11 +36,11 @@ impl<R: Read> Parser<R> {
 
     fn try_cmd(&mut self) -> Result<Option<Cmd>> {
         self.first_of(&[
-            Self::try_module_cmd,
             Self::try_register_cmd,
             Self::try_action_cmd,
             Self::try_assertion_cmd,
             Self::try_meta_cmd,
+            Self::try_module_cmd,
         ])
     }
 
@@ -54,7 +54,11 @@ impl<R: Read> Parser<R> {
 
     fn try_spec_module(&mut self) -> Result<Option<Module>> {
         if !self.try_expr_start("module")? {
-            return Ok(None);
+            return if let Some(inline_module) = self.try_module()? {
+                Ok(Some(Module::Module(inline_module)))
+            } else {
+                Ok(None)
+            };
         }
 
         let modname = self.try_id()?;
@@ -73,7 +77,7 @@ impl<R: Read> Parser<R> {
                 Ok(Some(Module::Quote(modname, strings)))
             }
             _ => {
-                if let Some(module) = self.try_module_rest(modname)? {
+                if let Some(module) = self.try_module_rest(modname, true)? {
                     Ok(Some(Module::Module(module)))
                 } else {
                     Ok(None)
