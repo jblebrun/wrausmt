@@ -1,11 +1,27 @@
 0x00      ,i32.trunc_sat_f32_s           ,()
+| _ec.convop::<f32, i32, _>(|i| i as i32)
+
 0x01      ,i32.trunc_sat_f32_u           ,()
+| _ec.convop::<f32, u32, _>(|i| i as u32)
+
 0x02      ,i32.trunc_sat_f64_s           ,()
+| _ec.convop::<f64, i32, _>(|i| i as i32)
+
 0x03      ,i32.trunc_sat_f64_u           ,()
+| _ec.convop::<f64, u32, _>(|i| i as u32)
+
 0x04      ,i64.trunc_sat_f32_s           ,()
+| _ec.convop::<f32, i64, _>(|i| i as i64)
+
 0x05      ,i64.trunc_sat_f32_u           ,()
+| _ec.convop::<f32, u64, _>(|i| i as u64)
+
 0x06      ,i64.trunc_sat_f64_s           ,()
+| _ec.convop::<f64, i64, _>(|i| i as i64)
+
 0x07      ,i64.trunc_sat_f64_u           ,()
+| _ec.convop::<f64, u64, _>(|i| i as u64)
+
 0x08      ,memory.init                   ,(MemoryInit)
 | _ec.mem_init()
 

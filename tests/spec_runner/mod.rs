@@ -143,11 +143,7 @@ fn r#const() -> Result<()> {
 
 #[test]
 fn r#conversions() -> Result<()> {
-    parse_and_run(
-        "testdata/spec/conversions.wast",
-        RunSet::All,
-        FailMode::Parse,
-    )
+    parse_and_run("testdata/spec/conversions.wast", RunSet::All, FailMode::Run)
 }
 
 #[test]
