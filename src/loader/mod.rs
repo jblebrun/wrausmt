@@ -18,6 +18,15 @@ pub enum LoaderError {
     GenericError(Box<dyn std::error::Error>),
 }
 
+impl LoaderError {
+    pub fn is_parse_error(&self) -> bool {
+        matches!(
+            self,
+            Self::ParseError(_) | Self::BinaryParseError(_) | Self::LexError(_)
+        )
+    }
+}
+
 impl std::error::Error for LoaderError {}
 
 impl std::fmt::Display for LoaderError {

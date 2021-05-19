@@ -1,22 +1,37 @@
 use std::{fs::File, path::Path, time::Instant};
 
+use wrausmt::loader::Result as LoaderResult;
+use wrausmt::spec::error::Result as SpecTestResult;
 use wrausmt::spec::runner::SpecTestRunner;
 use wrausmt::{format::text::lex::Tokenizer, spec::runner::RunSet};
 use wrausmt::{format::text::parse::Parser, spec::format::SpecTestScript};
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
+#[derive(Debug)]
 enum FailMode {
     None,
     Parse,
     Run,
 }
 
-fn parse(f: File) -> Result<SpecTestScript> {
+fn parse(f: &mut File) -> LoaderResult<SpecTestScript> {
     let tokenizer = Tokenizer::new(f)?;
     let mut parser = Parser::new(tokenizer)?;
     let result = parser.parse_spec_test()?;
     Ok(result)
+}
+
+fn parse_and_run_for_result(mut f: File, runset: RunSet) -> SpecTestResult<()> {
+    println!("\n\n*****  PARSING {:?} *****\n\n", f);
+    let spectest = parse(&mut f)?;
+    let start = Instant::now();
+    println!("\n\n*****  RUNNING {:?} *****\n\n", f);
+    let runner = SpecTestRunner::new();
+    let result = runner.run_spec_test(spectest, runset);
+    let finish = Instant::now();
+    println!("TIMING {:?} IN {:?}", f, (finish - start));
+    Ok(result?)
 }
 
 fn parse_and_run<S: std::fmt::Debug + AsRef<Path>>(
@@ -25,31 +40,28 @@ fn parse_and_run<S: std::fmt::Debug + AsRef<Path>>(
     mode: FailMode,
 ) -> Result<()> {
     let f = std::fs::File::open(&path)?;
-
-    println!("\n\n*****  PARSING {:?} *****\n\n", path);
-    let result = parse(f);
-    let spectest = match (result, &mode) {
-        (Err(e), FailMode::None) => {
-            println!("{:?} Error while parseing (but ignoring)\n{:?}", path, e);
-            return Ok(());
-        }
-        (Err(e), _) => return Err(e),
-        (Ok(s), _) => s,
+    let result = parse_and_run_for_result(f, runset);
+    let passingtext = match result {
+        Ok(()) => "PASSING",
+        _ => "FAILING",
     };
-
-    let start = Instant::now();
-    println!("\n\n*****  RUNNING {:?} *****\n\n", path);
-    let runner = SpecTestRunner::new();
-    let result = runner.run_spec_test(spectest, runset);
-    let finish = Instant::now();
-    println!("TIMING {:?} IN {:?}", path, (finish - start));
-    match (result, mode) {
-        (Err(e), FailMode::Run) => Err(e.into()),
-        (Err(e), _) => {
-            println!("{:?}, Error while running (but igoring)\n{:?}", path, e);
-            Ok(())
-        }
-        (Ok(()), _) => Ok(()),
+    println!("MODE {:?} {} {:?}", mode, passingtext, path);
+    match result {
+        Err(e) => match mode {
+            FailMode::None => {
+                println!("SKIPPING Ignore error {:?} in parse mode for {:?}", e, path);
+                Ok(())
+            }
+            FailMode::Parse => match e {
+                e if e.is_parse_error() => Err(Box::new(e)),
+                _ => {
+                    println!("SKIPPING Ignore error {:?} in parse mode for {:?}", e, path);
+                    Ok(())
+                }
+            },
+            FailMode::Run => Err(Box::new(e)),
+        },
+        Ok(()) => Ok(()),
     }
 }
 
