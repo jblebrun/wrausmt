@@ -65,7 +65,7 @@
 | let _tu = _ec.op_u32()?;
 | let ei = _ec.pop::<u32>()?;
 | let f = _ec.get_func_table(t, ei)?;
-| _ec.call(f)
+| _ec.call_addr(f)
 
 0x1A      ,drop                          ,()
 | _ec.pop_value()?;

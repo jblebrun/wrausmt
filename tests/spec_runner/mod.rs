@@ -150,7 +150,7 @@ fn r#data() -> Result<()> {
 
 #[test]
 fn r#elem() -> Result<()> {
-    parse_and_run("testdata/spec/elem.wast", RunSet::All, FailMode::Parse)
+    parse_and_run("testdata/spec/elem.wast", RunSet::All, FailMode::Run)
 }
 
 #[test]

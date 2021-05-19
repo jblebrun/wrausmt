@@ -22,6 +22,8 @@ use crate::{
 };
 use std::convert::TryFrom;
 
+use super::store::addr;
+
 /// A value that a WebAssembly program can manipulate. [Spec][Spec]
 ///
 /// [Spec]: https://webassembly.github.io/spec/core/syntax/values.html#values
@@ -103,7 +105,7 @@ impl std::fmt::Debug for Num {
 /// [Spec]: https://webassembly.github.io/spec/core/syntax/values.html#values
 #[derive(PartialEq, Debug, Clone, Copy)]
 pub enum Ref {
-    Func(u32),
+    Func(addr::FuncAddr),
     Extern(u32),
     Null(RefType),
 }
