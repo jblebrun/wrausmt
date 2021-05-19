@@ -501,13 +501,12 @@
 
 0x90      ,f32.nearest                   ,()
 | _ec.unop::<f32, _>(|i| {
-|     if (-0.5..0.0).contains(&i) {
-|         return -0.0;
+|     // Round-to-nearest, ties to even
+|     let tr = i.trunc();
+|     if tr.to_bits() == i.to_bits() {
+|         return i;
 |     }
-|     if i > 0.0 && i <= 0.5 {
-|         return 0.0;
-|     }
-|     i.round()
+|     tr + (tr % 2.0).copysign(i)
 | })
 
 0x91      ,f32.sqrt                      ,()
@@ -597,13 +596,12 @@
 
 0x9e      ,f64.nearest                   ,()
 | _ec.unop::<f64, _>(|i| {
-|     if (-0.5..0.0).contains(&i) {
-|         return -0.0;
+|     // Round-to-nearest, ties to even
+|     let tr = i.trunc();
+|     if tr.to_bits() == i.to_bits() {
+|         return i;
 |     }
-|     if i > 0.0 && i <= 0.5 {
-|         return 0.0;
-|     }
-|     i.round()
+|     tr + (tr % 2.0).copysign(i)
 | })
 
 0x9f      ,f64.sqrt                      ,()

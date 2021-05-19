@@ -50,7 +50,7 @@ fn parse_and_run<S: std::fmt::Debug + AsRef<Path>>(
             FailMode::Parse => match e {
                 e if e.is_parse_error() => Err(Box::new(e)),
                 _ => {
-                    println!("SKIPPING Ignore error {:?} in parse mode for {:?}", e, path);
+                    println!("{:?} -- SKIPPING PARSE MODE error {:?}", path, e);
                     Ok(())
                 }
             },
@@ -223,11 +223,7 @@ fn r#float_memory() -> Result<()> {
 
 #[test]
 fn r#float_misc() -> Result<()> {
-    parse_and_run(
-        "testdata/spec/float_misc.wast",
-        RunSet::All,
-        FailMode::Parse,
-    )
+    parse_and_run("testdata/spec/float_misc.wast", RunSet::All, FailMode::Run)
 }
 
 #[test]
@@ -247,7 +243,7 @@ fn r#func_ptrs() -> Result<()> {
 
 #[test]
 fn r#global() -> Result<()> {
-    parse_and_run("testdata/spec/global.wast", RunSet::All, FailMode::Parse)
+    parse_and_run("testdata/spec/global.wast", RunSet::All, FailMode::Run)
 }
 
 #[test]
@@ -432,7 +428,7 @@ fn r#stack() -> Result<()> {
 
 #[test]
 fn r#start() -> Result<()> {
-    parse_and_run("testdata/spec/start.wast", RunSet::All, FailMode::Parse)
+    parse_and_run("testdata/spec/start.wast", RunSet::All, FailMode::Run)
 }
 
 #[test]
