@@ -1,4 +1,4 @@
-use super::error::Result;
+use super::{error::Result, store::addr};
 use super::{
     error::RuntimeError,
     values::{Ref, Value},
@@ -38,6 +38,7 @@ pub trait ExecutionContextActions {
     fn pop_label(&mut self) -> Result<Label>;
     fn pop<T: TryFrom<Value, Error = RuntimeError>>(&mut self) -> Result<T>;
     fn call(&mut self, idx: u32) -> Result<()>;
+    fn call_addr(&mut self, addr: addr::FuncAddr) -> Result<()>;
     fn mem(&mut self, idx: u32) -> Result<&mut MemInstance>;
     fn mem_init(&mut self) -> Result<()>;
     fn mem_size(&mut self) -> Result<()>;
@@ -386,7 +387,8 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
     }
 
     fn push_func_ref(&mut self, idx: u32) -> Result<()> {
-        self.runtime.stack.push_value(Ref::Func(idx).into());
+        let fa = self.runtime.stack.get_function_addr(idx)?;
+        self.runtime.stack.push_value(Ref::Func(fa).into());
         Ok(())
     }
 
@@ -436,6 +438,10 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
     fn call(&mut self, idx: u32) -> Result<()> {
         self.runtime
             .invoke(self.runtime.stack.get_function_addr(idx)?)
+    }
+
+    fn call_addr(&mut self, addr: addr::FuncAddr) -> Result<()> {
+        self.runtime.invoke(addr)
     }
 }
 
