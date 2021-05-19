@@ -1,4 +1,4 @@
-use super::error::{ParseError, ParseErrorContext, Result};
+use super::error::{ParseError, ParseErrorContext, Result, WithMsg};
 use super::Parser;
 use crate::types::{GlobalType, TableType};
 use crate::{
@@ -289,6 +289,7 @@ impl<R: Read> Parser<R> {
         let memtype = MemType { limits };
 
         if let Some(import) = import {
+            self.expect_close()?;
             return Ok(Some(Field::Import(ImportField {
                 id,
                 modname: import.0,
@@ -317,8 +318,8 @@ impl<R: Read> Parser<R> {
             return Ok(None);
         }
 
-        let modname = self.expect_string()?;
-        let name = self.expect_string()?;
+        let modname = self.expect_string().msg("import modname")?;
+        let name = self.expect_string().msg("import name")?;
 
         let (id, desc) = self.expect_importdesc()?;
 
@@ -381,7 +382,7 @@ impl<R: Read> Parser<R> {
             return Ok(None);
         }
 
-        let name = self.expect_string()?;
+        let name = self.expect_string().msg("name")?;
 
         let exportdesc = self.expect_exportdesc()?;
 
@@ -537,7 +538,7 @@ impl<R: Read> Parser<R> {
             return Ok(None);
         }
 
-        let data = self.expect_string()?;
+        let data = self.expect_string().msg("data")?;
 
         self.expect_close()?;
 
@@ -551,8 +552,8 @@ impl<R: Read> Parser<R> {
             return Ok(None);
         }
 
-        let modname = self.expect_string()?;
-        let name = self.expect_string()?;
+        let modname = self.expect_string().msg("modname")?;
+        let name = self.expect_string().msg("name")?;
 
         self.expect_close()?;
 

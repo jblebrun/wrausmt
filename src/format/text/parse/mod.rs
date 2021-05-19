@@ -138,7 +138,7 @@ impl<R: Read> Parser<R> {
 
     pub fn expect_wasm_string(&mut self) -> Result<WasmString> {
         self.try_wasm_string()?
-            .ok_or_else(|| ParseError::unexpected("string literal"))
+            .ok_or_else(|| ParseError::unexpected("wasm string literal"))
     }
 
     pub fn try_string(&mut self) -> Result<Option<String>> {
@@ -151,7 +151,7 @@ impl<R: Read> Parser<R> {
 
     pub fn expect_string(&mut self) -> Result<String> {
         self.try_string()?
-            .ok_or_else(|| ParseError::unexpected("string literal"))
+            .ok_or_else(|| ParseError::unexpected("utf8 string literal"))
     }
 
     pub fn try_id(&mut self) -> Result<Option<String>> {

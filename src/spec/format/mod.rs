@@ -1,6 +1,6 @@
 use crate::format::{
     text::{
-        parse::error::{ParseError, Result},
+        parse::error::{ParseError, Result, WithMsg},
         string::WasmString,
     },
     Location,
@@ -87,7 +87,7 @@ impl<R: Read> Parser<R> {
             return Ok(None);
         }
 
-        let modname = self.expect_string()?;
+        let modname = self.expect_string().msg("modname")?;
 
         let id = self.try_id()?;
 
@@ -116,7 +116,7 @@ impl<R: Read> Parser<R> {
 
         let modname = self.try_id()?;
 
-        let name = self.expect_string()?;
+        let name = self.expect_string().msg("name")?;
 
         let params = self.zero_or_more(Self::try_const)?;
 
@@ -136,7 +136,7 @@ impl<R: Read> Parser<R> {
 
         let modname = self.try_id()?;
 
-        let name = self.expect_string()?;
+        let name = self.expect_string().msg("name")?;
 
         self.expect_close()?;
 
@@ -158,19 +158,19 @@ impl<R: Read> Parser<R> {
     fn try_meta_cmd(&mut self) -> Result<Option<Cmd>> {
         if self.try_expr_start("script")? {
             let id = self.try_id()?;
-            let script = self.expect_string()?;
+            let script = self.expect_string().msg("script")?;
             self.expect_close()?;
             return Ok(Some(Cmd::Meta(Meta::Script { id, script })));
         }
         if self.try_expr_start("input")? {
             let id = self.try_id()?;
-            let file = self.expect_string()?;
+            let file = self.expect_string().msg("input")?;
             self.expect_close()?;
             return Ok(Some(Cmd::Meta(Meta::Input { id, file })));
         }
         if self.try_expr_start("output")? {
             let id = self.try_id()?;
-            let file = self.expect_string()?;
+            let file = self.expect_string().msg("output")?;
             self.expect_close()?;
             return Ok(Some(Cmd::Meta(Meta::Output { id, file })));
         }
@@ -198,7 +198,7 @@ impl<R: Read> Parser<R> {
         }
 
         let action = self.expect_action()?;
-        let failure = self.expect_string()?;
+        let failure = self.expect_string().msg("failure")?;
         self.expect_close()?;
 
         Ok(Some(Assertion::Exhaustion { action, failure }))
@@ -210,14 +210,14 @@ impl<R: Read> Parser<R> {
         }
 
         if let Some(action) = self.try_action()? {
-            let failure = self.expect_string()?;
+            let failure = self.expect_string().msg("failure")?;
             self.expect_close()?;
 
             return Ok(Some(Assertion::ActionTrap { action, failure }));
         }
 
         if let Some(module) = self.try_spec_module()? {
-            let failure = self.expect_string()?;
+            let failure = self.expect_string().msg("failure")?;
             self.expect_close()?;
 
             return Ok(Some(Assertion::ModuleTrap { module, failure }));
@@ -235,7 +235,7 @@ impl<R: Read> Parser<R> {
             .try_spec_module()?
             .ok_or_else(|| ParseError::unexpected("spec module"))?;
 
-        let failure = self.expect_string()?;
+        let failure = self.expect_string().msg("failure")?;
 
         self.expect_close()?;
 
@@ -251,7 +251,7 @@ impl<R: Read> Parser<R> {
             .try_spec_module()?
             .ok_or_else(|| ParseError::unexpected("spec module"))?;
 
-        let failure = self.expect_string()?;
+        let failure = self.expect_string().msg("failure")?;
 
         self.expect_close()?;
 

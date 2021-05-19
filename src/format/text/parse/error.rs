@@ -15,6 +15,7 @@ pub struct ParseErrorContext {
 #[derive(Debug)]
 pub enum ParseError {
     WithContext(ParseErrorContext, Box<ParseError>),
+    WithMsg(Vec<String>, Box<ParseError>),
     Eof,
     Tokenizer(LexError),
     UnexpectedToken(String),
@@ -29,6 +30,34 @@ pub enum ParseError {
 impl ParseError {
     pub fn unexpected(expected: &str) -> ParseError {
         ParseError::UnexpectedToken(expected.into())
+    }
+}
+
+pub trait WithMsg<T> {
+    fn msg<S: Into<String>>(self, msg: S) -> T;
+}
+
+impl WithMsg<ParseError> for ParseError {
+    fn msg<S: Into<String>>(mut self, msg: S) -> ParseError {
+        match self {
+            ParseError::WithMsg(ref mut msgs, _) => {
+                let s = msg.into();
+                println!("ADD MSG {:?}", s);
+                msgs.push(s);
+                self
+            }
+            _ => {
+                let s = msg.into();
+                println!("NEW MSG {:?}", s);
+                ParseError::WithMsg(vec![s], Box::new(self))
+            }
+        }
+    }
+}
+
+impl<T> WithMsg<Result<T>> for Result<T> {
+    fn msg<S: Into<String>>(self, msg: S) -> Result<T> {
+        self.map_err(|e| e.msg(msg))
     }
 }
 
