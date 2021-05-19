@@ -54,6 +54,19 @@ impl ModuleBuilder {
         }
     }
 
+    pub fn empty(&self) -> bool {
+        self.module.types.is_empty()
+            && self.module.funcs.is_empty()
+            && self.module.tables.is_empty()
+            && self.module.memories.is_empty()
+            && self.module.imports.is_empty()
+            && self.module.exports.is_empty()
+            && self.module.globals.is_empty()
+            && self.module.start.is_none()
+            && self.module.elems.is_empty()
+            && self.module.data.is_empty()
+    }
+
     pub fn build(self) -> Result<Module<Resolved>> {
         let mod_idents = self.module_identifiers;
         self.module.resolve(mod_idents)
