@@ -10,7 +10,6 @@ type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
 #[derive(Debug)]
 enum FailMode {
-    None,
     Parse,
     Run,
 }
@@ -48,13 +47,6 @@ fn parse_and_run<S: std::fmt::Debug + AsRef<Path>>(
     println!("MODE {:?} {} ALL {:?}", mode, passingtext, path);
     match result {
         Err(e) => match mode {
-            FailMode::None => {
-                if e.is_parse_error() {
-                    println!("MODE {:?} {} PARSE {:?}", mode, passingtext, path);
-                }
-                println!("SKIPPING Ignore error {:?} in parse mode for {:?}", e, path);
-                Ok(())
-            }
             FailMode::Parse => match e {
                 e if e.is_parse_error() => Err(Box::new(e)),
                 _ => {
@@ -435,7 +427,7 @@ fn r#skip_stack_guard_page() -> Result<()> {
 
 #[test]
 fn r#stack() -> Result<()> {
-    parse_and_run("testdata/spec/stack.wast", RunSet::All, FailMode::None)
+    parse_and_run("testdata/spec/stack.wast", RunSet::All, FailMode::Run)
 }
 
 #[test]
