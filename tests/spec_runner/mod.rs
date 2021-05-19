@@ -45,10 +45,13 @@ fn parse_and_run<S: std::fmt::Debug + AsRef<Path>>(
         Ok(()) => "PASSING",
         _ => "FAILING",
     };
-    println!("MODE {:?} {} {:?}", mode, passingtext, path);
+    println!("MODE {:?} {} ALL {:?}", mode, passingtext, path);
     match result {
         Err(e) => match mode {
             FailMode::None => {
+                if e.is_parse_error() {
+                    println!("MODE {:?} {} PARSE {:?}", mode, passingtext, path);
+                }
                 println!("SKIPPING Ignore error {:?} in parse mode for {:?}", e, path);
                 Ok(())
             }
@@ -169,7 +172,7 @@ fn r#endianness() -> Result<()> {
 
 #[test]
 fn r#exports() -> Result<()> {
-    parse_and_run("testdata/spec/exports.wast", RunSet::All, FailMode::None)
+    parse_and_run("testdata/spec/exports.wast", RunSet::All, FailMode::Run)
 }
 
 #[test]

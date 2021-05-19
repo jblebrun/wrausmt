@@ -160,6 +160,24 @@ impl Runtime {
         }
         Ok(results)
     }
+
+    pub fn get_global(&mut self, mod_instance: &Rc<ModuleInstance>, name: &str) -> Result<Value> {
+        let globaladdr = match mod_instance.resolve(name) {
+            Some(ExportInstance {
+                name: _,
+                addr: ExternalVal::Global(idx),
+            }) => Ok(*idx),
+            _ => Err(RuntimeErrorKind::MethodNotFound(name.to_owned()).error()),
+        }?;
+
+        self.logger
+            .log("HOST", || format!("calling {} at {}", name, globaladdr));
+        // 1. Assert S.funcaddr exists
+        // 2. Let funcinst = S.funcs[funcaddr]
+        let globalinst = self.store.global(globaladdr)?;
+
+        Ok(globalinst)
+    }
 }
 
 #[macro_export]
