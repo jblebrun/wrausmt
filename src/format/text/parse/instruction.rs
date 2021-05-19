@@ -97,13 +97,23 @@ impl<R: Read> Parser<R> {
         }
     }
 
+    fn expect_plain_end(&mut self) -> Result<()> {
+        match self.take_keyword_if(|kw| kw == "end")? {
+            Some(_) => {
+                // Could have an ID that should match if. We don't check for now.
+                self.try_id()?;
+                Ok(())
+            }
+            None => Err(ParseError::unexpected("end")),
+        }
+    }
+
     fn parse_plain_block(&mut self, cnt: Continuation) -> Result<syntax::Operands<Unresolved>> {
         let label = self.try_id()?;
         let typeuse = self.parse_type_use()?;
         let instr = self.parse_instructions()?;
-        if self.take_keyword_if(|kw| kw == "end")?.is_none() {
-            return Err(ParseError::unexpected("block end"));
-        }
+        self.expect_plain_end()?;
+
         Ok(syntax::Operands::Block(label, typeuse, Expr { instr }, cnt))
     }
 
@@ -115,13 +125,15 @@ impl<R: Read> Parser<R> {
         let thengroup = self.parse_instructions()?;
 
         let elsegroup = match self.take_keyword_if(|kw| kw == "else")? {
-            Some(_) => self.parse_instructions()?,
+            Some(_) => {
+                // Could have an ID that should match if. We don't check for now.
+                self.try_id()?;
+                self.parse_instructions()?
+            }
             _ => vec![],
         };
 
-        if self.take_keyword_if(|kw| kw == "end")?.is_none() {
-            return Err(ParseError::unexpected("end"));
-        }
+        self.expect_plain_end()?;
 
         Ok(syntax::Operands::If(
             label,
