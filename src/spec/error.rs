@@ -64,6 +64,10 @@ impl SpecTestError {
             err: self,
         }
     }
+
+    pub fn is_parse_error(&self) -> bool {
+        matches!(self, Self::LoaderError(le) if le.is_parse_error())
+    }
 }
 
 impl std::fmt::Display for SpecTestError {
