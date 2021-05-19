@@ -181,10 +181,14 @@ impl SpecTestRunner {
                     }
                     self.latest_module = Some(modinst);
                 }
-                Cmd::Register { modname, .. } => match &self.latest_module {
-                    Some(module) => self.runtime.register(modname, module.clone()),
-                    _ => return Err(SpecTestError::RegisterMissingModule(modname)),
-                },
+                Cmd::Register { modname, id } => {
+                    let module = self.module_for_action(&id);
+                    println!("REGISTER {} {:?}", modname, module);
+                    match module {
+                        Ok(module) => self.runtime.register(modname, module.clone()),
+                        Err(_) => return Err(SpecTestError::RegisterMissingModule(modname)),
+                    }
+                }
                 Cmd::Action(a) => {
                     self.handle_action(a)?;
                 }

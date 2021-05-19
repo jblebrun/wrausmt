@@ -351,6 +351,7 @@ pub struct ImportField<R: ResolvedState> {
     pub id: Option<String>,
     pub modname: String,
     pub name: String,
+    pub exports: Vec<String>,
     pub desc: ImportDesc<R>,
 }
 

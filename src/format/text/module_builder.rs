@@ -109,7 +109,7 @@ impl ModuleBuilder {
         add_ident!(self, f, tableindices, tables, self.tableidx_offset);
 
         // export field may define new exports.
-        let tableidx = self.module.funcs.len() as u32 + self.tableidx_offset;
+        let tableidx = self.module.tables.len() as u32 + self.tableidx_offset;
         for export_name in &f.exports {
             self.module.exports.push(ExportField {
                 name: export_name.clone(),
@@ -142,18 +142,42 @@ impl ModuleBuilder {
         match f.desc {
             ImportDesc::Func(_) => {
                 add_ident!(self, f, funcindices, funcs, self.funcidx_offset);
+                for export_name in &f.exports {
+                    self.module.exports.push(ExportField {
+                        name: export_name.clone(),
+                        exportdesc: ExportDesc::Func(Index::unnamed(self.funcidx_offset)),
+                    })
+                }
                 self.funcidx_offset += 1;
             }
             ImportDesc::Mem(_) => {
                 add_ident!(self, f, memindices, memories, self.memidx_offset);
+                for export_name in &f.exports {
+                    self.module.exports.push(ExportField {
+                        name: export_name.clone(),
+                        exportdesc: ExportDesc::Mem(Index::unnamed(self.memidx_offset)),
+                    })
+                }
                 self.memidx_offset += 1;
             }
             ImportDesc::Table(_) => {
                 add_ident!(self, f, tableindices, tables, self.tableidx_offset);
+                for export_name in &f.exports {
+                    self.module.exports.push(ExportField {
+                        name: export_name.clone(),
+                        exportdesc: ExportDesc::Table(Index::unnamed(self.tableidx_offset)),
+                    })
+                }
                 self.tableidx_offset += 1;
             }
             ImportDesc::Global(_) => {
                 add_ident!(self, f, globalindices, globals, self.globalidx_offset);
+                for export_name in &f.exports {
+                    self.module.exports.push(ExportField {
+                        name: export_name.clone(),
+                        exportdesc: ExportDesc::Global(Index::unnamed(self.globalidx_offset)),
+                    })
+                }
                 self.globalidx_offset += 1;
             }
         }

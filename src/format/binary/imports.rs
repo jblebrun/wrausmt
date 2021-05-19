@@ -19,6 +19,7 @@ pub trait ReadImports: ReadWasmValues {
                 id: None,
                 modname: s.read_name().ctx("parsing module name")?,
                 name: s.read_name().ctx("parsing name")?,
+                exports: vec![],
                 desc: {
                     let kind = s.read_byte().ctx("parsing kind")?;
                     match kind {
