@@ -1,4 +1,7 @@
-use crate::{syntax::MemoryField, types::MemType};
+use std::ops::Range;
+
+use crate::runtime::error::Result;
+use crate::{runtime::error::TrapKind, syntax::MemoryField, types::MemType};
 
 /// A memory instance is the runtime representation of a linear memory. [Spec][Spec]
 ///
@@ -60,5 +63,26 @@ impl MemInstance {
         self.data.resize(newsize, 0);
 
         Some(old_size_in_pages as u32)
+    }
+
+    fn offset(&self, o: usize, b: usize, n: usize) -> Result<Range<usize>> {
+        let i = o as u64 + b as u64;
+        println!("READ {} IN {}", i, self.data.len());
+        if (i + n as u64) > self.data.len() as u64 {
+            return Err(TrapKind::OutOfBoundsMemoryAccess(i as u64, n).into());
+        }
+        let i = i as usize;
+        Ok(i..i + n)
+    }
+
+    pub fn read(&self, o: usize, b: usize, n: usize) -> Result<&[u8]> {
+        let range = self.offset(o, b, n)?;
+        Ok(&self.data[range])
+    }
+
+    pub fn write(&mut self, o: usize, b: usize, bs: &[u8]) -> Result<()> {
+        let range = self.offset(o, b, bs.len())?;
+        self.data[range].clone_from_slice(bs);
+        Ok(())
     }
 }

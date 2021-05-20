@@ -9,6 +9,7 @@ use wrausmt::{format::text::parse::Parser, spec::format::SpecTestScript};
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
 #[derive(Debug)]
+#[allow(dead_code)]
 enum FailMode {
     Parse,
     Run,
@@ -305,7 +306,7 @@ fn r#left_to_right() -> Result<()> {
 
 #[test]
 fn r#linking() -> Result<()> {
-    parse_and_run("testdata/spec/linking.wast", RunSet::All, FailMode::Parse)
+    parse_and_run("testdata/spec/linking.wast", RunSet::All, FailMode::Run)
 }
 
 #[test]

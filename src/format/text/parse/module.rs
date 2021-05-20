@@ -33,6 +33,8 @@ pub enum Field<R: ResolvedState> {
     Data(DataField<R>),
 }
 
+const PAGE_SIZE: usize = 65536;
+
 // Implementation for module-specific parsing functions.
 impl<R: Read> Parser<R> {
     /// Attempt to parse the current token stream as a WebAssembly module.
@@ -282,7 +284,10 @@ impl<R: Read> Parser<R> {
 
         if let Some(inline_data) = inline_data {
             self.expect_close()?;
-            let n = inline_data.len() as u32;
+            let mut n = (inline_data.len() / PAGE_SIZE) as u32;
+            if inline_data.len() % PAGE_SIZE > 0 {
+                n += 1;
+            }
             let memtype = MemType {
                 limits: Limits {
                     lower: n,

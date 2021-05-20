@@ -15,7 +15,7 @@ macro_rules! impl_bug {
 
 #[derive(Debug)]
 pub struct RuntimeError {
-    kind: RuntimeErrorKind,
+    pub kind: RuntimeErrorKind,
     context: Vec<String>,
 }
 
@@ -34,7 +34,26 @@ pub enum RuntimeErrorKind {
     ImportMismatch(ImportDesc<Resolved>, ExternalVal),
     ValidationError(String),
     ArgumentCountError { expected: usize, got: usize },
-    Trap(String),
+    Trap(TrapKind),
+}
+
+#[derive(Debug)]
+pub enum TrapKind {
+    IntegerDivideByZero,
+    IntegerOverflow,
+    UninitializedElement,
+    OutOfBoundsMemoryAccess(u64, usize),
+    OutOfBoundsTableAccess(usize, usize),
+    Unreachable,
+    UndefinedElement,
+    CallIndirectTypeMismatch,
+    InvalidConversionToInteger,
+}
+
+impl From<TrapKind> for RuntimeError {
+    fn from(tk: TrapKind) -> RuntimeError {
+        RuntimeErrorKind::Trap(tk).error()
+    }
 }
 
 impl RuntimeErrorKind {

@@ -1,4 +1,7 @@
-use crate::runtime::values::Ref;
+use crate::runtime::{
+    error::{Result, TrapKind},
+    values::Ref,
+};
 use crate::types::TableType;
 
 /// A table instance is the runtime representation of a table. [Spec][Spec]
@@ -40,7 +43,11 @@ impl TableInstance {
         Some(oldsize as u32)
     }
 
-    pub fn fill(&mut self, n: usize, val: Ref, i: usize) {
-        self.elem[i..i + n].fill(val)
+    pub fn fill(&mut self, n: usize, val: Ref, i: usize) -> Result<()> {
+        self.elem
+            .get_mut(i..i + n)
+            .ok_or(TrapKind::OutOfBoundsTableAccess(i, n))?
+            .fill(val);
+        Ok(())
     }
 }
