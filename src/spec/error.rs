@@ -53,6 +53,10 @@ pub enum SpecTestError {
         result: Value,
         expect: ActionResult,
     },
+    TrapMismatch {
+        result: Box<Result<Vec<Value>>>,
+        expect: String,
+    },
     RegisterMissingModule(String),
 }
 

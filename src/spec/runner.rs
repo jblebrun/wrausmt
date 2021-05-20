@@ -157,25 +157,29 @@ impl SpecTestRunner {
         Ok(())
     }
 
+    fn handle_module(&mut self, m: Module) -> Result<(Option<String>, Rc<ModuleInstance>)> {
+        Ok(match m {
+            Module::Module(m) => (m.id.clone(), self.runtime.load(m)?),
+            Module::Binary(n, b) => {
+                let data: Box<[u8]> = b
+                    .into_iter()
+                    .flat_map(|d| d.into_boxed_bytes().into_vec())
+                    .collect();
+                (n, self.runtime.load_wasm_data(&data)?)
+            }
+            Module::Quote(_, _) => {
+                panic!("no quote module support yet")
+            }
+        })
+    }
+
     pub fn run_spec_test(mut self, script: SpecTestScript, runset: RunSet) -> Result<()> {
         let mut failures: Failures = Failures::default();
         for cmd in script.cmds {
             self.logger.log("SPEC", || format!("EXECUTE CMD {:?}", cmd));
             match cmd.cmd {
                 Cmd::Module(m) => {
-                    let (name, modinst) = match m {
-                        Module::Module(m) => (m.id.clone(), self.runtime.load(m)?),
-                        Module::Binary(n, b) => {
-                            let data: Box<[u8]> = b
-                                .into_iter()
-                                .flat_map(|d| d.into_boxed_bytes().into_vec())
-                                .collect();
-                            (n, self.runtime.load_wasm_data(&data)?)
-                        }
-                        Module::Quote(_, _) => {
-                            panic!("no quote module support yet")
-                        }
-                    };
+                    let (name, modinst) = self.handle_module(m)?;
                     if let Some(name) = name {
                         self.named_modules.insert(name, modinst.clone());
                     }
@@ -194,19 +198,32 @@ impl SpecTestRunner {
                 }
                 Cmd::Assertion(a) => {
                     println!("ACTION {:?}", a);
-                    if let Assertion::Return { action, results } = a {
-                        self.assert_returns += 1;
-                        if !runset.should_run(action.name(), self.assert_returns) {
-                            return Ok(());
+                    match a {
+                        Assertion::Return { action, results } => {
+                            self.assert_returns += 1;
+                            if !runset.should_run(action.name(), self.assert_returns) {
+                                return Ok(());
+                            }
+                            println!("ASSERT RETURN {}", self.assert_returns);
+                            let result = self.handle_action(action)?;
+                            match Self::verify_result(result, results) {
+                                Ok(()) => (),
+                                Err(e) => failures
+                                    .failures
+                                    .push(e.into_failure(cmd.location, self.assert_returns)),
+                            }
                         }
-                        println!("ASSERT RETURN {}", self.assert_returns);
-                        let result = self.handle_action(action)?;
-                        match Self::verify_result(result, results) {
-                            Ok(()) => (),
-                            Err(e) => failures
-                                .failures
-                                .push(e.into_failure(cmd.location, self.assert_returns)),
+                        Assertion::ActionTrap { action, .. } => {
+                            println!("ASSERT TRAP");
+                            let result = self.handle_action(action);
+                            println!("RESULT {:?}", result);
                         }
+                        Assertion::ModuleTrap { module, .. } => {
+                            println!("ASSERT MODULE TRAP");
+                            let result = self.handle_module(module);
+                            println!("RESULT {:?}", result);
+                        }
+                        _ => {}
                     }
                 }
                 Cmd::Meta(m) => println!("META {:?}", m),

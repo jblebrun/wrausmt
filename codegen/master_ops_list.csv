@@ -1,5 +1,5 @@
 0x00      ,unreachable                   ,()
-| panic!("unreachable")
+| Err(TrapKind::Unreachable.into())
 
 0x01      ,nop                           ,()
 | Ok(())
@@ -395,16 +395,16 @@
 | _ec.binop::<u32, _>(|l, r| l.wrapping_mul(r))
 
 0x6d      ,i32.div_s                     ,()
-| _ec.binop::<i32, _>(|l, r| l.wrapping_div(r))
+| _ec.binop_div::<i32, _>(|l, r| l.wrapping_div(r))
 
 0x6e      ,i32.div_u                     ,()
-| _ec.binop::<u32, _>(|l, r| l.wrapping_div(r))
+| _ec.binop_div::<u32, _>(|l, r| l.wrapping_div(r))
 
 0x6f      ,i32.rem_s                     ,()
-| _ec.binop::<i32, _>(|l, r| l.wrapping_rem(r))
+| _ec.binop_div::<i32, _>(|l, r| l.wrapping_rem(r))
 
 0x70      ,i32.rem_u                     ,()
-| _ec.binop::<u32, _>(|l, r| l.wrapping_rem(r))
+| _ec.binop_div::<u32, _>(|l, r| l.wrapping_rem(r))
 
 0x71      ,i32.and                       ,()
 | _ec.binop::<u32, _>(|l, r| l & r)
@@ -449,16 +449,16 @@
 | _ec.binop::<u64, _>(|l, r| l.wrapping_mul(r))
 
 0x7f      ,i64.div_s                      ,()
-| _ec.binop::<i64, _>(|l, r| l.wrapping_div(r))
+| _ec.binop_div::<i64, _>(|l, r| l.wrapping_div(r))
 
 0x80      ,i64.div_u                      ,()
-| _ec.binop::<u64, _>(|l, r| l.wrapping_div(r))
+| _ec.binop_div::<u64, _>(|l, r| l.wrapping_div(r))
 
 0x81      ,i64.rem_s                      ,()
-| _ec.binop::<i64, _>(|l, r| l.wrapping_rem(r))
+| _ec.binop_div::<i64, _>(|l, r| l.wrapping_rem(r))
 
 0x82      ,i64.rem_u                      ,()
-| _ec.binop::<u64, _>(|l, r| l.wrapping_rem(r))
+| _ec.binop_div::<u64, _>(|l, r| l.wrapping_rem(r))
 
 0x83      ,i64.and                       ,()
 | _ec.binop::<u64, _>(|l, r| l & r)

@@ -1,8 +1,11 @@
-use super::instance::{
-    DataInstance, ElemInstance, FunctionInstance, GlobalInstance, MemInstance, TableInstance,
-};
 use super::values::Value;
 use super::{error::Result, values::Ref};
+use super::{
+    error::TrapKind,
+    instance::{
+        DataInstance, ElemInstance, FunctionInstance, GlobalInstance, MemInstance, TableInstance,
+    },
+};
 use crate::{impl_bug, logger::PrintLogger};
 use std::rc::Rc;
 use std::{iter::Iterator, slice};
@@ -128,7 +131,10 @@ impl Store {
 
     pub fn fill_mem(&mut self, addr: addr::MemoryAddr, n: usize, val: u8, i: usize) -> Result<()> {
         let mem = self.mem(addr)?;
-        mem.data[i..i + n].fill(val);
+        mem.data
+            .get_mut(i..i + n)
+            .ok_or(TrapKind::OutOfBoundsMemoryAccess(i as u64, n))?
+            .fill(val);
         Ok(())
     }
 
@@ -141,23 +147,13 @@ impl Store {
         dst: usize,
         count: usize,
     ) -> Result<()> {
-        if count == 0 {
-            return Ok(());
-        }
         let elems = &self
             .elems
             .get(elemaddr as usize)
             .ok_or_else(|| impl_bug!("no elem at addr {}", elemaddr))?
             .elems
             .get(src..src + count)
-            .ok_or_else(|| {
-                impl_bug!(
-                    "elem: {} count={} out of bounds for {}",
-                    src,
-                    count,
-                    elemaddr
-                )
-            })?;
+            .ok_or(TrapKind::OutOfBoundsTableAccess(src, count))?;
 
         let table = &mut self
             .tables
@@ -165,14 +161,7 @@ impl Store {
             .ok_or_else(|| impl_bug!("no table at {}", tabaddr))?
             .elem
             .get_mut(dst..dst + count)
-            .ok_or_else(|| {
-                impl_bug!(
-                    "table: {} count={} out of bounds for {}",
-                    dst,
-                    count,
-                    tabaddr
-                )
-            })?;
+            .ok_or(TrapKind::OutOfBoundsTableAccess(src, count))?;
 
         table.copy_from_slice(elems);
         Ok(())
@@ -187,37 +176,20 @@ impl Store {
         src: usize,
         count: usize,
     ) -> Result<()> {
-        if count == 0 {
-            return Ok(());
-        }
         let tables = &self.tables;
         let srcitems = tables
             .get(srcaddr as usize)
             .ok_or_else(|| impl_bug!("no table at addr {}", srcaddr))?
             .elem
             .get(src..src + count)
-            .ok_or_else(|| {
-                impl_bug!(
-                    "elem: {} count={} out of bounds for {}",
-                    src,
-                    count,
-                    srcaddr
-                )
-            })?;
+            .ok_or(TrapKind::OutOfBoundsTableAccess(src, count))?;
 
         let dstitems = tables
             .get(dstaddr as usize)
             .ok_or_else(|| impl_bug!("no table at {}", dstaddr))?
             .elem
             .get(dst..dst + count)
-            .ok_or_else(|| {
-                impl_bug!(
-                    "table: {} count={} out of bounds for {}",
-                    dst,
-                    count,
-                    dstaddr
-                )
-            })?;
+            .ok_or(TrapKind::OutOfBoundsTableAccess(src, count))?;
 
         // Can't get a mut ref to one table in the vector of tables while we have a const ref to
         // another one.
@@ -238,36 +210,18 @@ impl Store {
         dst: usize,
         count: usize,
     ) -> Result<()> {
-        if count == 0 {
-            return Ok(());
-        }
-        let data = &self
+        let data = self
             .datas
             .get(dataaddr as usize)
             .ok_or_else(|| impl_bug!("no data at {}", dataaddr))?
             .bytes
             .get(src..src + count)
-            .ok_or_else(|| {
-                impl_bug!(
-                    "{} count={} out of bounds for data {}",
-                    src,
-                    count,
-                    dataaddr
-                )
-            })?;
+            .ok_or(TrapKind::OutOfBoundsMemoryAccess(src as u64, count))?;
 
-        let mem = &mut self
-            .mems
+        self.mems
             .get_mut(memaddr as usize)
             .ok_or_else(|| impl_bug!("no mem at {}", memaddr))?
-            .data
-            .get_mut(dst..dst + count)
-            .ok_or_else(|| {
-                impl_bug!("{} count={} out of bounds for mem {}", dst, count, memaddr)
-            })?;
-
-        mem.copy_from_slice(data);
-        Ok(())
+            .write(0, dst, data)
     }
 
     pub fn copy_mem_to_mem(
@@ -277,17 +231,9 @@ impl Store {
         dst: usize,
         count: usize,
     ) -> Result<()> {
-        if count == 0 {
-            return Ok(());
-        }
         let mem = &self.mem(memaddr)?;
-        let srcitems = mem.data.get(src..src + count).ok_or_else(|| {
-            impl_bug!("{} count={} out of bounds for data {}", src, count, memaddr)
-        })?;
-
-        let dstitems = mem.data.get(dst..dst + count).ok_or_else(|| {
-            impl_bug!("{} count={} out of bounds for mem {}", dst, count, memaddr)
-        })?;
+        let srcitems = mem.read(0, src, count)?;
+        let dstitems = mem.read(0, dst, count)?;
 
         // Can't get a mut ref to one table in the vector of tables while we have a const ref to
         // another one.
@@ -308,8 +254,7 @@ impl Store {
         i: usize,
     ) -> Result<()> {
         let table = self.table_mut(addr)?;
-        table.fill(n, val, i);
-        Ok(())
+        table.fill(n, val, i)
     }
 
     pub fn elem_drop(&mut self, elemaddr: addr::ElemAddr) -> Result<()> {
@@ -328,6 +273,7 @@ impl Store {
             .get_mut(dataaddr as usize)
             .ok_or_else(|| impl_bug!("no elem at {}", dataaddr))?;
 
+        println!("DATA DROPPED {}", dataaddr);
         data.bytes = Box::new([]);
         Ok(())
     }

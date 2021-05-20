@@ -1,8 +1,11 @@
-use super::{error::Result, store::addr};
 use super::{
     error::RuntimeError,
     values::{Ref, Value},
     Runtime,
+};
+use super::{
+    error::{Result, TrapKind},
+    store::addr,
 };
 use crate::runtime::instance::MemInstance;
 use crate::runtime::stack::Label;
@@ -68,12 +71,9 @@ pub trait ExecutionContextActions {
     fn get_mem<const S: usize>(&mut self) -> Result<[u8; S]> {
         let _a = self.op_u32()?;
         let o = self.op_u32()?;
-        let b = self.pop::<u32>()?;
-        let i = (b + o) as usize;
+        let b = self.pop::<usize>()?;
         self.mem(0)?
-            .data
-            .get(i..i + S)
-            .ok_or_else(|| impl_bug!("mem bounds {} {}", i, i + S))?
+            .read(o as usize, b, S)?
             .try_into()
             .map_err(|e| impl_bug!("conversion error {:?}", e))
     }
@@ -81,11 +81,8 @@ pub trait ExecutionContextActions {
     fn put_mem<const S: usize>(&mut self, bytes: [u8; S]) -> Result<()> {
         let _a = self.op_u32()?;
         let o = self.op_u32()?;
-        let b = self.pop::<u32>()?;
-        let m = self.mem(0)?;
-        let i = (o + b) as usize;
-        m.data[i..i + S].clone_from_slice(&bytes);
-        Ok(())
+        let b = self.pop::<usize>()?;
+        self.mem(0)?.write(o as usize, b, &bytes)
     }
 
     fn binop<T, F>(&mut self, op: F) -> Result<()>
@@ -94,6 +91,19 @@ pub trait ExecutionContextActions {
         F: Fn(T, T) -> T,
     {
         let r = self.pop::<T>()?;
+        let l = self.pop::<T>()?;
+        self.push(op(l, r))
+    }
+
+    fn binop_div<T, F>(&mut self, op: F) -> Result<()>
+    where
+        T: TryFrom<Value, Error = RuntimeError> + Into<Value> + Default + PartialEq,
+        F: Fn(T, T) -> T,
+    {
+        let r = self.pop::<T>()?;
+        if r == T::default() {
+            return Err(TrapKind::IntegerDivideByZero.into());
+        }
         let l = self.pop::<T>()?;
         self.push(op(l, r))
     }
@@ -194,7 +204,12 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
     fn get_table_elem(&mut self, tidx: u32, elemidx: u32) -> Result<Ref> {
         let tableaddr = self.runtime.stack.get_table_addr(tidx)?;
         let table = self.runtime.store.table(tableaddr)?;
-        Ok(table.elem[elemidx as usize])
+        let elem = table
+            .elem
+            .get(elemidx as usize)
+            .copied()
+            .ok_or_else(|| TrapKind::OutOfBoundsTableAccess(elemidx as usize, 1))?;
+        Ok(elem)
     }
 
     fn set_table_elem<V: TryInto<Ref, Error = RuntimeError>>(
@@ -205,13 +220,18 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
     ) -> Result<()> {
         let tableaddr = &self.runtime.stack.get_table_addr(tidx)?;
         let table = self.runtime.store.table_mut(*tableaddr)?;
-        table.elem[elemidx as usize] = val.try_into()?;
+        let elem = table
+            .elem
+            .get_mut(elemidx as usize)
+            .ok_or_else(|| TrapKind::OutOfBoundsTableAccess(elemidx as usize, 1))?;
+        *elem = val.try_into()?;
         Ok(())
     }
 
     fn get_func_table(&mut self, tidx: u32, elemidx: u32) -> Result<u32> {
         match self.get_table_elem(tidx, elemidx)? {
             Ref::Func(a) => Ok(a as u32),
+            Ref::Null(RefType::Func) => Err(TrapKind::UninitializedElement.into()),
             e => Err(impl_bug!("not a func {:?} FOR {} {}", e, tidx, elemidx)),
         }
     }
@@ -348,12 +368,14 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
 
     fn elem_drop(&mut self) -> Result<()> {
         let elemidx = self.op_u32()?;
-        self.runtime.store.elem_drop(elemidx)
+        let elemaddr = self.runtime.stack.get_elem_addr(elemidx)?;
+        self.runtime.store.elem_drop(elemaddr)
     }
 
     fn data_drop(&mut self) -> Result<()> {
         let dataidx = self.op_u32()?;
-        self.runtime.store.data_drop(dataidx)
+        let dataaddr = self.runtime.stack.get_data_addr(dataidx)?;
+        self.runtime.store.data_drop(dataaddr)
     }
 
     fn continuation(&mut self, cnt: u32) -> Result<()> {
@@ -485,7 +507,12 @@ impl Runtime {
             body,
             pc: 0,
         };
-        ic.run()
+        let result = ic.run();
+        if let Err(ref e) = result {
+            println!("UNWINDING FOR ERROR {:?}", e);
+            self.stack.unwind();
+        }
+        result
     }
 
     pub fn exec_expr(&mut self, body: &[u8]) -> Result<()> {

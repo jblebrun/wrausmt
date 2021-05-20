@@ -277,4 +277,9 @@ impl Stack {
         let fromend = self.label_stack()?.len() as u32 - 1 - idx;
         Ok(&self.label_stack()?[fromend as usize])
     }
+
+    pub fn unwind(&mut self) {
+        self.value_stack.clear();
+        self.activation_stack.clear();
+    }
 }
