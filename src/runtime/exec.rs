@@ -208,11 +208,15 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
     fn get_table_elem(&mut self, tidx: u32, elemidx: u32) -> Result<Ref> {
         let tableaddr = self.runtime.stack.get_table_addr(tidx)?;
         let table = self.runtime.store.table(tableaddr)?;
-        let elem = table
-            .elem
-            .get(elemidx as usize)
-            .copied()
-            .ok_or(TrapKind::OutOfBoundsTableAccess)?;
+        let elem =
+            table
+                .elem
+                .get(elemidx as usize)
+                .copied()
+                .ok_or(TrapKind::OutOfBoundsTableAccess(
+                    elemidx as usize,
+                    table.elem.len(),
+                ))?;
         Ok(elem)
     }
 
@@ -224,12 +228,10 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
     ) -> Result<()> {
         let tableaddr = &self.runtime.stack.get_table_addr(tidx)?;
         let table = self.runtime.store.table_mut(*tableaddr)?;
-        let elem = table
-            .elem
-            .get_mut(elemidx as usize)
-            .ok_or(TrapKind::OutOfBoundsTableAccess)?;
-        *elem = val.try_into()?;
-        Ok(())
+        match table.elem.get_mut(elemidx as usize) {
+            Some(e) => val.try_into().map(|v| *e = v),
+            _ => Err(TrapKind::OutOfBoundsTableAccess(elemidx as usize, table.elem.len()).into()),
+        }
     }
 
     fn get_func_table(&mut self, tidx: u32, elemidx: u32) -> Result<u32> {
