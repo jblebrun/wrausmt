@@ -9,6 +9,7 @@ use crate::{
     loader::Loader,
     logger::{Logger, PrintLogger},
     runtime::{
+        error::TrapKind,
         instance::ModuleInstance,
         values::{Num, Ref, Value},
         Runtime,
@@ -68,6 +69,24 @@ pub struct SpecTestRunner {
     named_modules: HashMap<String, Rc<ModuleInstance>>,
     assert_returns: u32,
     logger: PrintLogger,
+}
+
+impl From<&str> for TrapKind {
+    fn from(msg: &str) -> Self {
+        match msg {
+            "invalid conversion to integer" => TrapKind::InvalidConversionToInteger,
+            "out of bounds memory access" => TrapKind::OutOfBoundsMemoryAccess,
+            "out of bounds table access" => TrapKind::OutOfBoundsTableAccess,
+            "indirect call type mismatch" => TrapKind::CallIndirectTypeMismatch,
+            "integer divide by zero" => TrapKind::IntegerDivideByZero,
+            "integer overflow" => TrapKind::IntegerOverflow,
+            "unreachable" => TrapKind::Unreachable,
+            "undefined element" => TrapKind::OutOfBoundsTableAccess,
+            "uninitialized element" => TrapKind::UninitializedElement,
+            "uninitialized element 2" => TrapKind::UninitializedElement,
+            _ => panic!("don't know how to convert {}", msg),
+        }
+    }
 }
 
 impl SpecTestRunner {
@@ -173,6 +192,27 @@ impl SpecTestRunner {
         })
     }
 
+    fn verify_trap_result<T>(result: Result<T>, failure: String) -> Result<()> {
+        let expected_trap: TrapKind = failure.as_str().into();
+        println!("EXPECT: {:?}", expected_trap);
+        match result {
+            Err(e) => {
+                let trap_error = e.as_trap_error();
+                match trap_error {
+                    Some(tk) if tk == &expected_trap => Ok(()),
+                    _ => Err(SpecTestError::TrapMismatch {
+                        result: Some(Box::new(e)),
+                        expect: failure,
+                    }),
+                }
+            }
+            _ => Err(SpecTestError::TrapMismatch {
+                result: None,
+                expect: failure,
+            }),
+        }
+    }
+
     pub fn run_spec_test(mut self, script: SpecTestScript, runset: RunSet) -> Result<()> {
         let mut failures: Failures = Failures::default();
         for cmd in script.cmds {
@@ -213,15 +253,15 @@ impl SpecTestRunner {
                                     .push(e.into_failure(cmd.location, self.assert_returns)),
                             }
                         }
-                        Assertion::ActionTrap { action, .. } => {
+                        Assertion::ActionTrap { action, failure } => {
                             println!("ASSERT TRAP");
                             let result = self.handle_action(action);
-                            println!("RESULT {:?}", result);
+                            Self::verify_trap_result(result, failure)?;
                         }
-                        Assertion::ModuleTrap { module, .. } => {
+                        Assertion::ModuleTrap { module, failure } => {
                             println!("ASSERT MODULE TRAP");
                             let result = self.handle_module(module);
-                            println!("RESULT {:?}", result);
+                            Self::verify_trap_result(result, failure)?;
                         }
                         _ => {}
                     }

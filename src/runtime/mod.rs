@@ -14,6 +14,8 @@ use crate::{
 };
 use std::{collections::HashMap, rc::Rc};
 
+use self::instance::FunctionInstance;
+
 use {
     error::Result,
     instance::{ExportInstance, ExternalVal, ModuleInstance},
@@ -53,11 +55,14 @@ impl Runtime {
         }
     }
 
-    pub fn invoke(&mut self, addr: addr::FuncAddr) -> Result<()> {
+    pub fn invoke_addr(&mut self, addr: addr::FuncAddr) -> Result<()> {
         // 1. Assert S.funcaddr exists
         // 2. Let funcinst = S.funcs[funcaddr]
         let funcinst = self.store.func(addr)?;
+        self.invoke(funcinst)
+    }
 
+    pub fn invoke(&mut self, funcinst: Rc<FunctionInstance>) -> Result<()> {
         // 3. Let [tn_1] -> [tm_2] be the function type.
         // 4. Let t* be the list of locals.
         // 5. Let instr* end be the code body
@@ -131,7 +136,7 @@ impl Runtime {
         }
 
         // 9. Invoke the function.
-        self.invoke(funcaddr)?;
+        self.invoke_addr(funcaddr)?;
 
         let mut results: Vec<Value> = vec![];
         for _ in 0..funcinst.functype.result.len() {
