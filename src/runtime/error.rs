@@ -24,6 +24,13 @@ impl RuntimeError {
         self.context.push(msg.into());
         self
     }
+
+    pub fn as_trap_error(&self) -> Option<&TrapKind> {
+        match self.kind {
+            RuntimeErrorKind::Trap(ref tk) => Some(tk),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -37,15 +44,14 @@ pub enum RuntimeErrorKind {
     Trap(TrapKind),
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum TrapKind {
     IntegerDivideByZero,
     IntegerOverflow,
-    UninitializedElement,
-    OutOfBoundsMemoryAccess(u64, usize),
-    OutOfBoundsTableAccess(usize, usize),
+    OutOfBoundsMemoryAccess,
+    OutOfBoundsTableAccess,
     Unreachable,
-    UndefinedElement,
+    UninitializedElement,
     CallIndirectTypeMismatch,
     InvalidConversionToInteger,
 }

@@ -119,7 +119,6 @@ impl Runtime {
             ..ModuleInstanceBuilder::default()
         };
 
-        // TODO - actually resolve imports
         for import in module.imports {
             let found = self.find_import(&import)?;
             modinst_builder.add_external_val(found);
@@ -178,16 +177,19 @@ impl Runtime {
             .elems
             .iter()
             .map(|e| {
-                let refs: Vec<Ref> = e
-                    .elemlist
-                    .items
-                    .iter()
-                    .map(|ei| {
-                        let mut initexpr: Vec<u8> = Vec::new();
-                        initexpr.emit_expr(&ei);
-                        self.eval_ref_expr(&initexpr)
-                    })
-                    .collect::<Result<_>>()?;
+                let refs: Vec<Ref> = match e.mode {
+                    ModeEntry::Declarative => vec![],
+                    _ => e
+                        .elemlist
+                        .items
+                        .iter()
+                        .map(|ei| {
+                            let mut initexpr: Vec<u8> = Vec::new();
+                            initexpr.emit_expr(&ei);
+                            self.eval_ref_expr(&initexpr)
+                        })
+                        .collect::<Result<_>>()?,
+                };
                 Ok(ElemInstance::new(refs.into_boxed_slice()))
             })
             .collect::<Result<_>>()?;
@@ -284,7 +286,7 @@ impl Runtime {
         if let Some(start) = module.start {
             let startaddr = rcinst.func(start.idx.value());
             self.stack.push_dummy_activation(rcinst.clone())?;
-            self.invoke(startaddr)?;
+            self.invoke_addr(startaddr)?;
             self.stack.pop_activation()?;
         }
 

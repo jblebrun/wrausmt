@@ -62,10 +62,10 @@
 
 0x11      ,call_indirect                 ,(CallIndirect)
 | let t = _ec.op_u32()?;
-| let _tu = _ec.op_u32()?;
+| let tu = _ec.op_u32()?;
 | let ei = _ec.pop::<u32>()?;
 | let f = _ec.get_func_table(t, ei)?;
-| _ec.call_addr(f)
+| _ec.call_addr(f, tu)
 
 0x1A      ,drop                          ,()
 | _ec.pop_value()?;
@@ -395,16 +395,39 @@
 | _ec.binop::<u32, _>(|l, r| l.wrapping_mul(r))
 
 0x6d      ,i32.div_s                     ,()
-| _ec.binop_div::<i32, _>(|l, r| l.wrapping_div(r))
+| _ec.binop_trap::<i32, _>(|l, r| {
+|     if r == 0 {
+|         return Err(TrapKind::IntegerDivideByZero);
+|     }
+|     if l == i32::MIN && r == -1 {
+|         return Err(TrapKind::IntegerOverflow);
+|     }
+|     Ok(l.wrapping_div(r))
+| })
 
 0x6e      ,i32.div_u                     ,()
-| _ec.binop_div::<u32, _>(|l, r| l.wrapping_div(r))
+| _ec.binop_trap::<u32, _>(|l, r| {
+|     if r == 0 {
+|         return Err(TrapKind::IntegerDivideByZero);
+|     }
+|     Ok(l.wrapping_div(r))
+| })
 
 0x6f      ,i32.rem_s                     ,()
-| _ec.binop_div::<i32, _>(|l, r| l.wrapping_rem(r))
+| _ec.binop_trap::<i32, _>(|l, r| {
+|     if r == 0 {
+|         return Err(TrapKind::IntegerDivideByZero); 
+|     }
+|     Ok(l.wrapping_rem(r))
+| })
 
 0x70      ,i32.rem_u                     ,()
-| _ec.binop_div::<u32, _>(|l, r| l.wrapping_rem(r))
+| _ec.binop_trap::<u32, _>(|l, r| {
+|     if r == 0 {
+|         return Err(TrapKind::IntegerDivideByZero); 
+|     }
+|     Ok(l.wrapping_rem(r))
+| })
 
 0x71      ,i32.and                       ,()
 | _ec.binop::<u32, _>(|l, r| l & r)
@@ -449,16 +472,39 @@
 | _ec.binop::<u64, _>(|l, r| l.wrapping_mul(r))
 
 0x7f      ,i64.div_s                      ,()
-| _ec.binop_div::<i64, _>(|l, r| l.wrapping_div(r))
+| _ec.binop_trap::<i64, _>(|l, r| {
+|     if r == 0 {
+|         return Err(TrapKind::IntegerDivideByZero);
+|     }
+|     if l == i64::MIN && r == -1 {
+|         return Err(TrapKind::IntegerOverflow);
+|     }
+|     Ok(l.wrapping_div(r))
+| })
 
 0x80      ,i64.div_u                      ,()
-| _ec.binop_div::<u64, _>(|l, r| l.wrapping_div(r))
+| _ec.binop_trap::<u64, _>(|l, r| {
+|     if r == 0 {
+|         return Err(TrapKind::IntegerDivideByZero); 
+|     }
+|     Ok(l.wrapping_div(r))
+| })
 
 0x81      ,i64.rem_s                      ,()
-| _ec.binop_div::<i64, _>(|l, r| l.wrapping_rem(r))
+| _ec.binop_trap::<i64, _>(|l, r| {
+|     if r == 0 {
+|         return Err(TrapKind::IntegerDivideByZero); 
+|     }
+|     Ok(l.wrapping_rem(r))
+| })
 
 0x82      ,i64.rem_u                      ,()
-| _ec.binop_div::<u64, _>(|l, r| l.wrapping_rem(r))
+| _ec.binop_trap::<u64, _>(|l, r| {
+|     if r == 0 {
+|         return Err(TrapKind::IntegerDivideByZero); 
+|     }
+|     Ok(l.wrapping_rem(r))
+| })
 
 0x83      ,i64.and                       ,()
 | _ec.binop::<u64, _>(|l, r| l & r)
@@ -678,16 +724,48 @@
 | _ec.convop::<u64, u32, _>(|o| o as u32)
 
 0xa8      ,i32.trunc_f32_s               ,()
-| _ec.convop::<f32, i32, _>(|o| o as i32)
+| _ec.convop_trap::<f32, i32, _>(|o| {
+|     if o.is_nan() {
+|         return Err(TrapKind::InvalidConversionToInteger);
+|     }
+|     if o >= i32::MAX as f32 || o < i32::MIN as f32 {
+|         return Err(TrapKind::IntegerOverflow);
+|     }
+|     Ok(o as i32)
+| })
 
 0xa9      ,i32.trunc_f32_u               ,()
-| _ec.convop::<f32, u32, _>(|o| o as u32)
+| _ec.convop_trap::<f32, u32, _>(|o| {
+|     if o.is_nan() {
+|         return Err(TrapKind::InvalidConversionToInteger);
+|     }
+|     if o >= u32::MAX as f32 || o <= -1f32 {
+|         return Err(TrapKind::IntegerOverflow);
+|     }
+|     Ok(o as u32)
+| })
 
 0xaa      ,i32.trunc_f64_s               ,()
-| _ec.convop::<f64, i32, _>(|o| o as i32)
+| _ec.convop_trap::<f64, i32, _>(|o| {
+|     if o.is_nan() {
+|         return Err(TrapKind::InvalidConversionToInteger);
+|     }
+|     if o >= (i32::MAX as f64 + 1f64) || o <= (i32::MIN as f64 - 1f64) {
+|         return Err(TrapKind::IntegerOverflow);
+|     }
+|     Ok(o as i32)
+| })
 
 0xab      ,i32.trunc_f64_u               ,()
-| _ec.convop::<f64, u32, _>(|o| o as u32)
+| _ec.convop_trap::<f64, u32, _>(|o| {
+|     if o.is_nan() {
+|         return Err(TrapKind::InvalidConversionToInteger);
+|     }
+|     if o >= (u32::MAX as f64 + 1f64) || o <= -1f64 {
+|         return Err(TrapKind::IntegerOverflow);
+|     }
+|     Ok(o as u32)
+| })
 
 0xac      ,i64.extend_i32_s              ,()
 | _ec.convop::<i32, i64, _>(|o| o as i64)
@@ -696,16 +774,48 @@
 | _ec.convop::<u32, u64, _>(|o| o as u64)
 
 0xae      ,i64.trunc_f32_s               ,()
-| _ec.convop::<f32, i64, _>(|o| o as i64)
+| _ec.convop_trap::<f32, i64, _>(|o| {
+|     if o.is_nan() {
+|         return Err(TrapKind::InvalidConversionToInteger);
+|     }
+|     if o >= i64::MAX as f32 || o < i64::MIN as f32 {
+|         return Err(TrapKind::IntegerOverflow);
+|     }
+|     Ok(o as i64)
+| })
 
 0xaf      ,i64.trunc_f32_u               ,()
-| _ec.convop::<f32, u64, _>(|o| o as u64)
+| _ec.convop_trap::<f32, u64, _>(|o| {
+|     if o.is_nan() {
+|         return Err(TrapKind::InvalidConversionToInteger);
+|     }
+|     if o >= u64::MAX as f32 || o <= -1f32 {
+|         return Err(TrapKind::IntegerOverflow);
+|     }
+|     Ok(o as u64)
+| })
 
 0xb0      ,i64.trunc_f64_s               ,()
-| _ec.convop::<f64, i64, _>(|o| o as i64)
+| _ec.convop_trap::<f64, i64, _>(|o| {
+|     if o.is_nan() {
+|         return Err(TrapKind::InvalidConversionToInteger);
+|     }
+|     if o >= i64::MAX as f64 || o < i64::MIN as f64 {
+|         return Err(TrapKind::IntegerOverflow);
+|     }
+|     Ok(o as i64)
+| })
 
 0xb1      ,i64.trunc_f64_u               ,()
-| _ec.convop::<f64, u64, _>(|o| o as u64)
+| _ec.convop_trap::<f64, u64, _>(|o| {
+|     if o.is_nan() {
+|         return Err(TrapKind::InvalidConversionToInteger);
+|     }
+|     if o >= u64::MAX as f64 || o <= -1f64 {
+|         return Err(TrapKind::IntegerOverflow);
+|     }
+|     Ok(o as u64)
+| })
 
 0xb2      ,f32.convert_i32_s             ,()
 | _ec.convop::<i32, f32, _>(|o| o as f32)

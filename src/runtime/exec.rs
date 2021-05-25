@@ -41,7 +41,7 @@ pub trait ExecutionContextActions {
     fn pop_label(&mut self) -> Result<Label>;
     fn pop<T: TryFrom<Value, Error = RuntimeError>>(&mut self) -> Result<T>;
     fn call(&mut self, idx: u32) -> Result<()>;
-    fn call_addr(&mut self, addr: addr::FuncAddr) -> Result<()>;
+    fn call_addr(&mut self, addr: addr::FuncAddr, typeidx: u32) -> Result<()>;
     fn mem(&mut self, idx: u32) -> Result<&mut MemInstance>;
     fn mem_init(&mut self) -> Result<()>;
     fn mem_size(&mut self) -> Result<()>;
@@ -95,17 +95,14 @@ pub trait ExecutionContextActions {
         self.push(op(l, r))
     }
 
-    fn binop_div<T, F>(&mut self, op: F) -> Result<()>
+    fn binop_trap<T, F>(&mut self, op: F) -> Result<()>
     where
         T: TryFrom<Value, Error = RuntimeError> + Into<Value> + Default + PartialEq,
-        F: Fn(T, T) -> T,
+        F: Fn(T, T) -> std::result::Result<T, TrapKind>,
     {
         let r = self.pop::<T>()?;
-        if r == T::default() {
-            return Err(TrapKind::IntegerDivideByZero.into());
-        }
         let l = self.pop::<T>()?;
-        self.push(op(l, r))
+        self.push(op(l, r)?)
     }
 
     fn convop<I, O, F>(&mut self, op: F) -> Result<()>
@@ -116,6 +113,16 @@ pub trait ExecutionContextActions {
     {
         let i = self.pop::<I>()?;
         self.push(op(i))
+    }
+
+    fn convop_trap<I, O, F>(&mut self, op: F) -> Result<()>
+    where
+        I: TryFrom<Value, Error = RuntimeError>,
+        O: Into<Value>,
+        F: Fn(I) -> std::result::Result<O, TrapKind>,
+    {
+        let i = self.pop::<I>()?;
+        self.push(op(i)?)
     }
 
     fn unop<T, F>(&mut self, op: F) -> Result<()>
@@ -208,7 +215,7 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
             .elem
             .get(elemidx as usize)
             .copied()
-            .ok_or_else(|| TrapKind::OutOfBoundsTableAccess(elemidx as usize, 1))?;
+            .ok_or(TrapKind::OutOfBoundsTableAccess)?;
         Ok(elem)
     }
 
@@ -223,7 +230,7 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
         let elem = table
             .elem
             .get_mut(elemidx as usize)
-            .ok_or_else(|| TrapKind::OutOfBoundsTableAccess(elemidx as usize, 1))?;
+            .ok_or(TrapKind::OutOfBoundsTableAccess)?;
         *elem = val.try_into()?;
         Ok(())
     }
@@ -459,11 +466,16 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
 
     fn call(&mut self, idx: u32) -> Result<()> {
         self.runtime
-            .invoke(self.runtime.stack.get_function_addr(idx)?)
+            .invoke_addr(self.runtime.stack.get_function_addr(idx)?)
     }
 
-    fn call_addr(&mut self, addr: addr::FuncAddr) -> Result<()> {
-        self.runtime.invoke(addr)
+    fn call_addr(&mut self, addr: addr::FuncAddr, typeidx: u32) -> Result<()> {
+        let funcinst = self.runtime.store.func(addr)?;
+        let expected_type = self.runtime.stack.get_func_type(typeidx)?;
+        if &funcinst.functype != expected_type {
+            return Err(TrapKind::CallIndirectTypeMismatch.into());
+        }
+        self.runtime.invoke(funcinst)
     }
 }
 

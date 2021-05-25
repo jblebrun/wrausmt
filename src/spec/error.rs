@@ -1,7 +1,10 @@
 use crate::{
     format::Location,
     loader::LoaderError,
-    runtime::{error::RuntimeError, values::Value},
+    runtime::{
+        error::{RuntimeError, TrapKind},
+        values::Value,
+    },
 };
 
 use super::format::ActionResult;
@@ -54,7 +57,7 @@ pub enum SpecTestError {
         expect: ActionResult,
     },
     TrapMismatch {
-        result: Box<Result<Vec<Value>>>,
+        result: Option<Box<SpecTestError>>,
         expect: String,
     },
     RegisterMissingModule(String),
@@ -71,6 +74,13 @@ impl SpecTestError {
 
     pub fn is_parse_error(&self) -> bool {
         matches!(self, Self::LoaderError(le) if le.is_parse_error())
+    }
+
+    pub fn as_trap_error(&self) -> Option<&TrapKind> {
+        match self {
+            Self::InvocationError(re) => re.as_trap_error(),
+            _ => None,
+        }
     }
 }
 

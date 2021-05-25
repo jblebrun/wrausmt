@@ -69,7 +69,7 @@ impl MemInstance {
         let i = o as u64 + b as u64;
         println!("READ {} IN {}", i, self.data.len());
         if (i + n as u64) > self.data.len() as u64 {
-            return Err(TrapKind::OutOfBoundsMemoryAccess(i as u64, n).into());
+            return Err(TrapKind::OutOfBoundsMemoryAccess.into());
         }
         let i = i as usize;
         Ok(i..i + n)
