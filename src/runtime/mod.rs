@@ -49,12 +49,6 @@ impl Runtime {
         self.registered.insert(modname.into(), module);
     }
 
-    fn extend_addr_vec(vec: &mut Vec<u32>, range: std::ops::Range<u32>) {
-        for i in range {
-            vec.push(i);
-        }
-    }
-
     pub fn invoke_addr(&mut self, addr: addr::FuncAddr) -> Result<()> {
         // 1. Assert S.funcaddr exists
         // 2. Let funcinst = S.funcs[funcaddr]
