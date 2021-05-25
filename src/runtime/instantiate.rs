@@ -140,7 +140,7 @@ impl Runtime {
             .collect();
 
         let range = self.store.alloc_funcs(func_insts.iter().cloned());
-        Self::extend_addr_vec(&mut modinst_builder.funcs, range);
+        modinst_builder.funcs.extend(range);
 
         self.logger.log("LOAD", || {
             format!("LOADED FUNCTIONS {:?}", modinst_builder.funcs)
@@ -152,14 +152,14 @@ impl Runtime {
             .map(|t| TableInstance::new(t.tabletype))
             .collect();
         let range = self.store.alloc_tables(table_insts.into_iter());
-        Self::extend_addr_vec(&mut modinst_builder.tables, range);
+        modinst_builder.tables.extend(range);
         self.logger.log("LOAD", || {
             format!("LOADED TABLES {:?}", modinst_builder.tables)
         });
 
         let mem_insts = module.memories.into_iter().map(MemInstance::new_ast);
         let range = self.store.alloc_mems(mem_insts);
-        Self::extend_addr_vec(&mut modinst_builder.mems, range);
+        modinst_builder.mems.extend(range);
         self.logger
             .log("LOAD", || format!("LOADED MEMS {:?}", modinst_builder.mems));
 
@@ -194,7 +194,7 @@ impl Runtime {
             })
             .collect::<Result<_>>()?;
         let range = self.store.alloc_elems(elem_insts.into_iter());
-        Self::extend_addr_vec(&mut modinst_builder.elems, range);
+        modinst_builder.elems.extend(range);
         self.logger.log("LOAD", || {
             format!("LOADED ELEMS {:?}", modinst_builder.elems)
         });
@@ -206,7 +206,7 @@ impl Runtime {
             .unzip();
 
         let range = self.store.alloc_data(data_insts.into_iter());
-        Self::extend_addr_vec(&mut modinst_builder.data, range);
+        modinst_builder.data.extend(range);
         self.logger
             .log("LOAD", || format!("LOADED DATA {:?}", modinst_builder.data));
 
@@ -227,7 +227,7 @@ impl Runtime {
             })
             .collect::<Result<_>>()?;
         let range = self.store.alloc_globals(global_insts.into_iter());
-        Self::extend_addr_vec(&mut modinst_builder.globals, range);
+        modinst_builder.globals.extend(range);
         self.logger.log("LOAD", || {
             format!("LOADED GLOBALS {:?}", modinst_builder.globals)
         });
