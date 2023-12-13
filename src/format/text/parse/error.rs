@@ -14,7 +14,7 @@ pub struct ParseErrorContext {
 
 #[derive(Debug)]
 pub enum ParseError {
-    WithContext(ParseErrorContext, Box<ParseError>),
+    WithContext(Box<ParseErrorContext>, Box<ParseError>),
     WithMsg(Vec<String>, Box<ParseError>),
     Eof,
     Tokenizer(LexError),

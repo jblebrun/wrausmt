@@ -65,11 +65,11 @@ impl<R: Read> Parser<R> {
 
     pub fn with_context(&self, err: ParseError) -> ParseError {
         ParseError::WithContext(
-            ParseErrorContext {
+            Box::new(ParseErrorContext {
                 context: self.context.clone(),
                 current: self.current.clone(),
                 next: self.next.clone(),
-            },
+            }),
             Box::new(err),
         )
     }
@@ -644,7 +644,7 @@ impl<R: Read> Parser<R> {
         }
 
         if let Some(val) = self.try_u32()? {
-            return Ok(Some(Index::unnamed(val as u32)));
+            return Ok(Some(Index::unnamed(val)));
         }
 
         Ok(None)

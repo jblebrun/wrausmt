@@ -25,7 +25,7 @@ use crate::{
 };
 
 impl Runtime {
-    /// The load method allocates and instantiates the provided [Module].
+    /// The load method allocates and instantiates the provided [syntax::Module].
     pub fn load(&mut self, module: syntax::Module<Resolved>) -> Result<Rc<ModuleInstance>> {
         self.instantiate(module)
     }
@@ -185,7 +185,7 @@ impl Runtime {
                         .iter()
                         .map(|ei| {
                             let mut initexpr: Vec<u8> = Vec::new();
-                            initexpr.emit_expr(&ei);
+                            initexpr.emit_expr(ei);
                             self.eval_ref_expr(&initexpr)
                         })
                         .collect::<Result<_>>()?,

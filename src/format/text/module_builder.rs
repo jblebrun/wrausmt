@@ -18,7 +18,7 @@ pub struct ModuleIdentifiers {
     pub dataindices: HashMap<String, u32>,
 }
 
-/// A [ModuleBuilder] accepts the various [Field] items coming from the parse, and organizes them
+/// A [ModuleBuilder] accepts the various items coming from the parse, and organizes them
 /// by sections into a [Module]. This [Module] is still just an abstract representation. ID
 /// declarations  are collected into maps, but ID usages are not yet resolved. ID resolution and
 /// function body compilation happens in a subsequent resolution pass.

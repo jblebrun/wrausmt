@@ -42,7 +42,7 @@ impl<R: Read> Parser<R> {
 }
 
 fn nanx_f64(sign: Sign, payload: &str) -> Result<f64> {
-    let payload = payload.replace("_", "");
+    let payload = payload.replace('_', "");
     let payload_num = u64::from_str_radix(&payload, 16)?;
     println!("PAYLOAD NUM {:013x}", payload_num);
     let base: u64 = match sign {
@@ -53,7 +53,7 @@ fn nanx_f64(sign: Sign, payload: &str) -> Result<f64> {
 }
 
 fn nanx_f32(sign: Sign, payload: &str) -> Result<f32> {
-    let payload = payload.replace("_", "");
+    let payload = payload.replace('_', "");
     let payload_num = u32::from_str_radix(&payload, 16)?;
     println!("PAYLOAD NUM {:06x}", payload_num);
     let base: u32 = match sign {

@@ -6,7 +6,7 @@ use super::{
         DataInstance, ElemInstance, FunctionInstance, GlobalInstance, MemInstance, TableInstance,
     },
 };
-use crate::{impl_bug, logger::PrintLogger};
+use crate::impl_bug;
 use std::rc::Rc;
 use std::{iter::Iterator, slice};
 
@@ -39,17 +39,16 @@ pub mod addr {
 /// Syntactically, the store is defined as a record listing the existing
 /// instances of each category
 ///
-/// * [FunctionInstance](FunctionInstance)
-/// * [TableInstance](super::instance::TableInstance)
-/// * [MemInstance](super::instance::MemInstance)
-/// * [GlobalInstance](super::instance::GlobalInstance)
-/// * [ElemInstance](super::instance::ElemInstance)
-/// * [DataInstance](super::instance::DataInstance)
+/// * [FunctionInstance]
+/// * [TableInstance]
+/// * [MemInstance]
+/// * [GlobalInstance]
+/// * [ElemInstance]
+/// * [DataInstance]
 ///
 /// [Spec]: https://webassembly.github.io/spec/core/exec/runtime.html#store
 #[derive(Default, Debug)]
 pub struct Store {
-    logger: PrintLogger,
     pub funcs: Vec<Rc<FunctionInstance>>,
     pub tables: Vec<TableInstance>,
     pub mems: Vec<MemInstance>,

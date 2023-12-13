@@ -7,7 +7,7 @@ use super::instance::ExternalVal;
 #[macro_export]
 macro_rules! impl_bug {
     ( $fmt:literal $(, $( $arg:expr ),*)? ) => {
-        crate::runtime::error::RuntimeErrorKind::ValidationError(
+        $crate::runtime::error::RuntimeErrorKind::ValidationError(
             format!($fmt$(, $($arg,)*)?)
         ).error()
     }

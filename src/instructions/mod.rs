@@ -1,5 +1,5 @@
 //! Implementations of the instructions that are executed in the body of a WebAssembly function.
-//! Most of the code for instruction execution is generated. See the [codegen](codegen) crate for
+//! Most of the code for instruction execution is generated. See the [codegen] crate for
 //! more details on the generation process.
 mod generated;
 
@@ -98,16 +98,11 @@ pub fn exec_method(opcode: u8, ec: &mut ExecutionContext) -> Result<()> {
 }
 
 pub fn instruction_data(opcode: u8) -> &'static InstructionData {
-    INSTRUCTION_DATA[opcode as usize]
+    &INSTRUCTION_DATA[opcode as usize]
 }
 
 // TODO - would it be significantly more performant to build a hash map here?
 // Or maybe just a two-tiered lookup.
 pub fn instruction_by_name(name: &str) -> Option<&'static InstructionData> {
-    for item in INSTRUCTION_DATA {
-        if item.name == name {
-            return Some(&item);
-        }
-    }
-    None
+    INSTRUCTION_DATA.iter().find(|&item| item.name == name)
 }

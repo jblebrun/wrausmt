@@ -32,7 +32,7 @@ fn exec_table_item(inst: Option<&Instruction>) -> String {
     }
 }
 
-pub static EXEC_TABLE_HEADER: &str = &"use super::instructions;
+pub static EXEC_TABLE_HEADER: &str = "use super::instructions;
 use crate::instructions::bad;
 use crate::instructions::unimpl;
 use crate::instructions::ExecFn;

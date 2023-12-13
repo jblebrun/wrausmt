@@ -177,7 +177,7 @@ impl<R: Read> Parser<R> {
     }
     pub fn peek_keyword(&self) -> Result<Option<&str>> {
         match &self.current.token {
-            Token::Keyword(id) => Ok(Some(&id)),
+            Token::Keyword(id) => Ok(Some(id)),
             _ => Ok(None),
         }
     }
@@ -195,7 +195,7 @@ impl<R: Read> Parser<R> {
 
     pub fn peek_next_keyword(&self) -> Result<Option<&str>> {
         match &self.next.token {
-            Token::Keyword(id) => Ok(Some(&id)),
+            Token::Keyword(id) => Ok(Some(id)),
             _ => Ok(None),
         }
     }

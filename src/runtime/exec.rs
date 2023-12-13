@@ -237,7 +237,7 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
 
     fn get_func_table(&mut self, tidx: u32, elemidx: u32) -> Result<u32> {
         match self.get_table_elem(tidx, elemidx)? {
-            Ref::Func(a) => Ok(a as u32),
+            Ref::Func(a) => Ok(a),
             Ref::Null(RefType::Func) => Err(TrapKind::UninitializedElement.into()),
             e => Err(impl_bug!("not a func {:?} FOR {} {}", e, tidx, elemidx)),
         }
