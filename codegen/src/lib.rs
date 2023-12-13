@@ -149,12 +149,12 @@ fn emit_module() -> io::Result<()> {
     f.write_all(MODULE.as_bytes())
 }
 
-pub static MODULE: &str = &"pub mod data_table;
+pub static MODULE: &str = "pub mod data_table;
 pub mod exec_table;
 pub mod instructions;
 ";
 
-pub static GEN_HEADER: &str = &"/// This file was generated automatically by the codegen crate.
+pub static GEN_HEADER: &str = "/// This file was generated automatically by the codegen crate.
 /// Do not edit it manually.
 ///
 /// See build.rs for wrausmt or the included codegen crate for more details.

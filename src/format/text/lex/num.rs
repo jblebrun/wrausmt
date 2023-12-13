@@ -96,7 +96,7 @@ pub fn maybe_number(idchars: &str) -> Option<Token> {
     let base = if hex { Base::Hex } else { Base::Dec };
 
     let whole = cursor.consume_while(|c| is_digit(c, hex));
-    let whole = whole.replace("_", "");
+    let whole = whole.replace('_', "");
 
     if whole.is_empty() {
         return None;
@@ -108,7 +108,7 @@ pub fn maybe_number(idchars: &str) -> Option<Token> {
     }
 
     let frac = cursor.consume_while(|c| is_digit(c, hex));
-    let frac = frac.replace("_", "");
+    let frac = frac.replace('_', "");
 
     let expchars = if hex { ['p', 'P'] } else { ['e', 'E'] };
 
@@ -119,7 +119,7 @@ pub fn maybe_number(idchars: &str) -> Option<Token> {
     }
 
     let exp = cursor.consume_while(|c| is_digit(c, false) || c == '+' || c == '-');
-    let exp = exp.replace("_", "");
+    let exp = exp.replace('_', "");
 
     if !cursor.is_empty() {
         return None;

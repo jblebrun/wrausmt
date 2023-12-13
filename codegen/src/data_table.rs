@@ -5,11 +5,11 @@ use std::collections::HashMap;
 use std::io::Result;
 use std::io::Write;
 
-pub static DATA_TABLE_HEADER: &str = &"use crate::instructions::InstructionData;
+pub static DATA_TABLE_HEADER: &str = "use crate::instructions::InstructionData;
 use crate::instructions::Operands;
 use crate::instructions::BAD_INSTRUCTION;
 
-pub static INSTRUCTION_DATA: &[&InstructionData] = &[
+pub static INSTRUCTION_DATA: &[InstructionData] = &[
 ";
 
 pub trait EmitDataTable: Write {
@@ -35,13 +35,13 @@ impl<W: Write> EmitDataTable for W {}
 fn data_table_item(inst: Option<&Instruction>) -> String {
     match inst {
         Some(i) => format!(
-            "    &InstructionData {{
+            "    InstructionData {{
         opcode: {:#x},
         name: \"{}\",
         operands: {},
     }},\n",
             i.opcode, i.name, i.operands
         ),
-        _ => "    &BAD_INSTRUCTION,\n".into(),
+        _ => "    BAD_INSTRUCTION,\n".into(),
     }
 }

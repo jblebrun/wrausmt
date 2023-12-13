@@ -187,10 +187,10 @@ macro_rules! runner {
                 $runtime.call(&$mod_inst, $cmd, &[]);
             };
             ( $cmd:expr, $v1:expr ) => {
-                $runtime.call(&$mod_inst, $cmd, &[$v1.into()]);
+                $runtime.call(&$mod_inst, $cmd, &[$v1.into()])
             };
             ( $cmd:expr, $v1:expr, $v2:expr ) => {
-                $runtime.call(&$mod_inst, $cmd, &[$v1.into(), $v2.into()]);
+                $runtime.call(&$mod_inst, $cmd, &[$v1.into(), $v2.into()])
             };
         }
     };

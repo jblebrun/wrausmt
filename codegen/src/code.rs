@@ -20,7 +20,7 @@ pub trait EmitCode: Write + std::fmt::Debug {
 
 impl<W: Write + std::fmt::Debug> EmitCode for W {}
 
-pub static CODE_HEADER: &str = &"use crate::runtime::error::Result;
+pub static CODE_HEADER: &str = "use crate::runtime::error::Result;
 use crate::runtime::error::TrapKind;
 use crate::runtime::exec::ExecutionContext;
 use crate::runtime::exec::ExecutionContextActions;

@@ -393,18 +393,22 @@ impl<R: Read> Parser<R> {
     }
 }
 
+/// ```text
 /// script: <cmd>*
+/// ```
 #[derive(Debug, Default)]
 pub struct SpecTestScript {
     pub cmds: Vec<CmdEntry>,
 }
 
+/// ```text
 /// cmd:
 ///   <module>                                   ;; define, validate, and initialize module
 ///   ( register <string> <name>? )              ;; register module for imports
 ///   <action>                                   ;; perform action and print results
 ///   <assertion>                                ;; assert result of an action
 ///   <meta>
+/// ```
 #[derive(Debug)]
 pub enum Cmd {
     Module(Module),
@@ -420,10 +424,12 @@ pub struct CmdEntry {
     pub location: Location,
 }
 
+/// ```text
 /// module:
 ///   ...
 ///   ( module <name>? binary <string>* )        ;; module in binary format (may be malformed)
 ///   ( module <name>? quote <string>* )         ;; module quoted in text (may be malformed)
+/// ```
 #[derive(Debug)]
 pub enum Module {
     Module(modulesyntax::Module<Resolved>),
@@ -431,9 +437,11 @@ pub enum Module {
     Quote(Option<String>, Vec<WasmString>),
 }
 
+/// ```text
 /// action:
 ///   ( invoke <name>? <string> <const>* )       ;; invoke function export
 ///   ( get <name>? <string> )                   ;; get global export
+/// ```
 #[derive(Debug)]
 pub enum Action {
     Invoke {
@@ -455,10 +463,12 @@ impl Action {
     }
 }
 
+/// ```text
 /// const:
 ///   ( <num_type>.const <num> )                 ;; number value
 ///   ( ref.null <ref_kind> )                    ;; null reference
 ///   ( ref.host <nat> )                         ;; host reference
+/// ```
 #[derive(Debug)]
 pub enum Const {
     Num(Num),
@@ -479,6 +489,7 @@ impl From<Const> for Value {
     }
 }
 
+/// ```text
 /// assertion:
 ///   ( assert_return <action> <result>* )       ;; assert action has expected results
 ///   ( assert_trap <action> <failure> )         ;; assert action traps with given failure string
@@ -487,6 +498,7 @@ impl From<Const> for Value {
 ///   ( assert_invalid <module> <failure> )      ;; assert module is invalid with given failure string
 ///   ( assert_unlinkable <module> <failure> )   ;; assert module fails to link
 ///   ( assert_trap <module> <failure> )         ;; assert module traps on instantiation
+/// ```
 #[derive(Debug)]
 pub enum Assertion {
     Return {
@@ -519,10 +531,12 @@ pub enum Assertion {
     },
 }
 
+/// ```text
 /// result:
 ///   ( <num_type>.const <num_pat> )
 ///   ( ref.extern )
 ///   ( ref.func )
+/// ```
 #[derive(Copy, Clone, Debug)]
 pub enum ActionResult {
     NumPat(NumPat),
@@ -530,10 +544,12 @@ pub enum ActionResult {
     Func,
 }
 
+/// ```text
 /// num_pat:
 ///   <value>                                    ;; literal result
 ///   nan:canonical                              ;; NaN in canonical form
 ///   nan:arithmetic                             ;; NaN with 1 in MSB of payload
+/// ```
 #[derive(Copy, Clone, Debug)]
 pub enum NumPat {
     Num(Num),
@@ -563,10 +579,12 @@ impl NaNPat {
     }
 }
 
+/// ```text
 /// meta:
 ///  ( script <name>? <script> )                ;; name a subscript
 ///  ( input <name>? <string> )                 ;; read script or module from file
 ///  ( output <name>? <string>? )               ;; output module to stout or file
+/// ```
 #[derive(Debug)]
 pub enum Meta {
     Script { id: Option<String>, script: String },

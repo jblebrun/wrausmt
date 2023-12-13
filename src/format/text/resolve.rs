@@ -115,14 +115,14 @@ macro_rules! resolve_all {
     ( $src:expr, $ic:expr, $types:expr ) => {
         $src.into_iter()
             .map(|i| i.resolve(&$ic, $types))
-            .collect::<Result<_>>();
+            .collect::<Result<_>>()
     };
 }
 
 /// For an option of an unresolved items, returns an option of the resolved item.
 macro_rules! resolve_option {
     ( $src:expr, $ic:expr, $types:expr ) => {
-        $src.map(|i| i.resolve(&$ic, $types)).transpose()?;
+        $src.map(|i| i.resolve(&$ic, $types)).transpose()?
     };
 }
 
@@ -176,7 +176,7 @@ impl Resolve<Instruction<Resolved>> for Instruction<Unresolved> {
         Ok(Instruction {
             name: self.name,
             opcode: self.opcode,
-            operands: self.operands.resolve(&ic, types)?,
+            operands: self.operands.resolve(ic, types)?,
         })
     }
 }
@@ -199,8 +199,8 @@ impl Resolve<Operands<Resolved>> for Operands<Unresolved> {
             Operands::BrTable(idxs) => Operands::BrTable(resolve_all!(idxs, ic, types)?),
             Operands::Select(r) => Operands::Select(r),
             Operands::CallIndirect(idx, tu) => {
-                let idx = idx.resolve(&ic, types)?;
-                let tu = tu.resolve(&ic, types)?;
+                let idx = idx.resolve(ic, types)?;
+                let tu = tu.resolve(ic, types)?;
                 Operands::CallIndirect(idx, tu)
             }
             Operands::Block(id, tu, expr, cnt) => {
@@ -209,18 +209,18 @@ impl Resolve<Operands<Resolved>> for Operands<Unresolved> {
                 let expr = expr.resolve(&bic, types)?;
                 Operands::Block(id, tu, expr, cnt)
             }
-            Operands::FuncIndex(idx) => Operands::FuncIndex(idx.resolve(&ic, types)?),
-            Operands::TableIndex(idx) => Operands::TableIndex(idx.resolve(&ic, types)?),
-            Operands::GlobalIndex(idx) => Operands::GlobalIndex(idx.resolve(&ic, types)?),
-            Operands::ElemIndex(idx) => Operands::ElemIndex(idx.resolve(&ic, types)?),
-            Operands::DataIndex(idx) => Operands::DataIndex(idx.resolve(&ic, types)?),
-            Operands::LocalIndex(idx) => Operands::LocalIndex(idx.resolve(&ic, types)?),
-            Operands::LabelIndex(idx) => Operands::LabelIndex(idx.resolve(&ic, types)?),
+            Operands::FuncIndex(idx) => Operands::FuncIndex(idx.resolve(ic, types)?),
+            Operands::TableIndex(idx) => Operands::TableIndex(idx.resolve(ic, types)?),
+            Operands::GlobalIndex(idx) => Operands::GlobalIndex(idx.resolve(ic, types)?),
+            Operands::ElemIndex(idx) => Operands::ElemIndex(idx.resolve(ic, types)?),
+            Operands::DataIndex(idx) => Operands::DataIndex(idx.resolve(ic, types)?),
+            Operands::LocalIndex(idx) => Operands::LocalIndex(idx.resolve(ic, types)?),
+            Operands::LabelIndex(idx) => Operands::LabelIndex(idx.resolve(ic, types)?),
             Operands::TableInit(tidx, eidx) => {
-                Operands::TableInit(tidx.resolve(&ic, types)?, eidx.resolve(&ic, types)?)
+                Operands::TableInit(tidx.resolve(ic, types)?, eidx.resolve(ic, types)?)
             }
             Operands::TableCopy(tidx, t2idx) => {
-                Operands::TableCopy(tidx.resolve(&ic, types)?, t2idx.resolve(&ic, types)?)
+                Operands::TableCopy(tidx.resolve(ic, types)?, t2idx.resolve(ic, types)?)
             }
             Operands::Memargs(a, o) => Operands::Memargs(a, o),
             Operands::HeapType(r) => Operands::HeapType(r),
@@ -257,7 +257,7 @@ impl Resolve<ImportField<Resolved>> for ImportField<Unresolved> {
             name: self.name,
             id: self.id,
             exports: self.exports,
-            desc: self.desc.resolve(&ic, types)?,
+            desc: self.desc.resolve(ic, types)?,
         })
     }
 }
@@ -269,7 +269,7 @@ impl Resolve<ImportDesc<Resolved>> for ImportDesc<Unresolved> {
         types: &mut Vec<TypeField>,
     ) -> Result<ImportDesc<Resolved>> {
         Ok(match self {
-            ImportDesc::Func(tu) => ImportDesc::Func(tu.resolve(&ic, types)?),
+            ImportDesc::Func(tu) => ImportDesc::Func(tu.resolve(ic, types)?),
             ImportDesc::Table(tt) => ImportDesc::Table(tt),
             ImportDesc::Mem(mt) => ImportDesc::Mem(mt),
             ImportDesc::Global(gt) => ImportDesc::Global(gt),
@@ -285,7 +285,7 @@ impl Resolve<ExportField<Resolved>> for ExportField<Unresolved> {
     ) -> Result<ExportField<Resolved>> {
         Ok(ExportField {
             name: self.name,
-            exportdesc: self.exportdesc.resolve(&ic, types)?,
+            exportdesc: self.exportdesc.resolve(ic, types)?,
         })
     }
 }
@@ -297,10 +297,10 @@ impl Resolve<ExportDesc<Resolved>> for ExportDesc<Unresolved> {
         types: &mut Vec<TypeField>,
     ) -> Result<ExportDesc<Resolved>> {
         Ok(match self {
-            ExportDesc::Func(idx) => ExportDesc::Func(idx.resolve(&ic, types)?),
-            ExportDesc::Table(idx) => ExportDesc::Table(idx.resolve(&ic, types)?),
-            ExportDesc::Mem(idx) => ExportDesc::Mem(idx.resolve(&ic, types)?),
-            ExportDesc::Global(idx) => ExportDesc::Global(idx.resolve(&ic, types)?),
+            ExportDesc::Func(idx) => ExportDesc::Func(idx.resolve(ic, types)?),
+            ExportDesc::Table(idx) => ExportDesc::Table(idx.resolve(ic, types)?),
+            ExportDesc::Mem(idx) => ExportDesc::Mem(idx.resolve(ic, types)?),
+            ExportDesc::Global(idx) => ExportDesc::Global(idx.resolve(ic, types)?),
         })
     }
 }
@@ -315,7 +315,7 @@ impl Resolve<GlobalField<Resolved>> for GlobalField<Unresolved> {
             id: self.id,
             exports: self.exports,
             globaltype: self.globaltype,
-            init: self.init.resolve(&ic, types)?,
+            init: self.init.resolve(ic, types)?,
         })
     }
 }
@@ -327,7 +327,7 @@ impl Resolve<StartField<Resolved>> for StartField<Unresolved> {
         types: &mut Vec<TypeField>,
     ) -> Result<StartField<Resolved>> {
         Ok(StartField {
-            idx: self.idx.resolve(&ic, types)?,
+            idx: self.idx.resolve(ic, types)?,
         })
     }
 }
@@ -340,8 +340,8 @@ impl Resolve<ElemField<Resolved>> for ElemField<Unresolved> {
     ) -> Result<ElemField<Resolved>> {
         Ok(ElemField {
             id: self.id,
-            mode: self.mode.resolve(&ic, types)?,
-            elemlist: self.elemlist.resolve(&ic, types)?,
+            mode: self.mode.resolve(ic, types)?,
+            elemlist: self.elemlist.resolve(ic, types)?,
         })
     }
 }
@@ -354,7 +354,7 @@ impl Resolve<ModeEntry<Resolved>> for ModeEntry<Unresolved> {
     ) -> Result<ModeEntry<Resolved>> {
         Ok(match self {
             ModeEntry::Passive => ModeEntry::Passive,
-            ModeEntry::Active(tp) => ModeEntry::Active(tp.resolve(&ic, types)?),
+            ModeEntry::Active(tp) => ModeEntry::Active(tp.resolve(ic, types)?),
             ModeEntry::Declarative => ModeEntry::Declarative,
         })
     }
@@ -367,8 +367,8 @@ impl Resolve<TablePosition<Resolved>> for TablePosition<Unresolved> {
         types: &mut Vec<TypeField>,
     ) -> Result<TablePosition<Resolved>> {
         Ok(TablePosition {
-            tableuse: self.tableuse.resolve(&ic, types)?,
-            offset: self.offset.resolve(&ic, types)?,
+            tableuse: self.tableuse.resolve(ic, types)?,
+            offset: self.offset.resolve(ic, types)?,
         })
     }
 }
@@ -380,7 +380,7 @@ impl Resolve<TableUse<Resolved>> for TableUse<Unresolved> {
         types: &mut Vec<TypeField>,
     ) -> Result<TableUse<Resolved>> {
         Ok(TableUse {
-            tableidx: self.tableidx.resolve(&ic, types)?,
+            tableidx: self.tableidx.resolve(ic, types)?,
         })
     }
 }
@@ -407,8 +407,8 @@ impl Resolve<DataInit<Resolved>> for DataInit<Unresolved> {
         types: &mut Vec<TypeField>,
     ) -> Result<DataInit<Resolved>> {
         Ok(DataInit {
-            memidx: self.memidx.resolve(&ic, types)?,
-            offset: self.offset.resolve(&ic, types)?,
+            memidx: self.memidx.resolve(ic, types)?,
+            offset: self.offset.resolve(ic, types)?,
         })
     }
 }
@@ -496,7 +496,7 @@ fn get_func_params(typeuse: &TypeUse<Resolved>, types: &[TypeField]) -> Vec<FPar
             let existing = types
                 .get(typeidx.value() as usize)
                 .map(|tf| tf.functiontype.clone())
-                .unwrap_or_else(FunctionType::default);
+                .unwrap_or_default();
             existing.params
         }
         _ => vec![],
@@ -509,7 +509,7 @@ impl Resolve<FuncField<Resolved>> for FuncField<Unresolved> {
         ic: &ResolutionContext,
         types: &mut Vec<TypeField>,
     ) -> Result<FuncField<Resolved>> {
-        let typeuse = self.typeuse.resolve(&ic, types)?;
+        let typeuse = self.typeuse.resolve(ic, types)?;
 
         let params = get_func_params(&typeuse, types);
 

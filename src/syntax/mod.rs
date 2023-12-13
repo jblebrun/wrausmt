@@ -17,7 +17,7 @@ use std::{
 
 /// Represents one index usage point. It may be named ($id) or numeric. [Spec]
 ///
-/// An Index<Resolved> will have the correct numeric value associated. Index<Unresolved> may
+/// An `Index<Resolved>` will have the correct numeric value associated. `Index<Unresolved>` may
 /// contain a numeric value if one was parsed, but may also contain only a string name and a
 /// default zero value.
 ///
@@ -48,8 +48,8 @@ impl<R: ResolvedState, S: IndexSpace> Index<R, S> {
         Index {
             name,
             value,
-            resolvedmarker: PhantomData::default(),
-            indexmarker: PhantomData::default(),
+            resolvedmarker: PhantomData,
+            indexmarker: PhantomData,
         }
     }
     pub fn unnamed(value: u32) -> Self {

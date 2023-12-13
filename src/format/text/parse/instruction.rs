@@ -24,7 +24,7 @@ impl<R: Read> Parser<R> {
             return Ok(None);
         }
 
-        let instruction_data = instruction_by_name(&name);
+        let instruction_data = instruction_by_name(name);
 
         match instruction_data {
             Some(data) => {

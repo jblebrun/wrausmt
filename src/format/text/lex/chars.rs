@@ -15,7 +15,7 @@ impl CharChecks for u8 {
     }
 
     fn is_keyword_start(&self) -> bool {
-        matches!(self, b'a'..=b'z')
+        self.is_ascii_lowercase()
     }
 
     fn is_whitespace(&self) -> bool {
