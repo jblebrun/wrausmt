@@ -50,14 +50,20 @@ pub enum RunSet {
 }
 
 impl RunSet {
-    fn should_run(&self, name: &str, index: u32) -> bool {
+    fn should_run_name(&self, name: &str) -> bool {
         match self {
-            RunSet::All => true,
+            RunSet::Specific(set) => set.iter().any(|i| *i == name),
+            RunSet::Exclude(set) => !set.iter().any(|i| *i == name),
+            _ => true,
+        }
+    }
+
+    fn should_run_index(&self, index: u32) -> bool {
+        match self {
             RunSet::First(n) => index <= *n,
             RunSet::SpecificIndex(set) => set.iter().any(|i| *i == index),
             RunSet::ExcludeIndexed(set) => !set.iter().any(|i| *i == index),
-            RunSet::Specific(set) => set.iter().any(|i| *i == name),
-            RunSet::Exclude(set) => !set.iter().any(|i| *i == name),
+            _ => true,
         }
     }
 }
@@ -67,7 +73,6 @@ pub struct SpecTestRunner {
     runtime: Runtime,
     latest_module: Option<Rc<ModuleInstance>>,
     named_modules: HashMap<String, Rc<ModuleInstance>>,
-    assert_returns: u32,
     logger: PrintLogger,
 }
 
@@ -243,14 +248,16 @@ impl SpecTestRunner {
                 self.logger.log(Tag::Spec, || format!("ACTION {:?}", a));
                 match a {
                     Assertion::Return { action, results } => {
-                        self.assert_returns += 1;
-                        if !runset.should_run(action.name(), self.assert_returns) {
+                        if !runset.should_run_name(action.name()) {
                             return Ok(());
                         }
                         let result = self.handle_action(action)?;
                         Self::verify_result(result, results)
                     }
                     Assertion::ActionTrap { action, failure } => {
+                        if !runset.should_run_name(action.name()) {
+                            return Ok(());
+                        }
                         let result = self.handle_action(action);
                         Self::verify_trap_result(result, failure)
                     }
@@ -295,12 +302,32 @@ impl SpecTestRunner {
 
     pub fn run_spec_test(mut self, script: SpecTestScript, runset: RunSet) -> Result<()> {
         let mut failures: Failures = Failures::default();
+        let mut test_index = 0;
         for cmd_entry in script.cmds {
-            match self.run_cmd_entry(cmd_entry.cmd, &runset) {
+            test_index += 1;
+            if !runset.should_run_index(test_index) {
+                return Ok(());
+            }
+            self.logger.log(Tag::Spec, || {
+                format!(
+                    "*****BEGIN TEST #{}****** ({:?})",
+                    test_index, cmd_entry.location
+                )
+            });
+            let now = std::time::Instant::now();
+            let result = self.run_cmd_entry(cmd_entry.cmd, &runset);
+            self.logger.log(Tag::Spec, || {
+                format!(
+                    "*****END TEST #{}****** ({}ms)\n",
+                    test_index,
+                    now.elapsed().as_secs_f32() * 1000.0
+                )
+            });
+            match result {
                 Ok(()) => {}
                 Err(e) => failures
                     .failures
-                    .push(e.into_failure(cmd_entry.location, self.assert_returns)),
+                    .push(e.into_failure(cmd_entry.location, test_index)),
             }
         }
 
