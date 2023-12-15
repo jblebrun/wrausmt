@@ -7,7 +7,7 @@ use super::{
 };
 use crate::{
     loader::Loader,
-    logger::{Logger, PrintLogger},
+    logger::{Logger, PrintLogger, Tag},
     runtime::{
         error::TrapKind,
         instance::ModuleInstance,
@@ -116,7 +116,7 @@ impl SpecTestRunner {
                 params,
             } => {
                 let module_instance = self.module_for_action(&modname)?;
-                self.logger.log("SPEC", || {
+                self.logger.log(Tag::Spec, || {
                     format!("INVOKE ACTION {:?} {} {:?}", modname, name, params)
                 });
                 let values: Vec<Value> = params.into_iter().map(|p| p.into()).collect();
@@ -125,7 +125,7 @@ impl SpecTestRunner {
             Action::Get { modname, name } => {
                 let module_instance = self.module_for_action(&modname)?;
                 self.logger
-                    .log("SPEC", || format!("GET ACTION {:?} {}", modname, name));
+                    .log(Tag::Spec, || format!("GET ACTION {:?} {}", modname, name));
                 Ok(vec![self.runtime.get_global(&module_instance, &name)?])
             }
         }
@@ -195,7 +195,6 @@ impl SpecTestRunner {
 
     fn verify_trap_result<T>(result: Result<T>, failure: String) -> Result<()> {
         let expected_trap: TrapKind = failure.as_str().into();
-        println!("EXPECT: {:?}", expected_trap);
         match result {
             Err(e) => {
                 let trap_error = e.as_trap_error();
@@ -215,7 +214,8 @@ impl SpecTestRunner {
     }
 
     fn run_cmd_entry(&mut self, cmd: Cmd, runset: &RunSet) -> Result<()> {
-        self.logger.log("SPEC", || format!("EXECUTE CMD {:?}", cmd));
+        self.logger
+            .log(Tag::Spec, || format!("EXECUTE CMD {:?}", cmd));
         match cmd {
             Cmd::Module(m) => {
                 let (name, modinst) = self.handle_module(m)?;
@@ -227,7 +227,8 @@ impl SpecTestRunner {
             }
             Cmd::Register { modname, id } => {
                 let module = self.module_for_action(&id);
-                println!("REGISTER {} {:?}", modname, module);
+                self.logger
+                    .log(Tag::Spec, || format!("REGISTER {} {:?}", modname, module));
                 match module {
                     Ok(module) => self.runtime.register(modname, module.clone()),
                     Err(_) => return Err(SpecTestError::RegisterMissingModule(modname)),
@@ -239,7 +240,7 @@ impl SpecTestRunner {
                 Ok(())
             }
             Cmd::Assertion(a) => {
-                println!("ACTION {:?}", a);
+                self.logger.log(Tag::Spec, || format!("ACTION {:?}", a));
                 match a {
                     Assertion::Return { action, results } => {
                         self.assert_returns += 1;
@@ -286,7 +287,7 @@ impl SpecTestRunner {
                 }
             }
             Cmd::Meta(m) => {
-                println!("META {:?}", m);
+                self.logger.log(Tag::Spec, || format!("META{:?}", m));
                 Ok(())
             }
         }

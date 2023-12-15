@@ -9,7 +9,7 @@ pub mod values;
 
 use crate::{
     impl_bug,
-    logger::{Logger, PrintLogger},
+    logger::{Logger, PrintLogger, Tag},
     runtime::error::RuntimeErrorKind,
 };
 use std::{collections::HashMap, rc::Rc};
@@ -82,7 +82,7 @@ impl Runtime {
         // Due to validation, this should be equal to the frame above.
         self.stack.pop_activation()?;
 
-        self.logger.log("ACTIVATION", || {
+        self.logger.log(Tag::Activate, || {
             format!(
                 "REMOVE FRAME {} {} {}",
                 funcinst.locals.len(),
@@ -110,7 +110,7 @@ impl Runtime {
         }?;
 
         self.logger
-            .log("HOST", || format!("calling {} at {}", name, funcaddr));
+            .log(Tag::Host, || format!("calling {} at {}", name, funcaddr));
         // 1. Assert S.funcaddr exists
         // 2. Let funcinst = S.funcs[funcaddr]
         let funcinst = self.store.func(funcaddr)?;
@@ -137,7 +137,7 @@ impl Runtime {
             let result = self.stack.pop_value()?;
 
             self.logger
-                .log("HOST", || format!("POPPED HOST RESULT {:?}", result));
+                .log(Tag::Host, || format!("POPPED HOST RESULT {:?}", result));
             results.push(result);
         }
 
@@ -170,7 +170,7 @@ impl Runtime {
         }?;
 
         self.logger
-            .log("HOST", || format!("calling {} at {}", name, globaladdr));
+            .log(Tag::Host, || format!("calling {} at {}", name, globaladdr));
         // 1. Assert S.funcaddr exists
         // 2. Let funcinst = S.funcs[funcaddr]
         let globalinst = self.store.global(globaladdr)?;

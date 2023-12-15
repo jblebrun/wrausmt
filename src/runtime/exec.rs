@@ -10,8 +10,8 @@ use super::{
 use crate::runtime::instance::MemInstance;
 use crate::runtime::stack::Label;
 use crate::{impl_bug, instructions::exec_method};
-use crate::{logger::Logger, types::RefType};
-use std::{borrow::Borrow, convert::TryFrom, convert::TryInto, fmt::Display, hash::Hash};
+use crate::{logger::Logger, logger::Tag, types::RefType};
+use std::{convert::TryFrom, convert::TryInto};
 
 pub struct ExecutionContext<'l> {
     runtime: &'l mut Runtime,
@@ -20,7 +20,7 @@ pub struct ExecutionContext<'l> {
 }
 
 pub trait ExecutionContextActions {
-    fn log<S: Borrow<str> + Eq + Hash + Display, F>(&self, tag: S, msg: F)
+    fn log<F>(&self, tag: Tag, msg: F)
     where
         F: Fn() -> String;
     fn next_byte(&mut self) -> u8;
@@ -155,10 +155,7 @@ pub trait ExecutionContextActions {
 }
 
 impl<'l> ExecutionContextActions for ExecutionContext<'l> {
-    fn log<S: Borrow<str> + Eq + Hash + Display, F>(&self, tag: S, msg: F)
-    where
-        F: Fn() -> String,
-    {
+    fn log<F: Fn() -> String>(&self, tag: Tag, msg: F) {
         self.runtime.logger.log(tag, msg);
     }
 
@@ -199,12 +196,12 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
 
     fn get_local(&mut self, idx: u32) -> Result<Value> {
         let val = self.runtime.stack.get_local(idx);
-        self.log("LOCAL", || format!("GET {} {:?}", idx, val));
+        self.log(Tag::Local, || format!("GET {} {:?}", idx, val));
         val
     }
 
     fn set_local(&mut self, idx: u32, val: Value) -> Result<()> {
-        self.log("LOCAL", || format!("SET {} {:?}", idx, val));
+        self.log(Tag::Local, || format!("SET {} {:?}", idx, val));
         self.runtime.stack.set_local(idx, val)
     }
 
@@ -245,7 +242,7 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
 
     fn mem(&mut self, idx: u32) -> Result<&mut MemInstance> {
         let memaddr = self.runtime.stack.get_mem_addr(idx)?;
-        self.log("MEM", || format!("USING MEM {:?}", memaddr));
+        self.log(Tag::Mem, || format!("USING MEM {:?}", memaddr));
         self.runtime.store.mem(memaddr)
     }
 
@@ -387,7 +384,7 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
 
     fn continuation(&mut self, cnt: u32) -> Result<()> {
         self.pc = cnt as usize;
-        self.log("FLOW", || format!("CONTINUE AT {:x}", cnt));
+        self.log(Tag::Flow, || format!("CONTINUE AT {:x}", cnt));
         if self.pc >= self.body.len() {
             panic!(
                 "invalid continuation {} for body size {}",
@@ -483,10 +480,10 @@ impl<'l> ExecutionContext<'l> {
     pub fn run(&mut self) -> Result<()> {
         while self.pc < self.body.len() {
             let op = self.body[self.pc];
-            self.log("OP", || format!("BEGIN 0x{:x}", op));
+            self.log(Tag::Op, || format!("BEGIN 0x{:x}", op));
             self.pc += 1;
             exec_method(op, self)?;
-            self.log("OP", || format!("FINISHED 0x{:x}", op));
+            self.log(Tag::Op, || format!("FINISHED 0x{:x}", op));
         }
         Ok(())
     }
@@ -508,12 +505,12 @@ impl<'a> std::fmt::Display for Body<'a> {
 
 /// Implementation of instruction implementation for this runtime.
 impl Runtime {
-    fn log<S: Borrow<str> + Eq + Hash + Display, F: Fn() -> String>(&self, tag: S, msg: F) {
+    fn log<F: Fn() -> String>(&self, tag: Tag, msg: F) {
         self.logger.log(tag, msg);
     }
 
     pub fn enter(&mut self, body: &[u8]) -> Result<()> {
-        self.log("ENTER", || format!("ENTER EXPR {}", Body(body)));
+        self.log(Tag::Enter, || format!("ENTER EXPR {}", Body(body)));
         let mut ic = ExecutionContext {
             runtime: self,
             body,

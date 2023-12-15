@@ -1,5 +1,6 @@
 use std::ops::Range;
 
+use crate::logger::{Logger, PrintLogger, Tag};
 use crate::runtime::error::Result;
 use crate::{runtime::error::TrapKind, syntax::MemoryField, types::MemType};
 
@@ -18,6 +19,7 @@ use crate::{runtime::error::TrapKind, syntax::MemoryField, types::MemType};
 /// [Spec]: https://webassembly.github.io/spec/core/exec/runtime.html#memory-instances
 #[derive(Default, Debug)]
 pub struct MemInstance {
+    logger: PrintLogger,
     pub memtype: MemType,
     pub data: Vec<u8>,
 }
@@ -33,13 +35,21 @@ impl MemInstance {
     /// [Spec]: https://webassembly.github.io/spec/core/exec/runtime.html#memory-instances
     pub fn new(memtype: MemType) -> MemInstance {
         let data = vec![0u8; memtype.limits.lower as usize * PAGE_SIZE];
-        MemInstance { memtype, data }
+        MemInstance {
+            logger: PrintLogger,
+            memtype,
+            data,
+        }
     }
 
     pub fn new_ast(memfield: MemoryField) -> MemInstance {
         let memtype = memfield.memtype;
         let data = vec![0u8; memtype.limits.lower as usize * PAGE_SIZE];
-        MemInstance { memtype, data }
+        MemInstance {
+            logger: PrintLogger,
+            memtype,
+            data,
+        }
     }
 
     pub fn size(&self) -> usize {
@@ -67,7 +77,8 @@ impl MemInstance {
 
     fn offset(&self, o: usize, b: usize, n: usize) -> Result<Range<usize>> {
         let i = o as u64 + b as u64;
-        println!("READ {} IN {}", i, self.data.len());
+        self.logger
+            .log(Tag::Mem, || format!("READ {} IN {}", i, self.data.len()));
         if (i + n as u64) > self.data.len() as u64 {
             return Err(TrapKind::OutOfBoundsMemoryAccess.into());
         }

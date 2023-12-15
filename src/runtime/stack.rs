@@ -1,7 +1,7 @@
 use super::error::Result;
 use super::ModuleInstance;
 use super::{instance::FunctionInstance, store::addr, values::Value};
-use crate::logger::{Logger, PrintLogger};
+use crate::logger::{Logger, PrintLogger, Tag};
 use crate::{impl_bug, types::FunctionType};
 use std::rc::Rc;
 
@@ -63,9 +63,10 @@ struct ActivationFrame {
 impl Stack {
     pub fn push_value(&mut self, entry: Value) {
         self.value_stack.push(entry);
-        self.logger.log("VALSTACK", || format!("PUSH {:?}", entry));
         self.logger
-            .log("DUMPVALSTACK", || format!("{:?}", self.value_stack));
+            .log(Tag::ValStack, || format!("PUSH {:?}", entry));
+        self.logger
+            .log(Tag::DumpValStack, || format!("{:?}", self.value_stack));
     }
 
     fn label_stack(&self) -> Result<&Vec<Label>> {
@@ -83,16 +84,17 @@ impl Stack {
         continuation: u32,
     ) -> Result<()> {
         self.logger
-            .log("DUMPSTACK", || format!("STACK {:?}", self.value_stack));
+            .log(Tag::DumpStack, || format!("STACK {:?}", self.value_stack));
         let label = Label {
             arity: result_arity,
             continuation,
             return_spot: self.value_stack.len() - param_arity as usize,
         };
-        self.logger.log("LABSTACK", || format!("PUSH {:?}", label));
+        self.logger
+            .log(Tag::LabelStack, || format!("PUSH {:?}", label));
         self.label_stack_mut()?.push(label);
         self.logger
-            .log("DUMPLABSTACK", || format!("{:?}", self.label_stack()));
+            .log(Tag::DumpLabelStack, || format!("{:?}", self.label_stack()));
         Ok(())
     }
 
@@ -115,7 +117,7 @@ impl Stack {
             module: funcinst.module_instance(),
             label_stack: vec![],
         });
-        self.logger.log("ACTIVATE", || {
+        self.logger.log(Tag::Activate, || {
             format!(
                 "arity {} local_start {} stack size {}",
                 arity,
@@ -147,7 +149,8 @@ impl Stack {
             .label_stack_mut()?
             .pop()
             .ok_or_else(|| impl_bug!("label stack underflow"))?;
-        self.logger.log("LABSTACK", || format!("POP {:?}", label));
+        self.logger
+            .log(Tag::LabelStack, || format!("POP {:?}", label));
         Ok(label)
         // For non-break block exists, the stack is assumed to be proper,
         // no adjustment needed.
@@ -163,7 +166,8 @@ impl Stack {
                 .ok_or_else(|| impl_bug!("break_to_label logic error"))?
         };
 
-        self.logger.log("LABSTACK", || format!("BREAK {:?}", label));
+        self.logger
+            .log(Tag::LabelStack, || format!("BREAK {:?}", label));
 
         self.move_return_values(label.arity, label.return_spot)?;
 
@@ -172,23 +176,23 @@ impl Stack {
 
     // Handle adjusting return values to a new stack top for breaks and returns.
     fn move_return_values(&mut self, arity: u32, newtop: usize) -> Result<()> {
-        self.logger.log("STACK", || {
+        self.logger.log(Tag::Stack, || {
             format!("MOVING RETURN VALUES FOR arity {} newtop {}", arity, newtop)
         });
         self.logger
-            .log("DUMPSTACK", || format!("STACK {:?}", self.value_stack));
+            .log(Tag::DumpStack, || format!("STACK {:?}", self.value_stack));
         let result_start = self.value_stack.len() - (arity as usize);
         self.value_stack.copy_within(result_start.., newtop);
-        self.logger.log("DUMPSTACK", || {
+        self.logger.log(Tag::DumpStack, || {
             format!("AFTER MOVE STACK {:?}", self.value_stack)
         });
 
         let truncated_size = newtop + arity as usize;
-        self.logger.log("DUMPSTACK", || {
+        self.logger.log(Tag::DumpStack, || {
             format!("AFTER TRUNCATE STACK {:?}", self.value_stack)
         });
         self.value_stack.truncate(truncated_size);
-        self.logger.log("DUMPSTACK", || {
+        self.logger.log(Tag::DumpStack, || {
             format!("AFTER TRUNCATE STACK {:?}", self.value_stack)
         });
 
