@@ -1,35 +1,41 @@
-use std::fmt::Display;
-use std::{borrow::Borrow, collections::HashSet, hash::Hash};
-
 pub trait Logger {
-    fn log<S: Borrow<str> + Eq + Hash + Display, F>(&self, tag: S, msg: F)
-    where
-        F: Fn() -> String;
+    fn log<F: Fn() -> String>(&self, tag: Tag, msg: F);
 }
 
-#[derive(Debug, Clone)]
-pub struct PrintLogger {
-    tags: HashSet<String>,
+#[derive(Debug, Clone, Default)]
+pub struct PrintLogger;
+
+#[derive(Debug)]
+pub enum Tag {
+    Activate,
+    Enter,
+    Flow,
+    Load,
+    Local,
+    Mem,
+    Op,
+    Host,
+    Spec,
+
+    Stack,
+    LabelStack,
+    ValStack,
+    DumpStack,
+    DumpLabelStack,
+    DumpValStack,
 }
 
-impl Default for PrintLogger {
-    fn default() -> Self {
-        let mut tags = HashSet::default();
-        tags.insert("SPEC".to_owned());
-        tags.insert("LOAD".to_owned());
-        tags.insert("HOST".to_owned());
-        Self { tags }
+impl Tag {
+    fn enabled(&self) -> bool {
+        matches!(self, Tag::Load | Tag::Spec | Tag::Host)
     }
 }
 
 impl Logger for PrintLogger {
-    fn log<S: Borrow<str> + Eq + Hash + Display, F>(&self, tag: S, msg: F)
-    where
-        F: Fn() -> String,
-    {
-        if self.tags.contains(tag.borrow()) {
+    fn log<F: Fn() -> String>(&self, tag: Tag, msg: F) {
+        if tag.enabled() {
             let msg = msg();
-            println!("[{}] {}", tag, msg)
+            println!("[{:?}] {}", tag, msg)
         }
     }
 }

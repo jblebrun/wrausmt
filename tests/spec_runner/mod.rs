@@ -31,7 +31,7 @@ fn parse_and_run_for_result(mut f: File, runset: RunSet) -> SpecTestResult<()> {
     let result = runner.run_spec_test(spectest, runset);
     let finish = Instant::now();
     println!("TIMING {:?} IN {:?}", f, (finish - start));
-    Ok(result?)
+    result
 }
 
 fn parse_and_run<S: std::fmt::Debug + AsRef<Path>>(

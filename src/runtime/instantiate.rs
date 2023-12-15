@@ -7,7 +7,7 @@ use super::{
     Runtime,
 };
 use crate::{
-    logger::Logger,
+    logger::{Logger, Tag},
     runtime::{
         compile::compile_export,
         instance::{DataInstance, ElemInstance, GlobalInstance, MemInstance, TableInstance},
@@ -142,7 +142,7 @@ impl Runtime {
         let range = self.store.alloc_funcs(func_insts.iter().cloned());
         modinst_builder.funcs.extend(range);
 
-        self.logger.log("LOAD", || {
+        self.logger.log(Tag::Load, || {
             format!("LOADED FUNCTIONS {:?}", modinst_builder.funcs)
         });
 
@@ -153,15 +153,16 @@ impl Runtime {
             .collect();
         let range = self.store.alloc_tables(table_insts.into_iter());
         modinst_builder.tables.extend(range);
-        self.logger.log("LOAD", || {
+        self.logger.log(Tag::Load, || {
             format!("LOADED TABLES {:?}", modinst_builder.tables)
         });
 
         let mem_insts = module.memories.into_iter().map(MemInstance::new_ast);
         let range = self.store.alloc_mems(mem_insts);
         modinst_builder.mems.extend(range);
-        self.logger
-            .log("LOAD", || format!("LOADED MEMS {:?}", modinst_builder.mems));
+        self.logger.log(Tag::Load, || {
+            format!("LOADED MEMS {:?}", modinst_builder.mems)
+        });
 
         // (Instantiation 5-10.) Generate global and elem init values
         // (Instantiation 5.) Create the module instance for global initialization
@@ -195,7 +196,7 @@ impl Runtime {
             .collect::<Result<_>>()?;
         let range = self.store.alloc_elems(elem_insts.into_iter());
         modinst_builder.elems.extend(range);
-        self.logger.log("LOAD", || {
+        self.logger.log(Tag::Load, || {
             format!("LOADED ELEMS {:?}", modinst_builder.elems)
         });
 
@@ -207,16 +208,18 @@ impl Runtime {
 
         let range = self.store.alloc_data(data_insts.into_iter());
         modinst_builder.data.extend(range);
-        self.logger
-            .log("LOAD", || format!("LOADED DATA {:?}", modinst_builder.data));
+        self.logger.log(Tag::Load, || {
+            format!("LOADED DATA {:?}", modinst_builder.data)
+        });
 
         // (Instantiation 8.) Get global init vals and allocate globals.
         let global_insts: Vec<GlobalInstance> = module
             .globals
             .iter()
             .map(|g| {
-                self.logger
-                    .log("LOAD", || format!("COMPILE GLOBAL INIT EXPR {:x?}", g.init));
+                self.logger.log(Tag::Load, || {
+                    format!("COMPILE GLOBAL INIT EXPR {:x?}", g.init)
+                });
                 let mut initexpr: Vec<u8> = Vec::new();
                 initexpr.emit_expr(&g.init);
                 let val = self.eval_expr(&initexpr)?;
@@ -228,7 +231,7 @@ impl Runtime {
             .collect::<Result<_>>()?;
         let range = self.store.alloc_globals(global_insts.into_iter());
         modinst_builder.globals.extend(range);
-        self.logger.log("LOAD", || {
+        self.logger.log(Tag::Load, || {
             format!("LOADED GLOBALS {:?}", modinst_builder.globals)
         });
 
@@ -248,7 +251,7 @@ impl Runtime {
         for (i, elem) in module.elems.iter().enumerate() {
             if let ModeEntry::Active(tp) = &elem.mode {
                 self.logger
-                    .log("LOAD", || format!("INIT ELEMS!i {:?}", elem));
+                    .log(Tag::Load, || format!("INIT ELEMS!i {:?}", elem));
                 self.init_table(tp, &elem.elemlist, i as u32)?
             }
         }
@@ -257,7 +260,7 @@ impl Runtime {
         for (i, initrec) in data_inits.iter().enumerate() {
             if let Some(init) = &initrec.0 {
                 self.logger
-                    .log("LOAD", || format!("INIT MEMORY !i {:?}", init));
+                    .log(Tag::Load, || format!("INIT MEMORY !i {:?}", init));
                 self.init_mem(init, initrec.1 as u32, i as u32)?
             }
         }
@@ -273,8 +276,9 @@ impl Runtime {
             .map(|e| compile_export(e, &rcinst))
             .collect();
 
-        self.logger
-            .log("LOAD", || format!("EXPORTS {:?}", modinst_builder.exports));
+        self.logger.log(Tag::Load, || {
+            format!("EXPORTS {:?}", modinst_builder.exports)
+        });
 
         self.stack.pop_activation()?;
 

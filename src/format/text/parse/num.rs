@@ -44,7 +44,6 @@ impl<R: Read> Parser<R> {
 fn nanx_f64(sign: Sign, payload: &str) -> Result<f64> {
     let payload = payload.replace('_', "");
     let payload_num = u64::from_str_radix(&payload, 16)?;
-    println!("PAYLOAD NUM {:013x}", payload_num);
     let base: u64 = match sign {
         Sign::Negative => 0xFFF0000000000000,
         _ => 0x7FF0000000000000,
@@ -55,7 +54,6 @@ fn nanx_f64(sign: Sign, payload: &str) -> Result<f64> {
 fn nanx_f32(sign: Sign, payload: &str) -> Result<f32> {
     let payload = payload.replace('_', "");
     let payload_num = u32::from_str_radix(&payload, 16)?;
-    println!("PAYLOAD NUM {:06x}", payload_num);
     let base: u32 = match sign {
         Sign::Negative => 0xFF800000,
         _ => 0x7F800000,
@@ -81,7 +79,6 @@ macro_rules! parse_float {
                     match base {
                         Base::Dec => {
                             let to_parse = format!("{}{}.{}e{}", sign.char(), whole, frac, exp);
-                            println!("PARSE DECIMAL FLOAT {}", to_parse);
                             Ok(to_parse.parse::<$ty>()?)
                         }
                         Base::Hex => $hex(*sign, whole, frac, exp),
@@ -92,10 +89,7 @@ macro_rules! parse_float {
                         let to_parse = format!("{}{}", sign.char(), digits);
                         Ok(to_parse.parse::<$ty>()?)
                     }
-                    Base::Hex => {
-                        println!("TRY INT AS HEX {}", digits);
-                        $hex(*sign, digits, "", "0")
-                    }
+                    Base::Hex => $hex(*sign, digits, "", "0"),
                 },
             }
         }
@@ -216,10 +210,6 @@ impl FloatBuilder {
         let roundpart = self.bits & roundmask;
         let mantissa_lsb = self.bits & even << 1;
         let round = roundpart > even || roundpart == even && mantissa_lsb != 0;
-        println!("  SUBJECT: {:016x}", self.bits);
-        println!("ROUNDMASK: {:016x}", roundmask);
-        println!("ROUNDPART: {:016x}", roundpart);
-        println!("     EVEN: {:016x}", even);
 
         self.bits >>= 64 - size;
 
@@ -267,8 +257,6 @@ impl FloatBuilder {
 }
 
 fn parse_hex_f32(sign: Sign, whole: &str, frac: &str, exp: &str) -> Result<f32> {
-    println!("\n\nPARSE HEX F32 {:?} {} {} {}", sign, whole, frac, exp);
-
     let builder = FloatBuilder::new(whole, frac, exp)?;
 
     let mut result_bits = builder.build(f32::MANTISSA_DIGITS, 127)? as u32;
@@ -277,13 +265,10 @@ fn parse_hex_f32(sign: Sign, whole: &str, frac: &str, exp: &str) -> Result<f32> 
         result_bits |= 0x80000000;
     }
 
-    println!("f32 bits: {:08x}", result_bits);
     Ok(f32::from_bits(result_bits))
 }
 
 fn parse_hex_f64(sign: Sign, whole: &str, frac: &str, exp: &str) -> Result<f64> {
-    println!("PARSE HEX F64 {:?} {} {} {}", sign, whole, frac, exp);
-
     let builder = FloatBuilder::new(whole, frac, exp)?;
 
     let mut result_bits = builder.build(f64::MANTISSA_DIGITS, 1023)?;
@@ -292,7 +277,6 @@ fn parse_hex_f64(sign: Sign, whole: &str, frac: &str, exp: &str) -> Result<f64> 
         result_bits |= 0x8000000000000000;
     }
 
-    println!("f64 bits: {:08x}", result_bits);
     Ok(f64::from_bits(result_bits))
 }
 

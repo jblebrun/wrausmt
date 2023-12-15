@@ -15,23 +15,23 @@ fn meminstr32_get() -> Result<()> {
     exec_method!("put32", 0, 0x8176F5F3u32)?;
     let mut res1 = exec_method!("get32", 0)?;
     let v1: u32 = res1.remove(0).try_into()?;
-    assert_eq!(v1, 0x8176F5F3u32.into());
+    assert_eq!(v1, 0x8176F5F3u32);
 
     let mut res1 = exec_method!("get32_8u", 0)?;
     let v1: u32 = res1.remove(0).try_into()?;
-    assert_eq!(v1, 0xF3u32.into());
+    assert_eq!(v1, 0xF3u32);
 
     let mut res1 = exec_method!("get32_8s", 0)?;
     let v1: u32 = res1.remove(0).try_into()?;
-    assert_eq!(v1, ((0xF3 - 0x100) as u32).into());
+    assert_eq!(v1, ((0xF3 - 0x100) as u32));
 
     let mut res1 = exec_method!("get32_16u", 0)?;
     let v1: i32 = res1.remove(0).try_into()?;
-    assert_eq!(v1, 0xF5F3.into());
+    assert_eq!(v1, 0xF5F3);
 
     let mut res1 = exec_method!("get32_16s", 0)?;
     let v1: u32 = res1.remove(0).try_into()?;
-    assert_eq!(v1, ((0xF5F3 - 0x10000) as u32).into());
+    assert_eq!(v1, ((0xF5F3 - 0x10000) as u32));
 
     Ok(())
 }
