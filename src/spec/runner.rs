@@ -177,19 +177,20 @@ impl SpecTestRunner {
     }
 
     fn handle_module(&mut self, m: Module) -> Result<(Option<String>, Rc<ModuleInstance>)> {
-        Ok(match m {
-            Module::Module(m) => (m.id.clone(), self.runtime.load(m)?),
+        match m {
+            Module::Module(m) => Ok((m.id.clone(), self.runtime.load(m)?)),
             Module::Binary(n, b) => {
                 let data: Box<[u8]> = b
                     .into_iter()
                     .flat_map(|d| d.into_boxed_bytes().into_vec())
                     .collect();
-                (n, self.runtime.load_wasm_data(&data)?)
+                Ok((n, self.runtime.load_wasm_data(&data)?))
             }
             Module::Quote(_, _) => {
-                panic!("no quote module support yet")
+                // TODO parse quote modules
+                Err(SpecTestError::UnImplemented)
             }
-        })
+        }
     }
 
     fn verify_trap_result<T>(result: Result<T>, failure: String) -> Result<()> {
@@ -213,60 +214,92 @@ impl SpecTestRunner {
         }
     }
 
+    fn run_cmd_entry(&mut self, cmd: Cmd, runset: &RunSet) -> Result<()> {
+        self.logger.log("SPEC", || format!("EXECUTE CMD {:?}", cmd));
+        match cmd {
+            Cmd::Module(m) => {
+                let (name, modinst) = self.handle_module(m)?;
+                if let Some(name) = name {
+                    self.named_modules.insert(name, modinst.clone());
+                }
+                self.latest_module = Some(modinst);
+                Ok(())
+            }
+            Cmd::Register { modname, id } => {
+                let module = self.module_for_action(&id);
+                println!("REGISTER {} {:?}", modname, module);
+                match module {
+                    Ok(module) => self.runtime.register(modname, module.clone()),
+                    Err(_) => return Err(SpecTestError::RegisterMissingModule(modname)),
+                }
+                Ok(())
+            }
+            Cmd::Action(a) => {
+                self.handle_action(a)?;
+                Ok(())
+            }
+            Cmd::Assertion(a) => {
+                println!("ACTION {:?}", a);
+                match a {
+                    Assertion::Return { action, results } => {
+                        self.assert_returns += 1;
+                        if !runset.should_run(action.name(), self.assert_returns) {
+                            return Ok(());
+                        }
+                        let result = self.handle_action(action)?;
+                        Self::verify_result(result, results)
+                    }
+                    Assertion::ActionTrap { action, failure } => {
+                        let result = self.handle_action(action);
+                        Self::verify_trap_result(result, failure)
+                    }
+                    Assertion::ModuleTrap { module, failure } => {
+                        let result = self.handle_module(module);
+                        Self::verify_trap_result(result, failure)
+                    }
+                    Assertion::Malformed {
+                        module: _,
+                        failure: _,
+                    } => {
+                        //let _ = self.handle_module(module);
+                        // TODO verify result
+                        Ok(())
+                    }
+                    Assertion::Exhaustion { action, failure: _ } => {
+                        let _ = self.handle_action(action);
+                        // TODO verify result
+                        Ok(())
+                    }
+                    Assertion::Unlinkable { module, failure: _ } => {
+                        let _ = self.handle_module(module);
+                        // TODO verify result
+                        Ok(())
+                    }
+                    Assertion::Invalid {
+                        module: _,
+                        failure: _,
+                    } => {
+                        //let _ = self.handle_module(module);
+                        // TODO verify result
+                        Ok(())
+                    }
+                }
+            }
+            Cmd::Meta(m) => {
+                println!("META {:?}", m);
+                Ok(())
+            }
+        }
+    }
+
     pub fn run_spec_test(mut self, script: SpecTestScript, runset: RunSet) -> Result<()> {
         let mut failures: Failures = Failures::default();
-        for cmd in script.cmds {
-            self.logger.log("SPEC", || format!("EXECUTE CMD {:?}", cmd));
-            match cmd.cmd {
-                Cmd::Module(m) => {
-                    let (name, modinst) = self.handle_module(m)?;
-                    if let Some(name) = name {
-                        self.named_modules.insert(name, modinst.clone());
-                    }
-                    self.latest_module = Some(modinst);
-                }
-                Cmd::Register { modname, id } => {
-                    let module = self.module_for_action(&id);
-                    println!("REGISTER {} {:?}", modname, module);
-                    match module {
-                        Ok(module) => self.runtime.register(modname, module.clone()),
-                        Err(_) => return Err(SpecTestError::RegisterMissingModule(modname)),
-                    }
-                }
-                Cmd::Action(a) => {
-                    self.handle_action(a)?;
-                }
-                Cmd::Assertion(a) => {
-                    println!("ACTION {:?}", a);
-                    match a {
-                        Assertion::Return { action, results } => {
-                            self.assert_returns += 1;
-                            if !runset.should_run(action.name(), self.assert_returns) {
-                                return Ok(());
-                            }
-                            println!("ASSERT RETURN {}", self.assert_returns);
-                            let result = self.handle_action(action)?;
-                            match Self::verify_result(result, results) {
-                                Ok(()) => (),
-                                Err(e) => failures
-                                    .failures
-                                    .push(e.into_failure(cmd.location, self.assert_returns)),
-                            }
-                        }
-                        Assertion::ActionTrap { action, failure } => {
-                            println!("ASSERT TRAP");
-                            let result = self.handle_action(action);
-                            Self::verify_trap_result(result, failure)?;
-                        }
-                        Assertion::ModuleTrap { module, failure } => {
-                            println!("ASSERT MODULE TRAP");
-                            let result = self.handle_module(module);
-                            Self::verify_trap_result(result, failure)?;
-                        }
-                        _ => {}
-                    }
-                }
-                Cmd::Meta(m) => println!("META {:?}", m),
+        for cmd_entry in script.cmds {
+            match self.run_cmd_entry(cmd_entry.cmd, &runset) {
+                Ok(()) => {}
+                Err(e) => failures
+                    .failures
+                    .push(e.into_failure(cmd_entry.location, self.assert_returns)),
             }
         }
 

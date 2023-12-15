@@ -61,6 +61,7 @@ pub enum SpecTestError {
         expect: String,
     },
     RegisterMissingModule(String),
+    UnImplemented,
 }
 
 impl SpecTestError {
