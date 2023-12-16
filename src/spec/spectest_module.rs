@@ -162,7 +162,7 @@ pub fn make_spectest_module() -> syntax::Module<Resolved> {
     builder.build().unwrap()
 }
 
-fn mkfunc<S: Into<String>>(name: S, params: Vec<FParam>) -> FuncField<Unresolved> {
+fn mkfunc(name: impl Into<String>, params: Vec<FParam>) -> FuncField<Unresolved> {
     FuncField {
         exports: vec![name.into()],
         typeuse: TypeUse {

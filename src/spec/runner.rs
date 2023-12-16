@@ -1,11 +1,10 @@
-use std::{collections::HashMap, rc::Rc};
-
 use super::{
     error::{Failures, Result, SpecTestError},
     format::{Action, ActionResult, NumPat, SpecTestScript},
     spectest_module::make_spectest_module,
 };
 use crate::{
+    format::text::string::WasmString,
     loader::Loader,
     logger::{Logger, PrintLogger, Tag},
     runtime::{
@@ -17,6 +16,7 @@ use crate::{
     spec::format::{Assertion, Cmd, Module},
     types::RefType,
 };
+use std::{collections::HashMap, io::Cursor, rc::Rc};
 
 #[macro_export]
 macro_rules! runset_specific {
@@ -98,6 +98,17 @@ impl TrapMatch for str {
             _ => false,
         }
     }
+}
+
+fn module_data(strings: Vec<WasmString>) -> Box<[u8]> {
+    strings
+        .into_iter()
+        .flat_map(|d| d.into_boxed_bytes().into_vec())
+        .collect()
+}
+
+fn module_cursor(strings: Vec<WasmString>) -> Cursor<Box<[u8]>> {
+    Cursor::new(module_data(strings))
 }
 
 impl SpecTestRunner {
@@ -191,18 +202,12 @@ impl SpecTestRunner {
         match m {
             Module::Module(m) => Ok((m.id.clone(), self.runtime.load(m)?)),
             Module::Binary(n, b) => {
-                let data: Box<[u8]> = b
-                    .into_iter()
-                    .flat_map(|d| d.into_boxed_bytes().into_vec())
-                    .collect();
-                Ok((n, self.runtime.load_wasm_data(&*data)?))
+                let mut data = module_cursor(b);
+                Ok((n, self.runtime.load_wasm_data(&mut data)?))
             }
             Module::Quote(n, b) => {
-                let data: Box<[u8]> = b
-                    .into_iter()
-                    .flat_map(|d| d.into_boxed_bytes().into_vec())
-                    .collect();
-                Ok((n, self.runtime.load_wast_data(&*data)?))
+                let mut data = module_cursor(b);
+                Ok((n, self.runtime.load_wast_data(&mut data)?))
             }
         }
     }

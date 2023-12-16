@@ -45,7 +45,7 @@ impl Runtime {
         Runtime::default()
     }
 
-    pub fn register<S: Into<String>>(&mut self, modname: S, module: Rc<ModuleInstance>) {
+    pub fn register(&mut self, modname: impl Into<String>, module: Rc<ModuleInstance>) {
         self.registered.insert(modname.into(), module);
     }
 

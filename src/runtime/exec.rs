@@ -19,27 +19,37 @@ pub struct ExecutionContext<'l> {
     pc: usize,
 }
 
+pub type TrapResult<T> = std::result::Result<T, TrapKind>;
+pub trait TryValue: TryFrom<Value, Error = RuntimeError> {}
+pub trait TryIntoValue: TryValue + TryFrom<Value, Error = RuntimeError> + Into<Value> {}
+macro_rules! value {
+    ($($t:ty),+) => {
+        $(
+            impl TryValue for $t {}
+            impl TryIntoValue for $t {}
+        )+
+    };
+}
+value!(i32, i64, u8, u32, u64, f32, f64, usize, Ref);
+
 pub trait ExecutionContextActions {
-    fn log<F>(&self, tag: Tag, msg: F)
-    where
-        F: Fn() -> String;
+    fn log(&self, tag: Tag, msg: impl Fn() -> String);
     fn next_byte(&mut self) -> u8;
     fn op_u32(&mut self) -> Result<u32>;
     fn op_u64(&mut self) -> Result<u64>;
     fn op_reftype(&mut self) -> Result<RefType>;
     fn get_local(&mut self, idx: u32) -> Result<Value>;
     fn set_local(&mut self, idx: u32, val: Value) -> Result<()>;
-
     fn get_global(&mut self, idx: u32) -> Result<Value>;
     fn set_global(&mut self, idx: u32, val: Value) -> Result<()>;
     fn push_value(&mut self, val: Value) -> Result<()>;
     fn push_func_ref(&mut self, idx: u32) -> Result<()>;
     fn push_label_end(&mut self) -> Result<()>;
     fn push_label_start(&mut self) -> Result<()>;
-    fn push<T: Into<Value>>(&mut self, val: T) -> Result<()>;
+    fn push(&mut self, val: impl Into<Value>) -> Result<()>;
     fn pop_value(&mut self) -> Result<Value>;
     fn pop_label(&mut self) -> Result<Label>;
-    fn pop<T: TryFrom<Value, Error = RuntimeError>>(&mut self) -> Result<T>;
+    fn pop<T: TryValue>(&mut self) -> Result<T>;
     fn call(&mut self, idx: u32) -> Result<()>;
     fn call_addr(&mut self, addr: addr::FuncAddr, typeidx: u32) -> Result<()>;
     fn mem(&mut self, idx: u32) -> Result<&mut MemInstance>;
@@ -55,11 +65,11 @@ pub trait ExecutionContextActions {
     fn table_copy(&mut self) -> Result<()>;
     fn get_func_table(&mut self, tidx: u32, elemidx: u32) -> Result<u32>;
     fn get_table_elem(&mut self, tidx: u32, eidx: u32) -> Result<Ref>;
-    fn set_table_elem<V: TryInto<Ref, Error = RuntimeError>>(
+    fn set_table_elem(
         &mut self,
         tidx: u32,
         eidx: u32,
-        val: V,
+        val: impl TryInto<Ref, Error = RuntimeError>,
     ) -> Result<()>;
     fn elem_drop(&mut self) -> Result<()>;
     fn data_drop(&mut self) -> Result<()>;
@@ -85,77 +95,50 @@ pub trait ExecutionContextActions {
         self.mem(0)?.write(o as usize, b, &bytes)
     }
 
-    fn binop<T, F>(&mut self, op: F) -> Result<()>
-    where
-        T: TryFrom<Value, Error = RuntimeError> + Into<Value>,
-        F: Fn(T, T) -> T,
-    {
+    fn binop<T: TryIntoValue>(&mut self, op: impl Fn(T, T) -> T) -> Result<()> {
         let r = self.pop::<T>()?;
         let l = self.pop::<T>()?;
         self.push(op(l, r))
     }
 
-    fn binop_trap<T, F>(&mut self, op: F) -> Result<()>
-    where
-        T: TryFrom<Value, Error = RuntimeError> + Into<Value> + Default + PartialEq,
-        F: Fn(T, T) -> std::result::Result<T, TrapKind>,
-    {
+    fn binop_trap<T: TryIntoValue>(&mut self, op: impl Fn(T, T) -> TrapResult<T>) -> Result<()> {
         let r = self.pop::<T>()?;
         let l = self.pop::<T>()?;
         self.push(op(l, r)?)
     }
 
-    fn convop<I, O, F>(&mut self, op: F) -> Result<()>
-    where
-        I: TryFrom<Value, Error = RuntimeError>,
-        O: Into<Value>,
-        F: Fn(I) -> O,
-    {
+    fn convop<I: TryValue, O: Into<Value>>(&mut self, op: impl Fn(I) -> O) -> Result<()> {
         let i = self.pop::<I>()?;
         self.push(op(i))
     }
 
-    fn convop_trap<I, O, F>(&mut self, op: F) -> Result<()>
-    where
-        I: TryFrom<Value, Error = RuntimeError>,
-        O: Into<Value>,
-        F: Fn(I) -> std::result::Result<O, TrapKind>,
-    {
+    fn convop_trap<I: TryValue, O: Into<Value>>(
+        &mut self,
+        op: impl Fn(I) -> TrapResult<O>,
+    ) -> Result<()> {
         let i = self.pop::<I>()?;
         self.push(op(i)?)
     }
 
-    fn unop<T, F>(&mut self, op: F) -> Result<()>
-    where
-        T: TryFrom<Value, Error = RuntimeError> + Into<Value>,
-        F: Fn(T) -> T,
-    {
+    fn unop<T: TryIntoValue>(&mut self, op: impl Fn(T) -> T) -> Result<()> {
         let o = self.pop::<T>()?;
         self.push(op(o))
     }
 
-    fn relop<T, F>(&mut self, op: F) -> Result<()>
-    where
-        T: TryFrom<Value, Error = RuntimeError> + Into<Value>,
-        F: Fn(T, T) -> bool,
-    {
+    fn relop<T: TryIntoValue>(&mut self, op: impl Fn(T, T) -> bool) -> Result<()> {
         let r = self.pop::<T>()?;
         let l = self.pop::<T>()?;
         self.push(if op(l, r) { 1 } else { 0 })
     }
 
-    fn testop<T, F>(&mut self, op: F) -> Result<()>
-    where
-        T: TryFrom<Value, Error = RuntimeError> + Into<Value>,
-        F: Fn(T) -> bool,
-    {
+    fn testop<T: TryIntoValue>(&mut self, op: impl Fn(T) -> bool) -> Result<()> {
         let i = self.pop::<T>()?;
         self.push(if op(i) { 1 } else { 0 })
     }
 }
 
 impl<'l> ExecutionContextActions for ExecutionContext<'l> {
-    fn log<F: Fn() -> String>(&self, tag: Tag, msg: F) {
+    fn log(&self, tag: Tag, msg: impl Fn() -> String) {
         self.runtime.logger.log(tag, msg);
     }
 
@@ -220,11 +203,11 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
         Ok(elem)
     }
 
-    fn set_table_elem<V: TryInto<Ref, Error = RuntimeError>>(
+    fn set_table_elem(
         &mut self,
         tidx: u32,
         elemidx: u32,
-        val: V,
+        val: impl TryInto<Ref, Error = RuntimeError>,
     ) -> Result<()> {
         let tableaddr = &self.runtime.stack.get_table_addr(tidx)?;
         let table = self.runtime.store.table_mut(*tableaddr)?;
@@ -450,7 +433,7 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
         self.runtime.stack.pop_label()
     }
 
-    fn push<T: Into<Value>>(&mut self, val: T) -> Result<()> {
+    fn push(&mut self, val: impl Into<Value>) -> Result<()> {
         self.push_value(val.into())
     }
 
@@ -458,7 +441,7 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
         self.runtime.stack.pop_value()
     }
 
-    fn pop<T: TryFrom<Value, Error = RuntimeError>>(&mut self) -> Result<T> {
+    fn pop<T: TryValue>(&mut self) -> Result<T> {
         let val = self.pop_value()?;
         val.try_into()
     }
@@ -507,7 +490,7 @@ impl<'a> std::fmt::Display for Body<'a> {
 
 /// Implementation of instruction implementation for this runtime.
 impl Runtime {
-    fn log<F: Fn() -> String>(&self, tag: Tag, msg: F) {
+    fn log(&self, tag: Tag, msg: impl Fn() -> String) {
         self.logger.log(tag, msg);
     }
 

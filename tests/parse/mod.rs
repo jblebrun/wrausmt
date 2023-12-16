@@ -8,7 +8,7 @@ use wrausmt::syntax::{Module, Resolved};
 use wrausmt::typefield;
 
 fn load_ast(filename: &str) -> Result<Module<Resolved>> {
-    parse_wast_data(File::open(filename)?)
+    parse_wast_data(&mut File::open(filename)?)
 }
 
 #[test]

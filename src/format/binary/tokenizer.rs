@@ -21,7 +21,7 @@ impl<R> Tokenizer<R> {
     }
 }
 
-impl<R: Read> Read for Tokenizer<R> {
+impl<T: Read> Read for Tokenizer<&mut T> {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         let cnt = self.inner.read(buf)?;
         self.location.advanceby(cnt);

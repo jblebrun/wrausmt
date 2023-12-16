@@ -22,23 +22,23 @@ pub enum BinaryParseError {
 }
 
 pub trait WithContext<T> {
-    fn ctx<S: Into<String>>(self, msg: S) -> T;
+    fn ctx(self, msg: impl Into<String>) -> T;
 }
 
 impl WithContext<BinaryParseError> for BinaryParseError {
-    fn ctx<S: Into<String>>(self, msg: S) -> BinaryParseError {
+    fn ctx(self, msg: impl Into<String>) -> BinaryParseError {
         BinaryParseError::WithContext(vec![msg.into()], Box::new(self))
     }
 }
 
 impl<T, E: Into<BinaryParseError>> WithContext<Result<T>> for std::result::Result<T, E> {
-    fn ctx<S: Into<String>>(self, msg: S) -> Result<T> {
+    fn ctx(self, msg: impl Into<String>) -> Result<T> {
         self.map_err(|e| e.into().ctx(msg))
     }
 }
 
 impl WithContext<BinaryParseError> for std::io::Error {
-    fn ctx<S: Into<String>>(self, msg: S) -> BinaryParseError {
+    fn ctx(self, msg: impl Into<String>) -> BinaryParseError {
         BinaryParseError::WithContext(vec![msg.into()], Box::new(BinaryParseError::IOError(self)))
     }
 }

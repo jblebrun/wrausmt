@@ -43,10 +43,7 @@ impl<'a> StrCursor<'a> {
         self.chars == other
     }
 
-    pub fn consume_while<F>(&mut self, pred: F) -> String
-    where
-        F: Fn(char) -> bool,
-    {
+    pub fn consume_while(&mut self, pred: impl Fn(char) -> bool) -> String {
         let mut i = 0;
         let mut iter = self.chars.chars();
         while matches!(iter.next(), Some(cur) if pred(cur)) {

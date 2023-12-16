@@ -20,7 +20,7 @@ pub struct RuntimeError {
 }
 
 impl RuntimeError {
-    pub fn with_context<S: Into<String>>(mut self, msg: S) -> Self {
+    pub fn with_context(mut self, msg: impl Into<String>) -> Self {
         self.context.push(msg.into());
         self
     }
@@ -83,18 +83,11 @@ impl std::error::Error for RuntimeError {}
 pub type Result<T> = std::result::Result<T, RuntimeError>;
 
 pub trait WithContext<T> {
-    fn ctx<F, S>(self, msg: F) -> T
-    where
-        F: Fn() -> S,
-        S: Into<String>;
+    fn ctx<S: Into<String>>(self, msg: impl Fn() -> S) -> T;
 }
 
 impl<T> WithContext<Result<T>> for Result<T> {
-    fn ctx<F, S>(self, msg: F) -> Result<T>
-    where
-        F: Fn() -> S,
-        S: Into<String>,
-    {
+    fn ctx<S: Into<String>>(self, msg: impl Fn() -> S) -> Result<T> {
         self.map_err(|e| e.with_context(msg()))
     }
 }

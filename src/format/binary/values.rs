@@ -76,11 +76,7 @@ pub trait ReadWasmValues: ReadLeb128 + Sized {
         RefType::try_from(self.read_byte().ctx("fetching ref type")?)
     }
 
-    fn read_vec<T, F>(&mut self, f: F) -> Result<Vec<T>>
-    where
-        Self: Sized,
-        F: Fn(u32, &mut Self) -> Result<T>,
-    {
+    fn read_vec<T>(&mut self, f: impl Fn(u32, &mut Self) -> Result<T>) -> Result<Vec<T>> {
         let item_count = self.read_u32_leb_128().ctx("parsing count")?;
         println!("VECTOR COUNT {}", item_count);
         (0..item_count).map(|i| f(i, self)).collect()
