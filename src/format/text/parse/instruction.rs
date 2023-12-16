@@ -37,7 +37,10 @@ impl<R: Read> Parser<R> {
                     | Operands::MemoryCopy => syntax::Operands::None,
                     Operands::MemoryInit => syntax::Operands::DataIndex(self.expect_index()?),
                     Operands::FuncIndex => syntax::Operands::FuncIndex(self.expect_index()?),
-                    Operands::TableIndex => syntax::Operands::TableIndex(self.expect_index()?),
+                    Operands::TableIndex => {
+                        let tabidx = self.try_index()?.unwrap_or_else(|| Index::unnamed(0));
+                        syntax::Operands::TableIndex(tabidx)
+                    }
                     Operands::GlobalIndex => syntax::Operands::GlobalIndex(self.expect_index()?),
                     Operands::ElemIndex => syntax::Operands::ElemIndex(self.expect_index()?),
                     Operands::DataIndex => syntax::Operands::DataIndex(self.expect_index()?),
@@ -48,7 +51,7 @@ impl<R: Read> Parser<R> {
                         syntax::Operands::BrTable(idxs)
                     }
                     Operands::Select => {
-                        let results = self.try_parse_fresult()?.unwrap_or_else(Vec::new);
+                        let results = self.zero_or_more_groups(Self::try_parse_fresult)?;
                         syntax::Operands::Select(results)
                     }
                     Operands::CallIndirect => {

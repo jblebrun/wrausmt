@@ -4,7 +4,7 @@ pub enum LexError {
     IoError(std::io::Error),
     Utf8Error(std::string::FromUtf8Error),
     UnexpectedChar(char),
-    InvalidEscape(u8),
+    InvalidEscape(String),
 }
 
 pub type Result<T> = std::result::Result<T, LexError>;

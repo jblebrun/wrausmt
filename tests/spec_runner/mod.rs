@@ -79,6 +79,7 @@ macro_rules! spectest {
     ($name:ident; [$runset:expr]) => { spectest!($name; [$runset]; [FailMode::Run]); };
     ($name:ident; []; $failmode:expr) => { spectest!($name; [RunSet::All]; [$failmode]); };
 }
+
 spectest!(r#address);
 spectest!(r#align);
 spectest!(r#binary_x_leb128);
@@ -138,6 +139,7 @@ spectest!(r#memory_size);
 spectest!(r#memory_trap);
 spectest!(r#names);
 spectest!(r#nop);
+spectest!(r#obsolete_x_keywords);
 spectest!(r#ref_func);
 spectest!(r#ref_is_null);
 spectest!(r#ref_null);
@@ -162,6 +164,7 @@ spectest!(r#traps);
 spectest!(r#type);
 spectest!(r#unreachable);
 spectest!(r#unreached_x_invalid);
+spectest!(r#unreached_x_valid);
 spectest!(r#unwind);
 spectest!(r#utf8_x_custom_x_section_x_id);
 spectest!(r#utf8_x_import_x_field);

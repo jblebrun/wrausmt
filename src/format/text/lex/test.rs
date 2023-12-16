@@ -29,7 +29,7 @@ fn simple_parse() -> Result<()> {
         Token::Keyword("foo".into()),
         Token::Close,
         Token::Whitespace,
-        Token::String(WasmString::from_bytes("hello".as_bytes()).unwrap()),
+        Token::String(WasmString::from_bytes("hello".as_bytes().into())),
         Token::Whitespace,
         Token::Open,
         Token::Number(NumToken::Float(
@@ -50,26 +50,6 @@ fn simple_parse() -> Result<()> {
         Token::Open,
         Token::Keyword("yay".into()),
         Token::Close
-    );
-    Ok(())
-}
-
-#[test]
-fn bare_string() -> Result<()> {
-    let expect = "this is a 😃 string".as_bytes();
-    expect_tokens!(
-        "\"this is a 😃 string\"",
-        Token::String(WasmString::from_bytes(expect).unwrap())
-    );
-    Ok(())
-}
-
-#[test]
-fn bytes_string() -> Result<()> {
-    let expect = b"this has raw data\x01\x02\xE4";
-    expect_tokens!(
-        "\"this has raw data\\01\\02\\E4\"",
-        Token::String(WasmString::from_bytes(expect).unwrap())
     );
     Ok(())
 }

@@ -107,7 +107,7 @@ impl<R: Read> Tokenizer<R> {
         if self.current != b';' {
             return Err(LexError::UnexpectedChar(self.current as char));
         }
-        while self.current != b'\n' {
+        while !matches!(self.current, b'\n' | b'\r') {
             self.advance()?;
         }
         self.advance()?;
@@ -144,20 +144,51 @@ impl<R: Read> Tokenizer<R> {
         Ok(Token::BlockComment)
     }
 
+    // Called during consume string to handle escape codes \xx
+    fn consume_escape(&mut self) -> Result<u8> {
+        if let Some(first) = self.current.as_hex_digit() {
+            self.advance()?;
+            return match self.current.as_hex_digit() {
+                Some(second) => Ok(first << 4 | second),
+                None => Err(LexError::InvalidEscape(format!(
+                    "\\{:?}{:?}",
+                    first, self.current
+                ))),
+            };
+        }
+        match self.current {
+            b't' => Ok(b'\t'),
+            b'n' => Ok(b'\n'),
+            b'r' => Ok(b'\r'),
+            b'"' => Ok(b'"'),
+            b'\'' => Ok(b'\''),
+            b'\\' => Ok(b'\\'),
+            b'u' => Err(LexError::InvalidEscape(
+                "Unicode escapes not supported yet".into(),
+            )),
+            _ => Err(LexError::InvalidEscape(format!("\\{}", self.current))),
+        }
+    }
+
     /// Consume a string literal. Leaves the current character one position past the final '"'.
     fn consume_string(&mut self) -> Result<Token> {
         let mut result: Vec<u8> = vec![];
-        let mut prev: u8 = 0;
 
         loop {
             self.advance()?;
-            if self.current == b'"' && prev != b'\\' {
-                self.advance()?;
-                let ws = WasmString::from_bytes(&result)?;
-                return Ok(Token::String(ws));
+            match self.current {
+                b'\\' => {
+                    self.advance()?;
+                    let value = self.consume_escape()?;
+                    result.push(value);
+                }
+                b'"' => {
+                    self.advance()?;
+                    let ws = WasmString::from_bytes(result);
+                    return Ok(Token::String(ws));
+                }
+                _ => result.push(self.current),
             }
-            result.push(self.current);
-            prev = self.current;
         }
     }
 

@@ -17,7 +17,7 @@ struct ElemVariant {
 }
 
 impl ElemVariant {
-    fn new(fields: u8) -> Self {
+    fn new(fields: u32) -> Self {
         ElemVariant {
             bit0: (fields & 1) != 0,
             bit1: (fields & 2) != 0,
@@ -71,7 +71,7 @@ pub trait ReadElems: ReadWasmValues + ReadCode {
     }
 
     fn read_elem(&mut self) -> Result<ElemField<Resolved>> {
-        let variants = ElemVariant::new(self.read_byte()?);
+        let variants = ElemVariant::new(self.read_u32_leb_128()?);
 
         let tidx = if variants.has_tableidx() {
             // read table idx
