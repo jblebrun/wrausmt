@@ -21,20 +21,20 @@ type FuncIndex = u32;
 #[derive(Debug, Default)]
 pub struct ValidationContext {
     // Module
-    pub types: Vec<FunctionType>,
-    pub funcs: Vec<FunctionType>,
-    pub tables: Vec<TableType>,
-    pub mems: Vec<MemType>,
+    pub types:   Vec<FunctionType>,
+    pub funcs:   Vec<FunctionType>,
+    pub tables:  Vec<TableType>,
+    pub mems:    Vec<MemType>,
     pub globals: Vec<GlobalType>,
-    pub elems: Vec<RefType>,
-    pub datas: Vec<()>,
-    pub refs: Vec<FuncIndex>,
+    pub elems:   Vec<RefType>,
+    pub datas:   Vec<()>,
+    pub refs:    Vec<FuncIndex>,
 
     // Function
     pub locals: Vec<ValueType>,
 
     // These may change throughout the sequence.
-    pub labels: Vec<Box<ResultType>>,
+    pub labels:  Vec<Box<ResultType>>,
     pub returns: Vec<Box<ResultType>>,
 }
 
@@ -46,15 +46,15 @@ pub enum ValidationType {
 
 #[derive(Debug, PartialEq)]
 pub struct CtrlFrame {
-    opcode: u8,
+    opcode:      u8,
     start_types: Box<ParamsType>,
-    end_types: Box<ResultType>,
-    height: usize,
+    end_types:   Box<ResultType>,
+    height:      usize,
     unreachable: bool,
 }
 
 pub struct Validation {
-    val_stack: Vec<ValueType>,
+    val_stack:  Vec<ValueType>,
     ctrl_stack: Vec<CtrlFrame>,
 }
 
@@ -69,10 +69,12 @@ impl Validation {
         }
     }
 
-    /// Popping an operand value checks that the value stack does not underflow the current block
-    /// and then removes one type. But first, a special case is handled where the block contains no
-    /// known values, but has been marked as unreachable. That can occur after an unconditional
-    /// branch, when the stack is typed polymorphically. In that case, an unknown type is returned.
+    /// Popping an operand value checks that the value stack does not underflow
+    /// the current block and then removes one type. But first, a special case
+    /// is handled where the block contains no known values, but has been marked
+    /// as unreachable. That can occur after an unconditional branch, when the
+    /// stack is typed polymorphically. In that case, an unknown type is
+    /// returned.
     ///
     /// [See Spec](https://webassembly.github.io/spec/core/appendix/algorithm.html#data-structures)
     pub fn pop_val(&mut self) -> Result<ValidationType> {

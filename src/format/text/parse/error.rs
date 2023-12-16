@@ -8,7 +8,7 @@ use crate::format::text::{lex::error::LexError, resolve::ResolveError, token::Fi
 #[derive(Debug, Default)]
 pub struct ParseContext {
     pub current: FileToken,
-    pub next: FileToken,
+    pub next:    FileToken,
 }
 
 #[derive(Debug, Default)]
@@ -29,9 +29,9 @@ pub enum ParseErrorKind {
 
 #[derive(Debug, Default)]
 pub struct ParseError {
-    kind: ParseErrorKind,
+    kind:    ParseErrorKind,
     context: ParseContext,
-    msgs: Vec<String>,
+    msgs:    Vec<String>,
 }
 
 impl ParseError {
@@ -41,6 +41,7 @@ impl ParseError {
             ..Default::default()
         }
     }
+
     pub fn new(kind: ParseErrorKind, context: ParseContext) -> Self {
         Self {
             kind,

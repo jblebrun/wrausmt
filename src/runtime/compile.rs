@@ -1,8 +1,7 @@
-use crate::syntax::{self, Expr, Resolved, TypeUse};
-use crate::{runtime::instance::ModuleInstance, types::RefType};
 use crate::{
-    runtime::instance::{ExportInstance, ExternalVal},
-    types::{FunctionType, ValueType},
+    runtime::instance::{ExportInstance, ExternalVal, ModuleInstance},
+    syntax::{self, Expr, Resolved, TypeUse},
+    types::{FunctionType, RefType, ValueType},
 };
 
 const END_OPCODE: u8 = 0xb;
@@ -78,7 +77,8 @@ pub trait Emitter {
 
         // If the continuation is at the end of the block, we go back to the space
         // we reserved (just above), and write self the position of the last item
-        // in the current compiled selfput, which corresponds to the end of the expression.
+        // in the current compiled selfput, which corresponds to the end of the
+        // expression.
         if matches!(cnt, syntax::Continuation::End) {
             self.splice32(continuation_location, self.len() as u32);
         }

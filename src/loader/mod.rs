@@ -1,16 +1,16 @@
-use crate::format::text::lex::error::LexError;
-use crate::format::text::parse::error::ParseErrorKind;
 /// The loader module is the bridge between the format parsing code, and the
 /// runtime, which expects a fully resolved module as input.
 use crate::format::{
     binary::error::BinaryParseError, binary::parse_wasm_data, text::parse::error::ParseError,
     text::parse_wast_data,
 };
-use crate::runtime::error::RuntimeError;
-use crate::runtime::{instance::ModuleInstance, Runtime};
-use std::fs::File;
-use std::io::Read;
-use std::rc::Rc;
+use {
+    crate::{
+        format::text::{lex::error::LexError, parse::error::ParseErrorKind},
+        runtime::{error::RuntimeError, instance::ModuleInstance, Runtime},
+    },
+    std::{fs::File, io::Read, rc::Rc},
+};
 
 #[derive(Debug)]
 pub enum LoaderError {

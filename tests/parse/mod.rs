@@ -1,12 +1,16 @@
 use std::fs::File;
 
-use wrausmt::format::text::parse::error::KindResult;
-use wrausmt::format::text::parse_wast_data;
-use wrausmt::format::text::token::Token;
-use wrausmt::format::text::{lex::Tokenizer, token::NumToken};
-use wrausmt::loader::Result as LoadResult;
-use wrausmt::syntax::{Module, Resolved};
-use wrausmt::typefield;
+use wrausmt::{
+    format::text::{
+        lex::Tokenizer,
+        parse::error::KindResult,
+        parse_wast_data,
+        token::{NumToken, Token},
+    },
+    loader::Result as LoadResult,
+    syntax::{Module, Resolved},
+    typefield,
+};
 
 fn load_ast(filename: &str) -> LoadResult<Module<Resolved>> {
     let loaded = parse_wast_data(&mut File::open(filename)?)?;

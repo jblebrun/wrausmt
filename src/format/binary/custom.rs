@@ -1,5 +1,7 @@
-use super::error::{Result, WithContext};
-use std::io::Read;
+use {
+    super::error::{Result, WithContext},
+    std::io::Read,
+};
 
 /// Read a custom section, which is interpreted as a simple vec(bytes)
 pub trait ReadCustom: Read {

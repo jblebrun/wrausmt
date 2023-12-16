@@ -1,10 +1,14 @@
 use std::{fs::File, path::Path, time::Instant};
 
-use wrausmt::loader::Result as LoaderResult;
-use wrausmt::spec::error::Result as SpecTestResult;
-use wrausmt::spec::runner::SpecTestRunner;
-use wrausmt::{format::text::lex::Tokenizer, spec::runner::RunSet};
-use wrausmt::{format::text::parse::Parser, spec::format::SpecTestScript};
+use wrausmt::{
+    format::text::{lex::Tokenizer, parse::Parser},
+    loader::Result as LoaderResult,
+    spec::{
+        error::Result as SpecTestResult,
+        format::SpecTestScript,
+        runner::{RunSet, SpecTestRunner},
+    },
+};
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
@@ -62,8 +66,10 @@ fn parse_and_run<S: std::fmt::Debug + AsRef<Path>>(
     }
 }
 
-// To regenerate the spectest! lines below using the transform this macro expects:
-// "".join(["spectest!(r#{});  ".format(i.replace(".wast","").replace("-","_x_")) for i in sorted(os.listdir('testdata/spec'))])
+// To regenerate the spectest! lines below using the transform this macro
+// expects: "".join(["spectest!(r#{});
+// ".format(i.replace(".wast","").replace("-","_x_")) for i in
+// sorted(os.listdir('testdata/spec'))])
 macro_rules! spectest {
     ($name:ident; [$runset:expr]; [$failmode:expr]) => {
         #[test]

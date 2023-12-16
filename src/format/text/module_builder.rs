@@ -1,35 +1,38 @@
 use std::collections::HashMap;
 
-use super::resolve::{ResolveModule, Result};
-use crate::syntax::{
-    DataField, ElemField, ExportDesc, ExportField, FuncField, FunctionType, GlobalField, Id,
-    ImportDesc, ImportField, Index, MemoryField, Module, Resolved, StartField, TableField,
-    TypeField, Unresolved,
+use {
+    super::resolve::{ResolveModule, Result},
+    crate::syntax::{
+        DataField, ElemField, ExportDesc, ExportField, FuncField, FunctionType, GlobalField, Id,
+        ImportDesc, ImportField, Index, MemoryField, Module, Resolved, StartField, TableField,
+        TypeField, Unresolved,
+    },
 };
 
 #[derive(Clone, Default, Debug, PartialEq)]
 pub struct ModuleIdentifiers {
-    pub typeindices: HashMap<Id, u32>,
-    pub funcindices: HashMap<Id, u32>,
-    pub tableindices: HashMap<Id, u32>,
-    pub memindices: HashMap<Id, u32>,
+    pub typeindices:   HashMap<Id, u32>,
+    pub funcindices:   HashMap<Id, u32>,
+    pub tableindices:  HashMap<Id, u32>,
+    pub memindices:    HashMap<Id, u32>,
     pub globalindices: HashMap<Id, u32>,
-    pub elemindices: HashMap<Id, u32>,
-    pub dataindices: HashMap<Id, u32>,
+    pub elemindices:   HashMap<Id, u32>,
+    pub dataindices:   HashMap<Id, u32>,
 }
 
-/// A [ModuleBuilder] accepts the various items coming from the parse, and organizes them
-/// by sections into a [Module]. This [Module] is still just an abstract representation. ID
-/// declarations  are collected into maps, but ID usages are not yet resolved. ID resolution and
-/// function body compilation happens in a subsequent resolution pass.
+/// A [ModuleBuilder] accepts the various items coming from the parse, and
+/// organizes them by sections into a [Module]. This [Module] is still just an
+/// abstract representation. ID declarations  are collected into maps, but ID
+/// usages are not yet resolved. ID resolution and function body compilation
+/// happens in a subsequent resolution pass.
 #[derive(Debug, Default)]
 pub struct ModuleBuilder {
-    module: Module<Unresolved>,
+    module:             Module<Unresolved>,
     module_identifiers: ModuleIdentifiers,
-    funcidx_offset: u32,
-    tableidx_offset: u32,
-    memidx_offset: u32,
-    globalidx_offset: u32,
+    funcidx_offset:     u32,
+    tableidx_offset:    u32,
+    memidx_offset:      u32,
+    globalidx_offset:   u32,
 }
 
 macro_rules! add_ident {
@@ -111,7 +114,7 @@ impl ModuleBuilder {
         let funcidx = self.module.funcs.len() as u32 + self.funcidx_offset;
         for export_name in &f.exports {
             self.module.exports.push(ExportField {
-                name: export_name.clone(),
+                name:       export_name.clone(),
                 exportdesc: ExportDesc::Func(Index::unnamed(funcidx)),
             })
         }
@@ -125,7 +128,7 @@ impl ModuleBuilder {
         let tableidx = self.module.tables.len() as u32 + self.tableidx_offset;
         for export_name in &f.exports {
             self.module.exports.push(ExportField {
-                name: export_name.clone(),
+                name:       export_name.clone(),
                 exportdesc: ExportDesc::Table(Index::unnamed(tableidx)),
             })
         }
@@ -139,7 +142,7 @@ impl ModuleBuilder {
         let memidx = self.module.memories.len() as u32 + self.memidx_offset;
         for export_name in &f.exports {
             self.module.exports.push(ExportField {
-                name: export_name.clone(),
+                name:       export_name.clone(),
                 exportdesc: ExportDesc::Mem(Index::unnamed(memidx)),
             })
         }
@@ -157,7 +160,7 @@ impl ModuleBuilder {
                 add_ident!(self, f, funcindices, funcs, self.funcidx_offset);
                 for export_name in &f.exports {
                     self.module.exports.push(ExportField {
-                        name: export_name.clone(),
+                        name:       export_name.clone(),
                         exportdesc: ExportDesc::Func(Index::unnamed(self.funcidx_offset)),
                     })
                 }
@@ -167,7 +170,7 @@ impl ModuleBuilder {
                 add_ident!(self, f, memindices, memories, self.memidx_offset);
                 for export_name in &f.exports {
                     self.module.exports.push(ExportField {
-                        name: export_name.clone(),
+                        name:       export_name.clone(),
                         exportdesc: ExportDesc::Mem(Index::unnamed(self.memidx_offset)),
                     })
                 }
@@ -177,7 +180,7 @@ impl ModuleBuilder {
                 add_ident!(self, f, tableindices, tables, self.tableidx_offset);
                 for export_name in &f.exports {
                     self.module.exports.push(ExportField {
-                        name: export_name.clone(),
+                        name:       export_name.clone(),
                         exportdesc: ExportDesc::Table(Index::unnamed(self.tableidx_offset)),
                     })
                 }
@@ -187,7 +190,7 @@ impl ModuleBuilder {
                 add_ident!(self, f, globalindices, globals, self.globalidx_offset);
                 for export_name in &f.exports {
                     self.module.exports.push(ExportField {
-                        name: export_name.clone(),
+                        name:       export_name.clone(),
                         exportdesc: ExportDesc::Global(Index::unnamed(self.globalidx_offset)),
                     })
                 }
@@ -207,7 +210,7 @@ impl ModuleBuilder {
         let globalidx = self.module.globals.len() as u32 + self.globalidx_offset;
         for export_name in &f.exports {
             self.module.exports.push(ExportField {
-                name: export_name.clone(),
+                name:       export_name.clone(),
                 exportdesc: ExportDesc::Global(Index::unnamed(globalidx)),
             })
         }

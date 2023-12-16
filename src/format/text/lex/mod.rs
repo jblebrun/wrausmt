@@ -1,27 +1,33 @@
 use self::error::LexError;
 
-use super::token::{FileToken, Token};
-use crate::format::{text::string::WasmString, Location};
-use crate::syntax::Id;
+use {
+    super::token::{FileToken, Token},
+    crate::{
+        format::{text::string::WasmString, Location},
+        syntax::Id,
+    },
+};
 mod chars;
 pub mod error;
 mod num;
 
-use chars::CharChecks;
-use error::{Result, WithContext};
-use std::io::Read;
-use std::iter::Iterator;
+use {
+    chars::CharChecks,
+    error::{Result, WithContext},
+    std::{io::Read, iter::Iterator},
+};
 
 #[cfg(test)]
 mod test;
 
-/// A streaming WebAssembly tokenizer. It acts as an [Iterator] of [Tokens][Token],
-/// parsing the [Read] source gradually as tokens are requested.
+/// A streaming WebAssembly tokenizer. It acts as an [Iterator] of
+/// [Tokens][Token], parsing the [Read] source gradually as tokens are
+/// requested.
 #[derive(Debug)]
 pub struct Tokenizer<R> {
-    inner: R,
-    current: u8,
-    eof: bool,
+    inner:    R,
+    current:  u8,
+    eof:      bool,
     location: Location,
 }
 
@@ -36,9 +42,9 @@ fn keyword_or_reserved(idchars: Id) -> Token {
 impl<R: Read> Tokenizer<R> {
     pub fn new(r: R) -> Result<Tokenizer<R>> {
         let mut tokenizer = Tokenizer {
-            inner: r,
-            current: 0,
-            eof: false,
+            inner:    r,
+            current:  0,
+            eof:      false,
             location: Location::default(),
         };
         tokenizer.location.nextline();
@@ -93,8 +99,8 @@ impl<R: Read> Tokenizer<R> {
         Ok(())
     }
 
-    /// Consume whitespace and return [Token::Whitespace]. Leaves the character pointer at the next
-    /// non-whitespace token.
+    /// Consume whitespace and return [Token::Whitespace]. Leaves the character
+    /// pointer at the next non-whitespace token.
     fn consume_whitespace(&mut self) -> Result<Token> {
         while self.current.is_whitespace() {
             self.advance()?
@@ -102,8 +108,8 @@ impl<R: Read> Tokenizer<R> {
         Ok(Token::Whitespace)
     }
 
-    /// Consume a line comment and return [Token::LineComment]. Leaves the character position at
-    /// the start of the next line.
+    /// Consume a line comment and return [Token::LineComment]. Leaves the
+    /// character position at the start of the next line.
     fn consume_line_comment(&mut self) -> Result<Token> {
         if self.current != b';' {
             return Err(LexError::UnexpectedChar(self.current as char));
@@ -115,9 +121,10 @@ impl<R: Read> Tokenizer<R> {
         Ok(Token::LineComment)
     }
 
-    /// Consume a block comment, also handling nested comments, returning them all as one
-    /// [Token::BlockComment].  Caller should have consumed '(', and we will be on the ';'.
-    /// Leaves the character position one past the final ')'.
+    /// Consume a block comment, also handling nested comments, returning them
+    /// all as one [Token::BlockComment].  Caller should have consumed '(',
+    /// and we will be on the ';'. Leaves the character position one past
+    /// the final ')'.
     fn consume_block_comment(&mut self) -> Result<Token> {
         let mut depth = 1;
         self.advance()?;
@@ -171,7 +178,8 @@ impl<R: Read> Tokenizer<R> {
         }
     }
 
-    /// Consume a string literal. Leaves the current character one position past the final '"'.
+    /// Consume a string literal. Leaves the current character one position past
+    /// the final '"'.
     fn consume_string(&mut self) -> Result<Token> {
         let mut result: Vec<u8> = vec![];
 
@@ -193,8 +201,8 @@ impl<R: Read> Tokenizer<R> {
         }
     }
 
-    /// Consume a contiguous block of idchars, which will eventually become either:
-    /// A number, a keyword, an ID, or a reserved token.
+    /// Consume a contiguous block of idchars, which will eventually become
+    /// either: A number, a keyword, an ID, or a reserved token.
     fn consume_idchars(&mut self) -> Result<Id> {
         let mut result: Vec<u8> = vec![];
         while self.current.is_idchar() {
@@ -204,9 +212,9 @@ impl<R: Read> Tokenizer<R> {
         Ok(result.into())
     }
 
-    /// Handler for a '(' - if followed by ';, consumes a block comment and returns
-    /// [Token::BlockComment], otherwise just returns [Token::Open]. Leave the
-    /// current character at the next character to parse.
+    /// Handler for a '(' - if followed by ';, consumes a block comment and
+    /// returns [Token::BlockComment], otherwise just returns [Token::Open].
+    /// Leave the current character at the next character to parse.
     fn consume_open_or_block_comment(&mut self) -> Result<Token> {
         self.advance()?;
         if self.current == b';' {
@@ -217,7 +225,8 @@ impl<R: Read> Tokenizer<R> {
         }
     }
 
-    /// Handler for a ')', just returns [Token::Close] and advances the current character.
+    /// Handler for a ')', just returns [Token::Close] and advances the current
+    /// character.
     fn consume_close(&mut self) -> Result<Token> {
         self.advance()?;
         Ok(Token::Close)

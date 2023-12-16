@@ -5,7 +5,7 @@ use super::string::WasmString;
 /// A [Token] along with context about its location in the source file.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct FileToken {
-    pub token: Token,
+    pub token:    Token,
     pub location: Location,
 }
 
@@ -41,7 +41,8 @@ pub enum Reserved {
     Id,
     String,
 }
-/// An enum of all of the possible lexical tokens that can occur in a WebAssembly text file.
+/// An enum of all of the possible lexical tokens that can occur in a
+/// WebAssembly text file.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Token {
     Start,

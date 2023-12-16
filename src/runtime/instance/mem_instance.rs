@@ -1,10 +1,14 @@
 use std::ops::Range;
 
-use crate::logger::{Logger, PrintLogger, Tag};
-use crate::runtime::error::Result;
-use crate::{runtime::error::TrapKind, syntax::MemoryField, types::MemType};
+use crate::{
+    logger::{Logger, PrintLogger, Tag},
+    runtime::error::{Result, TrapKind},
+    syntax::MemoryField,
+    types::MemType,
+};
 
-/// A memory instance is the runtime representation of a linear memory. [Spec][Spec]
+/// A memory instance is the runtime representation of a linear memory.
+/// [Spec][Spec]
 ///
 /// It records its type and holds a vector of bytes.
 ///
@@ -19,9 +23,9 @@ use crate::{runtime::error::TrapKind, syntax::MemoryField, types::MemType};
 /// [Spec]: https://webassembly.github.io/spec/core/exec/runtime.html#memory-instances
 #[derive(Default, Debug)]
 pub struct MemInstance {
-    logger: PrintLogger,
+    logger:      PrintLogger,
     pub memtype: MemType,
-    pub data: Vec<u8>,
+    pub data:    Vec<u8>,
 }
 
 const PAGE_SIZE: usize = 65536;
@@ -29,8 +33,8 @@ const PAGE_SIZE: usize = 65536;
 impl MemInstance {
     /// Create a new [MemInstance] for the provided [MemType].
     /// As per the [Spec][Spec], the meory is initialized to `n` pages of `0`s,
-    /// where `n` is the lower value of the [Limits][crate::types::Limits] in the provided
-    /// [MemType].
+    /// where `n` is the lower value of the [Limits][crate::types::Limits] in
+    /// the provided [MemType].
     ///
     /// [Spec]: https://webassembly.github.io/spec/core/exec/runtime.html#memory-instances
     pub fn new(memtype: MemType) -> MemInstance {

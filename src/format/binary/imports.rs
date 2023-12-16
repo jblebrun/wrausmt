@@ -1,6 +1,10 @@
-use super::error::{Result, WithContext};
-use super::{error::BinaryParseError, values::ReadWasmValues};
-use crate::syntax::{ImportDesc, ImportField, Resolved};
+use {
+    super::{
+        error::{BinaryParseError, Result, WithContext},
+        values::ReadWasmValues,
+    },
+    crate::syntax::{ImportDesc, ImportField, Resolved},
+};
 
 /// A trait to allow parsing of an imports section from something implementing
 /// std::io::Read.
@@ -16,11 +20,11 @@ pub trait ReadImports: ReadWasmValues {
     fn read_imports_section(&mut self) -> Result<Vec<ImportField<Resolved>>> {
         self.read_vec(|_, s| {
             Ok(ImportField {
-                id: None,
+                id:      None,
                 modname: s.read_name().ctx("parsing module name")?,
-                name: s.read_name().ctx("parsing name")?,
+                name:    s.read_name().ctx("parsing name")?,
                 exports: vec![],
-                desc: {
+                desc:    {
                     let kind = s.read_byte().ctx("parsing kind")?;
                     match kind {
                         0 => ImportDesc::Func(s.read_type_use().ctx("parsing func")?),

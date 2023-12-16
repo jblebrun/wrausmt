@@ -7,12 +7,14 @@ pub mod stack;
 pub mod store;
 pub mod values;
 
-use crate::{
-    impl_bug,
-    logger::{Logger, PrintLogger, Tag},
-    runtime::error::RuntimeErrorKind,
+use {
+    crate::{
+        impl_bug,
+        logger::{Logger, PrintLogger, Tag},
+        runtime::error::RuntimeErrorKind,
+    },
+    std::{collections::HashMap, rc::Rc},
 };
-use std::{collections::HashMap, rc::Rc};
 
 use self::instance::FunctionInstance;
 
@@ -20,8 +22,7 @@ use {
     error::Result,
     instance::{ExportInstance, ExternalVal, ModuleInstance},
     stack::Stack,
-    store::addr,
-    store::Store,
+    store::{addr, Store},
     values::Value,
 };
 
@@ -120,7 +121,8 @@ impl Runtime {
         // 5. For each value type, if not matching declared type, fail.
         funcinst.validate_args(vals)?;
 
-        // 6. Let F be a dummy frame. (Represents a dummy "caller" for the function to invoke).
+        // 6. Let F be a dummy frame. (Represents a dummy "caller" for the function to
+        //    invoke).
         // 7. Push F to the stack.
         self.stack.push_dummy_activation(mod_instance.clone())?;
 
@@ -145,7 +147,8 @@ impl Runtime {
         // due to validation, this will be the one we pushed above.
         self.stack.pop_activation()?;
 
-        // Since we don't do validation yet, do some checking here to make sure things seem ok.
+        // Since we don't do validation yet, do some checking here to make sure things
+        // seem ok.
         if let Ok(v) = self.stack.pop_value() {
             return Err(impl_bug!("values still on stack {:?}", v));
         }

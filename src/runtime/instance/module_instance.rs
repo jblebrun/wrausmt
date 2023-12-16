@@ -1,10 +1,13 @@
-use super::*;
-use crate::{runtime::store::addr, types::FunctionType};
+use {
+    super::*,
+    crate::{runtime::store::addr, types::FunctionType},
+};
 
 /// A module instance is the runtime representation of a module. [Spec][Spec]
 ///
-/// It is created by instantiating a module, and collects runtime representations
-/// of all entities that are imported, defined, or exported by the module.
+/// It is created by instantiating a module, and collects runtime
+/// representations of all entities that are imported, defined, or exported by
+/// the module.
 ///
 /// Each component references runtime instances corresponding to respective
 /// declarations from the original module – whether imported or defined – in the
@@ -18,14 +21,14 @@ use crate::{runtime::store::addr, types::FunctionType};
 /// [Spec]: https://webassembly.github.io/spec/core/exec/runtime.html#module-instances
 #[derive(Debug, Default, Clone)]
 pub struct ModuleInstance {
-    types: Box<[FunctionType]>,
+    types:   Box<[FunctionType]>,
     exports: Box<[ExportInstance]>,
-    funcs: Box<[addr::FuncAddr]>,
-    tables: Box<[addr::TableAddr]>,
-    mems: Box<[addr::MemoryAddr]>,
+    funcs:   Box<[addr::FuncAddr]>,
+    tables:  Box<[addr::TableAddr]>,
+    mems:    Box<[addr::MemoryAddr]>,
     globals: Box<[addr::GlobalAddr]>,
-    elems: Box<[addr::ElemAddr]>,
-    data: Box<[addr::DataAddr]>,
+    elems:   Box<[addr::ElemAddr]>,
+    data:    Box<[addr::DataAddr]>,
 }
 
 impl ModuleInstance {
@@ -67,14 +70,14 @@ impl ModuleInstance {
 
 #[derive(Debug, Default, Clone)]
 pub struct ModuleInstanceBuilder {
-    pub types: Vec<FunctionType>,
+    pub types:   Vec<FunctionType>,
     pub exports: Vec<ExportInstance>,
-    pub funcs: Vec<addr::FuncAddr>,
-    pub tables: Vec<addr::TableAddr>,
-    pub mems: Vec<addr::MemoryAddr>,
+    pub funcs:   Vec<addr::FuncAddr>,
+    pub tables:  Vec<addr::TableAddr>,
+    pub mems:    Vec<addr::MemoryAddr>,
     pub globals: Vec<addr::GlobalAddr>,
-    pub elems: Vec<addr::ElemAddr>,
-    pub data: Vec<addr::DataAddr>,
+    pub elems:   Vec<addr::ElemAddr>,
+    pub data:    Vec<addr::DataAddr>,
 }
 
 impl ModuleInstanceBuilder {
@@ -86,16 +89,17 @@ impl ModuleInstanceBuilder {
             ExternalVal::Global(addr) => self.globals.push(addr),
         }
     }
+
     pub fn build(self) -> ModuleInstance {
         ModuleInstance {
-            types: self.types.into_boxed_slice(),
+            types:   self.types.into_boxed_slice(),
             exports: self.exports.into_boxed_slice(),
-            funcs: self.funcs.into_boxed_slice(),
-            tables: self.tables.into_boxed_slice(),
-            mems: self.mems.into_boxed_slice(),
+            funcs:   self.funcs.into_boxed_slice(),
+            tables:  self.tables.into_boxed_slice(),
+            mems:    self.mems.into_boxed_slice(),
             globals: self.globals.into_boxed_slice(),
-            elems: self.elems.into_boxed_slice(),
-            data: self.data.into_boxed_slice(),
+            elems:   self.elems.into_boxed_slice(),
+            data:    self.data.into_boxed_slice(),
         }
     }
 }

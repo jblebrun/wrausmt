@@ -1,17 +1,16 @@
-use crate::format::Location;
-use std::io::Read;
+use {crate::format::Location, std::io::Read};
 
 /// Binary format "tokenizer", which is trivial; the tokens are just bytes.
 #[derive(Debug)]
 pub struct Tokenizer<R> {
-    inner: R,
+    inner:    R,
     location: Location,
 }
 
 impl<R> Tokenizer<R> {
     pub fn new(r: R) -> Self {
         Tokenizer {
-            inner: r,
+            inner:    r,
             location: Location::default(),
         }
     }

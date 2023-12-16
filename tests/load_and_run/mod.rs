@@ -1,6 +1,7 @@
-use wrausmt::loader::Loader;
-use wrausmt::runtime::values::Value;
-use wrausmt::runtime::Runtime;
+use wrausmt::{
+    loader::Loader,
+    runtime::{values::Value, Runtime},
+};
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 

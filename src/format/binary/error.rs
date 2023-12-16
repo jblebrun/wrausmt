@@ -6,7 +6,10 @@ use super::leb128::LEB128Error;
 pub enum BinaryParseError {
     WithContext(Vec<String>, Box<BinaryParseError>),
     IOError(std::io::Error),
-    Unexpected { got: Box<[u8]>, expect: Box<[u8]> },
+    Unexpected {
+        got:    Box<[u8]>,
+        expect: Box<[u8]>,
+    },
     LEB128Error(LEB128Error),
     Utf8Error(FromUtf8Error),
     DataCountMismatch,

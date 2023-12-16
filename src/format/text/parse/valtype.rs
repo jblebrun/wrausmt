@@ -1,8 +1,12 @@
-use super::super::token::Token;
-use super::error::{ParseErrorKind, Result};
-use super::Parser;
-use crate::types::{NumType, RefType, ValueType};
-use std::io::Read;
+use {
+    super::{
+        super::token::Token,
+        error::{ParseErrorKind, Result},
+        Parser,
+    },
+    crate::types::{NumType, RefType, ValueType},
+    std::io::Read,
+};
 
 impl<R: Read> Parser<R> {
     pub fn expect_valtype(&mut self) -> Result<ValueType> {

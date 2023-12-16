@@ -1,22 +1,24 @@
-use super::{
-    error::RuntimeError,
-    values::{Ref, Value},
-    Runtime,
+use {
+    super::{
+        error::{Result, RuntimeError, TrapKind},
+        store::addr,
+        values::{Ref, Value},
+        Runtime,
+    },
+    crate::{
+        impl_bug,
+        instructions::exec_method,
+        logger::{Logger, Tag},
+        runtime::{instance::MemInstance, stack::Label},
+        types::RefType,
+    },
+    std::convert::{TryFrom, TryInto},
 };
-use super::{
-    error::{Result, TrapKind},
-    store::addr,
-};
-use crate::runtime::instance::MemInstance;
-use crate::runtime::stack::Label;
-use crate::{impl_bug, instructions::exec_method};
-use crate::{logger::Logger, logger::Tag, types::RefType};
-use std::{convert::TryFrom, convert::TryInto};
 
 pub struct ExecutionContext<'l> {
     runtime: &'l mut Runtime,
-    body: &'l [u8],
-    pc: usize,
+    body:    &'l [u8],
+    pc:      usize,
 }
 
 pub type TrapResult<T> = std::result::Result<T, TrapKind>;
@@ -266,8 +268,9 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
         let val = self.pop::<u8>()?;
         let d = self.pop::<usize>()?;
         let memaddr = self.runtime.stack.get_mem_addr(0)?;
-        // Note: the spec describes table fill as a recursive set of calls to table set + table
-        // fill, we use a function here to emulate the same behavior with less overhead.
+        // Note: the spec describes table fill as a recursive set of calls to table set
+        // + table fill, we use a function here to emulate the same behavior with
+        // less overhead.
         self.runtime.store.fill_mem(memaddr, n, val, d)
     }
 
@@ -276,8 +279,9 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
         let s = self.pop::<usize>()?;
         let d = self.pop::<usize>()?;
         let memaddr = self.runtime.stack.get_mem_addr(0)?;
-        // Note: the spec describes table fill as a recursive set of calls to table set + table
-        // fill, we use a function here to emulate the same behavior with less overhead.
+        // Note: the spec describes table fill as a recursive set of calls to table set
+        // + table fill, we use a function here to emulate the same behavior with
+        // less overhead.
         self.runtime.store.copy_mem_to_mem(memaddr, s, d, n)
     }
 
@@ -349,8 +353,9 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
         let i = self.pop::<usize>()?;
         // TODO if i + n > sie of table 0, trap
         let tabaddr = self.runtime.stack.get_table_addr(tabidx)?;
-        // Note: the spec describes table fill as a recursive set of calls to table set + table
-        // fill, we use a function here to emulate the same behavior with less overhead.
+        // Note: the spec describes table fill as a recursive set of calls to table set
+        // + table fill, we use a function here to emulate the same behavior with
+        // less overhead.
         self.runtime.store.fill_table(tabaddr, n, val, i)?;
         Ok(())
     }

@@ -23,6 +23,7 @@ impl LEB128Error {
     pub fn overflow(bs: &[u8]) -> LEB128Error {
         LEB128Error::Overflow(bs.to_owned().into_boxed_slice())
     }
+
     pub fn unterminated(bs: &[u8]) -> LEB128Error {
         LEB128Error::Unterminated(bs.to_owned().into_boxed_slice())
     }
@@ -30,8 +31,8 @@ impl LEB128Error {
 
 type Result<T> = std::result::Result<T, LEB128Error>;
 
-// The final bit is the MSB. If it's unsigned, none of the high bits should be set.
-// If it's signed, *all* of the high bits should be set.
+// The final bit is the MSB. If it's unsigned, none of the high bits should be
+// set. If it's signed, *all* of the high bits should be set.
 fn validate_final_byte(result: &[u8], size: usize, signed: bool) -> Result<()> {
     let overflow_bit_count = 7 - (result.len() * 7) % size;
     let remainder_mask = 0xFF << overflow_bit_count;

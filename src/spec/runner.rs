@@ -1,23 +1,25 @@
-use super::{
-    error::{Failures, Result, SpecTestError},
-    format::{Action, ActionResult, NumPat, SpecTestScript},
-    spectest_module::make_spectest_module,
-};
-use crate::{
-    format::text::string::WasmString,
-    loader::Loader,
-    logger::{Logger, PrintLogger, Tag},
-    runtime::{
-        error::TrapKind,
-        instance::ModuleInstance,
-        values::{Num, Ref, Value},
-        Runtime,
+use {
+    super::{
+        error::{Failures, Result, SpecTestError},
+        format::{Action, ActionResult, NumPat, SpecTestScript},
+        spectest_module::make_spectest_module,
     },
-    spec::format::{Assertion, Cmd, Module},
-    syntax::Id,
-    types::RefType,
+    crate::{
+        format::text::string::WasmString,
+        loader::Loader,
+        logger::{Logger, PrintLogger, Tag},
+        runtime::{
+            error::TrapKind,
+            instance::ModuleInstance,
+            values::{Num, Ref, Value},
+            Runtime,
+        },
+        spec::format::{Assertion, Cmd, Module},
+        syntax::Id,
+        types::RefType,
+    },
+    std::{collections::HashMap, io::Cursor, rc::Rc},
 };
-use std::{collections::HashMap, io::Cursor, rc::Rc};
 
 #[macro_export]
 macro_rules! runset_specific {
@@ -71,10 +73,10 @@ impl RunSet {
 
 #[derive(Debug, Default)]
 pub struct SpecTestRunner {
-    runtime: Runtime,
+    runtime:       Runtime,
     latest_module: Option<Rc<ModuleInstance>>,
     named_modules: HashMap<Id, Rc<ModuleInstance>>,
-    logger: PrintLogger,
+    logger:        PrintLogger,
 }
 
 trait TrapMatch {
@@ -283,7 +285,7 @@ impl SpecTestRunner {
                         module: _,
                         failure: _,
                     } => {
-                        //let _ = self.handle_module(module);
+                        // let _ = self.handle_module(module);
                         // TODO verify result
                         Ok(())
                     }
@@ -301,7 +303,7 @@ impl SpecTestRunner {
                         module: _,
                         failure: _,
                     } => {
-                        //let _ = self.handle_module(module);
+                        // let _ = self.handle_module(module);
                         // TODO verify result
                         Ok(())
                     }

@@ -1,5 +1,4 @@
-use crate::runtime::values::Ref;
-use crate::types::RefType;
+use crate::{runtime::values::Ref, types::RefType};
 
 /// An element instance is the runtime representation of an element segment.
 /// [Spec][Spec]
@@ -10,7 +9,7 @@ use crate::types::RefType;
 #[derive(Debug)]
 pub struct ElemInstance {
     pub elemtype: RefType,
-    pub elems: Box<[Ref]>,
+    pub elems:    Box<[Ref]>,
 }
 
 impl ElemInstance {

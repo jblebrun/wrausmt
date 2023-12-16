@@ -1,12 +1,17 @@
-use super::error::{Result, WithContext};
-use super::{code::ReadCode, values::ReadWasmValues};
-use crate::{
-    format::binary::error::BinaryParseError,
-    syntax::{
-        self, ElemField, ElemList, Expr, FuncIndex, Index, Instruction, ModeEntry, Resolved,
-        TablePosition, TableUse,
+use {
+    super::{
+        code::ReadCode,
+        error::{Result, WithContext},
+        values::ReadWasmValues,
     },
-    types::RefType,
+    crate::{
+        format::binary::error::BinaryParseError,
+        syntax::{
+            self, ElemField, ElemList, Expr, FuncIndex, Index, Instruction, ModeEntry, Resolved,
+            TablePosition, TableUse,
+        },
+        types::RefType,
+    },
 };
 
 #[derive(Debug)]
@@ -24,18 +29,23 @@ impl ElemVariant {
             bit2: (fields & 4) != 0,
         }
     }
+
     fn active(&self) -> bool {
         !self.bit0
     }
+
     fn passive(&self) -> bool {
         self.bit0 && !self.bit1
     }
+
     fn has_tableidx(&self) -> bool {
         !self.bit0 && self.bit1
     }
+
     fn use_initexpr(&self) -> bool {
         self.bit2
     }
+
     fn read_eltypekind(&self) -> bool {
         self.bit0 || self.bit1
     }
@@ -62,8 +72,8 @@ pub trait ReadElems: ReadWasmValues + ReadCode {
             .into_iter()
             .map(|idx| Expr {
                 instr: vec![Instruction {
-                    name: "ref.func".into(),
-                    opcode: 0xD2,
+                    name:     "ref.func".into(),
+                    opcode:   0xD2,
                     operands: syntax::Operands::FuncIndex(idx),
                 }],
             })
@@ -120,7 +130,7 @@ pub trait ReadElems: ReadWasmValues + ReadCode {
 
         let elemlist = ElemList {
             reftype: typekind,
-            items: init_expr,
+            items:   init_expr,
         };
 
         Ok(ElemField {

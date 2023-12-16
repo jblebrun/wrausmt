@@ -1,20 +1,22 @@
-use crate::format::{
-    text::{
-        parse::error::{ParseErrorKind, Result, WithMsg},
-        string::WasmString,
+use {
+    crate::{
+        format::{
+            text::{
+                parse::{
+                    error::{ParseErrorKind, Result, WithMsg},
+                    Parser,
+                },
+                string::WasmString,
+                token::Token,
+            },
+            Location,
+        },
+        runtime::values::{Num, Ref, Value},
+        syntax::{self as modulesyntax, Id, Resolved},
+        types::{NumType, RefType},
     },
-    Location,
+    std::io::Read,
 };
-use crate::syntax as modulesyntax;
-use crate::syntax::Id;
-use crate::{
-    format::text::parse::Parser,
-    runtime::values::{Num, Ref, Value},
-    syntax::Resolved,
-    types::RefType,
-};
-use crate::{format::text::token::Token, types::NumType};
-use std::io::Read;
 
 impl<R: Read> Parser<R> {
     pub fn parse_spec_test(&mut self) -> Result<SpecTestScript> {
@@ -412,7 +414,10 @@ pub struct SpecTestScript {
 #[derive(Debug)]
 pub enum Cmd {
     Module(Module),
-    Register { modname: String, id: Option<Id> },
+    Register {
+        modname: String,
+        id:      Option<Id>,
+    },
     Action(Action),
     Assertion(Assertion),
     Meta(Meta),
@@ -420,7 +425,7 @@ pub enum Cmd {
 
 #[derive(Debug)]
 pub struct CmdEntry {
-    pub cmd: Cmd,
+    pub cmd:      Cmd,
     pub location: Location,
 }
 
@@ -446,12 +451,12 @@ pub enum Module {
 pub enum Action {
     Invoke {
         modname: Option<Id>,
-        name: String,
-        params: Vec<Const>,
+        name:    String,
+        params:  Vec<Const>,
     },
     Get {
         modname: Option<Id>,
-        name: String,
+        name:    String,
     },
 }
 
@@ -489,6 +494,7 @@ impl From<Const> for Value {
     }
 }
 
+#[rustfmt::skip]
 /// ```text
 /// assertion:
 ///   ( assert_return <action> <result>* )       ;; assert action has expected results
@@ -501,34 +507,34 @@ impl From<Const> for Value {
 /// ```
 #[derive(Debug)]
 pub enum Assertion {
-    Return {
-        action: Action,
-        results: Vec<ActionResult>,
-    },
-    ActionTrap {
-        action: Action,
-        failure: String,
-    },
-    Exhaustion {
-        action: Action,
-        failure: String,
-    },
-    Malformed {
-        module: Module,
-        failure: String,
-    },
-    Invalid {
-        module: Module,
-        failure: String,
-    },
-    Unlinkable {
-        module: Module,
-        failure: String,
-    },
-    ModuleTrap {
-        module: Module,
-        failure: String,
-    },
+  Return {
+    action:  Action,
+    results: Vec<ActionResult>,
+  },
+  ActionTrap {
+    action:  Action,
+    failure: String,
+  },
+  Exhaustion {
+    action:  Action,
+    failure: String,
+  },
+  Malformed {
+    module:  Module,
+    failure: String,
+  },
+  Invalid {
+    module:  Module,
+    failure: String,
+  },
+  Unlinkable {
+    module:  Module,
+    failure: String,
+  },
+  ModuleTrap {
+    module:  Module,
+    failure: String,
+  },
 }
 
 /// ```text

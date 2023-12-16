@@ -1,4 +1,5 @@
-/// Convert the function name into a type-friendly name by converting all punctuation to '_'.
+/// Convert the function name into a type-friendly name by converting all
+/// punctuation to '_'.
 pub fn typename(s: &str) -> String {
     s.as_bytes()
         .iter()

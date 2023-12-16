@@ -1,4 +1,5 @@
-//! Macros providing convenient literal construction syntax for some syntax types.
+//! Macros providing convenient literal construction syntax for some syntax
+//! types.
 
 /// Macro to generate an FParam instance.
 /// I32 | I64 | U32 | F32 will generate one for a numtype.
@@ -10,19 +11,19 @@ macro_rules! fparam {
     };
     ( $id:expr; Func ) => {
         wrausmt::syntax::FParam {
-            id: $id,
+            id:        $id,
             valuetype: wrausmt::types::RefType::Func.into(),
         }
     };
     ( $id:expr; Extern ) => {
         wrausmt::syntax::FParam {
-            id: $id,
+            id:        $id,
             valuetype: wrausmt::types::RefType::Extern.into(),
         }
     };
     ( $id:expr; $vt:ident ) => {
         wrausmt::syntax::FParam {
-            id: $id,
+            id:        $id,
             valuetype: wrausmt::types::NumType::$vt.into(),
         }
     };
