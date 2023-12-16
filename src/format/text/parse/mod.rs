@@ -57,7 +57,7 @@ impl<R: Read> Parser<R> {
         match self.tokenizer.next() {
             None => self.next.token = Token::Eof,
             Some(Ok(t)) => self.next = t,
-            Some(Err(e)) => return Err(ParseError::Tokenizer(e)),
+            Some(Err(e)) => return Err(ParseError::LexError(e)),
         }
         Ok(())
     }

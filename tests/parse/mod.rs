@@ -1,11 +1,15 @@
-use wrausmt::format::text::token::Token;
-use wrausmt::typefield;
-use wrausmt::{
-    format::text::{lex::Tokenizer, token::NumToken},
-    loader::load_ast,
-};
+use std::fs::File;
 
-type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+use wrausmt::format::text::parse::error::Result;
+use wrausmt::format::text::parse_wast_data;
+use wrausmt::format::text::token::Token;
+use wrausmt::format::text::{lex::Tokenizer, token::NumToken};
+use wrausmt::syntax::{Module, Resolved};
+use wrausmt::typefield;
+
+fn load_ast(filename: &str) -> Result<Module<Resolved>> {
+    parse_wast_data(File::open(filename)?)
+}
 
 #[test]
 fn basic_parse() -> Result<()> {

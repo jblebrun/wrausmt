@@ -17,7 +17,8 @@ pub enum ParseError {
     WithContext(Box<ParseErrorContext>, Box<ParseError>),
     WithMsg(Vec<String>, Box<ParseError>),
     Eof,
-    Tokenizer(LexError),
+    IoError(std::io::Error),
+    LexError(LexError),
     UnexpectedToken(String),
     UnrecognizedInstruction(String),
     ResolveError(ResolveError),
@@ -32,7 +33,6 @@ impl ParseError {
         ParseError::UnexpectedToken(expected.into())
     }
 }
-
 pub trait WithMsg<T> {
     fn msg<S: Into<String>>(self, msg: S) -> T;
 }
@@ -92,5 +92,17 @@ impl From<ParseFloatError> for ParseError {
 impl From<ParseIntError> for ParseError {
     fn from(e: ParseIntError) -> Self {
         ParseError::ParseIntError(e)
+    }
+}
+
+impl From<LexError> for ParseError {
+    fn from(e: LexError) -> Self {
+        ParseError::LexError(e)
+    }
+}
+
+impl From<std::io::Error> for ParseError {
+    fn from(e: std::io::Error) -> Self {
+        ParseError::IoError(e)
     }
 }
