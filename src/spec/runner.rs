@@ -189,11 +189,14 @@ impl SpecTestRunner {
                     .into_iter()
                     .flat_map(|d| d.into_boxed_bytes().into_vec())
                     .collect();
-                Ok((n, self.runtime.load_wasm_data(&data)?))
+                Ok((n, self.runtime.load_wasm_data(&*data)?))
             }
-            Module::Quote(_, _) => {
-                // TODO parse quote modules
-                Err(SpecTestError::UnImplemented)
+            Module::Quote(n, b) => {
+                let data: Box<[u8]> = b
+                    .into_iter()
+                    .flat_map(|d| d.into_boxed_bytes().into_vec())
+                    .collect();
+                Ok((n, self.runtime.load_wast_data(&*data)?))
             }
         }
     }

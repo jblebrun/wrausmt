@@ -1,18 +1,18 @@
-use std::rc::Rc;
-
-use crate::format::text::lex::Tokenizer;
-use crate::format::text::parse::Parser;
+/// The loader module is the bridge between the format parsing code, and the
+/// runtime, which expects a fully resolved module as input.
 use crate::format::{
-    binary::error::BinaryParseError, binary::parse, text::parse::error::ParseError,
+    binary::error::BinaryParseError, binary::parse_wasm_data, text::parse::error::ParseError,
+    text::parse_wast_data,
 };
 use crate::runtime::{instance::ModuleInstance, Runtime};
-use crate::syntax::{Module, Resolved};
 use crate::{format::text::lex::error::LexError, runtime::error::RuntimeError};
+use std::fs::File;
+use std::io::Read;
+use std::rc::Rc;
 
 #[derive(Debug)]
 pub enum LoaderError {
     IoError(std::io::Error),
-    LexError(LexError),
     ParseError(ParseError),
     BinaryParseError(BinaryParseError),
     GenericError(Box<dyn std::error::Error>),
@@ -20,10 +20,7 @@ pub enum LoaderError {
 
 impl LoaderError {
     pub fn is_parse_error(&self) -> bool {
-        matches!(
-            self,
-            Self::ParseError(_) | Self::BinaryParseError(_) | Self::LexError(_)
-        )
+        matches!(self, Self::ParseError(_) | Self::BinaryParseError(_))
     }
 }
 
@@ -43,7 +40,7 @@ impl From<std::io::Error> for LoaderError {
 
 impl From<LexError> for LoaderError {
     fn from(e: LexError) -> Self {
-        LoaderError::LexError(e)
+        LoaderError::ParseError(e.into())
     }
 }
 
@@ -68,42 +65,28 @@ impl From<BinaryParseError> for LoaderError {
 pub type Result<T> = std::result::Result<T, LoaderError>;
 
 pub trait Loader {
-    fn load_wast(&mut self, filename: &str) -> Result<Rc<ModuleInstance>>;
-    fn load_wasm(&mut self, filename: &str) -> Result<Rc<ModuleInstance>>;
-    fn load_wasm_data(&mut self, filename: &[u8]) -> Result<Rc<ModuleInstance>>;
-}
-
-pub fn load_ast(filename: &str) -> Result<Module<Resolved>> {
-    let f = std::fs::File::open(filename)?;
-
-    let tokenizer = Tokenizer::new(f)?;
-    let mut parser = Parser::new(tokenizer)?;
-    let ast = parser.parse_full_module()?;
-    Ok(ast)
-}
-
-impl Loader for Runtime {
     fn load_wast(&mut self, filename: &str) -> Result<Rc<ModuleInstance>> {
-        let ast = load_ast(filename)?;
-
-        println!("MODULE {:#?}", ast);
-
-        let mod_inst = self.load(ast)?;
-        Ok(mod_inst)
+        self.load_wast_data(File::open(filename)?)
     }
 
     fn load_wasm(&mut self, filename: &str) -> Result<Rc<ModuleInstance>> {
-        let mut f = std::fs::File::open(filename)?;
+        self.load_wasm_data(File::open(filename)?)
+    }
 
-        let module = parse(&mut f)?;
+    fn load_wasm_data<R: Read>(&mut self, read: R) -> Result<Rc<ModuleInstance>>;
 
+    fn load_wast_data<R: Read>(&mut self, read: R) -> Result<Rc<ModuleInstance>>;
+}
+
+impl Loader for Runtime {
+    fn load_wasm_data<R: Read>(&mut self, reader: R) -> Result<Rc<ModuleInstance>> {
+        let module = parse_wasm_data(reader)?;
         let mod_inst = self.load(module)?;
         Ok(mod_inst)
     }
 
-    fn load_wasm_data(&mut self, data: &[u8]) -> Result<Rc<ModuleInstance>> {
-        let module = parse(data)?;
-
+    fn load_wast_data<R: Read>(&mut self, reader: R) -> Result<Rc<ModuleInstance>> {
+        let module = parse_wast_data(reader)?;
         let mod_inst = self.load(module)?;
         Ok(mod_inst)
     }
