@@ -66,26 +66,26 @@ pub type Result<T> = std::result::Result<T, LoaderError>;
 
 pub trait Loader {
     fn load_wast(&mut self, filename: &str) -> Result<Rc<ModuleInstance>> {
-        self.load_wast_data(File::open(filename)?)
+        self.load_wast_data(&mut File::open(filename)?)
     }
 
     fn load_wasm(&mut self, filename: &str) -> Result<Rc<ModuleInstance>> {
-        self.load_wasm_data(File::open(filename)?)
+        self.load_wasm_data(&mut File::open(filename)?)
     }
 
-    fn load_wasm_data<R: Read>(&mut self, read: R) -> Result<Rc<ModuleInstance>>;
+    fn load_wasm_data(&mut self, read: &mut impl Read) -> Result<Rc<ModuleInstance>>;
 
-    fn load_wast_data<R: Read>(&mut self, read: R) -> Result<Rc<ModuleInstance>>;
+    fn load_wast_data(&mut self, read: &mut impl Read) -> Result<Rc<ModuleInstance>>;
 }
 
 impl Loader for Runtime {
-    fn load_wasm_data<R: Read>(&mut self, reader: R) -> Result<Rc<ModuleInstance>> {
+    fn load_wasm_data(&mut self, reader: &mut impl Read) -> Result<Rc<ModuleInstance>> {
         let module = parse_wasm_data(reader)?;
         let mod_inst = self.load(module)?;
         Ok(mod_inst)
     }
 
-    fn load_wast_data<R: Read>(&mut self, reader: R) -> Result<Rc<ModuleInstance>> {
+    fn load_wast_data(&mut self, reader: &mut impl Read) -> Result<Rc<ModuleInstance>> {
         let module = parse_wast_data(reader)?;
         let mod_inst = self.load(module)?;
         Ok(mod_inst)

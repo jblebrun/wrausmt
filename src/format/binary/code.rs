@@ -213,12 +213,12 @@ pub trait ReadCode: ReadWasmValues {
     }
 
     /// Clarity method: use to read a single LEB128 argument for an instruction.
-    fn read_u32_arg<W: Write>(&mut self, out: &mut W) -> Result<()> {
+    fn read_u32_arg(&mut self, out: &mut impl Write) -> Result<()> {
         self.emit_read_u32_leb_128(out).ctx("parsing arg 1/1")
     }
 
     /// Read one LEB128 value and emit it to the provided writer.
-    fn emit_read_u32_leb_128<W: Write>(&mut self, out: &mut W) -> Result<()> {
+    fn emit_read_u32_leb_128(&mut self, out: &mut impl Write) -> Result<()> {
         out.write(
             &self
                 .read_u32_leb_128()

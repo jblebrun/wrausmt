@@ -1,5 +1,5 @@
 pub trait Logger {
-    fn log<F: Fn() -> String>(&self, tag: Tag, msg: F);
+    fn log(&self, tag: Tag, msg: impl Fn() -> String);
 }
 
 #[derive(Debug, Clone, Default)]
@@ -32,7 +32,7 @@ impl Tag {
 }
 
 impl Logger for PrintLogger {
-    fn log<F: Fn() -> String>(&self, tag: Tag, msg: F) {
+    fn log(&self, tag: Tag, msg: impl Fn() -> String) {
         if tag.enabled() {
             let msg = msg();
             println!("[{:?}] {}", tag, msg)

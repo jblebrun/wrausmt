@@ -34,11 +34,11 @@ impl ParseError {
     }
 }
 pub trait WithMsg<T> {
-    fn msg<S: Into<String>>(self, msg: S) -> T;
+    fn msg(self, msg: impl Into<String>) -> T;
 }
 
 impl WithMsg<ParseError> for ParseError {
-    fn msg<S: Into<String>>(mut self, msg: S) -> ParseError {
+    fn msg(mut self, msg: impl Into<String>) -> ParseError {
         match self {
             ParseError::WithMsg(ref mut msgs, _) => {
                 let s = msg.into();
@@ -56,7 +56,7 @@ impl WithMsg<ParseError> for ParseError {
 }
 
 impl<T> WithMsg<Result<T>> for Result<T> {
-    fn msg<S: Into<String>>(self, msg: S) -> Result<T> {
+    fn msg(self, msg: impl Into<String>) -> Result<T> {
         self.map_err(|e| e.msg(msg))
     }
 }

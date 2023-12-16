@@ -4,7 +4,7 @@ use std::string::FromUtf8Error;
 /// They may contain any arbitrary bytes, not just valid UTF8.
 #[derive(Default, Debug, Clone, PartialEq)]
 pub struct WasmString {
-    bytes: Box<[u8]>,
+    pub bytes: Box<[u8]>,
 }
 
 impl WasmString {

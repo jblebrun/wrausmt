@@ -54,7 +54,7 @@ fn resolve_functypes(
 
 /// Inner parse method accepts a mutable module, so that the outer parse method
 /// can return partial module results (useful for debugging).
-fn parse_inner<R: Read>(reader: &mut R, module: &mut Module<Resolved>) -> Result<()> {
+fn parse_inner(reader: &mut impl Read, module: &mut Module<Resolved>) -> Result<()> {
     reader.read_magic()?;
     reader.read_version()?;
 
@@ -93,15 +93,12 @@ fn parse_inner<R: Read>(reader: &mut R, module: &mut Module<Resolved>) -> Result
 /// Attempt to interpret the data in the provided std::io:Read as a WASM binary module.
 /// If an error occurs, a ParseError will be returned containing the portion of the
 /// module that was successfully decoded.
-pub fn parse_wasm_data<R>(src: R) -> Result<Module<Resolved>>
-where
-    R: Read,
-{
-    let tokenizer = &mut tokenizer::Tokenizer::new(src);
+pub fn parse_wasm_data(src: &mut impl Read) -> Result<Module<Resolved>> {
+    let mut tokenizer = tokenizer::Tokenizer::new(src);
 
     let mut module = Module::default();
 
-    match parse_inner(tokenizer, &mut module) {
+    match parse_inner(&mut tokenizer, &mut module) {
         Ok(()) => Ok(module),
         Err(e) => Err(e.ctx(format!("at {:?}", tokenizer.location()))),
     }

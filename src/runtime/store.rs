@@ -1,14 +1,12 @@
-use super::values::Value;
-use super::{error::Result, values::Ref};
 use super::{
-    error::TrapKind,
+    error::{Result, TrapKind},
     instance::{
         DataInstance, ElemInstance, FunctionInstance, GlobalInstance, MemInstance, TableInstance,
     },
+    values::{Ref, Value},
 };
 use crate::impl_bug;
-use std::rc::Rc;
-use std::{iter::Iterator, slice};
+use std::{iter::Iterator, ops::Range, rc::Rc, slice};
 
 /// Function instances, table instances, memory instances, and global instances,
 /// element instances, and data instances in the store are referenced with
@@ -280,10 +278,10 @@ impl Store {
     // Allocate a collection of functions.
     // Functions will be allocated in a contiguous block.
     // Returns the value of the first allocated fuction.
-    pub fn alloc_funcs<I>(&mut self, funcs: I) -> std::ops::Range<addr::FuncAddr>
-    where
-        I: Iterator<Item = Rc<FunctionInstance>>,
-    {
+    pub fn alloc_funcs(
+        &mut self,
+        funcs: impl Iterator<Item = Rc<FunctionInstance>>,
+    ) -> Range<addr::FuncAddr> {
         let base_addr = self.funcs.len() as u32;
         self.funcs.extend(funcs);
         let count = self.funcs.len() as u32 - base_addr;
@@ -293,10 +291,10 @@ impl Store {
     // Allocate a collection of tables.
     // Tables will be allocated in a contiguous block.
     // Returns the value of the first allocated tables.
-    pub fn alloc_tables<I>(&mut self, tables: I) -> std::ops::Range<addr::TableAddr>
-    where
-        I: Iterator<Item = TableInstance>,
-    {
+    pub fn alloc_tables(
+        &mut self,
+        tables: impl Iterator<Item = TableInstance>,
+    ) -> Range<addr::TableAddr> {
         let base_addr = self.tables.len() as u32;
         self.tables.extend(tables);
         let count = self.tables.len() as u32 - base_addr;
@@ -306,40 +304,41 @@ impl Store {
     // Allocate a collection of mems.
     // Mems will be allocated in a contiguous block.
     // Returns the value of the first allocated mems.
-    pub fn alloc_mems<I>(&mut self, mems: I) -> std::ops::Range<addr::MemoryAddr>
-    where
-        I: Iterator<Item = MemInstance>,
-    {
+    pub fn alloc_mems(
+        &mut self,
+        mems: impl Iterator<Item = MemInstance>,
+    ) -> Range<addr::MemoryAddr> {
         let base_addr = self.mems.len() as u32;
         self.mems.extend(mems);
         let count = self.mems.len() as u32 - base_addr;
         base_addr..base_addr + count
     }
 
-    pub fn alloc_globals<I>(&mut self, globals: I) -> std::ops::Range<addr::GlobalAddr>
-    where
-        I: Iterator<Item = GlobalInstance>,
-    {
+    pub fn alloc_globals(
+        &mut self,
+        globals: impl Iterator<Item = GlobalInstance>,
+    ) -> Range<addr::GlobalAddr>
+where {
         let base_addr = self.globals.len() as u32;
         self.globals.extend(globals);
         let count = self.globals.len() as u32 - base_addr;
         base_addr..base_addr + count
     }
 
-    pub fn alloc_elems<I>(&mut self, elems: I) -> std::ops::Range<addr::ElemAddr>
-    where
-        I: Iterator<Item = ElemInstance>,
-    {
+    pub fn alloc_elems(
+        &mut self,
+        elems: impl Iterator<Item = ElemInstance>,
+    ) -> Range<addr::ElemAddr> {
         let base_addr = self.elems.len() as u32;
         self.elems.extend(elems);
         let count = self.elems.len() as u32 - base_addr;
         base_addr..base_addr + count
     }
 
-    pub fn alloc_data<I>(&mut self, datas: I) -> std::ops::Range<addr::DataAddr>
-    where
-        I: Iterator<Item = DataInstance>,
-    {
+    pub fn alloc_data(
+        &mut self,
+        datas: impl Iterator<Item = DataInstance>,
+    ) -> Range<addr::DataAddr> {
         let base_addr = self.datas.len() as u32;
         self.datas.extend(datas);
         let count = self.datas.len() as u32 - base_addr;

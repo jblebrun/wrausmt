@@ -62,7 +62,7 @@ fn sign_extend(result: &mut Vec<u8>, size: usize, signed: bool) {
     }
 }
 
-fn read_leb_128_bytes<R: Read + ?Sized>(r: &mut R, size: usize, signed: bool) -> Result<Vec<u8>> {
+fn read_leb_128_bytes(r: &mut impl Read, size: usize, signed: bool) -> Result<Vec<u8>> {
     let bytecount: usize = (size as f32 / 7.).ceil() as usize;
     let mut result = Vec::<u8>::with_capacity(bytecount);
 

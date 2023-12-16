@@ -13,7 +13,7 @@ pub mod parse;
 pub mod resolve;
 pub mod string;
 
-pub fn parse_wast_data<R: Read>(reader: R) -> Result<Module<Resolved>> {
+pub fn parse_wast_data(reader: &mut impl Read) -> Result<Module<Resolved>> {
     let tokenizer = Tokenizer::new(reader)?;
     let mut parser = Parser::new(tokenizer)?;
     parser.parse_full_module()

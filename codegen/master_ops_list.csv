@@ -87,7 +87,7 @@
 | _ec.push(Ref::Null(rt))
 
 0xD1      ,ref.is_null                   ,()
-| _ec.testop::<Ref, _>(|i| i.is_null())
+| _ec.testop::<Ref>(|i| i.is_null())
 
 0xD2      ,ref.func                      ,(FuncIndex)
 | let fi = _ec.op_u32()?;
@@ -271,131 +271,131 @@
 | _ec.push_value(d.into())
 
 0x45      ,i32.eqz                       ,()
-| _ec.testop::<u32, _>(|i| i == 0)
+| _ec.testop::<u32>(|i| i == 0)
 
 0x46      ,i32.eq                        ,()
-| _ec.relop::<u32, _>(|l, r| l == r)
+| _ec.relop::<u32>(|l, r| l == r)
 
 0x47      ,i32.ne                        ,()
-| _ec.relop::<u32, _>(|l, r| l != r)
+| _ec.relop::<u32>(|l, r| l != r)
 
 0x48      ,i32.lt_s                      ,()
-| _ec.relop::<i32, _>(|l, r| l < r)
+| _ec.relop::<i32>(|l, r| l < r)
 
 0x49      ,i32.lt_u                      ,()
-| _ec.relop::<u32, _>(|l, r| l < r)
+| _ec.relop::<u32>(|l, r| l < r)
 
 0x4a      ,i32.gt_s                      ,()
-| _ec.relop::<i32, _>(|l, r| l > r)
+| _ec.relop::<i32>(|l, r| l > r)
 
 0x4b      ,i32.gt_u                      ,()
-| _ec.relop::<u32, _>(|l, r| l > r)
+| _ec.relop::<u32>(|l, r| l > r)
 
 0x4c      ,i32.le_s                      ,()
-| _ec.relop::<i32, _>(|l, r| l <= r)
+| _ec.relop::<i32>(|l, r| l <= r)
 
 0x4d      ,i32.le_u                      ,()
-| _ec.relop::<u32, _>(|l, r| l <= r)
+| _ec.relop::<u32>(|l, r| l <= r)
 
 0x4e      ,i32.ge_s                      ,()
-| _ec.relop::<i32, _>(|l, r| l >= r)
+| _ec.relop::<i32>(|l, r| l >= r)
 
 0x4f      ,i32.ge_u                      ,()
-| _ec.relop::<u32, _>(|l, r| l >= r)
+| _ec.relop::<u32>(|l, r| l >= r)
 
 0x50      ,i64.eqz                       ,()
-| _ec.testop::<u64, _>(|i| i == 0)
+| _ec.testop::<u64>(|i| i == 0)
 
 0x51      ,i64.eq                        ,()
-| _ec.relop::<u64, _>(|l, r| l == r)
+| _ec.relop::<u64>(|l, r| l == r)
 
 0x52      ,i64.ne                        ,()
-| _ec.relop::<u64, _>(|l, r| l != r)
+| _ec.relop::<u64>(|l, r| l != r)
 
 0x53      ,i64.lt_s                      ,()
-| _ec.relop::<i64, _>(|l, r| l < r)
+| _ec.relop::<i64>(|l, r| l < r)
 
 0x54      ,i64.lt_u                      ,()
-| _ec.relop::<u64, _>(|l, r| l < r)
+| _ec.relop::<u64>(|l, r| l < r)
 
 0x55      ,i64.gt_s                      ,()
-| _ec.relop::<i64, _>(|l, r| l > r)
+| _ec.relop::<i64>(|l, r| l > r)
 
 0x56      ,i64.gt_u                      ,()
-| _ec.relop::<u64, _>(|l, r| l > r)
+| _ec.relop::<u64>(|l, r| l > r)
 
 0x57      ,i64.le_s                      ,()
-| _ec.relop::<i64, _>(|l, r| l <= r)
+| _ec.relop::<i64>(|l, r| l <= r)
 
 0x58      ,i64.le_u                      ,()
-| _ec.relop::<u64, _>(|l, r| l <= r)
+| _ec.relop::<u64>(|l, r| l <= r)
 
 0x59      ,i64.ge_s                      ,()
-| _ec.relop::<i64, _>(|l, r| l >= r)
+| _ec.relop::<i64>(|l, r| l >= r)
 
 0x5a      ,i64.ge_u                      ,()
-| _ec.relop::<u64, _>(|l, r| l >= r)
+| _ec.relop::<u64>(|l, r| l >= r)
 
 0x5b      ,f32.eq                        ,()
 | #[allow(clippy::float_cmp)]
-| _ec.relop::<f32, _>(|l, r| l == r)
+| _ec.relop::<f32>(|l, r| l == r)
 
 0x5c      ,f32.ne                        ,()
 | #[allow(clippy::float_cmp)]
-| _ec.relop::<f32, _>(|l, r| l != r)
+| _ec.relop::<f32>(|l, r| l != r)
 
 0x5d      ,f32.lt                        ,()
-| _ec.relop::<f32, _>(|l, r| l < r)
+| _ec.relop::<f32>(|l, r| l < r)
 
 0x5e      ,f32.gt                        ,()
-| _ec.relop::<f32, _>(|l, r| l > r)
+| _ec.relop::<f32>(|l, r| l > r)
 
 0x5f      ,f32.le                        ,()
-| _ec.relop::<f32, _>(|l, r| l <= r)
+| _ec.relop::<f32>(|l, r| l <= r)
 
 0x60      ,f32.ge                        ,()
-| _ec.relop::<f32, _>(|l, r| l >= r)
+| _ec.relop::<f32>(|l, r| l >= r)
 
 0x61      ,f64.eq                        ,()
 | #[allow(clippy::float_cmp)]
-| _ec.relop::<f64, _>(|l, r| l == r)
+| _ec.relop::<f64>(|l, r| l == r)
 
 0x62      ,f64.ne                        ,()
 | #[allow(clippy::float_cmp)]
-| _ec.relop::<f64, _>(|l, r| l != r)
+| _ec.relop::<f64>(|l, r| l != r)
 
 0x63      ,f64.lt                        ,()
-| _ec.relop::<f64, _>(|l, r| l < r)
+| _ec.relop::<f64>(|l, r| l < r)
 
 0x64      ,f64.gt                        ,()
-| _ec.relop::<f64, _>(|l, r| l > r)
+| _ec.relop::<f64>(|l, r| l > r)
 
 0x65      ,f64.le                        ,()
-| _ec.relop::<f64, _>(|l, r| l <= r)
+| _ec.relop::<f64>(|l, r| l <= r)
 
 0x66      ,f64.ge                         ,()
-| _ec.relop::<f64, _>(|l, r| l >= r)
+| _ec.relop::<f64>(|l, r| l >= r)
 
 0x67      ,i32.clz                       ,()
-| _ec.unop::<u32, _>(|o| o.leading_zeros())
+| _ec.unop::<u32>(|o| o.leading_zeros())
 
 0x68      ,i32.ctz                       ,()
-| _ec.unop::<u32, _>(|o| o.trailing_zeros())
+| _ec.unop::<u32>(|o| o.trailing_zeros())
 
 0x69      ,i32.popcnt                    ,()
-| _ec.unop::<u32, _>(|o| o.count_ones())
+| _ec.unop::<u32>(|o| o.count_ones())
 
 0x6a      ,i32.add                       ,()
-| _ec.binop::<u32, _>(|l, r| l.wrapping_add(r))
+| _ec.binop::<u32>(|l, r| l.wrapping_add(r))
 
 0x6b      ,i32.sub                       ,()
-| _ec.binop::<u32, _>(|l, r| l.wrapping_sub(r))
+| _ec.binop::<u32>(|l, r| l.wrapping_sub(r))
 
 0x6c      ,i32.mul                       ,()
-| _ec.binop::<u32, _>(|l, r| l.wrapping_mul(r))
+| _ec.binop::<u32>(|l, r| l.wrapping_mul(r))
 
 0x6d      ,i32.div_s                     ,()
-| _ec.binop_trap::<i32, _>(|l, r| {
+| _ec.binop_trap::<i32>(|l, r| {
 |     if r == 0 {
 |         return Err(TrapKind::IntegerDivideByZero);
 |     }
@@ -406,7 +406,7 @@
 | })
 
 0x6e      ,i32.div_u                     ,()
-| _ec.binop_trap::<u32, _>(|l, r| {
+| _ec.binop_trap::<u32>(|l, r| {
 |     if r == 0 {
 |         return Err(TrapKind::IntegerDivideByZero);
 |     }
@@ -414,7 +414,7 @@
 | })
 
 0x6f      ,i32.rem_s                     ,()
-| _ec.binop_trap::<i32, _>(|l, r| {
+| _ec.binop_trap::<i32>(|l, r| {
 |     if r == 0 {
 |         return Err(TrapKind::IntegerDivideByZero); 
 |     }
@@ -422,7 +422,7 @@
 | })
 
 0x70      ,i32.rem_u                     ,()
-| _ec.binop_trap::<u32, _>(|l, r| {
+| _ec.binop_trap::<u32>(|l, r| {
 |     if r == 0 {
 |         return Err(TrapKind::IntegerDivideByZero); 
 |     }
@@ -430,49 +430,49 @@
 | })
 
 0x71      ,i32.and                       ,()
-| _ec.binop::<u32, _>(|l, r| l & r)
+| _ec.binop::<u32>(|l, r| l & r)
 
 0x72      ,i32.or                        ,()
-| _ec.binop::<u32, _>(|l, r| l | r)
+| _ec.binop::<u32>(|l, r| l | r)
 
 0x73      ,i32.xor                       ,()
-| _ec.binop::<u32, _>(|l, r| l ^ r)
+| _ec.binop::<u32>(|l, r| l ^ r)
 
 0x74      ,i32.shl                       ,()
-| _ec.binop::<u32, _>(|l, r| l.wrapping_shl(r))
+| _ec.binop::<u32>(|l, r| l.wrapping_shl(r))
 
 0x75      ,i32.shr_s                     ,()
-| _ec.binop::<i32, _>(|l, r| l.wrapping_shr(r as u32))
+| _ec.binop::<i32>(|l, r| l.wrapping_shr(r as u32))
 
 0x76      ,i32.shr_u                     ,()
-| _ec.binop::<u32, _>(|l, r| l.wrapping_shr(r))
+| _ec.binop::<u32>(|l, r| l.wrapping_shr(r))
 
 0x77      ,i32.rotl                      ,()
-| _ec.binop::<u32, _>(|l, r| l.rotate_left(r))
+| _ec.binop::<u32>(|l, r| l.rotate_left(r))
 
 0x78      ,i32.rotr                      ,()
-| _ec.binop::<u32, _>(|l, r| l.rotate_right(r))
+| _ec.binop::<u32>(|l, r| l.rotate_right(r))
 
 0x79      ,i64.clz                       ,()
-| _ec.unop::<u64, _>(|o| o.leading_zeros() as u64)
+| _ec.unop::<u64>(|o| o.leading_zeros() as u64)
 
 0x7a      ,i64.ctz                       ,()
-| _ec.unop::<u64, _>(|o| o.trailing_zeros() as u64)
+| _ec.unop::<u64>(|o| o.trailing_zeros() as u64)
 
 0x7b      ,i64.popcnt                    ,()
-| _ec.unop::<u64, _>(|o| o.count_ones() as u64)
+| _ec.unop::<u64>(|o| o.count_ones() as u64)
 
 0x7c      ,i64.add                       ,()
-| _ec.binop::<u64, _>(|l, r| l.wrapping_add(r))
+| _ec.binop::<u64>(|l, r| l.wrapping_add(r))
 
 0x7d      ,i64.sub                       ,()
-| _ec.binop::<u64, _>(|l, r| l.wrapping_sub(r))
+| _ec.binop::<u64>(|l, r| l.wrapping_sub(r))
 
 0x7e      ,i64.mul                       ,()
-| _ec.binop::<u64, _>(|l, r| l.wrapping_mul(r))
+| _ec.binop::<u64>(|l, r| l.wrapping_mul(r))
 
 0x7f      ,i64.div_s                      ,()
-| _ec.binop_trap::<i64, _>(|l, r| {
+| _ec.binop_trap::<i64>(|l, r| {
 |     if r == 0 {
 |         return Err(TrapKind::IntegerDivideByZero);
 |     }
@@ -483,7 +483,7 @@
 | })
 
 0x80      ,i64.div_u                      ,()
-| _ec.binop_trap::<u64, _>(|l, r| {
+| _ec.binop_trap::<u64>(|l, r| {
 |     if r == 0 {
 |         return Err(TrapKind::IntegerDivideByZero); 
 |     }
@@ -491,7 +491,7 @@
 | })
 
 0x81      ,i64.rem_s                      ,()
-| _ec.binop_trap::<i64, _>(|l, r| {
+| _ec.binop_trap::<i64>(|l, r| {
 |     if r == 0 {
 |         return Err(TrapKind::IntegerDivideByZero); 
 |     }
@@ -499,7 +499,7 @@
 | })
 
 0x82      ,i64.rem_u                      ,()
-| _ec.binop_trap::<u64, _>(|l, r| {
+| _ec.binop_trap::<u64>(|l, r| {
 |     if r == 0 {
 |         return Err(TrapKind::IntegerDivideByZero); 
 |     }
@@ -507,46 +507,46 @@
 | })
 
 0x83      ,i64.and                       ,()
-| _ec.binop::<u64, _>(|l, r| l & r)
+| _ec.binop::<u64>(|l, r| l & r)
 
 0x84      ,i64.or                        ,()
-| _ec.binop::<u64, _>(|l, r| l | r)
+| _ec.binop::<u64>(|l, r| l | r)
 
 0x85      ,i64.xor                       ,()
-| _ec.binop::<u64, _>(|l, r| l ^ r)
+| _ec.binop::<u64>(|l, r| l ^ r)
 
 0x86      ,i64.shl                       ,()
-| _ec.binop::<u64, _>(|l, r| l.wrapping_shl(r as u32))
+| _ec.binop::<u64>(|l, r| l.wrapping_shl(r as u32))
 
 0x87      ,i64.shr_s                      ,()
-| _ec.binop::<i64, _>(|l, r| l.wrapping_shr(r as u32))
+| _ec.binop::<i64>(|l, r| l.wrapping_shr(r as u32))
 
 0x88      ,i64.shr_u                      ,()
-| _ec.binop::<u64, _>(|l, r| l.wrapping_shr(r as u32))
+| _ec.binop::<u64>(|l, r| l.wrapping_shr(r as u32))
 
 0x89      ,i64.rotl                      ,()
-| _ec.binop::<u64, _>(|l, r| l.rotate_left(r as u32))
+| _ec.binop::<u64>(|l, r| l.rotate_left(r as u32))
 
 0x8a      ,i64.rotr                      ,()
-| _ec.binop::<u64, _>(|l, r| l.rotate_right(r as u32))
+| _ec.binop::<u64>(|l, r| l.rotate_right(r as u32))
 
 0x8b      ,f32.abs                       ,()
-| _ec.unop::<f32, _>(|i| i.abs())
+| _ec.unop::<f32>(|i| i.abs())
 
 0x8c      ,f32.neg                       ,()
-| _ec.unop::<f32, _>(|i| -i)
+| _ec.unop::<f32>(|i| -i)
 
 0x8d      ,f32.ceil                      ,()
-| _ec.unop::<f32, _>(|i| i.ceil())
+| _ec.unop::<f32>(|i| i.ceil())
 
 0x8e      ,f32.floor                     ,()
-| _ec.unop::<f32, _>(|i| i.floor())
+| _ec.unop::<f32>(|i| i.floor())
 
 0x8f      ,f32.trunc                     ,()
-| _ec.unop::<f32, _>(|i| i.trunc())
+| _ec.unop::<f32>(|i| i.trunc())
 
 0x90      ,f32.nearest                   ,()
-| _ec.unop::<f32, _>(|i| {
+| _ec.unop::<f32>(|i| {
 |     // Round-to-nearest, ties to even
 |     let tr = i.trunc();
 |     if tr.to_bits() == i.to_bits() {
@@ -556,22 +556,22 @@
 | })
 
 0x91      ,f32.sqrt                      ,()
-| _ec.unop::<f32, _>(|i| i.sqrt())
+| _ec.unop::<f32>(|i| i.sqrt())
 
 0x92      ,f32.add                       ,()
-| _ec.binop::<f32, _>(|l, r| l + r)
+| _ec.binop::<f32>(|l, r| l + r)
 
 0x93      ,f32.sub                       ,()
-| _ec.binop::<f32, _>(|l, r| l - r)
+| _ec.binop::<f32>(|l, r| l - r)
 
 0x94      ,f32.mul                       ,()
-| _ec.binop::<f32, _>(|l, r| l * r)
+| _ec.binop::<f32>(|l, r| l * r)
 
 0x95      ,f32.div                       ,()
-| _ec.binop::<f32, _>(|l, r| l / r)
+| _ec.binop::<f32>(|l, r| l / r)
 
 0x96      ,f32.min                       ,()
-| _ec.binop::<f32, _>(|l, r| {
+| _ec.binop::<f32>(|l, r| {
 |     if l.is_nan() {
 |         return l;
 |     }
@@ -597,7 +597,7 @@
 | })
 
 0x97      ,f32.max                       ,()
-| _ec.binop::<f32, _>(|l, r| {
+| _ec.binop::<f32>(|l, r| {
 |     if l.is_nan() {
 |         return l;
 |     }
@@ -623,25 +623,25 @@
 | })
 
 0x98      ,f32.copysign                  ,()
-| _ec.binop::<f32, _>(|l, r| l.copysign(r))
+| _ec.binop::<f32>(|l, r| l.copysign(r))
 
 0x99      ,f64.abs                       ,()
-| _ec.unop::<f64, _>(|i| i.abs())
+| _ec.unop::<f64>(|i| i.abs())
 
 0x9a      ,f64.neg                       ,()
-| _ec.unop::<f64, _>(|i| -i)
+| _ec.unop::<f64>(|i| -i)
 
 0x9b      ,f64.ceil                      ,()
-| _ec.unop::<f64, _>(|i| i.ceil())
+| _ec.unop::<f64>(|i| i.ceil())
 
 0x9c      ,f64.floor                     ,()
-| _ec.unop::<f64, _>(|i| i.floor())
+| _ec.unop::<f64>(|i| i.floor())
 
 0x9d      ,f64.trunc                     ,()
-| _ec.unop::<f64, _>(|i| i.trunc())
+| _ec.unop::<f64>(|i| i.trunc())
 
 0x9e      ,f64.nearest                   ,()
-| _ec.unop::<f64, _>(|i| {
+| _ec.unop::<f64>(|i| {
 |     // Round-to-nearest, ties to even
 |     let tr = i.trunc();
 |     if tr.to_bits() == i.to_bits() {
@@ -651,22 +651,22 @@
 | })
 
 0x9f      ,f64.sqrt                      ,()
-| _ec.unop::<f64, _>(|i| i.sqrt())
+| _ec.unop::<f64>(|i| i.sqrt())
 
 0xa0      ,f64.add                       ,()
-| _ec.binop::<f64, _>(|l, r| l + r)
+| _ec.binop::<f64>(|l, r| l + r)
 
 0xa1      ,f64.sub                       ,()
-| _ec.binop::<f64, _>(|l, r| l - r)
+| _ec.binop::<f64>(|l, r| l - r)
 
 0xa2      ,f64.mul                       ,()
-| _ec.binop::<f64, _>(|l, r| l * r)
+| _ec.binop::<f64>(|l, r| l * r)
 
 0xa3      ,f64.div                       ,()
-| _ec.binop::<f64, _>(|l, r| l / r)
+| _ec.binop::<f64>(|l, r| l / r)
 
 0xa4      ,f64.min                       ,()
-| _ec.binop::<f64, _>(|l, r| {
+| _ec.binop::<f64>(|l, r| {
 |     if l.is_nan() {
 |         return l;
 |     }
@@ -692,7 +692,7 @@
 | })
 
 0xa5      ,f64.max                       ,()
-| _ec.binop::<f64, _>(|l, r| {
+| _ec.binop::<f64>(|l, r| {
 |     if l.is_nan() {
 |         return l;
 |     }
@@ -718,13 +718,13 @@
 | })
 
 0xa6      ,f64.copysign                  ,()
-| _ec.binop::<f64, _>(|l, r| l.copysign(r))
+| _ec.binop::<f64>(|l, r| l.copysign(r))
 
 0xa7      ,i32.wrap_i64                  ,()
-| _ec.convop::<u64, u32, _>(|o| o as u32)
+| _ec.convop::<u64, u32>(|o| o as u32)
 
 0xa8      ,i32.trunc_f32_s               ,()
-| _ec.convop_trap::<f32, i32, _>(|o| {
+| _ec.convop_trap::<f32, i32>(|o| {
 |     if o.is_nan() {
 |         return Err(TrapKind::InvalidConversionToInteger);
 |     }
@@ -735,7 +735,7 @@
 | })
 
 0xa9      ,i32.trunc_f32_u               ,()
-| _ec.convop_trap::<f32, u32, _>(|o| {
+| _ec.convop_trap::<f32, u32>(|o| {
 |     if o.is_nan() {
 |         return Err(TrapKind::InvalidConversionToInteger);
 |     }
@@ -746,7 +746,7 @@
 | })
 
 0xaa      ,i32.trunc_f64_s               ,()
-| _ec.convop_trap::<f64, i32, _>(|o| {
+| _ec.convop_trap::<f64, i32>(|o| {
 |     if o.is_nan() {
 |         return Err(TrapKind::InvalidConversionToInteger);
 |     }
@@ -757,7 +757,7 @@
 | })
 
 0xab      ,i32.trunc_f64_u               ,()
-| _ec.convop_trap::<f64, u32, _>(|o| {
+| _ec.convop_trap::<f64, u32>(|o| {
 |     if o.is_nan() {
 |         return Err(TrapKind::InvalidConversionToInteger);
 |     }
@@ -768,13 +768,13 @@
 | })
 
 0xac      ,i64.extend_i32_s              ,()
-| _ec.convop::<i32, i64, _>(|o| o as i64)
+| _ec.convop::<i32, i64>(|o| o as i64)
 
 0xad      ,i64.extend_i32_u              ,()
-| _ec.convop::<u32, u64, _>(|o| o as u64)
+| _ec.convop::<u32, u64>(|o| o as u64)
 
 0xae      ,i64.trunc_f32_s               ,()
-| _ec.convop_trap::<f32, i64, _>(|o| {
+| _ec.convop_trap::<f32, i64>(|o| {
 |     if o.is_nan() {
 |         return Err(TrapKind::InvalidConversionToInteger);
 |     }
@@ -785,7 +785,7 @@
 | })
 
 0xaf      ,i64.trunc_f32_u               ,()
-| _ec.convop_trap::<f32, u64, _>(|o| {
+| _ec.convop_trap::<f32, u64>(|o| {
 |     if o.is_nan() {
 |         return Err(TrapKind::InvalidConversionToInteger);
 |     }
@@ -796,7 +796,7 @@
 | })
 
 0xb0      ,i64.trunc_f64_s               ,()
-| _ec.convop_trap::<f64, i64, _>(|o| {
+| _ec.convop_trap::<f64, i64>(|o| {
 |     if o.is_nan() {
 |         return Err(TrapKind::InvalidConversionToInteger);
 |     }
@@ -807,7 +807,7 @@
 | })
 
 0xb1      ,i64.trunc_f64_u               ,()
-| _ec.convop_trap::<f64, u64, _>(|o| {
+| _ec.convop_trap::<f64, u64>(|o| {
 |     if o.is_nan() {
 |         return Err(TrapKind::InvalidConversionToInteger);
 |     }
@@ -818,61 +818,61 @@
 | })
 
 0xb2      ,f32.convert_i32_s             ,()
-| _ec.convop::<i32, f32, _>(|o| o as f32)
+| _ec.convop::<i32, f32>(|o| o as f32)
 
 0xb3      ,f32.convert_i32_u             ,()
-| _ec.convop::<u32, f32, _>(|o| o as f32)
+| _ec.convop::<u32, f32>(|o| o as f32)
 
 0xb4      ,f32.convert_i64_s             ,()
-| _ec.convop::<i64, f32, _>(|o| o as f32)
+| _ec.convop::<i64, f32>(|o| o as f32)
 
 0xb5      ,f32.convert_i64_u             ,()
-| _ec.convop::<u64, f32, _>(|o| o as f32)
+| _ec.convop::<u64, f32>(|o| o as f32)
 
 0xb6      ,f32.demote_f64                ,()
-| _ec.convop::<f64, f32, _>(|o| o as f32)
+| _ec.convop::<f64, f32>(|o| o as f32)
 
 0xb7      ,f64.convert_i32_s             ,()
-| _ec.convop::<i32, f64, _>(|o| o as f64)
+| _ec.convop::<i32, f64>(|o| o as f64)
 
 0xb8      ,f64.convert_i32_u             ,()
-| _ec.convop::<u32, f64, _>(|o| o as f64)
+| _ec.convop::<u32, f64>(|o| o as f64)
 
 0xb9      ,f64.convert_i64_s             ,()
-| _ec.convop::<i64, f64, _>(|o| o as f64)
+| _ec.convop::<i64, f64>(|o| o as f64)
 
 0xba      ,f64.convert_i64_u             ,()
-| _ec.convop::<u64, f64, _>(|o| o as f64)
+| _ec.convop::<u64, f64>(|o| o as f64)
 
 0xbb      ,f64.promote_f32               ,()
-| _ec.convop::<f32, f64, _>(|o| o as f64)
+| _ec.convop::<f32, f64>(|o| o as f64)
 
 0xbc      ,i32.reinterpret_f32           ,()
-| _ec.convop::<f32, u32, _>(|o| o.to_bits())
+| _ec.convop::<f32, u32>(|o| o.to_bits())
 
 0xbd      ,i64.reinterpret_f64           ,()
-| _ec.convop::<f64, u64, _>(|o| o.to_bits())
+| _ec.convop::<f64, u64>(|o| o.to_bits())
 
 0xbe      ,f32.reinterpret_i32           ,()
-| _ec.convop::<u32, f32, _>(f32::from_bits)
+| _ec.convop::<u32, f32>(f32::from_bits)
 
 0xbf      ,f64.reinterpret_i64           ,()
-| _ec.convop::<u64, f64, _>(f64::from_bits)
+| _ec.convop::<u64, f64>(f64::from_bits)
 
 0xc0      ,i32.extend8_s                 ,()
-| _ec.unop::<u32, _>(|o| (o as u8 as i8 as u32))
+| _ec.unop::<u32>(|o| (o as u8 as i8 as u32))
 
 0xc1      ,i32.extend16_s                ,()
-| _ec.unop::<u32, _>(|o| (o as u16 as i16 as u32))
+| _ec.unop::<u32>(|o| (o as u16 as i16 as u32))
 
 0xc2      ,i64.extend8_s                 ,()
-| _ec.unop::<u64, _>(|o| (o as u8 as i8 as u64))
+| _ec.unop::<u64>(|o| (o as u8 as i8 as u64))
 
 0xc3      ,i64.extend16_s                ,()
-| _ec.unop::<u64, _>(|o| (o as u16 as i16 as u64))
+| _ec.unop::<u64>(|o| (o as u16 as i16 as u64))
 
 0xc4      ,i64.extend32_s                ,()
-| _ec.unop::<u64, _>(|o| (o as u32 as i32 as u64))
+| _ec.unop::<u64>(|o| (o as u32 as i32 as u64))
 
 0xfc      ,extended                      ,()
 
