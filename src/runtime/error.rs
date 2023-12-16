@@ -44,14 +44,15 @@ pub enum RuntimeErrorKind {
     Trap(TrapKind),
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub enum TrapKind {
     IntegerDivideByZero,
     IntegerOverflow,
-    OutOfBoundsMemoryAccess,
-    OutOfBoundsTableAccess,
-    Unreachable,
     UninitializedElement,
+    OutOfBoundsMemoryAccess(usize, usize),
+    OutOfBoundsTableAccess(usize, usize),
+    Unreachable,
+    UndefinedElement,
     CallIndirectTypeMismatch,
     InvalidConversionToInteger,
 }

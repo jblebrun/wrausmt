@@ -76,20 +76,26 @@ pub struct SpecTestRunner {
     logger: PrintLogger,
 }
 
-impl From<&str> for TrapKind {
-    fn from(msg: &str) -> Self {
-        match msg {
-            "invalid conversion to integer" => TrapKind::InvalidConversionToInteger,
-            "out of bounds memory access" => TrapKind::OutOfBoundsMemoryAccess,
-            "out of bounds table access" => TrapKind::OutOfBoundsTableAccess,
-            "indirect call type mismatch" => TrapKind::CallIndirectTypeMismatch,
-            "integer divide by zero" => TrapKind::IntegerDivideByZero,
-            "integer overflow" => TrapKind::IntegerOverflow,
-            "unreachable" => TrapKind::Unreachable,
-            "undefined element" => TrapKind::OutOfBoundsTableAccess,
-            "uninitialized element" => TrapKind::UninitializedElement,
-            "uninitialized element 2" => TrapKind::UninitializedElement,
-            _ => panic!("don't know how to convert {}", msg),
+trait TrapMatch {
+    fn matches_trap(&self, trap: &TrapKind) -> bool;
+}
+
+impl TrapMatch for str {
+    fn matches_trap(&self, trap: &TrapKind) -> bool {
+        match self {
+            "invalid conversion to integer" => matches!(trap, TrapKind::InvalidConversionToInteger),
+            "out of bounds memory access" => {
+                matches!(trap, TrapKind::OutOfBoundsMemoryAccess(..))
+            }
+            "out of bounds table access" => matches!(trap, TrapKind::OutOfBoundsTableAccess(..)),
+            "indirect call type mismatch" => matches!(trap, TrapKind::CallIndirectTypeMismatch),
+            "integer divide by zero" => matches!(trap, TrapKind::IntegerDivideByZero),
+            "integer overflow" => matches!(trap, TrapKind::IntegerOverflow),
+            "unreachable" => matches!(trap, TrapKind::Unreachable),
+            "undefined element" => matches!(trap, TrapKind::OutOfBoundsTableAccess(..)),
+            "uninitialized element" => matches!(trap, TrapKind::UninitializedElement),
+            "uninitialized element 2" => matches!(trap, TrapKind::UninitializedElement),
+            _ => false,
         }
     }
 }
@@ -202,12 +208,11 @@ impl SpecTestRunner {
     }
 
     fn verify_trap_result<T>(result: Result<T>, failure: String) -> Result<()> {
-        let expected_trap: TrapKind = failure.as_str().into();
         match result {
             Err(e) => {
                 let trap_error = e.as_trap_error();
                 match trap_error {
-                    Some(tk) if tk == &expected_trap => Ok(()),
+                    Some(tk) if failure.matches_trap(tk) => Ok(()),
                     _ => Err(SpecTestError::TrapMismatch {
                         result: Some(Box::new(e)),
                         expect: failure,

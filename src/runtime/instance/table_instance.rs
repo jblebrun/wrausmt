@@ -46,7 +46,7 @@ impl TableInstance {
     pub fn fill(&mut self, n: usize, val: Ref, i: usize) -> Result<()> {
         self.elem
             .get_mut(i..i + n)
-            .ok_or(TrapKind::OutOfBoundsTableAccess)?
+            .ok_or(TrapKind::OutOfBoundsTableAccess(i, n))?
             .fill(val);
         Ok(())
     }

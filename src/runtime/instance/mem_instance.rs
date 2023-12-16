@@ -80,7 +80,11 @@ impl MemInstance {
         self.logger
             .log(Tag::Mem, || format!("READ {} IN {}", i, self.data.len()));
         if (i + n as u64) > self.data.len() as u64 {
-            return Err(TrapKind::OutOfBoundsMemoryAccess.into());
+            return Err(TrapKind::OutOfBoundsMemoryAccess(
+                (i + n as u64) as usize,
+                self.data.len(),
+            )
+            .into());
         }
         let i = i as usize;
         Ok(i..i + n)
