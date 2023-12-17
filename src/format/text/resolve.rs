@@ -2,14 +2,15 @@
 use super::module_builder::ModuleIdentifiers;
 use crate::syntax::{
     DataField, DataIndex, DataInit, ElemField, ElemIndex, ElemList, ExportDesc, ExportField, Expr,
-    FParam, FuncField, FuncIndex, FunctionType, GlobalField, GlobalIndex, ImportDesc, ImportField,
-    Index, Instruction, LabelIndex, LocalIndex, MemoryIndex, ModeEntry, Module, Operands, Resolved,
-    StartField, TableIndex, TablePosition, TableUse, TypeField, TypeIndex, TypeUse, Unresolved,
+    FParam, FuncField, FuncIndex, FunctionType, GlobalField, GlobalIndex, Id, ImportDesc,
+    ImportField, Index, Instruction, LabelIndex, LocalIndex, MemoryIndex, ModeEntry, Module,
+    Operands, Resolved, StartField, TableIndex, TablePosition, TableUse, TypeField, TypeIndex,
+    TypeUse, Unresolved,
 };
 
 #[derive(Debug)]
 pub enum ResolveError {
-    UnresolvedIndex(String),
+    UnresolvedIndex(Id),
     UnresolvedType(Index<Resolved, TypeIndex>),
 }
 
@@ -18,47 +19,47 @@ pub type Result<T> = std::result::Result<T, ResolveError>;
 #[derive(Debug)]
 pub struct ResolutionContext {
     pub modulescope: ModuleIdentifiers,
-    pub localindices: Vec<String>,
-    pub labelindices: Vec<String>,
+    pub localindices: Vec<Id>,
+    pub labelindices: Vec<Id>,
 }
 
 impl ResolutionContext {
-    pub fn typeindex(&self, name: &str) -> Option<u32> {
+    pub fn typeindex(&self, name: &Id) -> Option<u32> {
         self.modulescope.typeindices.get(name).copied()
     }
 
-    pub fn funcindex(&self, name: &str) -> Option<u32> {
+    pub fn funcindex(&self, name: &Id) -> Option<u32> {
         self.modulescope.funcindices.get(name).copied()
     }
 
-    pub fn tableindex(&self, name: &str) -> Option<u32> {
+    pub fn tableindex(&self, name: &Id) -> Option<u32> {
         self.modulescope.tableindices.get(name).copied()
     }
 
-    pub fn memindex(&self, name: &str) -> Option<u32> {
+    pub fn memindex(&self, name: &Id) -> Option<u32> {
         self.modulescope.memindices.get(name).copied()
     }
 
-    pub fn globalindex(&self, name: &str) -> Option<u32> {
+    pub fn globalindex(&self, name: &Id) -> Option<u32> {
         self.modulescope.globalindices.get(name).copied()
     }
 
-    pub fn dataindex(&self, name: &str) -> Option<u32> {
+    pub fn dataindex(&self, name: &Id) -> Option<u32> {
         self.modulescope.dataindices.get(name).copied()
     }
 
-    pub fn elemindex(&self, name: &str) -> Option<u32> {
+    pub fn elemindex(&self, name: &Id) -> Option<u32> {
         self.modulescope.elemindices.get(name).copied()
     }
 
-    pub fn localindex(&self, name: &str) -> Option<u32> {
+    pub fn localindex(&self, name: &Id) -> Option<u32> {
         self.localindices
             .iter()
             .position(|i| i == name)
             .map(|s| s as u32)
     }
 
-    pub fn labelindex(&self, name: &str) -> Option<u32> {
+    pub fn labelindex(&self, name: &Id) -> Option<u32> {
         self.labelindices
             .iter()
             .rev()
@@ -74,7 +75,7 @@ impl ResolutionContext {
         }
     }
 
-    pub fn for_func(&self, li: Vec<String>) -> Self {
+    pub fn for_func(&self, li: Vec<Id>) -> Self {
         Self {
             modulescope: self.modulescope.clone(),
             localindices: li,
@@ -82,7 +83,7 @@ impl ResolutionContext {
         }
     }
 
-    pub fn with_label(&self, id: String) -> ResolutionContext {
+    pub fn with_label(&self, id: Id) -> ResolutionContext {
         let mut li = self.labelindices.clone();
         li.push(id);
         ResolutionContext {
@@ -97,9 +98,9 @@ trait OrEmpty<T> {
     fn or_empty(&self) -> T;
 }
 
-impl OrEmpty<String> for Option<String> {
-    fn or_empty(&self) -> String {
-        self.clone().unwrap_or_else(|| "".to_owned())
+impl OrEmpty<Id> for Option<Id> {
+    fn or_empty(&self) -> Id {
+        self.clone().unwrap_or_default()
     }
 }
 
@@ -135,7 +136,7 @@ macro_rules! index_resolver {
                 $ic: &ResolutionContext,
                 _: &mut Vec<TypeField>,
             ) -> Result<Index<Resolved, $it>> {
-                let value = if self.name().is_empty() {
+                let value = if self.name().data().is_empty() {
                     self.value()
                 } else {
                     // TODO - how to handle the different index types?

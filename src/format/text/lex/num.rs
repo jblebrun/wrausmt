@@ -1,5 +1,8 @@
 use super::Token;
-use crate::format::text::token::{Base, NumToken, Sign};
+use crate::{
+    format::text::token::{Base, NumToken, Sign},
+    syntax::Id,
+};
 
 fn is_digit(ch: char, hex: bool) -> bool {
     if matches!(ch, '0'..='9' | '_') {
@@ -59,8 +62,8 @@ impl<'a> StrCursor<'a> {
 
 /// Attempt to interpret the `idchars` as a number. If the conversion is successful, a [Token] is
 /// returned, otherwise, [None] is returned.
-pub fn maybe_number(idchars: &str) -> Option<Token> {
-    let mut cursor = StrCursor::new(idchars);
+pub fn maybe_number(idchars: &Id) -> Option<Token> {
+    let mut cursor = StrCursor::new(idchars.as_str());
 
     let sign: Sign = cursor.cur().unwrap().into();
 

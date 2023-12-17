@@ -14,6 +14,7 @@ use crate::{
         Runtime,
     },
     spec::format::{Assertion, Cmd, Module},
+    syntax::Id,
     types::RefType,
 };
 use std::{collections::HashMap, io::Cursor, rc::Rc};
@@ -72,7 +73,7 @@ impl RunSet {
 pub struct SpecTestRunner {
     runtime: Runtime,
     latest_module: Option<Rc<ModuleInstance>>,
-    named_modules: HashMap<String, Rc<ModuleInstance>>,
+    named_modules: HashMap<Id, Rc<ModuleInstance>>,
     logger: PrintLogger,
 }
 
@@ -122,7 +123,7 @@ impl SpecTestRunner {
         }
     }
 
-    fn module_for_action(&self, modname: &Option<String>) -> Result<Rc<ModuleInstance>> {
+    fn module_for_action(&self, modname: &Option<Id>) -> Result<Rc<ModuleInstance>> {
         match modname {
             Some(name) => self.named_modules.get(name).cloned(),
             None => self.latest_module.clone(),
@@ -198,7 +199,7 @@ impl SpecTestRunner {
         Ok(())
     }
 
-    fn handle_module(&mut self, m: Module) -> Result<(Option<String>, Rc<ModuleInstance>)> {
+    fn handle_module(&mut self, m: Module) -> Result<(Option<Id>, Rc<ModuleInstance>)> {
         match m {
             Module::Module(m) => Ok((m.id.clone(), self.runtime.load(m)?)),
             Module::Binary(n, b) => {

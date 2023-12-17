@@ -6,6 +6,7 @@ use crate::format::{
     Location,
 };
 use crate::syntax as modulesyntax;
+use crate::syntax::Id;
 use crate::{
     format::text::parse::Parser,
     runtime::values::{Num, Ref, Value},
@@ -70,13 +71,13 @@ impl<R: Read> Parser<R> {
 
         let kw = self.try_keyword()?;
 
-        match kw.as_deref() {
-            Some("binary") => {
+        match kw {
+            Some(k) if k.as_str() == "binary" => {
                 let strings = self.zero_or_more(Self::try_wasm_string)?;
                 self.expect_close()?;
                 Ok(Some(Module::Binary(modname, strings)))
             }
-            Some("quote") => {
+            Some(k) if k.as_str() == "quote" => {
                 let strings = self.zero_or_more(Self::try_wasm_string)?;
                 self.expect_close()?;
                 Ok(Some(Module::Quote(modname, strings)))
@@ -348,7 +349,7 @@ impl<R: Read> Parser<R> {
     }
 
     fn try_num_type(&mut self) -> Result<Option<NumType>> {
-        let kw = self.peek_next_keyword()?;
+        let kw = self.peek_next_keyword()?.map(|kw| kw.as_str());
         let found = match kw {
             Some("i32.const") => Some(NumType::I32),
             Some("i64.const") => Some(NumType::I64),
@@ -367,7 +368,7 @@ impl<R: Read> Parser<R> {
     }
 
     fn try_nan_pat(&mut self, nt: NumType) -> Result<Option<NaNPat>> {
-        let kw = self.peek_keyword()?;
+        let kw = self.peek_keyword()?.map(|kw| kw.as_str());
         match kw {
             Some("nan:canonical") => {
                 self.advance()?;
@@ -411,7 +412,7 @@ pub struct SpecTestScript {
 #[derive(Debug)]
 pub enum Cmd {
     Module(Module),
-    Register { modname: String, id: Option<String> },
+    Register { modname: String, id: Option<Id> },
     Action(Action),
     Assertion(Assertion),
     Meta(Meta),
@@ -432,8 +433,8 @@ pub struct CmdEntry {
 #[derive(Debug)]
 pub enum Module {
     Module(modulesyntax::Module<Resolved>),
-    Binary(Option<String>, Vec<WasmString>),
-    Quote(Option<String>, Vec<WasmString>),
+    Binary(Option<Id>, Vec<WasmString>),
+    Quote(Option<Id>, Vec<WasmString>),
 }
 
 /// ```text
@@ -444,12 +445,12 @@ pub enum Module {
 #[derive(Debug)]
 pub enum Action {
     Invoke {
-        modname: Option<String>,
+        modname: Option<Id>,
         name: String,
         params: Vec<Const>,
     },
     Get {
-        modname: Option<String>,
+        modname: Option<Id>,
         name: String,
     },
 }
@@ -586,7 +587,7 @@ impl NaNPat {
 /// ```
 #[derive(Debug)]
 pub enum Meta {
-    Script { id: Option<String>, script: String },
-    Input { id: Option<String>, file: String },
-    Output { id: Option<String>, file: String },
+    Script { id: Option<Id>, script: String },
+    Input { id: Option<Id>, file: String },
+    Output { id: Option<Id>, file: String },
 }

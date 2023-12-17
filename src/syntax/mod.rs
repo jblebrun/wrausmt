@@ -15,6 +15,61 @@ use std::{
     marker::PhantomData,
 };
 
+/// A wasm identifier. Contains only ascii bytes.
+#[derive(Clone, Default, Debug, Eq, Hash, PartialEq)]
+pub struct Id {
+    data: Box<[u8]>,
+}
+
+impl Id {
+    pub fn data(&self) -> &[u8] {
+        self.data.as_ref()
+    }
+    pub fn as_str(&self) -> &str {
+        // Evetually this is OK since we'll ensure only valid chars at construction.
+        unsafe { std::str::from_utf8_unchecked(self.data.as_ref()) }
+    }
+}
+
+impl PartialEq<str> for Id {
+    fn eq(&self, other: &str) -> bool {
+        self.data.as_ref() == other.as_bytes()
+    }
+}
+
+impl From<&str> for Id {
+    fn from(value: &str) -> Self {
+        Self {
+            data: value.as_bytes().into(),
+        }
+    }
+}
+
+impl From<&[u8]> for Id {
+    fn from(value: &[u8]) -> Self {
+        Self {
+            data: value.to_owned().into(),
+        }
+    }
+}
+
+impl From<Vec<u8>> for Id {
+    fn from(value: Vec<u8>) -> Self {
+        Self {
+            data: value.into_boxed_slice(),
+        }
+    }
+}
+
+impl std::fmt::Display for Id {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match std::str::from_utf8(&self.data) {
+            Ok(s) => f.write_str(s),
+            Err(_) => write!(f, "unparseable: [{:?}]", self.data),
+        }
+    }
+}
+
 /// Represents one index usage point. It may be named ($id) or numeric. [Spec]
 ///
 /// An `Index<Resolved>` will have the correct numeric value associated. `Index<Unresolved>` may
@@ -24,7 +79,7 @@ use std::{
 /// [Spec]: https://webassembly.github.io/spec/core/text/modules.html#indices
 #[derive(Clone, Default, PartialEq)]
 pub struct Index<R: ResolvedState, S: IndexSpace> {
-    name: String,
+    name: Id,
     value: u32,
     resolvedmarker: PhantomData<R>,
     indexmarker: PhantomData<S>,
@@ -37,14 +92,14 @@ impl<S: IndexSpace> From<Index<Resolved, S>> for u32 {
 }
 
 impl<R: ResolvedState, S: IndexSpace> Index<R, S> {
-    pub fn name(&self) -> &str {
+    pub fn name(&self) -> &Id {
         &self.name
     }
     pub fn value(&self) -> u32 {
         self.value
     }
 
-    pub fn named(name: String, value: u32) -> Self {
+    pub fn named(name: Id, value: u32) -> Self {
         Index {
             name,
             value,
@@ -53,7 +108,7 @@ impl<R: ResolvedState, S: IndexSpace> Index<R, S> {
         }
     }
     pub fn unnamed(value: u32) -> Self {
-        Index::named("".to_owned(), value)
+        Index::named(Id::default(), value)
     }
 
     pub fn resolved(self, value: u32) -> Index<Resolved, S> {
@@ -86,7 +141,7 @@ impl<R: ResolvedState, S: IndexSpace> fmt::Debug for Index<R, S> {
 ///
 /// [Spec]: https://webassembly.github.io/spec/core/text/modules.html#modules
 pub struct Module<R: ResolvedState> {
-    pub id: Option<String>,
+    pub id: Option<Id>,
     pub types: Vec<TypeField>,
     pub funcs: Vec<FuncField<R>>,
     pub tables: Vec<TableField>,
@@ -196,7 +251,7 @@ impl<R: ResolvedState> std::fmt::Debug for TypeUse<R> {
 // param := (param id? valtype)
 #[derive(PartialEq, Clone)]
 pub struct FParam {
-    pub id: Option<String>,
+    pub id: Option<Id>,
     pub valuetype: ValueType,
 }
 
@@ -225,7 +280,7 @@ impl std::fmt::Debug for FResult {
 // functype := (func <param>* <result>*)
 #[derive(Clone, PartialEq, Default)]
 pub struct TypeField {
-    pub id: Option<String>,
+    pub id: Option<Id>,
     pub functiontype: FunctionType,
 }
 
@@ -252,7 +307,7 @@ impl std::fmt::Debug for TypeField {
 // func := (func id? (import <modname> <name>) <typeuse>)
 #[derive(PartialEq, Default)]
 pub struct FuncField<R: ResolvedState> {
-    pub id: Option<String>,
+    pub id: Option<Id>,
     pub exports: Vec<String>,
     pub typeuse: TypeUse<R>,
     pub locals: Vec<Local>,
@@ -284,7 +339,7 @@ impl<R: ResolvedState> std::fmt::Debug for FuncField<R> {
 // local := (local id? <valtype>)
 #[derive(PartialEq)]
 pub struct Local {
-    pub id: Option<String>,
+    pub id: Option<Id>,
     pub valtype: ValueType,
 }
 
@@ -303,7 +358,7 @@ impl std::fmt::Debug for Local {
 // inline imports/exports
 // inline elem
 pub struct TableField {
-    pub id: Option<String>,
+    pub id: Option<Id>,
     pub exports: Vec<String>,
     pub tabletype: TableType,
 }
@@ -315,7 +370,7 @@ pub struct TableField {
 // Inline data segments
 #[derive(Debug, PartialEq)]
 pub struct MemoryField {
-    pub id: Option<String>,
+    pub id: Option<Id>,
     pub exports: Vec<String>,
     pub memtype: MemType,
 }
@@ -323,7 +378,7 @@ pub struct MemoryField {
 // global := (global <id>? <globaltype> <expr>)
 #[derive(PartialEq)]
 pub struct GlobalField<R: ResolvedState> {
-    pub id: Option<String>,
+    pub id: Option<Id>,
     pub exports: Vec<String>,
     pub globaltype: GlobalType,
     pub init: Expr<R>,
@@ -348,7 +403,7 @@ pub enum ImportDesc<R: ResolvedState> {
 
 #[derive(PartialEq)]
 pub struct ImportField<R: ResolvedState> {
-    pub id: Option<String>,
+    pub id: Option<Id>,
     pub modname: String,
     pub name: String,
     pub exports: Vec<String>,
@@ -406,7 +461,7 @@ impl<R: ResolvedState> fmt::Debug for Expr<R> {
 
 #[derive(PartialEq)]
 pub struct Instruction<R: ResolvedState> {
-    pub name: String,
+    pub name: Id,
     pub opcode: u8,
     pub operands: Operands<R>,
 }
@@ -414,63 +469,63 @@ pub struct Instruction<R: ResolvedState> {
 impl<R: ResolvedState> Instruction<R> {
     pub fn reffunc(idx: Index<R, FuncIndex>) -> Self {
         Self {
-            name: "ref.func".to_owned(),
+            name: "ref.func".into(),
             opcode: 0xD2,
             operands: Operands::FuncIndex(idx),
         }
     }
     pub fn i32const(val: u32) -> Self {
         Self {
-            name: "i32.const".to_owned(),
+            name: "i32.const".into(),
             opcode: 0x41,
             operands: Operands::I32(val),
         }
     }
     pub fn i64const(val: u64) -> Self {
         Self {
-            name: "i64.const".to_owned(),
+            name: "i64.const".into(),
             opcode: 0x42,
             operands: Operands::I64(val),
         }
     }
     pub fn f32const(val: f32) -> Self {
         Self {
-            name: "i32.const".to_owned(),
+            name: "i32.const".into(),
             opcode: 0x43,
             operands: Operands::F32(val),
         }
     }
     pub fn f64const(val: f64) -> Self {
         Self {
-            name: "f64.const".to_owned(),
+            name: "f64.const".into(),
             opcode: 0x44,
             operands: Operands::F64(val),
         }
     }
     pub fn tableinit(tableidx: u32, elemidx: u32) -> Self {
         Self {
-            name: "table.init".to_owned(),
+            name: "table.init".into(),
             opcode: 0xE0 + 0x0c,
             operands: Operands::TableInit(Index::unnamed(tableidx), Index::unnamed(elemidx)),
         }
     }
     pub fn elemdrop(elemidx: u32) -> Self {
         Self {
-            name: "elem.drop".to_owned(),
+            name: "elem.drop".into(),
             opcode: 0xE0 + 0x0d,
             operands: Operands::ElemIndex(Index::unnamed(elemidx)),
         }
     }
     pub fn meminit(dataidx: u32) -> Self {
         Self {
-            name: "mem.init".to_owned(),
+            name: "mem.init".into(),
             opcode: 0xE0 + 0x08,
             operands: Operands::DataIndex(Index::unnamed(dataidx)),
         }
     }
     pub fn datadrop(dataidx: u32) -> Self {
         Self {
-            name: "data.drop".to_owned(),
+            name: "data.drop".into(),
             opcode: 0xE0 + 0x09,
             operands: Operands::DataIndex(Index::unnamed(dataidx)),
         }
@@ -487,8 +542,8 @@ pub enum Continuation {
 pub enum Operands<R: ResolvedState> {
     None,
     CallIndirect(Index<R, TableIndex>, TypeUse<R>),
-    Block(Option<String>, TypeUse<R>, Expr<R>, Continuation),
-    If(Option<String>, TypeUse<R>, Expr<R>, Expr<R>),
+    Block(Option<Id>, TypeUse<R>, Expr<R>, Continuation),
+    If(Option<Id>, TypeUse<R>, Expr<R>, Expr<R>),
     BrTable(Vec<Index<R, LabelIndex>>),
     Select(Vec<FResult>),
     FuncIndex(Index<R, FuncIndex>),
@@ -588,7 +643,7 @@ pub enum ModeEntry<R: ResolvedState> {
 //       | (elem <id>? declare <elemlist>)
 #[derive(Debug, PartialEq)]
 pub struct ElemField<R: ResolvedState> {
-    pub id: Option<String>,
+    pub id: Option<Id>,
     pub mode: ModeEntry<R>,
     pub elemlist: ElemList<R>,
 }
@@ -605,7 +660,7 @@ pub struct DataInit<R: ResolvedState> {
 // memuse := (memory <memidx>)
 #[derive(Debug, PartialEq)]
 pub struct DataField<R: ResolvedState> {
-    pub id: Option<String>,
+    pub id: Option<Id>,
     pub data: Box<[u8]>,
     pub init: Option<DataInit<R>>,
 }

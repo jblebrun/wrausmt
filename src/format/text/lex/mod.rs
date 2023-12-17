@@ -2,6 +2,7 @@ use self::error::LexError;
 
 use super::token::{FileToken, Token};
 use crate::format::{text::string::WasmString, Location};
+use crate::syntax::Id;
 mod chars;
 pub mod error;
 mod num;
@@ -24,11 +25,11 @@ pub struct Tokenizer<R> {
     location: Location,
 }
 
-fn keyword_or_reserved(idchars: String) -> Token {
-    if idchars.as_bytes()[0].is_keyword_start() {
+fn keyword_or_reserved(idchars: Id) -> Token {
+    if idchars.data()[0].is_keyword_start() {
         Token::Keyword(idchars)
     } else {
-        Token::Reserved(idchars)
+        Token::Reserved(idchars.as_str().into())
     }
 }
 
@@ -58,7 +59,7 @@ impl<R: Read> Tokenizer<R> {
                 .ctx("while consuming line comment"),
             b if b.is_idchar() => {
                 let idchars = self.consume_idchars().ctx("while reading next token")?;
-                if idchars.as_bytes()[0] == b'$' {
+                if idchars.data()[0] == b'$' {
                     return Ok(Token::Id(idchars));
                 }
                 if let Some(n) = num::maybe_number(&idchars) {
@@ -194,13 +195,13 @@ impl<R: Read> Tokenizer<R> {
 
     /// Consume a contiguous block of idchars, which will eventually become either:
     /// A number, a keyword, an ID, or a reserved token.
-    fn consume_idchars(&mut self) -> Result<String> {
+    fn consume_idchars(&mut self) -> Result<Id> {
         let mut result: Vec<u8> = vec![];
         while self.current.is_idchar() {
             result.push(self.current);
             self.advance()?;
         }
-        String::from_utf8(result).ctx("consuming idchars")
+        Ok(result.into())
     }
 
     /// Handler for a '(' - if followed by ';, consumes a block comment and returns
