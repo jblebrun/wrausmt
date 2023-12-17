@@ -1,6 +1,7 @@
 use crate::format::text::parse::error::Result;
 use crate::syntax::{Module, Resolved};
 
+use self::parse::error::{ParseError, ParseErrorKind};
 use self::{lex::Tokenizer, parse::Parser};
 use std::io::Read;
 
@@ -14,7 +15,8 @@ pub mod resolve;
 pub mod string;
 
 pub fn parse_wast_data(reader: &mut impl Read) -> Result<Module<Resolved>> {
-    let tokenizer = Tokenizer::new(reader)?;
+    let tokenizer = Tokenizer::new(reader)
+        .map_err(|e| ParseError::new_nocontext(ParseErrorKind::LexError(e)))?;
     let mut parser = Parser::new(tokenizer)?;
     parser.parse_full_module()
 }

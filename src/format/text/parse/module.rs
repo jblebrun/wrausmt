@@ -1,4 +1,4 @@
-use super::error::{ParseError, ParseErrorContext, Result, WithMsg};
+use super::error::{ParseErrorKind, Result, WithMsg};
 use super::Parser;
 use crate::types::{GlobalType, TableType};
 use crate::{
@@ -54,24 +54,13 @@ impl<R: Read> Parser<R> {
         match self.try_module() {
             Ok(Some(m)) => {
                 if self.current.token != Token::Eof {
-                    return Err(self.with_context(ParseError::Incomplete));
+                    return Err(self.err(ParseErrorKind::Incomplete));
                 }
                 Ok(m)
             }
-            Ok(None) => Err(self.with_context(ParseError::Eof)),
-            Err(e) => Err(self.with_context(e)),
+            Ok(None) => Err(self.err(ParseErrorKind::Eof)),
+            Err(e) => Err(e),
         }
-    }
-
-    pub fn with_context(&self, err: ParseError) -> ParseError {
-        ParseError::WithContext(
-            Box::new(ParseErrorContext {
-                context: self.context.clone(),
-                current: self.current.clone(),
-                next: self.next.clone(),
-            }),
-            Box::new(err),
-        )
     }
 
     fn fix_elem_table_id(ef: &mut ElemField<Unresolved>, idx: u32) {
@@ -139,7 +128,9 @@ impl<R: Read> Parser<R> {
         };
 
         if result {
-            Ok(Some(module_builder.build()?))
+            Ok(Some(module_builder.build().map_err(|re| {
+                self.err(ParseErrorKind::ResolveError(re))
+            })?))
         } else {
             Ok(None)
         }
@@ -377,7 +368,7 @@ impl<R: Read> Parser<R> {
             self.expect_close()?;
             Ok((id, ImportDesc::Global(globaltype)))
         } else {
-            Err(ParseError::unexpected("importdesc"))
+            Err(self.unexpected_token("expected importdesc"))
         }
     }
 
@@ -404,7 +395,7 @@ impl<R: Read> Parser<R> {
             return Ok(None);
         }
 
-        let name = self.expect_string().msg("name")?;
+        let name = self.expect_string().msg("expected name")?;
 
         let exportdesc = self.expect_exportdesc()?;
 
@@ -431,7 +422,7 @@ impl<R: Read> Parser<R> {
             self.expect_close()?;
             Ok(ExportDesc::Global(index))
         } else {
-            Err(ParseError::unexpected("exportdesc"))
+            Err(self.unexpected_token("expected exportdesc"))
         }
     }
 
@@ -651,7 +642,6 @@ impl<R: Read> Parser<R> {
     }
 
     pub fn expect_index<I: IndexSpace>(&mut self) -> Result<Index<Unresolved, I>> {
-        self.try_index()?
-            .ok_or_else(|| ParseError::unexpected("index"))
+        self.try_index()?.ok_or(self.unexpected_token("index"))
     }
 }

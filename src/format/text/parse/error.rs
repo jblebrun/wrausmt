@@ -5,17 +5,16 @@ use std::{
 
 use crate::format::text::{lex::error::LexError, resolve::ResolveError, token::FileToken};
 
-#[derive(Debug)]
-pub struct ParseErrorContext {
-    pub context: Vec<String>,
+#[derive(Debug, Default)]
+pub struct ParseContext {
     pub current: FileToken,
     pub next: FileToken,
 }
 
-#[derive(Debug)]
-pub enum ParseError {
-    WithContext(Box<ParseErrorContext>, Box<ParseError>),
-    WithMsg(Vec<String>, Box<ParseError>),
+#[derive(Debug, Default)]
+pub enum ParseErrorKind {
+    #[default]
+    Unknown,
     Eof,
     IoError(std::io::Error),
     LexError(LexError),
@@ -28,36 +27,34 @@ pub enum ParseError {
     Incomplete,
 }
 
-impl ParseError {
-    pub fn unexpected(expected: &str) -> ParseError {
-        ParseError::UnexpectedToken(expected.into())
-    }
-}
-pub trait WithMsg<T> {
-    fn msg(self, msg: impl Into<String>) -> T;
+#[derive(Debug, Default)]
+pub struct ParseError {
+    kind: ParseErrorKind,
+    context: ParseContext,
+    msgs: Vec<String>,
 }
 
-impl WithMsg<ParseError> for ParseError {
-    fn msg(mut self, msg: impl Into<String>) -> ParseError {
-        match self {
-            ParseError::WithMsg(ref mut msgs, _) => {
-                let s = msg.into();
-                println!("ADD MSG {:?}", s);
-                msgs.push(s);
-                self
-            }
-            _ => {
-                let s = msg.into();
-                println!("NEW MSG {:?}", s);
-                ParseError::WithMsg(vec![s], Box::new(self))
-            }
+impl ParseError {
+    pub fn new_nocontext(kind: ParseErrorKind) -> Self {
+        Self {
+            kind,
+            ..Default::default()
         }
     }
-}
+    pub fn new(kind: ParseErrorKind, context: ParseContext) -> Self {
+        Self {
+            kind,
+            context,
+            msgs: Vec::new(),
+        }
+    }
 
-impl<T> WithMsg<Result<T>> for Result<T> {
-    fn msg(self, msg: impl Into<String>) -> Result<T> {
-        self.map_err(|e| e.msg(msg))
+    pub fn kind(&self) -> &ParseErrorKind {
+        &self.kind
+    }
+
+    pub fn context(&self) -> &ParseContext {
+        &self.context
     }
 }
 
@@ -69,40 +66,53 @@ impl std::fmt::Display for ParseError {
     }
 }
 
+impl std::fmt::Display for ParseErrorKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
 pub type Result<T> = std::result::Result<T, ParseError>;
+pub type KindResult<T> = std::result::Result<T, ParseErrorKind>;
 
-impl From<ResolveError> for ParseError {
+pub trait WithMsg {
+    fn msg(self, msg: impl Into<String>) -> Self;
+}
+impl<T> WithMsg for Result<T> {
+    fn msg(mut self, msg: impl Into<String>) -> Self {
+        if let Err(e) = &mut self {
+            e.msgs.push(msg.into())
+        }
+        self
+    }
+}
+
+impl From<ResolveError> for ParseErrorKind {
     fn from(re: ResolveError) -> Self {
-        ParseError::ResolveError(re)
+        ParseErrorKind::ResolveError(re)
     }
 }
 
-impl From<FromUtf8Error> for ParseError {
+impl From<FromUtf8Error> for ParseErrorKind {
     fn from(e: FromUtf8Error) -> Self {
-        ParseError::Utf8Error(e)
+        ParseErrorKind::Utf8Error(e)
     }
 }
 
-impl From<ParseFloatError> for ParseError {
+impl From<ParseFloatError> for ParseErrorKind {
     fn from(e: ParseFloatError) -> Self {
-        ParseError::ParseFloatError(e)
+        ParseErrorKind::ParseFloatError(e)
     }
 }
 
-impl From<ParseIntError> for ParseError {
+impl From<ParseIntError> for ParseErrorKind {
     fn from(e: ParseIntError) -> Self {
-        ParseError::ParseIntError(e)
+        ParseErrorKind::ParseIntError(e)
     }
 }
 
-impl From<LexError> for ParseError {
+impl From<LexError> for ParseErrorKind {
     fn from(e: LexError) -> Self {
-        ParseError::LexError(e)
-    }
-}
-
-impl From<std::io::Error> for ParseError {
-    fn from(e: std::io::Error) -> Self {
-        ParseError::IoError(e)
+        ParseErrorKind::LexError(e)
     }
 }

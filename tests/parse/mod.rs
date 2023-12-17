@@ -1,18 +1,20 @@
 use std::fs::File;
 
-use wrausmt::format::text::parse::error::Result;
+use wrausmt::format::text::parse::error::KindResult;
 use wrausmt::format::text::parse_wast_data;
 use wrausmt::format::text::token::Token;
 use wrausmt::format::text::{lex::Tokenizer, token::NumToken};
+use wrausmt::loader::Result as LoadResult;
 use wrausmt::syntax::{Module, Resolved};
 use wrausmt::typefield;
 
-fn load_ast(filename: &str) -> Result<Module<Resolved>> {
-    parse_wast_data(&mut File::open(filename)?)
+fn load_ast(filename: &str) -> LoadResult<Module<Resolved>> {
+    let loaded = parse_wast_data(&mut File::open(filename)?)?;
+    Ok(loaded)
 }
 
 #[test]
-fn basic_parse() -> Result<()> {
+fn basic_parse() -> LoadResult<()> {
     let module = load_ast("testdata/locals.wat")?;
 
     println!("{:?}", module);
@@ -30,27 +32,27 @@ fn basic_parse() -> Result<()> {
 }
 
 #[test]
-fn block_parse() -> Result<()> {
+fn block_parse() -> LoadResult<()> {
     let module = load_ast("testdata/plainblock.wat")?;
     println!("{:?}", module);
     Ok(())
 }
 
 #[test]
-fn folded_block_parse() -> Result<()> {
+fn folded_block_parse() -> LoadResult<()> {
     let module = load_ast("testdata/foldedblock.wat")?;
     println!("{:?}", module);
     Ok(())
 }
 
 #[test]
-fn table_parse() -> Result<()> {
+fn table_parse() -> LoadResult<()> {
     let module = load_ast("testdata/table.wat")?;
     println!("{:?}", module);
     Ok(())
 }
 
-fn parse_numtoken(src: &str) -> Result<NumToken> {
+fn parse_numtoken(src: &str) -> KindResult<NumToken> {
     let mut tokenizer = Tokenizer::new(src.as_bytes())?;
     match tokenizer.next().unwrap()?.token {
         Token::Number(nt) => Ok(nt),
@@ -59,7 +61,7 @@ fn parse_numtoken(src: &str) -> Result<NumToken> {
 }
 
 #[test]
-fn parse_number() -> Result<()> {
+fn parse_number() -> KindResult<()> {
     let tok = parse_numtoken("-600")?;
     assert_eq!(tok.as_i32()?, -600);
     assert_eq!(tok.as_i64()?, -600);

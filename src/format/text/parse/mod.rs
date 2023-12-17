@@ -1,6 +1,7 @@
+use self::error::{ParseContext, ParseError, ParseErrorKind, Result};
+
 use super::token::{FileToken, Token};
 use super::{lex::Tokenizer, string::WasmString};
-use error::{ParseError, Result};
 use std::io::Read;
 
 mod combinator;
@@ -16,7 +17,6 @@ pub struct Parser<R: Read> {
     pub current: FileToken,
     // 1 token of lookahead
     pub next: FileToken,
-    context: Vec<String>,
 }
 
 trait Ignorable {
@@ -40,24 +40,36 @@ impl<R: Read> Parser<R> {
             tokenizer,
             current: FileToken::default(),
             next: FileToken::default(),
-            context: vec![],
         };
         p.advance()?;
         p.advance()?;
         Ok(p)
     }
 
+    pub fn err(&self, err: ParseErrorKind) -> ParseError {
+        ParseError::new(
+            err,
+            ParseContext {
+                current: self.current.clone(),
+                next: self.next.clone(),
+            },
+        )
+    }
+
+    fn unexpected_token(&self, name: impl Into<String>) -> ParseError {
+        self.err(ParseErrorKind::UnexpectedToken(name.into()))
+    }
     // Updates the lookahead token to the next value
     // provided by the tokenizer.
     fn next(&mut self) -> Result<()> {
         if self.next.token == Token::Eof {
-            return Err(ParseError::Eof);
+            return Err(self.err(ParseErrorKind::Eof));
         }
 
         match self.tokenizer.next() {
             None => self.next.token = Token::Eof,
             Some(Ok(t)) => self.next = t,
-            Some(Err(e)) => return Err(ParseError::LexError(e)),
+            Some(Err(e)) => return Err(self.err(ParseErrorKind::LexError(e))),
         }
         Ok(())
     }
@@ -110,9 +122,10 @@ impl<R: Read> Parser<R> {
 
     fn expect_expr_start(&mut self, name: &str) -> Result<()> {
         if !self.try_expr_start(name)? {
-            return Err(ParseError::unexpected("expression start"));
+            Err(self.err(ParseErrorKind::UnexpectedToken("expression start".into())))
+        } else {
+            Ok(())
         }
-        Ok(())
     }
 
     pub fn expect_close(&mut self) -> Result<()> {
@@ -121,7 +134,7 @@ impl<R: Read> Parser<R> {
                 self.advance()?;
                 Ok(())
             }
-            _ => Err(ParseError::unexpected("expression close")),
+            _ => Err(self.err(ParseErrorKind::UnexpectedToken("expression close".into()))),
         }
     }
 
@@ -138,20 +151,22 @@ impl<R: Read> Parser<R> {
 
     pub fn expect_wasm_string(&mut self) -> Result<WasmString> {
         self.try_wasm_string()?
-            .ok_or_else(|| ParseError::unexpected("wasm string literal"))
+            .ok_or(self.err(ParseErrorKind::UnexpectedToken(
+                "wasm string literal".into(),
+            )))
     }
 
     pub fn try_string(&mut self) -> Result<Option<String>> {
         let result = self.try_wasm_string()?;
         Ok(match result {
-            Some(ws) => Some(ws.into_string()?),
+            Some(ws) => Some(ws.into_string().map_err(|e| self.err(e.into()))?),
             None => None,
         })
     }
 
     pub fn expect_string(&mut self) -> Result<String> {
         self.try_string()?
-            .ok_or_else(|| ParseError::unexpected("utf8 string literal"))
+            .ok_or(self.err(ParseErrorKind::UnexpectedToken("utf8string literal".into())))
     }
 
     pub fn try_id(&mut self) -> Result<Option<String>> {

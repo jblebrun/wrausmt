@@ -1,6 +1,6 @@
 use crate::format::{
     text::{
-        parse::error::{ParseError, Result, WithMsg},
+        parse::error::{ParseErrorKind, Result, WithMsg},
         string::WasmString,
     },
     Location,
@@ -20,11 +20,11 @@ impl<R: Read> Parser<R> {
         match self.zero_or_more(Self::try_cmd_entry) {
             Ok(cmds) => {
                 if self.current.token != Token::Eof {
-                    return Err(self.with_context(ParseError::unexpected("cmd")));
+                    return Err(self.err(ParseErrorKind::UnexpectedToken("cmd".into())));
                 }
                 Ok(SpecTestScript { cmds })
             }
-            Err(e) => Err(self.with_context(e)),
+            Err(e) => Err(e),
         }
     }
 
@@ -50,6 +50,11 @@ impl<R: Read> Parser<R> {
         }
 
         Ok(None)
+    }
+
+    fn expect_spec_module(&mut self) -> Result<Module> {
+        self.try_spec_module()?
+            .ok_or(self.err(ParseErrorKind::UnexpectedToken("spec module".into())))
     }
 
     fn try_spec_module(&mut self) -> Result<Option<Module>> {
@@ -91,7 +96,7 @@ impl<R: Read> Parser<R> {
             return Ok(None);
         }
 
-        let modname = self.expect_string().msg("modname")?;
+        let modname = self.expect_string().msg("parsing modname in register")?;
 
         let id = self.try_id()?;
 
@@ -110,7 +115,7 @@ impl<R: Read> Parser<R> {
 
     fn expect_action(&mut self) -> Result<Action> {
         self.try_action()?
-            .ok_or_else(|| ParseError::unexpected("spec test action"))
+            .ok_or(self.err(ParseErrorKind::UnexpectedToken("spec test action".into())))
     }
 
     fn try_invoke_action(&mut self) -> Result<Option<Action>> {
@@ -214,14 +219,14 @@ impl<R: Read> Parser<R> {
         }
 
         if let Some(action) = self.try_action()? {
-            let failure = self.expect_string().msg("failure")?;
+            let failure = self.expect_string()?;
             self.expect_close()?;
 
             return Ok(Some(Assertion::ActionTrap { action, failure }));
         }
 
         if let Some(module) = self.try_spec_module()? {
-            let failure = self.expect_string().msg("failure")?;
+            let failure = self.expect_string()?;
             self.expect_close()?;
 
             return Ok(Some(Assertion::ModuleTrap { module, failure }));
@@ -235,9 +240,7 @@ impl<R: Read> Parser<R> {
             return Ok(None);
         }
 
-        let module = self
-            .try_spec_module()?
-            .ok_or_else(|| ParseError::unexpected("spec module"))?;
+        let module = self.expect_spec_module()?;
 
         let failure = self.expect_string().msg("failure")?;
 
@@ -251,9 +254,7 @@ impl<R: Read> Parser<R> {
             return Ok(None);
         }
 
-        let module = self
-            .try_spec_module()?
-            .ok_or_else(|| ParseError::unexpected("spec module"))?;
+        let module = self.expect_spec_module()?;
 
         let failure = self.expect_string().msg("failure")?;
 
@@ -267,9 +268,7 @@ impl<R: Read> Parser<R> {
             return Ok(None);
         }
 
-        let module = self
-            .try_spec_module()?
-            .ok_or_else(|| ParseError::unexpected("spec module"))?;
+        let module = self.expect_spec_module()?;
 
         let failure = self.expect_string()?;
 
