@@ -1,5 +1,5 @@
 use super::super::token::{Base, NumToken, Sign, Token};
-use super::error::{ParseError, Result};
+use super::error::{KindResult, ParseErrorKind, Result};
 use super::Parser;
 use crate::types::Limits;
 use std::io::Read;
@@ -9,7 +9,7 @@ macro_rules! try_num {
         pub fn $n(&mut self) -> Result<Option<$ty>> {
             match &self.current.token {
                 Token::Number(numtoken) => {
-                    let val = numtoken.$fn()?;
+                    let val = numtoken.$fn().map_err(|ek| self.err(ek))?;
                     self.advance()?;
                     Ok(Some(val))
                 }
@@ -21,18 +21,18 @@ macro_rules! try_num {
             let got = self.$n()?;
             match got {
                 Some(v) => Ok(v),
-                None => Err(ParseError::unexpected($err)),
+                None => Err(self.err(ParseErrorKind::UnexpectedToken($err.into()))),
             }
         }
     };
 }
 
 impl<R: Read> Parser<R> {
-    try_num! { try_u32, expect_u32, as_u32, u32, "U32" }
-    try_num! { try_i32, expect_i32, as_i32, i32, "I32" }
-    try_num! { try_i64, expect_i64, as_i64, i64, "I64" }
-    try_num! { try_f32, expect_f32, as_f32, f32, "F32" }
-    try_num! { try_f64, expect_f64, as_f64, f64, "F64" }
+    try_num! { try_u32, expect_u32, as_u32, u32, "expected U32" }
+    try_num! { try_i32, expect_i32, as_i32, i32, "expected I32" }
+    try_num! { try_i64, expect_i64, as_i64, i64, "expected I64" }
+    try_num! { try_f32, expect_f32, as_f32, f32, "expected F32" }
+    try_num! { try_f64, expect_f64, as_f64, f64, "expected F64" }
 
     pub fn expect_limits(&mut self) -> Result<Limits> {
         let lower = self.expect_u32()?;
@@ -41,7 +41,7 @@ impl<R: Read> Parser<R> {
     }
 }
 
-fn nanx_f64(sign: Sign, payload: &str) -> Result<f64> {
+fn nanx_f64(sign: Sign, payload: &str) -> KindResult<f64> {
     let payload = payload.replace('_', "");
     let payload_num = u64::from_str_radix(&payload, 16)?;
     let base: u64 = match sign {
@@ -51,7 +51,7 @@ fn nanx_f64(sign: Sign, payload: &str) -> Result<f64> {
     Ok(<f64>::from_bits(base | payload_num))
 }
 
-fn nanx_f32(sign: Sign, payload: &str) -> Result<f32> {
+fn nanx_f32(sign: Sign, payload: &str) -> KindResult<f32> {
     let payload = payload.replace('_', "");
     let payload_num = u32::from_str_radix(&payload, 16)?;
     let base: u32 = match sign {
@@ -63,7 +63,7 @@ fn nanx_f32(sign: Sign, payload: &str) -> Result<f32> {
 
 macro_rules! parse_float {
     ( $name:ident, $ty:ty, $nanx:ident, $hex:ident ) => {
-        pub fn $name(&self) -> Result<$ty> {
+        pub fn $name(&self) -> KindResult<$ty> {
             match self {
                 NumToken::NaN(sign) => match sign {
                     Sign::Negative => Ok(-<$ty>::NAN),
@@ -98,7 +98,7 @@ macro_rules! parse_float {
 
 macro_rules! parse_int {
     ( $name:ident, $ty:ty, $uty:ty, $err:literal ) => {
-        pub fn $name(&self) -> Result<$ty> {
+        pub fn $name(&self) -> KindResult<$ty> {
             match self {
                 NumToken::Integer(sign, base, digits) => match sign {
                     Sign::Negative => {
@@ -110,7 +110,7 @@ macro_rules! parse_int {
                         Ok(<$uty>::from_str_radix(&to_parse, base.radix())? as $ty)
                     }
                 },
-                _ => Err(ParseError::unexpected($err)),
+                _ => Err(ParseErrorKind::UnexpectedToken($err.into())),
             }
         }
     };
@@ -124,12 +124,12 @@ impl NumToken {
     parse_float! { as_f64, f64, nanx_f64, parse_hex_f64  }
 }
 
-fn parse_hex_digit(digit_byte: u8) -> Result<u8> {
+fn parse_hex_digit(digit_byte: u8) -> KindResult<u8> {
     match digit_byte {
         c @ b'a'..=b'f' => Ok(c - b'a' + 10),
         c @ b'A'..=b'F' => Ok(c - b'A' + 10),
         c @ b'0'..=b'9' => Ok(c - b'0'),
-        _ => Err(ParseError::unexpected("hex digit")),
+        _ => Err(ParseErrorKind::UnexpectedToken("expected hex digit".into())),
     }
 }
 
@@ -143,7 +143,7 @@ struct FloatBuilder {
 }
 
 impl FloatBuilder {
-    fn new(whole: &str, frac: &str, exp: &str) -> Result<Self> {
+    fn new(whole: &str, frac: &str, exp: &str) -> KindResult<Self> {
         // Consume meaningless 0s
         let whole = whole.trim_start_matches('0');
         let frac = frac.trim_end_matches('0');
@@ -167,7 +167,7 @@ impl FloatBuilder {
     }
 
     /// Add a digit to the mantissa. Digits should be added most-significant first.
-    fn add_digit(&mut self, dbyte: u8) -> Result<()> {
+    fn add_digit(&mut self, dbyte: u8) -> KindResult<()> {
         let d = parse_hex_digit(dbyte)?;
         let round_bits = self.bits & 0xF;
         self.bits >>= 4;
@@ -179,11 +179,11 @@ impl FloatBuilder {
         Ok(())
     }
 
-    fn add_frac_digit(&mut self, dbyte: u8) -> Result<()> {
+    fn add_frac_digit(&mut self, dbyte: u8) -> KindResult<()> {
         self.add_digit(dbyte)
     }
 
-    fn add_whole_digit(&mut self, dbyte: u8) -> Result<()> {
+    fn add_whole_digit(&mut self, dbyte: u8) -> KindResult<()> {
         self.exp += 4;
         self.add_digit(dbyte)
     }
@@ -234,7 +234,7 @@ impl FloatBuilder {
         self.exp -= 1;
     }
 
-    fn build(mut self, mantissa_size: u32, expmax: u32) -> Result<u64> {
+    fn build(mut self, mantissa_size: u32, expmax: u32) -> KindResult<u64> {
         self.range(-(expmax as i16));
         self.round(mantissa_size);
 
@@ -243,7 +243,7 @@ impl FloatBuilder {
         }
 
         if self.exp > expmax as i16 {
-            return Err(ParseError::unexpected("floatrange"));
+            return Err(ParseErrorKind::UnexpectedToken("floatrange".into()));
         }
 
         let mask = u64::MAX >> (64 - mantissa_size + 1);
@@ -256,7 +256,7 @@ impl FloatBuilder {
     }
 }
 
-fn parse_hex_f32(sign: Sign, whole: &str, frac: &str, exp: &str) -> Result<f32> {
+fn parse_hex_f32(sign: Sign, whole: &str, frac: &str, exp: &str) -> KindResult<f32> {
     let builder = FloatBuilder::new(whole, frac, exp)?;
 
     let mut result_bits = builder.build(f32::MANTISSA_DIGITS, 127)? as u32;
@@ -268,7 +268,7 @@ fn parse_hex_f32(sign: Sign, whole: &str, frac: &str, exp: &str) -> Result<f32> 
     Ok(f32::from_bits(result_bits))
 }
 
-fn parse_hex_f64(sign: Sign, whole: &str, frac: &str, exp: &str) -> Result<f64> {
+fn parse_hex_f64(sign: Sign, whole: &str, frac: &str, exp: &str) -> KindResult<f64> {
     let builder = FloatBuilder::new(whole, frac, exp)?;
 
     let mut result_bits = builder.build(f64::MANTISSA_DIGITS, 1023)?;
@@ -282,9 +282,12 @@ fn parse_hex_f64(sign: Sign, whole: &str, frac: &str, exp: &str) -> Result<f64> 
 
 #[cfg(test)]
 mod tests {
+    use crate::format::text::parse::error::ParseErrorKind;
+
     use super::super::super::token::Sign;
     use super::parse_hex_f32;
     use super::parse_hex_f64;
+    impl std::error::Error for ParseErrorKind {}
 
     type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
