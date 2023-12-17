@@ -30,7 +30,7 @@ pub fn make_spectest_module() -> syntax::Module<Resolved> {
 
     builder.add_globalfield(GlobalField {
         id: None,
-        exports: vec!["global_i32".to_owned()],
+        exports: vec!["global_i32".into()],
         globaltype: GlobalType {
             mutable: false,
             valtype: ValueType::Num(NumType::I32),
@@ -42,7 +42,7 @@ pub fn make_spectest_module() -> syntax::Module<Resolved> {
 
     builder.add_globalfield(GlobalField {
         id: None,
-        exports: vec!["global_i64".to_owned()],
+        exports: vec!["global_i64".into()],
         globaltype: GlobalType {
             mutable: false,
             valtype: ValueType::Num(NumType::I64),
@@ -53,7 +53,7 @@ pub fn make_spectest_module() -> syntax::Module<Resolved> {
     });
     builder.add_globalfield(GlobalField {
         id: None,
-        exports: vec!["global_f32".to_owned()],
+        exports: vec!["global_f32".into()],
         globaltype: GlobalType {
             mutable: false,
             valtype: ValueType::Num(NumType::F32),
@@ -65,7 +65,7 @@ pub fn make_spectest_module() -> syntax::Module<Resolved> {
 
     builder.add_globalfield(GlobalField {
         id: None,
-        exports: vec!["global_f64".to_owned()],
+        exports: vec!["global_f64".into()],
         globaltype: GlobalType {
             mutable: false,
             valtype: ValueType::Num(NumType::F64),
@@ -77,7 +77,7 @@ pub fn make_spectest_module() -> syntax::Module<Resolved> {
 
     builder.add_tablefield(TableField {
         id: None,
-        exports: vec!["table".to_owned()],
+        exports: vec!["table".into()],
         tabletype: TableType {
             limits: Limits {
                 lower: 10,
@@ -88,7 +88,7 @@ pub fn make_spectest_module() -> syntax::Module<Resolved> {
     });
     builder.add_memoryfield(MemoryField {
         id: None,
-        exports: vec!["memory".to_owned()],
+        exports: vec!["memory".into()],
         memtype: MemType {
             limits: Limits {
                 lower: 1,

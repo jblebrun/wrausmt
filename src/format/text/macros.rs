@@ -6,7 +6,7 @@
 #[macro_export]
 macro_rules! fparam {
     ( $pid:literal; $vt:ident ) => {
-        wrausmt::fparam! { Some($pid.to_string()); $vt }
+        wrausmt::fparam! { Some($pid.into()); $vt }
     };
     ( $id:expr; Func ) => {
         wrausmt::syntax::FParam {
@@ -43,7 +43,7 @@ macro_rules! fresult {
 #[macro_export]
 macro_rules! typefield {
     ( $id:literal; [$( $pt:ident $($pid:literal)?),*] -> [$($rt:ident),*] ) => {
-        typefield! { Some($id.to_string()); [$($pt $($pid)?)*] -> [$($rt)*] }
+        typefield! { Some($id.into()); [$($pt $($pid.into())?)*] -> [$($rt)*] }
     };
     ( [$($pt:ident $($pid:literal)?),*] -> [$($rt:ident),*] ) => {
         typefield! { None; [$($pt $($pid)?)*] -> [$($rt)*] }

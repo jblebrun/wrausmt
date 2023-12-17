@@ -5,6 +5,7 @@ mod generated;
 
 use crate::runtime::error::Result;
 use crate::runtime::exec::ExecutionContext;
+use crate::syntax::Id;
 use crate::{impl_bug, runtime::error::WithContext};
 use generated::data_table::INSTRUCTION_DATA;
 use generated::exec_table::EXEC_TABLE;
@@ -103,6 +104,8 @@ pub fn instruction_data(opcode: u8) -> &'static InstructionData {
 
 // TODO - would it be significantly more performant to build a hash map here?
 // Or maybe just a two-tiered lookup.
-pub fn instruction_by_name(name: &str) -> Option<&'static InstructionData> {
-    INSTRUCTION_DATA.iter().find(|&item| item.name == name)
+pub fn instruction_by_name(name: &Id) -> Option<&'static InstructionData> {
+    INSTRUCTION_DATA
+        .iter()
+        .find(|&item| item.name.as_bytes() == name.data())
 }

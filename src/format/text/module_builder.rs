@@ -2,20 +2,20 @@ use std::collections::HashMap;
 
 use super::resolve::{ResolveModule, Result};
 use crate::syntax::{
-    DataField, ElemField, ExportDesc, ExportField, FuncField, FunctionType, GlobalField,
+    DataField, ElemField, ExportDesc, ExportField, FuncField, FunctionType, GlobalField, Id,
     ImportDesc, ImportField, Index, MemoryField, Module, Resolved, StartField, TableField,
     TypeField, Unresolved,
 };
 
 #[derive(Clone, Default, Debug, PartialEq)]
 pub struct ModuleIdentifiers {
-    pub typeindices: HashMap<String, u32>,
-    pub funcindices: HashMap<String, u32>,
-    pub tableindices: HashMap<String, u32>,
-    pub memindices: HashMap<String, u32>,
-    pub globalindices: HashMap<String, u32>,
-    pub elemindices: HashMap<String, u32>,
-    pub dataindices: HashMap<String, u32>,
+    pub typeindices: HashMap<Id, u32>,
+    pub funcindices: HashMap<Id, u32>,
+    pub tableindices: HashMap<Id, u32>,
+    pub memindices: HashMap<Id, u32>,
+    pub globalindices: HashMap<Id, u32>,
+    pub elemindices: HashMap<Id, u32>,
+    pub dataindices: HashMap<Id, u32>,
 }
 
 /// A [ModuleBuilder] accepts the various items coming from the parse, and organizes them
@@ -44,7 +44,7 @@ macro_rules! add_ident {
 }
 
 impl ModuleBuilder {
-    pub fn new(id: Option<String>) -> Self {
+    pub fn new(id: Option<Id>) -> Self {
         Self {
             module: Module {
                 id,

@@ -1,5 +1,7 @@
 use self::error::{ParseContext, ParseError, ParseErrorKind, Result};
 
+use crate::syntax::Id;
+
 use super::token::{FileToken, Token};
 use super::{lex::Tokenizer, string::WasmString};
 use std::io::Read;
@@ -96,12 +98,12 @@ impl<R: Read> Parser<R> {
         println!("POSITION {:?} {:?}", self.current, self.next);
     }
 
-    pub fn try_expr_start(&mut self, name: &str) -> Result<bool> {
+    pub fn try_expr_start(&mut self, name: impl Into<Id>) -> Result<bool> {
         if self.current.token != Token::Open {
             return Ok(false);
         }
         match &self.next.token {
-            Token::Keyword(k) if k == name => {
+            Token::Keyword(k) if k == &name.into() => {
                 self.advance()?;
                 self.advance()?;
                 Ok(true)
@@ -110,17 +112,17 @@ impl<R: Read> Parser<R> {
         }
     }
 
-    pub fn peek_expr_start(&mut self, name: &str) -> Result<bool> {
+    pub fn peek_expr_start(&mut self, name: impl Into<Id>) -> Result<bool> {
         if self.current.token != Token::Open {
             return Ok(false);
         }
         match &self.next.token {
-            Token::Keyword(k) if k == name => Ok(true),
+            Token::Keyword(k) if k == &name.into() => Ok(true),
             _ => Ok(false),
         }
     }
 
-    fn expect_expr_start(&mut self, name: &str) -> Result<()> {
+    fn expect_expr_start(&mut self, name: impl Into<Id>) -> Result<()> {
         if !self.try_expr_start(name)? {
             Err(self.err(ParseErrorKind::UnexpectedToken("expression start".into())))
         } else {
@@ -169,7 +171,7 @@ impl<R: Read> Parser<R> {
             .ok_or(self.err(ParseErrorKind::UnexpectedToken("utf8string literal".into())))
     }
 
-    pub fn try_id(&mut self) -> Result<Option<String>> {
+    pub fn try_id(&mut self) -> Result<Option<Id>> {
         match self.current.token {
             Token::Id(ref mut id) => {
                 let id = std::mem::take(id);
@@ -180,7 +182,7 @@ impl<R: Read> Parser<R> {
         }
     }
 
-    pub fn try_keyword(&mut self) -> Result<Option<String>> {
+    pub fn try_keyword(&mut self) -> Result<Option<Id>> {
         match self.current.token {
             Token::Keyword(ref mut id) => {
                 let id = std::mem::take(id);
@@ -190,14 +192,14 @@ impl<R: Read> Parser<R> {
             _ => Ok(None),
         }
     }
-    pub fn peek_keyword(&self) -> Result<Option<&str>> {
+    pub fn peek_keyword(&self) -> Result<Option<&Id>> {
         match &self.current.token {
             Token::Keyword(id) => Ok(Some(id)),
             _ => Ok(None),
         }
     }
 
-    pub fn take_keyword_if(&mut self, pred: fn(&str) -> bool) -> Result<Option<String>> {
+    pub fn take_keyword_if(&mut self, pred: fn(&Id) -> bool) -> Result<Option<Id>> {
         match self.current.token {
             Token::Keyword(ref mut id) if pred(id) => {
                 let id = std::mem::take(id);
@@ -208,7 +210,7 @@ impl<R: Read> Parser<R> {
         }
     }
 
-    pub fn peek_next_keyword(&self) -> Result<Option<&str>> {
+    pub fn peek_next_keyword(&self) -> Result<Option<&Id>> {
         match &self.next.token {
             Token::Keyword(id) => Ok(Some(id)),
             _ => Ok(None),

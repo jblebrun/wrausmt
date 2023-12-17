@@ -62,7 +62,7 @@ pub trait ReadElems: ReadWasmValues + ReadCode {
             .into_iter()
             .map(|idx| Expr {
                 instr: vec![Instruction {
-                    name: "ref.func".to_owned(),
+                    name: "ref.func".into(),
                     opcode: 0xD2,
                     operands: syntax::Operands::FuncIndex(idx),
                 }],

@@ -5,6 +5,7 @@ use crate::{
         error::{RuntimeError, TrapKind},
         values::Value,
     },
+    syntax::Id,
 };
 
 use super::format::ActionResult;
@@ -44,7 +45,7 @@ pub struct Failure {
 
 #[derive(Debug)]
 pub enum SpecTestError {
-    NoModule(Option<String>),
+    NoModule(Option<Id>),
     Failures(Failures),
     LoaderError(Box<LoaderError>),
     InvocationError(RuntimeError),

@@ -1,7 +1,7 @@
 use super::{ensure_consumed::EnsureConsumed, error::BinaryParseError, values::ReadWasmValues};
 use crate::{
     instructions::{instruction_data, Operands, BAD_INSTRUCTION},
-    syntax::{self, Continuation, Expr, FuncField, Instruction, Local, Resolved, TypeUse},
+    syntax::{self, Continuation, Expr, FuncField, Id, Instruction, Local, Resolved, TypeUse},
 };
 use std::io::{Read, Write};
 
@@ -206,7 +206,7 @@ pub trait ReadCode: ReadWasmValues {
         };
 
         Ok(InstructionOrEnd::Instruction(Instruction {
-            name: "".to_owned(),
+            name: Id::default(),
             opcode,
             operands,
         }))

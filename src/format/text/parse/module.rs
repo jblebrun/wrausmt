@@ -1,5 +1,6 @@
 use super::error::{ParseErrorKind, Result, WithMsg};
 use super::Parser;
+use crate::syntax::Id;
 use crate::types::{GlobalType, TableType};
 use crate::{
     format::text::{module_builder::ModuleBuilder, token::Token},
@@ -74,7 +75,7 @@ impl<R: Read> Parser<R> {
     /// first, before attempting a normal module parse.
     pub fn try_module_rest(
         &mut self,
-        id: Option<String>,
+        id: Option<Id>,
         expect_close: bool,
     ) -> Result<Option<Module<Resolved>>> {
         let mut module_builder = ModuleBuilder::new(id);
@@ -346,7 +347,7 @@ impl<R: Read> Parser<R> {
         })))
     }
 
-    pub fn expect_importdesc(&mut self) -> Result<(Option<String>, ImportDesc<Unresolved>)> {
+    pub fn expect_importdesc(&mut self) -> Result<(Option<Id>, ImportDesc<Unresolved>)> {
         if self.try_expr_start("func")? {
             let id = self.try_id()?;
             let typeuse = self.parse_type_use()?;

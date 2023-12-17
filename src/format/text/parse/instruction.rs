@@ -19,7 +19,7 @@ impl<R: Read> Parser<R> {
 
         // These mark the end of a block, so we should return none as a signal to the
         // caller.
-        if matches!(name, "else" | "end") {
+        if matches!(name.data(), b"else" | b"end") {
             return Ok(None);
         }
 
@@ -146,9 +146,9 @@ impl<R: Read> Parser<R> {
     }
 
     fn try_align(&mut self) -> Result<Option<u32>> {
-        if let Some(kw) = self.take_keyword_if(|kw| kw.starts_with("align="))? {
-            if let Some(idx) = kw.find('=') {
-                let (_, valstr) = kw.split_at(idx + 1);
+        if let Some(kw) = self.take_keyword_if(|kw| kw.as_str().starts_with("align="))? {
+            if let Some(idx) = kw.as_str().find('=') {
+                let (_, valstr) = kw.as_str().split_at(idx + 1);
                 if let Ok(val) = valstr.parse() {
                     return Ok(Some(val));
                 }
@@ -159,9 +159,9 @@ impl<R: Read> Parser<R> {
     }
 
     fn try_offset(&mut self) -> Result<Option<u32>> {
-        if let Some(kw) = self.take_keyword_if(|kw| kw.starts_with("offset="))? {
-            if let Some(idx) = kw.find('=') {
-                let (_, valstr) = kw.split_at(idx + 1);
+        if let Some(kw) = self.take_keyword_if(|kw| kw.as_str().starts_with("offset="))? {
+            if let Some(idx) = kw.as_str().find('=') {
+                let (_, valstr) = kw.as_str().split_at(idx + 1);
                 if let Ok(val) = valstr.parse() {
                     return Ok(Some(val));
                 }
@@ -245,7 +245,10 @@ impl<R: Read> Parser<R> {
             return Ok(None);
         }
 
-        if matches!(self.peek_next_keyword()?, Some("then") | Some("else")) {
+        if matches!(
+            self.peek_next_keyword()?.map(|kw| kw.as_str()),
+            Some("then") | Some("else")
+        ) {
             return Ok(None);
         }
 
