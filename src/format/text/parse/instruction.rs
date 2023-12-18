@@ -1,9 +1,12 @@
-use super::Parser;
-use super::Result;
-use crate::format::text::token::Token;
-use crate::syntax::{self, Continuation, Expr, Index, Instruction, Unresolved};
-use crate::{instructions::instruction_by_name, instructions::Operands};
-use std::io::Read;
+use {
+    super::{Parser, Result},
+    crate::{
+        format::text::token::Token,
+        instructions::{instruction_by_name, Operands},
+        syntax::{self, Continuation, Expr, Index, Instruction, Unresolved},
+    },
+    std::io::Read,
+};
 
 impl<R: Read> Parser<R> {
     pub fn parse_instructions(&mut self) -> Result<Vec<Instruction<Unresolved>>> {

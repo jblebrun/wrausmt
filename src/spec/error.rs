@@ -38,9 +38,9 @@ impl std::fmt::Debug for Failures {
 }
 
 pub struct Failure {
-    location: Location,
+    location:  Location,
     testindex: u32,
-    err: SpecTestError,
+    err:       SpecTestError,
 }
 
 #[derive(Debug)]

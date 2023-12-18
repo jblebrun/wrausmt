@@ -1,6 +1,7 @@
-use super::error::Result;
-use super::{leb128::ReadLeb128, values::ReadWasmValues};
-use crate::syntax::MemoryField;
+use {
+    super::{error::Result, leb128::ReadLeb128, values::ReadWasmValues},
+    crate::syntax::MemoryField,
+};
 
 /// Read the tables section of a binary module from a std::io::Read.
 pub trait ReadMems: ReadWasmValues {
@@ -13,7 +14,7 @@ pub trait ReadMems: ReadWasmValues {
 
     fn read_memory_field(&mut self) -> Result<MemoryField> {
         Ok(MemoryField {
-            id: None,
+            id:      None,
             memtype: self.read_memory_type()?,
             exports: vec![],
         })

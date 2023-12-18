@@ -1,13 +1,18 @@
-use crate::runtime::Value;
-use crate::runtime::{
-    error::{Result, RuntimeErrorKind},
-    instance::ModuleInstance,
+use {
+    crate::{
+        instructions::Expr,
+        runtime::{
+            error::{Result, RuntimeErrorKind},
+            instance::ModuleInstance,
+            Value,
+        },
+        types::{FunctionType, ValueType},
+    },
+    std::rc::Rc,
 };
-use crate::types::FunctionType;
-use crate::{instructions::Expr, types::ValueType};
-use std::rc::Rc;
 
-/// A function instance is the runtime representation of a function. [Spec][Spec]
+/// A function instance is the runtime representation of a function.
+/// [Spec][Spec]
 ///
 /// It effectively is a closure of the original function over the runtime module
 /// instance of its originating module. The module instance is used to resolve
@@ -16,16 +21,17 @@ use std::rc::Rc;
 /// [Spec]: https://webassembly.github.io/spec/core/exec/runtime.html#function-instances
 #[derive(Debug)]
 pub struct FunctionInstance {
-    pub functype: FunctionType,
+    pub functype:        FunctionType,
     pub module_instance: Rc<ModuleInstance>,
 
-    /// The locals declare a vector of mutable local variables and their types. These variables are
-    /// referenced through local indices in the function's body. The index of the first local is
-    /// the smallest index not referencing a parameter.
+    /// The locals declare a vector of mutable local variables and their types.
+    /// These variables are referenced through local indices in the function's
+    /// body. The index of the first local is the smallest index not referencing
+    /// a parameter.
     pub locals: Box<[ValueType]>,
 
-    /// The body is an instruction sequence that upon termination must produce a stack matching the
-    /// function type's result type.
+    /// The body is an instruction sequence that upon termination must produce a
+    /// stack matching the function type's result type.
     pub body: Box<Expr>,
 }
 
@@ -40,7 +46,7 @@ pub struct FunctionInstance {
 #[allow(dead_code)]
 struct HostFunc {
     functype: FunctionType,
-    //hostfunc: HostFunc,
+    // hostfunc: HostFunc,
 }
 
 impl FunctionInstance {
@@ -49,7 +55,7 @@ impl FunctionInstance {
         if params_arity != args.len() {
             return Err(RuntimeErrorKind::ArgumentCountError {
                 expected: params_arity,
-                got: args.len(),
+                got:      args.len(),
             }
             .error());
         }

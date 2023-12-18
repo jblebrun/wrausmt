@@ -2,9 +2,14 @@ use self::error::{ParseContext, ParseError, ParseErrorKind, Result};
 
 use crate::syntax::Id;
 
-use super::token::{FileToken, Token};
-use super::{lex::Tokenizer, string::WasmString};
-use std::io::Read;
+use {
+    super::{
+        lex::Tokenizer,
+        string::WasmString,
+        token::{FileToken, Token},
+    },
+    std::io::Read,
+};
 
 mod combinator;
 pub mod error;
@@ -15,10 +20,10 @@ mod table;
 mod valtype;
 
 pub struct Parser<R: Read> {
-    tokenizer: Tokenizer<R>,
+    tokenizer:   Tokenizer<R>,
     pub current: FileToken,
     // 1 token of lookahead
-    pub next: FileToken,
+    pub next:    FileToken,
 }
 
 trait Ignorable {
@@ -26,7 +31,8 @@ trait Ignorable {
 }
 
 impl Ignorable for Token {
-    /// Returns true if the token is ignorable (whitespace, start, or comment) by the parser.
+    /// Returns true if the token is ignorable (whitespace, start, or comment)
+    /// by the parser.
     fn ignorable(&self) -> bool {
         matches!(
             self,
@@ -49,18 +55,16 @@ impl<R: Read> Parser<R> {
     }
 
     pub fn err(&self, err: ParseErrorKind) -> ParseError {
-        ParseError::new(
-            err,
-            ParseContext {
-                current: self.current.clone(),
-                next: self.next.clone(),
-            },
-        )
+        ParseError::new(err, ParseContext {
+            current: self.current.clone(),
+            next:    self.next.clone(),
+        })
     }
 
     fn unexpected_token(&self, name: impl Into<String>) -> ParseError {
         self.err(ParseErrorKind::UnexpectedToken(name.into()))
     }
+
     // Updates the lookahead token to the next value
     // provided by the tokenizer.
     fn next(&mut self) -> Result<()> {
@@ -85,12 +89,10 @@ impl<R: Read> Parser<R> {
         while self.next.token.ignorable() {
             self.next()?;
         }
-        /*
-        println!(
-            "TOKENS ARE NOW {:?} {:?}",
-            self.current.token, self.next.token
-        );
-        */
+        // println!(
+        // "TOKENS ARE NOW {:?} {:?}",
+        // self.current.token, self.next.token
+        // );
         Ok(out)
     }
 
@@ -192,6 +194,7 @@ impl<R: Read> Parser<R> {
             _ => Ok(None),
         }
     }
+
     pub fn peek_keyword(&self) -> Result<Option<&Id>> {
         match &self.current.token {
             Token::Keyword(id) => Ok(Some(id)),

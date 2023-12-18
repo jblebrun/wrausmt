@@ -7,12 +7,13 @@ pub mod mem_instance;
 pub mod module_instance;
 pub mod table_instance;
 
-pub use data_instance::DataInstance;
-pub use elem_instance::ElemInstance;
-pub use export_instance::ExportInstance;
-pub use export_instance::ExternalVal;
-pub use function_instance::FunctionInstance;
-pub use global_instance::GlobalInstance;
-pub use mem_instance::MemInstance;
-pub use module_instance::ModuleInstance;
-pub use table_instance::TableInstance;
+pub use {
+    data_instance::DataInstance,
+    elem_instance::ElemInstance,
+    export_instance::{ExportInstance, ExternalVal},
+    function_instance::FunctionInstance,
+    global_instance::GlobalInstance,
+    mem_instance::MemInstance,
+    module_instance::ModuleInstance,
+    table_instance::TableInstance,
+};

@@ -1,8 +1,13 @@
-use super::Instruction;
-use std::collections::HashMap;
-use std::io::{Result, Write};
+use {
+    super::Instruction,
+    std::{
+        collections::HashMap,
+        io::{Result, Write},
+    },
+};
 
-/// Emit the execution functions for all of the [Instructions][Instruction] in the provided set.
+/// Emit the execution functions for all of the [Instructions][Instruction] in
+/// the provided set.
 pub trait EmitCode: Write + std::fmt::Debug {
     fn emit_code_file(&mut self, insts: &HashMap<u8, Instruction>) -> Result<()> {
         self.write_all(CODE_HEADER.as_bytes())?;
@@ -21,10 +26,11 @@ pub trait EmitCode: Write + std::fmt::Debug {
 impl<W: Write + std::fmt::Debug> EmitCode for W {}
 
 pub static CODE_HEADER: &str = "use crate::runtime::error::Result;
-use crate::runtime::error::TrapKind;
-use crate::runtime::exec::ExecutionContext;
-use crate::runtime::exec::ExecutionContextActions;
-use crate::runtime::values::Ref;
+use crate::runtime::{
+    error::TrapKind,
+    exec::{ExecutionContext, ExecutionContextActions},
+    values::Ref,
+};
 ";
 
 fn code_item(inst: &Instruction) -> String {

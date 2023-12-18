@@ -1,5 +1,7 @@
-use super::error::{Result, WithContext};
-use crate::syntax::{Index, Resolved, TypeIndex};
+use {
+    super::error::{Result, WithContext},
+    crate::syntax::{Index, Resolved, TypeIndex},
+};
 
 use super::values::ReadWasmValues;
 

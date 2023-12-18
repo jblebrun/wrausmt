@@ -1,6 +1,11 @@
-use super::error::{Result, WithContext};
-use super::{code::ReadCode, values::ReadWasmValues};
-use crate::syntax::{DataField, DataInit, Index, Resolved};
+use {
+    super::{
+        code::ReadCode,
+        error::{Result, WithContext},
+        values::ReadWasmValues,
+    },
+    crate::syntax::{DataField, DataInit, Index, Resolved},
+};
 
 /// Read the tables section of a binary module from a std::io::Read.
 pub trait ReadData: ReadWasmValues + ReadCode {

@@ -1,9 +1,18 @@
-use crate::format::text::parse::error::Result;
-use crate::syntax::{Module, Resolved};
+use crate::{
+    format::text::parse::error::Result,
+    syntax::{Module, Resolved},
+};
 
-use self::parse::error::{ParseError, ParseErrorKind};
-use self::{lex::Tokenizer, parse::Parser};
-use std::io::Read;
+use {
+    self::{
+        lex::Tokenizer,
+        parse::{
+            error::{ParseError, ParseErrorKind},
+            Parser,
+        },
+    },
+    std::io::Read,
+};
 
 pub mod lex;
 pub mod token;

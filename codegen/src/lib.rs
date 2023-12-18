@@ -3,14 +3,13 @@ mod code;
 mod data_table;
 mod exec_table;
 mod fields;
-use std::collections::HashMap;
-use std::fs;
-use std::io;
-use std::io::{BufRead, Write};
+use std::{
+    collections::HashMap,
+    fs,
+    io::{self, BufRead, Write},
+};
 
-use code::EmitCode;
-use data_table::EmitDataTable;
-use exec_table::EmitExecTable;
+use {code::EmitCode, data_table::EmitDataTable, exec_table::EmitExecTable};
 
 /// The data for one instruction read from the instructions list file.
 #[derive(Default, Debug)]
@@ -37,10 +36,10 @@ impl Instruction {
     fn new(fields: Vec<&str>) -> Instruction {
         Instruction {
             typename: fields::typename(fields[1]),
-            name: fields[1].to_string(),
-            opcode: fields::hex(fields[0]) as u8,
+            name:     fields[1].to_string(),
+            opcode:   fields::hex(fields[0]) as u8,
             operands: fields::operands(fields[2]),
-            body: String::new(),
+            body:     String::new(),
         }
     }
 }
@@ -64,9 +63,9 @@ fn read_instruction_list(file: &str) -> io::Result<HashMap<u8, Instruction>> {
             continue;
         }
 
-        // If a line starts with |, we're collecting the code for executing the instruction
-        // most recently described above in the file. So just add this text to the
-        // body for the current instruction.
+        // If a line starts with |, we're collecting the code for executing the
+        // instruction most recently described above in the file. So just add
+        // this text to the body for the current instruction.
         if let Some(stripped_code_line) = line.strip_prefix('|') {
             let formatted_code_line = if stripped_code_line.is_empty() {
                 "".to_owned()
@@ -77,7 +76,8 @@ fn read_instruction_list(file: &str) -> io::Result<HashMap<u8, Instruction>> {
             continue;
         }
 
-        // Get the fields for an instruction descriptor, expecting 3: opcode, name, parse.
+        // Get the fields for an instruction descriptor, expecting 3: opcode, name,
+        // parse.
         let fields = line.split(',').map(|l| l.trim()).collect::<Vec<&str>>();
 
         if fields.len() != 3 {
@@ -85,7 +85,8 @@ fn read_instruction_list(file: &str) -> io::Result<HashMap<u8, Instruction>> {
             continue;
         }
 
-        // Update the current instruction, saving the old one so we can finalize it below.
+        // Update the current instruction, saving the old one so we can finalize it
+        // below.
         let oldinst = curinst;
         curinst = Instruction::new(fields);
 
@@ -99,14 +100,15 @@ fn read_instruction_list(file: &str) -> io::Result<HashMap<u8, Instruction>> {
     Ok(insts)
 }
 
-/// Read master_ops_list.csv and emit functions, function tables, and data tables.
+/// Read master_ops_list.csv and emit functions, function tables, and data
+/// tables.
 pub fn parse() -> io::Result<()> {
     let mut insts = read_instruction_list("codegen/master_ops_list.csv")?;
 
     let secondary_instructions = read_instruction_list("codegen/master_secondary_ops_list.csv")?;
 
-    // There's plenty of room in the primary opcode space, so we put secondary instructions in
-    // there starting at 0xE0
+    // There's plenty of room in the primary opcode space, so we put secondary
+    // instructions in there starting at 0xE0
     for (k, mut v) in secondary_instructions.into_iter() {
         v.opcode += 0xE0;
         insts.insert(k + 0xE0, v);

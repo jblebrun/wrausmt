@@ -1,10 +1,14 @@
-use super::error::{BinaryParseError, Result, WithContext};
-use super::leb128::ReadLeb128;
-use crate::{
-    syntax::{FParam, FResult, FunctionType, Index, IndexSpace, Resolved, TypeUse},
-    types::{GlobalType, Limits, MemType, NumType, RefType, TableType, ValueType},
+use {
+    super::{
+        error::{BinaryParseError, Result, WithContext},
+        leb128::ReadLeb128,
+    },
+    crate::{
+        syntax::{FParam, FResult, FunctionType, Index, IndexSpace, Resolved, TypeUse},
+        types::{GlobalType, Limits, MemType, NumType, RefType, TableType, ValueType},
+    },
+    std::convert::TryFrom,
 };
-use std::convert::TryFrom;
 
 macro_rules! read_exact_bytes {
     ( $r:expr, $size:expr, $expect:expr ) => {{
@@ -12,7 +16,7 @@ macro_rules! read_exact_bytes {
         $r.read_exact(&mut buf).ctx("reading")?;
         if buf != $expect {
             Err(BinaryParseError::Unexpected {
-                got: Box::new(buf),
+                got:    Box::new(buf),
                 expect: Box::new($expect),
             })
         } else {
@@ -38,7 +42,8 @@ pub trait ReadWasmValues: ReadLeb128 + Sized {
         Ok(buf[0])
     }
 
-    /// Read a single byte, returning an error if it doesn't match the value provided.
+    /// Read a single byte, returning an error if it doesn't match the value
+    /// provided.
     fn read_specific_byte(&mut self, expect: u8) -> Result<()> {
         read_exact_bytes!(self, 1, [expect])
     }
@@ -58,7 +63,8 @@ pub trait ReadWasmValues: ReadLeb128 + Sized {
     }
 
     /// Read a boolean field.
-    /// A boolean field should only contain a value of 1 (for true) or 0 (for false).
+    /// A boolean field should only contain a value of 1 (for true) or 0 (for
+    /// false).
     fn read_bool(&mut self) -> Result<bool> {
         let bool_byte = self.read_byte().ctx("fetching bool")?;
         match bool_byte {
@@ -88,7 +94,7 @@ pub trait ReadWasmValues: ReadLeb128 + Sized {
 
     fn read_type_use(&mut self) -> Result<TypeUse<Resolved>> {
         Ok(TypeUse {
-            typeidx: Some(self.read_index_use()?),
+            typeidx:      Some(self.read_index_use()?),
             functiontype: FunctionType::default(),
         })
     }
@@ -98,7 +104,7 @@ pub trait ReadWasmValues: ReadLeb128 + Sized {
             .read_result_type()?
             .into_iter()
             .map(|vt| FParam {
-                id: None,
+                id:        None,
                 valuetype: vt,
             })
             .collect())
@@ -125,7 +131,7 @@ pub trait ReadWasmValues: ReadLeb128 + Sized {
     fn read_table_type(&mut self) -> Result<TableType> {
         Ok(TableType {
             reftype: self.read_ref_type().ctx("parsing reftype")?,
-            limits: self.read_limits().ctx("parsing limits")?,
+            limits:  self.read_limits().ctx("parsing limits")?,
         })
     }
 
@@ -153,6 +159,7 @@ impl<I> ReadWasmValues for I where I: ReadLeb128 {}
 
 impl TryFrom<u8> for ValueType {
     type Error = BinaryParseError;
+
     fn try_from(byte: u8) -> Result<ValueType> {
         match byte {
             0x7F => Ok(NumType::I32.into()),
@@ -168,6 +175,7 @@ impl TryFrom<u8> for ValueType {
 
 impl TryFrom<u8> for RefType {
     type Error = BinaryParseError;
+
     fn try_from(byte: u8) -> Result<RefType> {
         match byte {
             0x70 => Ok(RefType::Func),

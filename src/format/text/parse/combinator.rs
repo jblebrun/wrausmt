@@ -1,6 +1,7 @@
-use super::error::Result;
-use super::Parser;
-use std::io::Read;
+use {
+    super::{error::Result, Parser},
+    std::io::Read,
+};
 
 type ParseFn<S, T> = fn(&mut S) -> Result<Option<T>>;
 type ParseGroupFn<S, T> = fn(&mut S) -> Result<Option<Vec<T>>>;

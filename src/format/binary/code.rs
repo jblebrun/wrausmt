@@ -1,9 +1,11 @@
-use super::{ensure_consumed::EnsureConsumed, error::BinaryParseError, values::ReadWasmValues};
-use crate::{
-    instructions::{instruction_data, Operands, BAD_INSTRUCTION},
-    syntax::{self, Continuation, Expr, FuncField, Id, Instruction, Local, Resolved, TypeUse},
+use {
+    super::{ensure_consumed::EnsureConsumed, error::BinaryParseError, values::ReadWasmValues},
+    crate::{
+        instructions::{instruction_data, Operands, BAD_INSTRUCTION},
+        syntax::{self, Continuation, Expr, FuncField, Id, Instruction, Local, Resolved, TypeUse},
+    },
+    std::io::{Read, Write},
 };
-use std::io::{Read, Write};
 
 use super::error::{Result, WithContext};
 
@@ -22,7 +24,7 @@ pub enum InstructionOrEnd {
 #[derive(Debug)]
 pub struct ExpressionWithEnd {
     expr: Expr<Resolved>,
-    end: ExpressionEnd,
+    end:  ExpressionEnd,
 }
 
 /// Read the Code section of a binary module.
@@ -47,12 +49,12 @@ pub trait ReadCode: ReadWasmValues {
         let codesize = self.read_u32_leb_128().ctx("parsing func")?;
         let mut code_reader = self.take(codesize as u64);
         let function = FuncField {
-            id: None,
+            id:      None,
             exports: vec![],
             // The types are parsed earlier and will be set on the returned values.
             typeuse: TypeUse::default(),
-            locals: code_reader.read_locals().ctx("parsing locals")?,
-            body: code_reader.read_expr().ctx("parsing code")?,
+            locals:  code_reader.read_locals().ctx("parsing locals")?,
+            body:    code_reader.read_expr().ctx("parsing code")?,
         };
         code_reader.ensure_consumed()?;
         Ok(function)
@@ -69,7 +71,7 @@ pub trait ReadCode: ReadWasmValues {
             let val = self.read_value_type().ctx("parsing value type")?;
             for _ in 0..reps {
                 result.push(Local {
-                    id: None,
+                    id:      None,
                     valtype: val,
                 });
             }
@@ -97,8 +99,8 @@ pub trait ReadCode: ReadWasmValues {
         Ok(ExpressionWithEnd { expr, end })
     }
 
-    /// Returns -1 if EOF or end instruction was reached while parsing an opcode.
-    /// Returns 1 if a new block was started
+    /// Returns -1 if EOF or end instruction was reached while parsing an
+    /// opcode. Returns 1 if a new block was started
     /// Returns 0 if a normal instruction was parsed.
     /// Returns Err result otherwise.
     fn read_inst(&mut self) -> Result<InstructionOrEnd> {

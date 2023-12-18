@@ -1,24 +1,20 @@
-use super::error::{ParseErrorKind, Result, WithMsg};
-use super::Parser;
-use crate::syntax::Id;
-use crate::types::{GlobalType, TableType};
-use crate::{
-    format::text::{module_builder::ModuleBuilder, token::Token},
-    syntax::{ResolvedState, TableField},
-};
-use crate::{
-    syntax::{
-        DataField, ElemField, ExportDesc, ExportField, Expr, FParam, FResult, FuncField,
-        FunctionType, GlobalField, ImportDesc, ImportField, Index, IndexSpace, Local, MemoryField,
-        ModeEntry, Module, Resolved, StartField, TypeField, TypeUse, Unresolved,
+use {
+    super::{
+        error::{ParseErrorKind, Result, WithMsg},
+        Parser,
     },
-    types::Limits,
+    crate::{
+        format::text::{module_builder::ModuleBuilder, token::Token},
+        syntax::{
+            DataField, DataInit, ElemField, ExportDesc, ExportField, Expr, FParam, FResult,
+            FuncField, FunctionType, GlobalField, Id, ImportDesc, ImportField, Index, IndexSpace,
+            Instruction, Local, MemoryField, MemoryIndex, ModeEntry, Module, Resolved,
+            ResolvedState, StartField, TableField, TypeField, TypeUse, Unresolved,
+        },
+        types::{GlobalType, Limits, MemType, TableType},
+    },
+    std::io::Read,
 };
-use crate::{
-    syntax::{DataInit, Instruction, MemoryIndex},
-    types::MemType,
-};
-use std::io::Read;
 
 #[derive(Debug, PartialEq)]
 pub enum Field<R: ResolvedState> {
@@ -39,8 +35,8 @@ const PAGE_SIZE: usize = 65536;
 // Implementation for module-specific parsing functions.
 impl<R: Read> Parser<R> {
     /// Attempt to parse the current token stream as a WebAssembly module.
-    /// On success, a vector of sections is returned. They can be organized into a
-    /// module object.
+    /// On success, a vector of sections is returned. They can be organized into
+    /// a module object.
     pub fn try_module(&mut self) -> Result<Option<Module<Resolved>>> {
         let (expect_close, id) = if self.try_expr_start("module")? {
             (true, self.try_id()?)
@@ -70,9 +66,9 @@ impl<R: Read> Parser<R> {
         }
     }
 
-    /// This is split away as a convenience for spec test parsing, so that we can
-    /// parse the module expression header, and then check for binary/quote modules
-    /// first, before attempting a normal module parse.
+    /// This is split away as a convenience for spec test parsing, so that we
+    /// can parse the module expression header, and then check for
+    /// binary/quote modules first, before attempting a normal module parse.
     pub fn try_module_rest(
         &mut self,
         id: Option<Id>,
@@ -101,7 +97,7 @@ impl<R: Read> Parser<R> {
                     module_builder.add_memoryfield(f);
                     if let Some(d) = d {
                         module_builder.add_datafield(DataField {
-                            id: None,
+                            id:   None,
                             data: d,
                             init: Some(DataInit {
                                 memidx: Index::unnamed(memidx),
@@ -175,7 +171,7 @@ impl<R: Read> Parser<R> {
 
     pub fn try_function_type(&mut self) -> Result<FunctionType> {
         Ok(FunctionType {
-            params: self.zero_or_more_groups(Self::try_parse_fparam)?,
+            params:  self.zero_or_more_groups(Self::try_parse_fparam)?,
             results: self.zero_or_more_groups(Self::try_parse_fresult)?,
         })
     }
@@ -247,8 +243,8 @@ impl<R: Read> Parser<R> {
             return Ok(None);
         }
 
-        // The data is written as a string, which may be split up into a possibly empty sequence of
-        // individual string literals.
+        // The data is written as a string, which may be split up into a possibly empty
+        // sequence of individual string literals.
         let datas = self.zero_or_more(Self::try_wasm_string)?;
 
         let data = datas
@@ -485,8 +481,8 @@ impl<R: Read> Parser<R> {
 
         let offset = self.try_offset_expression()?;
 
-        // The data is written as a string, which may be split up into a possibly empty sequence of
-        // individual string literals.
+        // The data is written as a string, which may be split up into a possibly empty
+        // sequence of individual string literals.
         let datas = self.zero_or_more(Self::try_wasm_string)?;
 
         let data = datas

@@ -1,11 +1,13 @@
 //! Methods implementing index usage resolution.
-use super::module_builder::ModuleIdentifiers;
-use crate::syntax::{
-    DataField, DataIndex, DataInit, ElemField, ElemIndex, ElemList, ExportDesc, ExportField, Expr,
-    FParam, FuncField, FuncIndex, FunctionType, GlobalField, GlobalIndex, Id, ImportDesc,
-    ImportField, Index, Instruction, LabelIndex, LocalIndex, MemoryIndex, ModeEntry, Module,
-    Operands, Resolved, StartField, TableIndex, TablePosition, TableUse, TypeField, TypeIndex,
-    TypeUse, Unresolved,
+use {
+    super::module_builder::ModuleIdentifiers,
+    crate::syntax::{
+        DataField, DataIndex, DataInit, ElemField, ElemIndex, ElemList, ExportDesc, ExportField,
+        Expr, FParam, FuncField, FuncIndex, FunctionType, GlobalField, GlobalIndex, Id, ImportDesc,
+        ImportField, Index, Instruction, LabelIndex, LocalIndex, MemoryIndex, ModeEntry, Module,
+        Operands, Resolved, StartField, TableIndex, TablePosition, TableUse, TypeField, TypeIndex,
+        TypeUse, Unresolved,
+    },
 };
 
 #[derive(Debug)]
@@ -18,7 +20,7 @@ pub type Result<T> = std::result::Result<T, ResolveError>;
 /// A structure to hold the currently resolvable set of identifiers.
 #[derive(Debug)]
 pub struct ResolutionContext {
-    pub modulescope: ModuleIdentifiers,
+    pub modulescope:  ModuleIdentifiers,
     pub localindices: Vec<Id>,
     pub labelindices: Vec<Id>,
 }
@@ -77,7 +79,7 @@ impl ResolutionContext {
 
     pub fn for_func(&self, li: Vec<Id>) -> Self {
         Self {
-            modulescope: self.modulescope.clone(),
+            modulescope:  self.modulescope.clone(),
             localindices: li,
             labelindices: self.labelindices.clone(),
         }
@@ -87,7 +89,7 @@ impl ResolutionContext {
         let mut li = self.labelindices.clone();
         li.push(id);
         ResolutionContext {
-            modulescope: self.modulescope.clone(),
+            modulescope:  self.modulescope.clone(),
             localindices: self.localindices.clone(),
             labelindices: li,
         }
@@ -104,14 +106,15 @@ impl OrEmpty<Id> for Option<Id> {
     }
 }
 
-/// Each syntax element that contains an index usag, an element containin an index
-/// usage, should implement this trait with logic describing how to return the
-/// element in a resolved state.
+/// Each syntax element that contains an index usag, an element containin an
+/// index usage, should implement this trait with logic describing how to return
+/// the element in a resolved state.
 pub trait Resolve<T> {
     fn resolve(self, ic: &ResolutionContext, types: &mut Vec<TypeField>) -> Result<T>;
 }
 
-/// For an iterable of unresolved items, returns a Vector with all of the items resolved.
+/// For an iterable of unresolved items, returns a Vector with all of the items
+/// resolved.
 macro_rules! resolve_all {
     ( $src:expr, $ic:expr, $types:expr ) => {
         $src.into_iter()
@@ -120,14 +123,16 @@ macro_rules! resolve_all {
     };
 }
 
-/// For an option of an unresolved items, returns an option of the resolved item.
+/// For an option of an unresolved items, returns an option of the resolved
+/// item.
 macro_rules! resolve_option {
     ( $src:expr, $ic:expr, $types:expr ) => {
         $src.map(|i| i.resolve(&$ic, $types)).transpose()?
     };
 }
 
-/// This generates each of the [Resolve] impls for the [Index] in each [IndexSpace].
+/// This generates each of the [Resolve] impls for the [Index] in each
+/// [IndexSpace].
 macro_rules! index_resolver {
     ( $it:ty, $ic:ident, $src:ident ) => {
         impl Resolve<Index<Resolved, $it>> for Index<Unresolved, $it> {
@@ -175,8 +180,8 @@ impl Resolve<Instruction<Resolved>> for Instruction<Unresolved> {
         types: &mut Vec<TypeField>,
     ) -> Result<Instruction<Resolved>> {
         Ok(Instruction {
-            name: self.name,
-            opcode: self.opcode,
+            name:     self.name,
+            opcode:   self.opcode,
             operands: self.operands.resolve(ic, types)?,
         })
     }
@@ -255,10 +260,10 @@ impl Resolve<ImportField<Resolved>> for ImportField<Unresolved> {
     ) -> Result<ImportField<Resolved>> {
         Ok(ImportField {
             modname: self.modname,
-            name: self.name,
-            id: self.id,
+            name:    self.name,
+            id:      self.id,
             exports: self.exports,
-            desc: self.desc.resolve(ic, types)?,
+            desc:    self.desc.resolve(ic, types)?,
         })
     }
 }
@@ -285,7 +290,7 @@ impl Resolve<ExportField<Resolved>> for ExportField<Unresolved> {
         types: &mut Vec<TypeField>,
     ) -> Result<ExportField<Resolved>> {
         Ok(ExportField {
-            name: self.name,
+            name:       self.name,
             exportdesc: self.exportdesc.resolve(ic, types)?,
         })
     }
@@ -313,10 +318,10 @@ impl Resolve<GlobalField<Resolved>> for GlobalField<Unresolved> {
         types: &mut Vec<TypeField>,
     ) -> Result<GlobalField<Resolved>> {
         Ok(GlobalField {
-            id: self.id,
-            exports: self.exports,
+            id:         self.id,
+            exports:    self.exports,
             globaltype: self.globaltype,
-            init: self.init.resolve(ic, types)?,
+            init:       self.init.resolve(ic, types)?,
         })
     }
 }
@@ -340,8 +345,8 @@ impl Resolve<ElemField<Resolved>> for ElemField<Unresolved> {
         types: &mut Vec<TypeField>,
     ) -> Result<ElemField<Resolved>> {
         Ok(ElemField {
-            id: self.id,
-            mode: self.mode.resolve(ic, types)?,
+            id:       self.id,
+            mode:     self.mode.resolve(ic, types)?,
             elemlist: self.elemlist.resolve(ic, types)?,
         })
     }
@@ -369,7 +374,7 @@ impl Resolve<TablePosition<Resolved>> for TablePosition<Unresolved> {
     ) -> Result<TablePosition<Resolved>> {
         Ok(TablePosition {
             tableuse: self.tableuse.resolve(ic, types)?,
-            offset: self.offset.resolve(ic, types)?,
+            offset:   self.offset.resolve(ic, types)?,
         })
     }
 }
@@ -458,7 +463,8 @@ impl Resolve<TypeUse<Resolved>> for TypeUse<Unresolved> {
         let (typeidx, functiontype) = if let Some(typeidx) = &typeidx {
             // We don't care about populating the existing functiontype, since the index is
             // sufficient.
-            //  Don't actually validate the index here, or spec tests will fail at parse time.
+            //  Don't actually validate the index here, or spec tests will fail at parse
+            // time.
             (typeidx.clone(), FunctionType::default())
         } else {
             let functiontype = self.functiontype;
@@ -471,7 +477,7 @@ impl Resolve<TypeUse<Resolved>> for TypeUse<Unresolved> {
                 None => {
                     let newidx = types.len();
                     types.push(TypeField {
-                        id: None,
+                        id:           None,
                         functiontype: functiontype.clone(),
                     });
                     Index::unnamed(newidx as u32)

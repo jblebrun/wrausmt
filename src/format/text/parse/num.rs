@@ -1,8 +1,12 @@
-use super::super::token::{Base, NumToken, Sign, Token};
-use super::error::{KindResult, ParseErrorKind, Result};
-use super::Parser;
-use crate::types::Limits;
-use std::io::Read;
+use {
+    super::{
+        super::token::{Base, NumToken, Sign, Token},
+        error::{KindResult, ParseErrorKind, Result},
+        Parser,
+    },
+    crate::types::Limits,
+    std::io::Read,
+};
 
 macro_rules! try_num {
     ( $n:ident, $en:ident, $fn:ident, $ty:ty, $err:literal ) => {
@@ -29,9 +33,13 @@ macro_rules! try_num {
 
 impl<R: Read> Parser<R> {
     try_num! { try_u32, expect_u32, as_u32, u32, "expected U32" }
+
     try_num! { try_i32, expect_i32, as_i32, i32, "expected I32" }
+
     try_num! { try_i64, expect_i64, as_i64, i64, "expected I64" }
+
     try_num! { try_f32, expect_f32, as_f32, f32, "expected F32" }
+
     try_num! { try_f64, expect_f64, as_f64, f64, "expected F64" }
 
     pub fn expect_limits(&mut self) -> Result<Limits> {
@@ -118,9 +126,13 @@ macro_rules! parse_int {
 
 impl NumToken {
     parse_int! { as_u32, u32, u32, "u32" }
+
     parse_int! { as_i32, i32, u32, "i32" }
+
     parse_int! { as_i64, i64, u64, "i64" }
+
     parse_float! { as_f32, f32, nanx_f32, parse_hex_f32 }
+
     parse_float! { as_f64, f64, nanx_f64, parse_hex_f64  }
 }
 
@@ -134,12 +146,12 @@ fn parse_hex_digit(digit_byte: u8) -> KindResult<u8> {
 }
 
 /// A helper structure for aggregating the mantissa and adjusting the exponent.
-/// It carries enough information to eventually round a mantissa that's 60 bits or less.
-/// Can generate either f32 or f64.
+/// It carries enough information to eventually round a mantissa that's 60 bits
+/// or less. Can generate either f32 or f64.
 #[derive(Debug, Default)]
 struct FloatBuilder {
     bits: u64,
-    exp: i16,
+    exp:  i16,
 }
 
 impl FloatBuilder {
@@ -166,7 +178,8 @@ impl FloatBuilder {
         Ok(builder)
     }
 
-    /// Add a digit to the mantissa. Digits should be added most-significant first.
+    /// Add a digit to the mantissa. Digits should be added most-significant
+    /// first.
     fn add_digit(&mut self, dbyte: u8) -> KindResult<()> {
         let d = parse_hex_digit(dbyte)?;
         let round_bits = self.bits & 0xF;
@@ -188,8 +201,9 @@ impl FloatBuilder {
         self.add_digit(dbyte)
     }
 
-    /// Normalize the mantissa. This should be called once all digits have been shifted
-    /// in, if the mantissa is for a normal number (there are any non-0 whole number digits).
+    /// Normalize the mantissa. This should be called once all digits have been
+    /// shifted in, if the mantissa is for a normal number (there are any non-0
+    /// whole number digits).
     fn normalize(&mut self) {
         if self.bits == 0 {
             return;
@@ -199,11 +213,11 @@ impl FloatBuilder {
         self.exp -= lz as i16;
     }
 
-    /// Handle round-to-nearest, ties-to-even for a mantissa of the provided size.
-    /// Round up when the out-of-range digits are more than half LSB,
+    /// Handle round-to-nearest, ties-to-even for a mantissa of the provided
+    /// size. Round up when the out-of-range digits are more than half LSB,
     /// Round down when out-of-range digits are less than half LSB,
-    /// When out-of-range digits are exactly half, LSB, round to nearest even, i.e.:
-    ///   round up when MSB 1, down when MSB 0.
+    /// When out-of-range digits are exactly half, LSB, round to nearest even,
+    /// i.e.:   round up when MSB 1, down when MSB 0.
     fn round(&mut self, size: u32) {
         let roundmask = u64::MAX >> size;
         let even = 0x8000000000000000u64 >> size;
@@ -284,9 +298,7 @@ fn parse_hex_f64(sign: Sign, whole: &str, frac: &str, exp: &str) -> KindResult<f
 mod tests {
     use crate::format::text::parse::error::ParseErrorKind;
 
-    use super::super::super::token::Sign;
-    use super::parse_hex_f32;
-    use super::parse_hex_f64;
+    use super::{super::super::token::Sign, parse_hex_f32, parse_hex_f64};
     impl std::error::Error for ParseErrorKind {}
 
     type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;

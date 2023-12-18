@@ -1,6 +1,10 @@
-use super::error::{Result, WithContext};
-use super::{error::BinaryParseError, values::ReadWasmValues};
-use crate::syntax::{ExportDesc, ExportField, Resolved};
+use {
+    super::{
+        error::{BinaryParseError, Result, WithContext},
+        values::ReadWasmValues,
+    },
+    crate::syntax::{ExportDesc, ExportField, Resolved},
+};
 
 /// A trait to allow parsing of an exports section from something implementing
 /// std::io::Read.
@@ -36,7 +40,7 @@ pub trait ReadExports: ReadWasmValues {
 
     fn read_export_field(&mut self) -> Result<ExportField<Resolved>> {
         Ok(ExportField {
-            name: self.read_name().ctx("parsing name")?,
+            name:       self.read_name().ctx("parsing name")?,
             exportdesc: self.read_export_desc()?,
         })
     }

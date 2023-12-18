@@ -1,6 +1,10 @@
-use super::error::{Result, WithContext};
-use super::values::ReadWasmValues;
-use crate::syntax::TableField;
+use {
+    super::{
+        error::{Result, WithContext},
+        values::ReadWasmValues,
+    },
+    crate::syntax::TableField,
+};
 
 /// Read the tables section of a binary module from a std::io::Read.
 pub trait ReadTables: ReadWasmValues {
@@ -13,9 +17,9 @@ pub trait ReadTables: ReadWasmValues {
 
     fn read_table_field(&mut self) -> Result<TableField> {
         Ok(TableField {
-            id: None,
+            id:        None,
             tabletype: self.read_table_type()?,
-            exports: vec![],
+            exports:   vec![],
         })
     }
 }

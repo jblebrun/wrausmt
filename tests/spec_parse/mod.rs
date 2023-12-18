@@ -1,5 +1,4 @@
-use wrausmt::format::text::lex::Tokenizer;
-use wrausmt::format::text::parse::Parser;
+use wrausmt::format::text::{lex::Tokenizer, parse::Parser};
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 

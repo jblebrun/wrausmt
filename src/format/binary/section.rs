@@ -1,17 +1,30 @@
-use super::error::{Result, WithContext};
-use super::{
-    code::ReadCode, custom::ReadCustom, data::ReadData, elems::ReadElems,
-    ensure_consumed::EnsureConsumed, exports::ReadExports, funcs::ReadFuncs, globals::ReadGlobals,
-    imports::ReadImports, mems::ReadMems, start::ReadStart, tables::ReadTables, types::ReadTypes,
-    values::ReadWasmValues,
+use {
+    super::{
+        code::ReadCode,
+        custom::ReadCustom,
+        data::ReadData,
+        elems::ReadElems,
+        ensure_consumed::EnsureConsumed,
+        error::{Result, WithContext},
+        exports::ReadExports,
+        funcs::ReadFuncs,
+        globals::ReadGlobals,
+        imports::ReadImports,
+        mems::ReadMems,
+        start::ReadStart,
+        tables::ReadTables,
+        types::ReadTypes,
+        values::ReadWasmValues,
+    },
+    crate::syntax,
 };
-use crate::syntax;
 
 use std::io::Read;
 
 pub trait SectionReader: ReadWasmValues + ReadCode {
-    /// Read and return the next section in a binary module being read by a std::io::Read
-    /// If the end of the binary module has been reached, Section::Eof will be returned.
+    /// Read and return the next section in a binary module being read by a
+    /// std::io::Read If the end of the binary module has been reached,
+    /// Section::Eof will be returned.
     ///
     /// [Spec]: https://webassembly.github.io/spec/core/binary/modules.html#sections
     fn read_section(&mut self) -> Result<Section> {

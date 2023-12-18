@@ -1,31 +1,33 @@
 use std::rc::Rc;
 
-use super::{
-    compile::compile_function_body,
-    error::{Result, RuntimeErrorKind},
-    instance::{FunctionInstance, ModuleInstance},
-    Runtime,
-};
-use crate::{
-    logger::{Logger, Tag},
-    runtime::{
-        compile::compile_export,
-        instance::{DataInstance, ElemInstance, GlobalInstance, MemInstance, TableInstance},
-        values::Ref,
+use {
+    super::{
+        compile::compile_function_body,
+        error::{Result, RuntimeErrorKind},
+        instance::{FunctionInstance, ModuleInstance},
+        Runtime,
     },
-    runtime::{
-        compile::Emitter,
-        instance::{module_instance::ModuleInstanceBuilder, ExternalVal},
+    crate::{
+        logger::{Logger, Tag},
+        runtime::{
+            compile::{compile_export, Emitter},
+            instance::{
+                module_instance::ModuleInstanceBuilder, DataInstance, ElemInstance, ExternalVal,
+                GlobalInstance, MemInstance, TableInstance,
+            },
+            values::Ref,
+        },
+        syntax::{
+            self, DataInit, ElemList, Expr, FuncField, ImportDesc, Instruction, ModeEntry,
+            Resolved, TablePosition,
+        },
+        types::{FunctionType, ValueType},
     },
-    syntax::ModeEntry,
-    syntax::{
-        self, DataInit, ElemList, Expr, FuncField, ImportDesc, Instruction, Resolved, TablePosition,
-    },
-    types::{FunctionType, ValueType},
 };
 
 impl Runtime {
-    /// The load method allocates and instantiates the provided [syntax::Module].
+    /// The load method allocates and instantiates the provided
+    /// [syntax::Module].
     pub fn load(&mut self, module: syntax::Module<Resolved>) -> Result<Rc<ModuleInstance>> {
         self.instantiate(module)
     }

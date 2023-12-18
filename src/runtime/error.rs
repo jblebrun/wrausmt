@@ -16,7 +16,7 @@ macro_rules! impl_bug {
 #[derive(Debug)]
 pub struct RuntimeError {
     pub kind: RuntimeErrorKind,
-    context: Vec<String>,
+    context:  Vec<String>,
 }
 
 impl RuntimeError {
@@ -66,7 +66,7 @@ impl From<TrapKind> for RuntimeError {
 impl RuntimeErrorKind {
     pub fn error(self) -> RuntimeError {
         RuntimeError {
-            kind: self,
+            kind:    self,
             context: vec![],
         }
     }

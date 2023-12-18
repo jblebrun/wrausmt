@@ -1,4 +1,5 @@
-/// An data instance is the runtime representation of a data segment. [Spec][Spec]
+/// An data instance is the runtime representation of a data segment.
+/// [Spec][Spec]
 ///
 /// It holds a vector of bytes.
 ///

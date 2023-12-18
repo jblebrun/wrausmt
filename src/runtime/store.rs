@@ -1,12 +1,15 @@
-use super::{
-    error::{Result, TrapKind},
-    instance::{
-        DataInstance, ElemInstance, FunctionInstance, GlobalInstance, MemInstance, TableInstance,
+use {
+    super::{
+        error::{Result, TrapKind},
+        instance::{
+            DataInstance, ElemInstance, FunctionInstance, GlobalInstance, MemInstance,
+            TableInstance,
+        },
+        values::{Ref, Value},
     },
-    values::{Ref, Value},
+    crate::impl_bug,
+    std::{iter::Iterator, ops::Range, rc::Rc, slice},
 };
-use crate::impl_bug;
-use std::{iter::Iterator, ops::Range, rc::Rc, slice};
 
 /// Function instances, table instances, memory instances, and global instances,
 /// element instances, and data instances in the store are referenced with
@@ -29,8 +32,9 @@ pub mod addr {
 ///
 /// The store represents all global state that can be manipulated by WebAssembly
 /// programs. It consists of the runtime representation of all instances of
-/// functions, tables, memories, and globals, element segments, and data segments
-/// that have been allocated during the life time of the abstract machine. 1
+/// functions, tables, memories, and globals, element segments, and data
+/// segments that have been allocated during the life time of the abstract
+/// machine. 1
 ///
 /// It is an invariant of the semantics that no element or data instance is
 /// addressed from anywhere else but the owning module instances.
@@ -47,12 +51,12 @@ pub mod addr {
 /// [Spec]: https://webassembly.github.io/spec/core/exec/runtime.html#store
 #[derive(Default, Debug)]
 pub struct Store {
-    pub funcs: Vec<Rc<FunctionInstance>>,
-    pub tables: Vec<TableInstance>,
-    pub mems: Vec<MemInstance>,
+    pub funcs:   Vec<Rc<FunctionInstance>>,
+    pub tables:  Vec<TableInstance>,
+    pub mems:    Vec<MemInstance>,
     pub globals: Vec<GlobalInstance>,
-    pub elems: Vec<ElemInstance>,
-    pub datas: Vec<DataInstance>,
+    pub elems:   Vec<ElemInstance>,
+    pub datas:   Vec<DataInstance>,
 }
 
 trait UnsafeCopyFromSlice<T> {
@@ -188,11 +192,11 @@ impl Store {
             .get(dst..dst + count)
             .ok_or(TrapKind::OutOfBoundsTableAccess(src, count))?;
 
-        // Can't get a mut ref to one table in the vector of tables while we have a const ref to
-        // another one.
-        // But we are ok here: nothing is touching the tables themselves, and the copy_from_slice
-        // will not trigger any re-allocation, so we can force the ref to a mutable pointer, then
-        // convert it back into a mutable slice.
+        // Can't get a mut ref to one table in the vector of tables while we have a
+        // const ref to another one.
+        // But we are ok here: nothing is touching the tables themselves, and the
+        // copy_from_slice will not trigger any re-allocation, so we can force the
+        // ref to a mutable pointer, then convert it back into a mutable slice.
         unsafe {
             dstitems.copy_from_slice_unsafe(srcitems);
         }
@@ -232,11 +236,11 @@ impl Store {
         let srcitems = mem.read(0, src, count)?;
         let dstitems = mem.read(0, dst, count)?;
 
-        // Can't get a mut ref to one table in the vector of tables while we have a const ref to
-        // another one.
-        // But we are ok here: nothing is touching the tables themselves, and the copy_from_slice
-        // will not trigger any re-allocation, so we can force the ref to a mutable pointer, then
-        // convert it back into a mutable slice.
+        // Can't get a mut ref to one table in the vector of tables while we have a
+        // const ref to another one.
+        // But we are ok here: nothing is touching the tables themselves, and the
+        // copy_from_slice will not trigger any re-allocation, so we can force the
+        // ref to a mutable pointer, then convert it back into a mutable slice.
         unsafe {
             dstitems.copy_from_slice_unsafe(srcitems);
         }

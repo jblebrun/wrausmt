@@ -1,26 +1,30 @@
 //! The values that WebAssembly programs can manipulate. [Spec][Spec]
 //!
-//! WebAssembly computations manipulate values of either the four basic number types, i.e.,
-//! integers and floating-point data of 32 or 64 bit width each, or of reference type.
+//! WebAssembly computations manipulate values of either the four basic number
+//! types, i.e., integers and floating-point data of 32 or 64 bit width each, or
+//! of reference type.
 //!
-//! In most places of the semantics, values of different types can occur. In order to avoid ambiguities,
-//! values are therefore represented with an abstract syntax that makes their type explicit. It is
-//! convenient to reuse the same notation as for the const instructions and ref.null producing
-//! them.
+//! In most places of the semantics, values of different types can occur. In
+//! order to avoid ambiguities, values are therefore represented with an
+//! abstract syntax that makes their type explicit. It is convenient to reuse
+//! the same notation as for the const instructions and ref.null producing them.
 //!
-//! References other than null are represented with additional administrative instructions. They
-//! either are function references, pointing to a specific function address, or external references
-//! pointing to an uninterpreted form of extern address that can be defined by the embedder to
-//! represent its own objects.
+//! References other than null are represented with additional administrative
+//! instructions. They either are function references, pointing to a specific
+//! function address, or external references pointing to an uninterpreted form
+//! of extern address that can be defined by the embedder to represent its own
+//! objects.
 //!
 //! [Spec]: https://webassembly.github.io/spec/core/syntax/values.html#values
 
-use crate::{
-    impl_bug,
-    runtime::error::RuntimeError,
-    types::{NumType, RefType, ValueType},
+use {
+    crate::{
+        impl_bug,
+        runtime::error::RuntimeError,
+        types::{NumType, RefType, ValueType},
+    },
+    std::convert::TryFrom,
 };
-use std::convert::TryFrom;
 
 use super::store::addr;
 
@@ -131,10 +135,11 @@ impl NumType {
 }
 
 impl ValueType {
-    /// Provide the default/zero [Value] for the corresponding [ValueType]. [Spec][Spec]
+    /// Provide the default/zero [Value] for the corresponding [ValueType].
+    /// [Spec][Spec]
     ///
-    /// Each value type has an associated default value; it is the respective value 0 for number
-    /// types and null for reference types.
+    /// Each value type has an associated default value; it is the respective
+    /// value 0 for number types and null for reference types.
     ///
     /// [Spec]: https://webassembly.github.io/spec/core/exec/runtime.html#values
     pub fn default(&self) -> Value {
@@ -147,8 +152,9 @@ impl ValueType {
 
 /// Here, we implement a number of convenience converters for the numeric types.
 ///
-/// This makes it convenient to convert from the rust primitive type to either the value subtype
-/// ([Num] or [Ref]), or the containing [Value] type that can hold either.
+/// This makes it convenient to convert from the rust primitive type to either
+/// the value subtype ([Num] or [Ref]), or the containing [Value] type that can
+/// hold either.
 macro_rules! froms {
     ( $ty:ty, $sty:ty, $name:ident ) => {
         impl From<$ty> for Num {
@@ -203,6 +209,7 @@ impl From<Ref> for Value {
 
 impl TryFrom<Value> for Ref {
     type Error = RuntimeError;
+
     fn try_from(v: Value) -> Result<Ref, Self::Error> {
         match v {
             Value::Ref(r) => Ok(r),

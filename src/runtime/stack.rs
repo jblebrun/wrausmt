@@ -1,9 +1,14 @@
-use super::error::Result;
-use super::ModuleInstance;
-use super::{instance::FunctionInstance, store::addr, values::Value};
-use crate::logger::{Logger, PrintLogger, Tag};
-use crate::{impl_bug, types::FunctionType};
-use std::rc::Rc;
+use {
+    super::{
+        error::Result, instance::FunctionInstance, store::addr, values::Value, ModuleInstance,
+    },
+    crate::{
+        impl_bug,
+        logger::{Logger, PrintLogger, Tag},
+        types::FunctionType,
+    },
+    std::rc::Rc,
+};
 
 /// Besides the store, most instructions interact with an implicit stack.
 /// [Spec][Spec]
@@ -11,8 +16,8 @@ use std::rc::Rc;
 ///  The stack contains three kinds of entries:
 ///
 ///    Values: the operands of instructions.
-///    Labels: active structured control instructions that can be targeted by branches.
-///    Activations: the call frames of active function calls.
+///    Labels: active structured control instructions that can be targeted by
+/// branches.    Activations: the call frames of active function calls.
 ///
 /// These entries can occur on the stack in any order during the execution of a
 /// program.
@@ -20,16 +25,18 @@ use std::rc::Rc;
 /// [Spec]: https://webassembly.github.io/spec/core/exec/runtime.html#stack
 #[derive(Debug, Default)]
 pub struct Stack {
-    value_stack: Vec<Value>,
+    value_stack:      Vec<Value>,
     activation_stack: Vec<ActivationFrame>,
-    logger: PrintLogger,
+    logger:           PrintLogger,
 }
 
-/// Labels carry an argument arity n and their associated branch target. [Spec][Spec]
+/// Labels carry an argument arity n and their associated branch target.
+/// [Spec][Spec]
 ///
-/// The branch target is expressed syntactically as an instruction sequence. In the
-/// implementation, the continuation is represented as the index in the currently
-/// executing function that points to the beginning of that instruction sequence.
+/// The branch target is expressed syntactically as an instruction sequence. In
+/// the implementation, the continuation is represented as the index in the
+/// currently executing function that points to the beginning of that
+/// instruction sequence.
 ///
 /// [Spec]: https://webassembly.github.io/spec/core/exec/runtime.html#labels
 #[derive(Debug, PartialEq, Default)]
@@ -41,8 +48,8 @@ pub struct Label {
     /// instructions for the currently executing function.
     pub continuation: u32,
 
-    /// The location of the value stack when the label is pushed; block return values
-    /// will be moved here when exiting a block.
+    /// The location of the value stack when the label is pushed; block return
+    /// values will be moved here when exiting a block.
     pub return_spot: usize,
 }
 
@@ -52,12 +59,12 @@ pub struct Label {
 /// instance:
 #[derive(Debug, Default)]
 struct ActivationFrame {
-    pub arity: u32,
+    pub arity:       u32,
     /// The value stack also contains the locals for the current frame.
     /// This value contains the index into the stack for the frame.
     pub local_start: usize,
-    pub module: Rc<ModuleInstance>,
-    label_stack: Vec<Label>,
+    pub module:      Rc<ModuleInstance>,
+    label_stack:     Vec<Label>,
 }
 
 impl Stack {
@@ -130,9 +137,9 @@ impl Stack {
 
     pub fn push_dummy_activation(&mut self, modinst: Rc<ModuleInstance>) -> Result<()> {
         self.activation_stack.push(ActivationFrame {
-            arity: 0,
+            arity:       0,
             local_start: self.value_stack.len(),
-            module: modinst,
+            module:      modinst,
             label_stack: vec![],
         });
         Ok(())

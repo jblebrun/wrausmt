@@ -1,9 +1,13 @@
-use super::super::token::{FileToken, Sign, Token};
-use super::Tokenizer;
-use crate::format::text::{
-    lex::error::{Result, WithContext},
-    string::WasmString,
-    token::{Base, NumToken},
+use {
+    super::{
+        super::token::{FileToken, Sign, Token},
+        Tokenizer,
+    },
+    crate::format::text::{
+        lex::error::{Result, WithContext},
+        string::WasmString,
+        token::{Base, NumToken},
+    },
 };
 
 macro_rules! expect_tokens {

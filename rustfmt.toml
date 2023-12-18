@@ -1,0 +1,11 @@
+reorder_impl_items = true
+imports_granularity = "One"
+condense_wildcard_suffixes = true
+enum_discrim_align_threshold = 40
+wrap_comments = true
+error_on_unformatted = true
+error_on_line_overflow = true
+normalize_comments = true
+overflow_delimited_expr = true
+struct_field_align_threshold = 20
+use_field_init_shorthand = true

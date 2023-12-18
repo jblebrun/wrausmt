@@ -1,6 +1,7 @@
 use super::error::{BinaryParseError, Result};
 
-/// A convenience method for take to assert that its contents have been fully consumed.
+/// A convenience method for take to assert that its contents have been fully
+/// consumed.
 pub trait EnsureConsumed {
     fn limit(&self) -> u64;
     fn ensure_consumed(&self) -> Result<()> {

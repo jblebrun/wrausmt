@@ -1,6 +1,7 @@
-use super::error::Result;
-use super::{code::ReadCode, values::ReadWasmValues};
-use crate::syntax::{GlobalField, Resolved};
+use {
+    super::{code::ReadCode, error::Result, values::ReadWasmValues},
+    crate::syntax::{GlobalField, Resolved},
+};
 
 /// Read the tables section of a binary module from a std::io::Read.
 pub trait ReadGlobals: ReadWasmValues + ReadCode {
@@ -13,10 +14,10 @@ pub trait ReadGlobals: ReadWasmValues + ReadCode {
 
     fn read_global_field(&mut self) -> Result<GlobalField<Resolved>> {
         Ok(GlobalField {
-            id: None,
-            exports: vec![],
+            id:         None,
+            exports:    vec![],
             globaltype: self.read_global_type()?,
-            init: self.read_expr()?,
+            init:       self.read_expr()?,
         })
     }
 }

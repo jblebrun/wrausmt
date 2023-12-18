@@ -1,40 +1,50 @@
-//! Implementations of the instructions that are executed in the body of a WebAssembly function.
-//! Most of the code for instruction execution is generated. See the [codegen] crate for
-//! more details on the generation process.
+//! Implementations of the instructions that are executed in the body of a
+//! WebAssembly function. Most of the code for instruction execution is
+//! generated. See the [codegen] crate for more details on the generation
+//! process.
 mod generated;
 
-use crate::runtime::error::Result;
-use crate::runtime::exec::ExecutionContext;
-use crate::syntax::Id;
-use crate::{impl_bug, runtime::error::WithContext};
-use generated::data_table::INSTRUCTION_DATA;
-use generated::exec_table::EXEC_TABLE;
+use {
+    crate::{
+        impl_bug,
+        runtime::{
+            error::{Result, WithContext},
+            exec::ExecutionContext,
+        },
+        syntax::Id,
+    },
+    generated::{data_table::INSTRUCTION_DATA, exec_table::EXEC_TABLE},
+};
 
-/// Function bodies, initialization values for globals, and offsets of element or data segments are
-/// given as expressions, which are sequences of instructions terminated by an end marker.
+/// Function bodies, initialization values for globals, and offsets of element
+/// or data segments are given as expressions, which are sequences of
+/// instructions terminated by an end marker.
+///
 /// [Spec](https://webassembly.github.io/spec/core/syntax/instructions.html#expressions)
 pub type Expr = [u8];
 
 /// Information about one assembly instruction, used during parsing.
 ///
-/// The `opcode` field contains the byte used to represent the instruction in the WebAssembly
-/// format. In the case of extended instructions in the 0xFC family (which are stored in separate
-/// tables), this will indicate the extended opcode.
+/// The `opcode` field contains the byte used to represent the instruction in
+/// the WebAssembly format. In the case of extended instructions in the 0xFC
+/// family (which are stored in separate tables), this will indicate the
+/// extended opcode.
 ///
-/// Tne `name` field contains the string name of the operation, as it appears in WebAssembly text
-/// format.
+/// Tne `name` field contains the string name of the operation, as it appears in
+/// WebAssembly text format.
 ///
-/// The `operands` field is in item from the [Operands] enum, describing the number of immediate
-/// operands to expect for this instruction, also used to guide parsing.
+/// The `operands` field is in item from the [Operands] enum, describing the
+/// number of immediate operands to expect for this instruction, also used to
+/// guide parsing.
 #[derive(PartialEq, Debug)]
 pub struct InstructionData {
-    pub opcode: u8,
-    pub name: &'static str,
+    pub opcode:   u8,
+    pub name:     &'static str,
     pub operands: Operands,
 }
 
-/// An enum representing the different combinations of immediate operands that a WebAssembly
-/// instruction can have.
+/// An enum representing the different combinations of immediate operands that a
+/// WebAssembly instruction can have.
 #[derive(PartialEq, Debug)]
 pub enum Operands {
     None,
@@ -68,9 +78,10 @@ pub enum Operands {
     TableCopy,
 }
 
-/// A method for executing a function in the given provided [ExecutionContext]. Each method directly
-/// manages its own operand acquisition, pushing, and popping via the operators available in the
-/// provided [ExecutionContext]; there are no generalized conveniences for generating different
+/// A method for executing a function in the given provided [ExecutionContext].
+/// Each method directly manages its own operand acquisition, pushing, and
+/// popping via the operators available in the provided [ExecutionContext];
+/// there are no generalized conveniences for generating different
 /// function types for the different groups of instructions.
 pub type ExecFn = fn(ec: &mut ExecutionContext) -> Result<()>;
 
@@ -86,8 +97,8 @@ pub fn unimpl(_ec: &mut ExecutionContext) -> Result<()> {
 }
 
 pub const BAD_INSTRUCTION: InstructionData = InstructionData {
-    opcode: 0,
-    name: "bad",
+    opcode:   0,
+    name:     "bad",
     operands: Operands::None,
 };
 
