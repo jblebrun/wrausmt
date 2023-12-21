@@ -1,7 +1,7 @@
 use {
     super::{Parser, Result},
     crate::{
-        format::text::token::Token,
+        format::text::{num, token::Token},
         instructions::{instruction_by_name, Operands},
         syntax::{self, Continuation, Expr, Index, Instruction, Unresolved},
     },
@@ -148,30 +148,23 @@ impl<R: Read> Parser<R> {
         ))
     }
 
-    fn try_align(&mut self) -> Result<Option<u32>> {
-        if let Some(kw) = self.take_keyword_if(|kw| kw.as_str().starts_with("align="))? {
-            if let Some(idx) = kw.as_str().find('=') {
-                let (_, valstr) = kw.as_str().split_at(idx + 1);
-                if let Ok(val) = valstr.parse() {
-                    return Ok(Some(val));
+    fn try_align_offset_value(&mut self, prefix: &str) -> Result<Option<u32>> {
+        if let Some(kw) = self.take_keyword_if(|kw| kw.as_str().starts_with(prefix))? {
+            if let Some(nt) = num::maybe_number(&kw.as_str()[prefix.len()..]) {
+                if let Ok(n) = nt.as_u32() {
+                    return Ok(Some(n));
                 }
             }
         }
-
         Ok(None)
     }
 
-    fn try_offset(&mut self) -> Result<Option<u32>> {
-        if let Some(kw) = self.take_keyword_if(|kw| kw.as_str().starts_with("offset="))? {
-            if let Some(idx) = kw.as_str().find('=') {
-                let (_, valstr) = kw.as_str().split_at(idx + 1);
-                if let Ok(val) = valstr.parse() {
-                    return Ok(Some(val));
-                }
-            }
-        }
+    fn try_align(&mut self) -> Result<Option<u32>> {
+        self.try_align_offset_value("align=")
+    }
 
-        Ok(None)
+    fn try_offset(&mut self) -> Result<Option<u32>> {
+        self.try_align_offset_value("offset=")
     }
 
     pub fn try_plain_instruction_as_single(

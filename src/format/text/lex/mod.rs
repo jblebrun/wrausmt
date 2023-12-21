@@ -1,21 +1,19 @@
-use self::error::LexError;
-
 use {
-    super::token::{FileToken, Token},
+    self::error::LexError,
+    super::{
+        num,
+        token::{FileToken, Token},
+    },
     crate::{
         format::{text::string::WasmString, Location},
         syntax::Id,
     },
-};
-mod chars;
-pub mod error;
-mod num;
-
-use {
     chars::CharChecks,
     error::{Result, WithContext},
     std::{io::Read, iter::Iterator},
 };
+mod chars;
+pub mod error;
 
 #[cfg(test)]
 mod test;
@@ -68,8 +66,8 @@ impl<R: Read> Tokenizer<R> {
                 if idchars.data()[0] == b'$' {
                     return Ok(Token::Id(idchars));
                 }
-                if let Some(n) = num::maybe_number(&idchars) {
-                    return Ok(n);
+                if let Some(n) = num::maybe_number(idchars.as_str()) {
+                    return Ok(Token::Number(n));
                 }
                 Ok(keyword_or_reserved(idchars))
             }

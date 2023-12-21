@@ -15,6 +15,7 @@ use {
 };
 
 pub mod lex;
+pub mod num;
 pub mod token;
 
 pub mod macros;
