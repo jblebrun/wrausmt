@@ -202,7 +202,7 @@ impl<R: Read> Parser<R> {
         }
     }
 
-    pub fn take_keyword_if(&mut self, pred: fn(&Id) -> bool) -> Result<Option<Id>> {
+    pub fn take_keyword_if(&mut self, pred: impl Fn(&Id) -> bool) -> Result<Option<Id>> {
         match self.current.token {
             Token::Keyword(ref mut id) if pred(id) => {
                 let id = std::mem::take(id);
