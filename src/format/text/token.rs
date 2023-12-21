@@ -50,6 +50,10 @@ pub enum Token {
     LineComment,
     BlockComment,
     Keyword(Id),
+    // By the spec, align= and offset= phrases are keywords. However, lexing
+    // them now as tokens makes the number parsing more straightforward later.
+    Align(NumToken),
+    Offset(NumToken),
     Reserved(String),
     Number(NumToken),
     String(WasmString),

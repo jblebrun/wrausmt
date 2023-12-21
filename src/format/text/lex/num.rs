@@ -1,9 +1,6 @@
-use {
-    super::Token,
-    crate::{
-        format::text::token::{Base, NumToken, Sign},
-        syntax::Id,
-    },
+use crate::{
+    format::text::token::{Base, NumToken, Sign},
+    syntax::Id,
 };
 
 fn is_digit(ch: char, hex: bool) -> bool {
@@ -64,9 +61,19 @@ impl<'a> StrCursor<'a> {
 
 /// Attempt to interpret the `idchars` as a number. If the conversion is
 /// successful, a [Token] is returned, otherwise, [None] is returned.
-pub fn maybe_number(idchars: &Id) -> Option<Token> {
+pub fn maybe_number(idchars: &Id) -> Option<NumToken> {
     let mut cursor = StrCursor::new(idchars.as_str());
+    maybe_number_cursor(&mut cursor)
+}
 
+/// Like maybe_number, but starting at the `idx`th character in the idchars.
+pub fn maybe_number_at(idchars: &Id, idx: usize) -> Option<NumToken> {
+    let mut cursor = StrCursor::new(idchars.as_str());
+    cursor.advance_by(idx);
+    maybe_number_cursor(&mut cursor)
+}
+
+fn maybe_number_cursor(cursor: &mut StrCursor) -> Option<NumToken> {
     let sign: Sign = cursor.cur().unwrap().into();
 
     if sign != Sign::Unspecified {
@@ -74,18 +81,18 @@ pub fn maybe_number(idchars: &Id) -> Option<Token> {
     }
 
     if cursor.is_exactly("nan") {
-        return Some(Token::Number(NumToken::NaN(sign)));
+        return Some(NumToken::NaN(sign));
     }
 
     if cursor.is_exactly("inf") {
-        return Some(Token::Number(NumToken::Inf(sign)));
+        return Some(NumToken::Inf(sign));
     }
 
     if cursor.matches("nan:0x") {
         cursor.advance_by(6);
         let payload = cursor.consume_while(|c| is_digit(c, true));
         return match cursor.is_empty() {
-            true => Some(Token::Number(NumToken::NaNx(sign, payload))),
+            true => Some(NumToken::NaNx(sign, payload)),
             false => None,
         };
     }
@@ -128,8 +135,8 @@ pub fn maybe_number(idchars: &Id) -> Option<Token> {
     }
 
     if have_point || have_exp {
-        Some(Token::Number(NumToken::Float(sign, base, whole, frac, exp)))
+        Some(NumToken::Float(sign, base, whole, frac, exp))
     } else {
-        Some(Token::Number(NumToken::Integer(sign, base, whole)))
+        Some(NumToken::Integer(sign, base, whole))
     }
 }

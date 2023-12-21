@@ -149,29 +149,23 @@ impl<R: Read> Parser<R> {
     }
 
     fn try_align(&mut self) -> Result<Option<u32>> {
-        if let Some(kw) = self.take_keyword_if(|kw| kw.as_str().starts_with("align="))? {
-            if let Some(idx) = kw.as_str().find('=') {
-                let (_, valstr) = kw.as_str().split_at(idx + 1);
-                if let Ok(val) = valstr.parse() {
-                    return Ok(Some(val));
-                }
-            }
-        }
+        let n = match self.current.token {
+            Token::Align(ref n) => n.as_u32().map_err(|k| self.err(k))?,
+            _ => return Ok(None),
+        };
 
-        Ok(None)
+        self.advance()?;
+        Ok(Some(n))
     }
 
     fn try_offset(&mut self) -> Result<Option<u32>> {
-        if let Some(kw) = self.take_keyword_if(|kw| kw.as_str().starts_with("offset="))? {
-            if let Some(idx) = kw.as_str().find('=') {
-                let (_, valstr) = kw.as_str().split_at(idx + 1);
-                if let Ok(val) = valstr.parse() {
-                    return Ok(Some(val));
-                }
-            }
-        }
+        let n = match self.current.token {
+            Token::Offset(ref n) => n.as_u32().map_err(|k| self.err(k))?,
+            _ => return Ok(None),
+        };
 
-        Ok(None)
+        self.advance()?;
+        Ok(Some(n))
     }
 
     pub fn try_plain_instruction_as_single(

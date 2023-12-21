@@ -39,6 +39,19 @@ fn keyword_or_reserved(idchars: Id) -> Token {
     }
 }
 
+fn maybe_align_or_offset(idchars: &Id) -> Option<Token> {
+    if idchars.data().get(0..6) == Some(b"align=") {
+        if let Some(n) = num::maybe_number_at(idchars, 6) {
+            return Some(Token::Align(n));
+        }
+    } else if idchars.data().get(0..7) == Some(b"offset=") {
+        if let Some(n) = num::maybe_number_at(idchars, 7) {
+            return Some(Token::Offset(n));
+        }
+    }
+    None
+}
+
 impl<R: Read> Tokenizer<R> {
     pub fn new(r: R) -> Result<Tokenizer<R>> {
         let mut tokenizer = Tokenizer {
@@ -69,6 +82,9 @@ impl<R: Read> Tokenizer<R> {
                     return Ok(Token::Id(idchars));
                 }
                 if let Some(n) = num::maybe_number(&idchars) {
+                    return Ok(Token::Number(n));
+                }
+                if let Some(n) = maybe_align_or_offset(&idchars) {
                     return Ok(n);
                 }
                 Ok(keyword_or_reserved(idchars))
