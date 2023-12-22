@@ -2,7 +2,7 @@ use {
     super::{
         super::token::{Base, NumToken, Sign, Token},
         error::{KindResult, ParseErrorKind, Result},
-        Parser,
+        ParseResult, Parser,
     },
     crate::types::Limits,
     std::io::Read,
@@ -13,7 +13,7 @@ macro_rules! try_num {
         pub fn $n(&mut self) -> Result<Option<$ty>> {
             match &self.current.token {
                 Token::Number(numtoken) => {
-                    let val = numtoken.$fn().map_err(|ek| self.err(ek))?;
+                    let val = numtoken.$fn().result(self)?;
                     self.advance()?;
                     Ok(Some(val))
                 }
