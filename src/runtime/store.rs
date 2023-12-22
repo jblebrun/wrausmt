@@ -51,6 +51,8 @@ pub mod addr {
 /// [Spec]: https://webassembly.github.io/spec/core/exec/runtime.html#store
 #[derive(Default, Debug)]
 pub struct Store {
+    // Functions need to be refcounted, because they can be recursively referenced.
+    // (A function can eventually lead to code that calls it again).
     pub funcs:   Vec<Rc<FunctionInstance>>,
     pub tables:  Vec<TableInstance>,
     pub mems:    Vec<MemInstance>,
@@ -284,10 +286,10 @@ impl Store {
     // Returns the value of the first allocated fuction.
     pub fn alloc_funcs(
         &mut self,
-        funcs: impl Iterator<Item = Rc<FunctionInstance>>,
+        funcs: impl IntoIterator<Item = FunctionInstance>,
     ) -> Range<addr::FuncAddr> {
         let base_addr = self.funcs.len() as u32;
-        self.funcs.extend(funcs);
+        self.funcs.extend(funcs.into_iter().map(Rc::new));
         let count = self.funcs.len() as u32 - base_addr;
         base_addr..base_addr + count
     }

@@ -59,16 +59,19 @@ impl Runtime {
         f: FuncField<Resolved>,
         types: &[FunctionType],
         modinst: Rc<ModuleInstance>,
-    ) -> FunctionInstance {
-        let functype = types[f.typeuse.index_value() as usize].clone();
+    ) -> Result<FunctionInstance> {
+        let functype = types
+            .get(f.typeuse.index_value() as usize)
+            .ok_or(RuntimeErrorKind::TypeNotFound(f.typeuse.index_value()).error())?
+            .clone();
         let locals: Box<[ValueType]> = f.locals.iter().map(|l| l.valtype).collect();
         let body = compile_function_body(&f);
-        FunctionInstance {
+        Ok(FunctionInstance {
             functype,
             module_instance: modinst,
             locals,
             body,
-        }
+        })
     }
 
     fn init_table(
@@ -133,14 +136,13 @@ impl Runtime {
         // (Alloc 2.) Allocate functions
         // https://webassembly.github.io/spec/core/exec/modules.html#functions
         // We hold onto these so we can update the module instance at the end.
-        let func_insts: Vec<Rc<FunctionInstance>> = module
+        let func_insts: Vec<FunctionInstance> = module
             .funcs
             .into_iter()
             .map(|f| Self::instantiate_function(f, &modinst_builder.types, rcinst.clone()))
-            .map(Rc::new)
-            .collect();
+            .collect::<Result<Vec<FunctionInstance>>>()?;
 
-        let range = self.store.alloc_funcs(func_insts.iter().cloned());
+        let range = self.store.alloc_funcs(func_insts);
         modinst_builder.funcs.extend(range);
 
         self.logger.log(Tag::Load, || {

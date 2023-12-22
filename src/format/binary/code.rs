@@ -7,6 +7,7 @@ use {
     crate::{
         instructions::{instruction_data, Operands, BAD_INSTRUCTION},
         syntax::{self, Continuation, Expr, FuncField, Id, Instruction, Local, Resolved, TypeUse},
+        types::ValueType,
     },
     std::io::{Read, Write},
 };
@@ -28,6 +29,10 @@ pub struct ExpressionWithEnd {
     expr: Expr<Resolved>,
     end:  ExpressionEnd,
 }
+
+const MAX_LOCALS_PER_FUNC: usize = (u32::MAX - 1) as usize;
+
+type LocalCount = u32;
 
 /// Read the Code section of a binary module.
 /// codesec := section vec(code)
@@ -62,22 +67,31 @@ pub trait ReadCode: ReadWasmValues {
         Ok(function)
     }
 
+    fn read_local_record(&mut self) -> Result<(LocalCount, ValueType)> {
+        Ok((
+            self.read_u32_leb_128().ctx("parsing type rep")?,
+            self.read_value_type().ctx("parsing value type")?,
+        ))
+    }
+
     /// Read the locals description for the function.
     /// locals := n:u32 t:type
     fn read_locals(&mut self) -> Result<Vec<Local>> {
-        let items = self.read_u32_leb_128().ctx("parsing item count")?;
-        let mut result: Vec<Local> = vec![];
+        let local_records = self.read_vec(|_, s| s.read_local_record())?;
 
-        for _ in 0..items {
-            let reps = self.read_u32_leb_128().ctx("parsing type rep")?;
-            let val = self.read_value_type().ctx("parsing value type")?;
-            for _ in 0..reps {
-                result.push(Local {
-                    id:      None,
-                    valtype: val,
-                });
-            }
+        let total: usize = local_records.iter().map(|(cnt, _)| *cnt as usize).sum();
+
+        if total > MAX_LOCALS_PER_FUNC {
+            return Err(BinaryParseError::TooManyLocals);
         }
+
+        let result: Vec<Local> = local_records
+            .into_iter()
+            .flat_map(|(reps, valtype)| {
+                std::iter::repeat_with(move || Local { id: None, valtype }).take(reps as usize)
+            })
+            .collect();
+
         Ok(result)
     }
 
@@ -136,10 +150,11 @@ pub trait ReadCode: ReadWasmValues {
         let operands = match instruction_data.operands {
             Operands::None => syntax::Operands::None,
             Operands::FuncIndex => syntax::Operands::FuncIndex(self.read_index_use()?),
-            Operands::LocalIndex => syntax::Operands::FuncIndex(self.read_index_use()?),
-            Operands::GlobalIndex => syntax::Operands::FuncIndex(self.read_index_use()?),
-            Operands::TableIndex => syntax::Operands::FuncIndex(self.read_index_use()?),
-            Operands::MemIndex => syntax::Operands::FuncIndex(self.read_index_use()?),
+            Operands::LocalIndex => syntax::Operands::LocalIndex(self.read_index_use()?),
+            Operands::GlobalIndex => syntax::Operands::GlobalIndex(self.read_index_use()?),
+            Operands::TableIndex => syntax::Operands::TableIndex(self.read_index_use()?),
+            Operands::DataIndex => syntax::Operands::DataIndex(self.read_index_use()?),
+            Operands::MemoryIndex => syntax::Operands::MemoryIndex(self.read_index_use()?),
             Operands::Br => syntax::Operands::LabelIndex(self.read_index_use()?),
             Operands::BrTable => {
                 let mut idxs = self.read_vec(|_, s| s.read_index_use())?;

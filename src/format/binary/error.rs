@@ -20,6 +20,7 @@ pub enum BinaryParseError {
     InvalidExportType(u8),
     InvalidImportType(u8),
     ExtraSectionBytes(u64),
+    TooManyLocals,
 }
 
 pub trait WithContext<T> {

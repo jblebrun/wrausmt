@@ -25,14 +25,15 @@ pub enum ParseErrorKind {
     Utf8Error(FromUtf8Error),
     ParseIntError(ParseIntError),
     ParseFloatError(ParseFloatError),
+    TooManyLocals,
     Incomplete,
 }
 
 #[derive(Debug, Default)]
 pub struct ParseError {
-    kind:    ParseErrorKind,
-    context: ParseContext,
-    msgs:    Vec<String>,
+    pub kind: ParseErrorKind,
+    context:  ParseContext,
+    msgs:     Vec<String>,
 }
 
 impl ParseError {
@@ -51,10 +52,6 @@ impl ParseError {
         }
     }
 
-    pub fn kind(&self) -> &ParseErrorKind {
-        &self.kind
-    }
-
     pub fn context(&self) -> &ParseContext {
         &self.context
     }
@@ -64,7 +61,7 @@ impl std::error::Error for ParseError {}
 
 impl std::fmt::Display for ParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
+        write!(f, "{:?}: {:?} ({:?})", self.kind, self.context, self.msgs)
     }
 }
 

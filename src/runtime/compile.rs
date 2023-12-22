@@ -145,6 +145,7 @@ pub trait Emitter {
                 syntax::Operands::DataIndex(idx) => self.emit32(idx.value()),
                 syntax::Operands::LocalIndex(idx) => self.emit32(idx.value()),
                 syntax::Operands::LabelIndex(idx) => self.emit32(idx.value()),
+                syntax::Operands::MemoryIndex(idx) => self.emit32(idx.value()),
                 syntax::Operands::Memargs(o, a) => {
                     self.emit32(*o);
                     self.emit32(*a)

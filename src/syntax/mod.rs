@@ -566,6 +566,7 @@ pub enum Operands<R: ResolvedState> {
     DataIndex(Index<R, DataIndex>),
     LocalIndex(Index<R, LocalIndex>),
     LabelIndex(Index<R, LabelIndex>),
+    MemoryIndex(Index<R, MemoryIndex>),
     Memargs(u32, u32),
     HeapType(RefType),
     TableInit(Index<R, TableIndex>, Index<R, ElemIndex>),
