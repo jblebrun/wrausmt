@@ -1,9 +1,5 @@
 use {
-    super::{
-        super::token::Token,
-        error::{ParseErrorKind, Result},
-        Parser,
-    },
+    super::{super::token::Token, error::Result, Parser},
     crate::types::{NumType, RefType, ValueType},
     std::io::Read,
 };
@@ -11,9 +7,7 @@ use {
 impl<R: Read> Parser<R> {
     pub fn expect_valtype(&mut self) -> Result<ValueType> {
         self.try_valtype()?
-            .ok_or(self.err(ParseErrorKind::UnexpectedToken(
-                "expected value type".into(),
-            )))
+            .ok_or(self.unexpected_token("expected value type"))
     }
 
     pub fn try_valtype(&mut self) -> Result<Option<ValueType>> {
@@ -37,7 +31,7 @@ impl<R: Read> Parser<R> {
 
     pub fn expect_reftype(&mut self) -> Result<RefType> {
         self.try_reftype()?
-            .ok_or(self.err(ParseErrorKind::UnexpectedToken("expected ref type".into())))
+            .ok_or(self.unexpected_token("expected ref type"))
     }
 
     pub fn try_reftype(&mut self) -> Result<Option<RefType>> {
@@ -72,6 +66,6 @@ impl<R: Read> Parser<R> {
 
     pub fn expect_heaptype(&mut self) -> Result<RefType> {
         self.try_heaptype()?
-            .ok_or(self.err(ParseErrorKind::UnexpectedToken("expected heap type".into())))
+            .ok_or(self.unexpected_token("expected heap type"))
     }
 }

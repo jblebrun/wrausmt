@@ -25,7 +25,7 @@ macro_rules! try_num {
             let got = self.$n()?;
             match got {
                 Some(v) => Ok(v),
-                None => Err(self.err(ParseErrorKind::UnexpectedToken($err.into()))),
+                None => Err(self.unexpected_token($err)),
             }
         }
     };

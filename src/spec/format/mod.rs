@@ -3,7 +3,7 @@ use {
         format::{
             text::{
                 parse::{
-                    error::{ParseErrorKind, Result, WithMsg},
+                    error::{Result, WithMsg},
                     Parser,
                 },
                 string::WasmString,
@@ -23,7 +23,7 @@ impl<R: Read> Parser<R> {
         match self.zero_or_more(Self::try_cmd_entry) {
             Ok(cmds) => {
                 if self.current.token != Token::Eof {
-                    return Err(self.err(ParseErrorKind::UnexpectedToken("cmd".into())));
+                    return Err(self.unexpected_token("cmd"));
                 }
                 Ok(SpecTestScript { cmds })
             }
@@ -57,7 +57,7 @@ impl<R: Read> Parser<R> {
 
     fn expect_spec_module(&mut self) -> Result<Module> {
         self.try_spec_module()?
-            .ok_or(self.err(ParseErrorKind::UnexpectedToken("spec module".into())))
+            .ok_or(self.unexpected_token("spec module"))
     }
 
     fn try_spec_module(&mut self) -> Result<Option<Module>> {
@@ -118,7 +118,7 @@ impl<R: Read> Parser<R> {
 
     fn expect_action(&mut self) -> Result<Action> {
         self.try_action()?
-            .ok_or(self.err(ParseErrorKind::UnexpectedToken("spec test action".into())))
+            .ok_or(self.unexpected_token("spec test action"))
     }
 
     fn try_invoke_action(&mut self) -> Result<Option<Action>> {
