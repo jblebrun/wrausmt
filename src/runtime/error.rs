@@ -37,6 +37,7 @@ impl RuntimeError {
 pub enum RuntimeErrorKind {
     MethodNotFound(String),
     ModuleNotFound(String),
+    TypeNotFound(u32),
     ImportNotFound(String, String),
     ImportMismatch(ImportDesc<Resolved>, ExternalVal),
     ValidationError(String),

@@ -222,6 +222,7 @@ impl Resolve<Operands<Resolved>> for Operands<Unresolved> {
             Operands::DataIndex(idx) => Operands::DataIndex(idx.resolve(ic, types)?),
             Operands::LocalIndex(idx) => Operands::LocalIndex(idx.resolve(ic, types)?),
             Operands::LabelIndex(idx) => Operands::LabelIndex(idx.resolve(ic, types)?),
+            Operands::MemoryIndex(idx) => Operands::MemoryIndex(idx.resolve(ic, types)?),
             Operands::TableInit(tidx, eidx) => {
                 Operands::TableInit(tidx.resolve(ic, types)?, eidx.resolve(ic, types)?)
             }
@@ -461,10 +462,8 @@ impl Resolve<TypeUse<Resolved>> for TypeUse<Unresolved> {
 
         // If there is a typeidx, look up the existing type.
         let (typeidx, functiontype) = if let Some(typeidx) = &typeidx {
-            // We don't care about populating the existing functiontype, since the index is
-            // sufficient.
-            //  Don't actually validate the index here, or spec tests will fail at parse
-            // time.
+            // We don't care about the existing functiontype, since the index is sufficient.
+            //  Don't validate the index here, or spec tests will fail at parse time.
             (typeidx.clone(), FunctionType::default())
         } else {
             let functiontype = self.functiontype;

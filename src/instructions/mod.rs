@@ -61,7 +61,7 @@ pub enum Operands {
     LocalIndex,
     GlobalIndex,
     TableIndex,
-    MemIndex,
+    MemoryIndex,
     Memargs,
     I32,
     I64,
