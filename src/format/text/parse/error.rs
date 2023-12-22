@@ -1,9 +1,10 @@
-use std::{
-    num::{ParseFloatError, ParseIntError},
-    string::FromUtf8Error,
+use {
+    crate::format::text::{lex::error::LexError, resolve::ResolveError, token::FileToken},
+    std::{
+        num::{ParseFloatError, ParseIntError},
+        string::FromUtf8Error,
+    },
 };
-
-use crate::format::text::{lex::error::LexError, resolve::ResolveError, token::FileToken};
 
 #[derive(Debug, Default)]
 pub struct ParseContext {

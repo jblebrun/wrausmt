@@ -1,14 +1,14 @@
-use std::io::Read;
-
-use crate::{
-    syntax::{
-        ElemField, ElemList, Expr, ImportDesc, ImportField, Instruction, ModeEntry, TableField,
-        TablePosition, TableUse, Unresolved,
+use {
+    super::{error::Result, module::Field, Parser},
+    crate::{
+        syntax::{
+            ElemField, ElemList, Expr, ImportDesc, ImportField, Instruction, ModeEntry, TableField,
+            TablePosition, TableUse, Unresolved,
+        },
+        types::{RefType, TableType},
     },
-    types::{RefType, TableType},
+    std::io::Read,
 };
-
-use super::{error::Result, module::Field, Parser};
 
 impl<R: Read> Parser<R> {
     fn try_index_as_funcref(&mut self) -> Result<Option<Expr<Unresolved>>> {

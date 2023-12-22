@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use {
     super::resolve::{ResolveModule, Result},
     crate::syntax::{
@@ -7,6 +5,7 @@ use {
         ImportDesc, ImportField, Index, MemoryField, Module, Resolved, StartField, TableField,
         TypeField, Unresolved,
     },
+    std::collections::HashMap,
 };
 
 #[derive(Clone, Default, Debug, PartialEq)]

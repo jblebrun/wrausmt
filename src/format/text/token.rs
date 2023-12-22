@@ -1,6 +1,7 @@
-use crate::{format::Location, syntax::Id};
-
-use super::string::WasmString;
+use {
+    super::string::WasmString,
+    crate::{format::Location, syntax::Id},
+};
 
 /// A [Token] along with context about its location in the source file.
 #[derive(Clone, Debug, Default, PartialEq)]

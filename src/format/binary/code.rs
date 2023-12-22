@@ -1,13 +1,15 @@
 use {
-    super::{ensure_consumed::EnsureConsumed, error::BinaryParseError, values::ReadWasmValues},
+    super::{
+        ensure_consumed::EnsureConsumed,
+        error::{BinaryParseError, Result, WithContext},
+        values::ReadWasmValues,
+    },
     crate::{
         instructions::{instruction_data, Operands, BAD_INSTRUCTION},
         syntax::{self, Continuation, Expr, FuncField, Id, Instruction, Local, Resolved, TypeUse},
     },
     std::io::{Read, Write},
 };
-
-use super::error::{Result, WithContext};
 
 #[derive(Debug)]
 pub enum ExpressionEnd {

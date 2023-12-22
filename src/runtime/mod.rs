@@ -8,20 +8,16 @@ pub mod store;
 pub mod values;
 
 use {
+    self::instance::FunctionInstance,
     crate::{
         impl_bug,
         logger::{Logger, PrintLogger, Tag},
         runtime::error::RuntimeErrorKind,
     },
-    std::{collections::HashMap, rc::Rc},
-};
-
-use self::instance::FunctionInstance;
-
-use {
     error::Result,
     instance::{ExportInstance, ExternalVal, ModuleInstance},
     stack::Stack,
+    std::{collections::HashMap, rc::Rc},
     store::{addr, Store},
     values::Value,
 };

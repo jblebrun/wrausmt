@@ -18,6 +18,7 @@
 //! [Spec]: https://webassembly.github.io/spec/core/syntax/values.html#values
 
 use {
+    super::store::addr,
     crate::{
         impl_bug,
         runtime::error::RuntimeError,
@@ -25,8 +26,6 @@ use {
     },
     std::convert::TryFrom,
 };
-
-use super::store::addr;
 
 /// A value that a WebAssembly program can manipulate. [Spec][Spec]
 ///

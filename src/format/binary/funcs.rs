@@ -1,9 +1,10 @@
 use {
-    super::error::{Result, WithContext},
+    super::{
+        error::{Result, WithContext},
+        values::ReadWasmValues,
+    },
     crate::syntax::{Index, Resolved, TypeIndex},
 };
-
-use super::values::ReadWasmValues;
 
 /// Read the funcs section of a binary module from a std::io::Read.
 pub trait ReadFuncs: ReadWasmValues {

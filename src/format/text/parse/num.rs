@@ -296,9 +296,10 @@ fn parse_hex_f64(sign: Sign, whole: &str, frac: &str, exp: &str) -> KindResult<f
 
 #[cfg(test)]
 mod tests {
-    use crate::format::text::parse::error::ParseErrorKind;
-
-    use super::{super::super::token::Sign, parse_hex_f32, parse_hex_f64};
+    use {
+        super::{super::super::token::Sign, parse_hex_f32, parse_hex_f64},
+        crate::format::text::parse::error::ParseErrorKind,
+    };
     impl std::error::Error for ParseErrorKind {}
 
     type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;

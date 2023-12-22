@@ -1,15 +1,16 @@
-use std::fs::File;
-
-use wrausmt::{
-    format::text::{
-        lex::Tokenizer,
-        parse::error::KindResult,
-        parse_wast_data,
-        token::{NumToken, Token},
+use {
+    std::fs::File,
+    wrausmt::{
+        format::text::{
+            lex::Tokenizer,
+            parse::error::KindResult,
+            parse_wast_data,
+            token::{NumToken, Token},
+        },
+        loader::Result as LoadResult,
+        syntax::{Module, Resolved},
+        typefield,
     },
-    loader::Result as LoadResult,
-    syntax::{Module, Resolved},
-    typefield,
 };
 
 fn load_ast(filename: &str) -> LoadResult<Module<Resolved>> {

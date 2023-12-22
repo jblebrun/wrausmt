@@ -1,12 +1,13 @@
-use std::{fs::File, path::Path, time::Instant};
-
-use wrausmt::{
-    format::text::{lex::Tokenizer, parse::Parser},
-    loader::Result as LoaderResult,
-    spec::{
-        error::Result as SpecTestResult,
-        format::SpecTestScript,
-        runner::{RunSet, SpecTestRunner},
+use {
+    std::{fs::File, path::Path, time::Instant},
+    wrausmt::{
+        format::text::{lex::Tokenizer, parse::Parser},
+        loader::Result as LoaderResult,
+        spec::{
+            error::Result as SpecTestResult,
+            format::SpecTestScript,
+            runner::{RunSet, SpecTestRunner},
+        },
     },
 };
 

@@ -3,13 +3,16 @@ mod code;
 mod data_table;
 mod exec_table;
 mod fields;
-use std::{
-    collections::HashMap,
-    fs,
-    io::{self, BufRead, Write},
+use {
+    code::EmitCode,
+    data_table::EmitDataTable,
+    exec_table::EmitExecTable,
+    std::{
+        collections::HashMap,
+        fs,
+        io::{self, BufRead, Write},
+    },
 };
-
-use {code::EmitCode, data_table::EmitDataTable, exec_table::EmitExecTable};
 
 /// The data for one instruction read from the instructions list file.
 #[derive(Default, Debug)]
