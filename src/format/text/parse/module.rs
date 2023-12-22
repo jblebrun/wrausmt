@@ -1,7 +1,7 @@
 use {
     super::{
         error::{ParseErrorKind, Result, WithMsg},
-        Parser,
+        ParseResult, Parser,
     },
     crate::{
         format::text::{module_builder::ModuleBuilder, token::Token},
@@ -125,9 +125,7 @@ impl<R: Read> Parser<R> {
         };
 
         if result {
-            Ok(Some(module_builder.build().map_err(|re| {
-                self.err(ParseErrorKind::ResolveError(re))
-            })?))
+            Ok(Some(module_builder.build().result(self)?))
         } else {
             Ok(None)
         }

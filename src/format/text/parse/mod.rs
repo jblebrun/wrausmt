@@ -41,6 +41,16 @@ impl Ignorable for Token {
     }
 }
 
+pub trait ParseResult<T> {
+    fn result<R: Read>(self, parser: &Parser<R>) -> Result<T>;
+}
+
+impl<T, E: Into<ParseErrorKind>> ParseResult<T> for std::result::Result<T, E> {
+    fn result<R: Read>(self, parser: &Parser<R>) -> Result<T> {
+        self.map_err(|e| parser.err(e.into()))
+    }
+}
+
 // Implementation for the basic token-handling methods.
 impl<R: Read> Parser<R> {
     pub fn new(tokenizer: Tokenizer<R>) -> Result<Parser<R>> {
@@ -161,7 +171,7 @@ impl<R: Read> Parser<R> {
     pub fn try_string(&mut self) -> Result<Option<String>> {
         let result = self.try_wasm_string()?;
         Ok(match result {
-            Some(ws) => Some(ws.into_string().map_err(|e| self.err(e.into()))?),
+            Some(ws) => Some(ws.into_string().result(self)?),
             None => None,
         })
     }
