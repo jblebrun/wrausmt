@@ -40,7 +40,7 @@ impl std::fmt::Debug for Failures {
 
 pub struct Failure {
     location:  Location,
-    testindex: u32,
+    testindex: usize,
     err:       SpecTestError,
 }
 
@@ -67,7 +67,7 @@ pub enum SpecTestError {
 }
 
 impl SpecTestError {
-    pub fn into_failure(self, location: Location, testindex: u32) -> Failure {
+    pub fn into_failure(self, location: Location, testindex: usize) -> Failure {
         Failure {
             location,
             testindex,
