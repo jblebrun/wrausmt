@@ -17,9 +17,8 @@ use {
         values::ReadWasmValues,
     },
     crate::syntax,
+    std::io::Read,
 };
-
-use std::io::Read;
 
 pub trait SectionReader: ReadWasmValues + ReadCode {
     /// Read and return the next section in a binary module being read by a

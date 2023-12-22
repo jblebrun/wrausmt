@@ -1,6 +1,4 @@
-use std::string::FromUtf8Error;
-
-use super::leb128::LEB128Error;
+use {super::leb128::LEB128Error, std::string::FromUtf8Error};
 
 #[derive(Debug)]
 pub enum BinaryParseError {

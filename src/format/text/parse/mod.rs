@@ -1,13 +1,11 @@
-use self::error::{ParseContext, ParseError, ParseErrorKind, Result};
-
-use crate::syntax::Id;
-
 use {
+    self::error::{ParseContext, ParseError, ParseErrorKind, Result},
     super::{
         lex::Tokenizer,
         string::WasmString,
         token::{FileToken, Token},
     },
+    crate::syntax::Id,
     std::io::Read,
 };
 

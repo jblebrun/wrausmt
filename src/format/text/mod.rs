@@ -1,8 +1,3 @@
-use crate::{
-    format::text::parse::error::Result,
-    syntax::{Module, Resolved},
-};
-
 use {
     self::{
         lex::Tokenizer,
@@ -10,6 +5,10 @@ use {
             error::{ParseError, ParseErrorKind},
             Parser,
         },
+    },
+    crate::{
+        format::text::parse::error::Result,
+        syntax::{Module, Resolved},
     },
     std::io::Read,
 };

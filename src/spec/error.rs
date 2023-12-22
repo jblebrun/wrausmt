@@ -1,14 +1,15 @@
-use crate::{
-    format::Location,
-    loader::LoaderError,
-    runtime::{
-        error::{RuntimeError, TrapKind},
-        values::Value,
+use {
+    super::format::ActionResult,
+    crate::{
+        format::Location,
+        loader::LoaderError,
+        runtime::{
+            error::{RuntimeError, TrapKind},
+            values::Value,
+        },
+        syntax::Id,
     },
-    syntax::Id,
 };
-
-use super::format::ActionResult;
 
 #[derive(Default)]
 pub struct Failures {

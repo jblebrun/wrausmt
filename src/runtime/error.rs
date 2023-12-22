@@ -1,8 +1,8 @@
-use std::fmt;
-
-use crate::syntax::{ImportDesc, Resolved};
-
-use super::instance::ExternalVal;
+use {
+    super::instance::ExternalVal,
+    crate::syntax::{ImportDesc, Resolved},
+    std::fmt,
+};
 
 #[macro_export]
 macro_rules! impl_bug {

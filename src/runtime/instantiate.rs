@@ -1,5 +1,3 @@
-use std::rc::Rc;
-
 use {
     super::{
         compile::compile_function_body,
@@ -23,6 +21,7 @@ use {
         },
         types::{FunctionType, ValueType},
     },
+    std::rc::Rc,
 };
 
 impl Runtime {

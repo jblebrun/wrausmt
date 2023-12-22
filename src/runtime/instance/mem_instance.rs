@@ -1,10 +1,11 @@
-use std::ops::Range;
-
-use crate::{
-    logger::{Logger, PrintLogger, Tag},
-    runtime::error::{Result, TrapKind},
-    syntax::MemoryField,
-    types::MemType,
+use {
+    crate::{
+        logger::{Logger, PrintLogger, Tag},
+        runtime::error::{Result, TrapKind},
+        syntax::MemoryField,
+        types::MemType,
+    },
+    std::ops::Range,
 };
 
 /// A memory instance is the runtime representation of a linear memory.
