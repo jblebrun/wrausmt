@@ -1,7 +1,7 @@
 use {
     super::{
-        error::{Failures, Result, SpecTestError},
-        format::{Action, ActionResult, NumPat, SpecTestScript},
+        error::{Failure, Failures, Result, SpecTestError},
+        format::{Action, ActionResult, CmdEntry, NumPat, SpecTestScript},
         spectest_module::make_spectest_module,
     },
     crate::{
@@ -46,10 +46,10 @@ macro_rules! runset_exclude {
 pub enum RunSet {
     All,
     Specific(Vec<String>),
-    SpecificIndex(Vec<u32>),
+    SpecificIndex(Vec<usize>),
     Exclude(Vec<String>),
-    ExcludeIndexed(Vec<u32>),
-    First(u32),
+    ExcludeIndexed(Vec<usize>),
+    First(usize),
 }
 
 impl RunSet {
@@ -61,11 +61,11 @@ impl RunSet {
         }
     }
 
-    fn should_run_index(&self, index: u32) -> bool {
+    fn should_run_index(&self, index: &usize) -> bool {
         match self {
-            RunSet::First(n) => index <= *n,
-            RunSet::SpecificIndex(set) => set.iter().any(|i| *i == index),
-            RunSet::ExcludeIndexed(set) => !set.iter().any(|i| *i == index),
+            RunSet::First(n) => index <= n,
+            RunSet::SpecificIndex(set) => set.iter().any(|i| i == index),
+            RunSet::ExcludeIndexed(set) => !set.iter().any(|i| i == index),
             _ => true,
         }
     }
@@ -316,36 +316,42 @@ impl SpecTestRunner {
         }
     }
 
+    pub fn log_and_run_command(
+        &mut self,
+        test_index: usize,
+        cmd_entry: CmdEntry,
+        runset: &RunSet,
+    ) -> Option<Failure> {
+        self.logger.log(Tag::Spec, || {
+            format!(
+                "*****BEGIN TEST #{}****** ({:?})",
+                test_index, cmd_entry.location
+            )
+        });
+        let now = std::time::Instant::now();
+        let result = self.run_cmd_entry(cmd_entry.cmd, runset);
+        self.logger.log(Tag::Spec, || {
+            format!(
+                "*****END TEST #{}****** ({}ms)\n",
+                test_index,
+                now.elapsed().as_secs_f32() * 1000.0
+            )
+        });
+        result
+            .map_err(|e| e.into_failure(cmd_entry.location, test_index))
+            .err()
+    }
+
     pub fn run_spec_test(mut self, script: SpecTestScript, runset: RunSet) -> Result<()> {
-        let mut failures: Failures = Failures::default();
-        let mut test_index = 0;
-        for cmd_entry in script.cmds {
-            test_index += 1;
-            if !runset.should_run_index(test_index) {
-                return Ok(());
-            }
-            self.logger.log(Tag::Spec, || {
-                format!(
-                    "*****BEGIN TEST #{}****** ({:?})",
-                    test_index, cmd_entry.location
-                )
-            });
-            let now = std::time::Instant::now();
-            let result = self.run_cmd_entry(cmd_entry.cmd, &runset);
-            self.logger.log(Tag::Spec, || {
-                format!(
-                    "*****END TEST #{}****** ({}ms)\n",
-                    test_index,
-                    now.elapsed().as_secs_f32() * 1000.0
-                )
-            });
-            match result {
-                Ok(()) => {}
-                Err(e) => failures
-                    .failures
-                    .push(e.into_failure(cmd_entry.location, test_index)),
-            }
-        }
+        let failures: Failures = Failures {
+            failures: script
+                .cmds
+                .into_iter()
+                .enumerate()
+                .filter(|(idx, _)| runset.should_run_index(idx))
+                .filter_map(|(idx, cmd_entry)| self.log_and_run_command(idx, cmd_entry, &runset))
+                .collect(),
+        };
 
         if !failures.failures.is_empty() {
             return Err(SpecTestError::Failures(failures));
