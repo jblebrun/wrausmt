@@ -57,7 +57,7 @@ impl<'a> StrCursor<'a> {
 }
 
 /// Attempt to interpret the `idchars` as a number. If the conversion is
-/// successful, a [Token] is returned, otherwise, [None] is returned.
+/// successful, a [NumToken] is returned, otherwise, [None] is returned.
 pub fn maybe_number(idchars: &str) -> Option<NumToken> {
     let mut cursor = StrCursor::new(idchars);
 
