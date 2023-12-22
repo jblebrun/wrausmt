@@ -61,7 +61,7 @@ impl<R: Read> Parser<R> {
         })
     }
 
-    fn unexpected_token(&self, name: impl Into<String>) -> ParseError {
+    pub fn unexpected_token(&self, name: impl Into<String>) -> ParseError {
         self.err(ParseErrorKind::UnexpectedToken(name.into()))
     }
 
@@ -126,7 +126,7 @@ impl<R: Read> Parser<R> {
 
     fn expect_expr_start(&mut self, name: impl Into<Id>) -> Result<()> {
         if !self.try_expr_start(name)? {
-            Err(self.err(ParseErrorKind::UnexpectedToken("expression start".into())))
+            Err(self.unexpected_token("expression start"))
         } else {
             Ok(())
         }
@@ -138,7 +138,7 @@ impl<R: Read> Parser<R> {
                 self.advance()?;
                 Ok(())
             }
-            _ => Err(self.err(ParseErrorKind::UnexpectedToken("expression close".into()))),
+            _ => Err(self.unexpected_token("expression close")),
         }
     }
 
@@ -155,9 +155,7 @@ impl<R: Read> Parser<R> {
 
     pub fn expect_wasm_string(&mut self) -> Result<WasmString> {
         self.try_wasm_string()?
-            .ok_or(self.err(ParseErrorKind::UnexpectedToken(
-                "wasm string literal".into(),
-            )))
+            .ok_or(self.unexpected_token("wasm string literal"))
     }
 
     pub fn try_string(&mut self) -> Result<Option<String>> {
@@ -170,7 +168,7 @@ impl<R: Read> Parser<R> {
 
     pub fn expect_string(&mut self) -> Result<String> {
         self.try_string()?
-            .ok_or(self.err(ParseErrorKind::UnexpectedToken("utf8string literal".into())))
+            .ok_or(self.unexpected_token("utf8string literal"))
     }
 
     pub fn try_id(&mut self) -> Result<Option<Id>> {
