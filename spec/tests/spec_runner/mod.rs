@@ -1,13 +1,13 @@
 use {
+    spec::{
+        error::Result as SpecTestResult,
+        format::{SpecParser, SpecTestScript},
+        runner::{RunSet, SpecTestRunner},
+    },
     std::{fs::File, path::Path, time::Instant},
     wrausmt::{
         format::text::{lex::Tokenizer, parse::Parser},
         loader::Result as LoaderResult,
-        spec::{
-            error::Result as SpecTestResult,
-            format::SpecTestScript,
-            runner::{RunSet, SpecTestRunner},
-        },
     },
 };
 
@@ -76,7 +76,7 @@ macro_rules! spectest {
         #[test]
         fn $name() -> Result<()> {
             parse_and_run(
-                format!("testdata/spec/{}.wast", stringify!($name)[2..].replace("_x_", "-")),
+                format!("tests/data/{}.wast", stringify!($name)[2..].replace("_x_", "-")),
                 $runset,
                 $failmode,
             )
