@@ -1,4 +1,4 @@
-use crate::{
+use wrausmt::{
     format::text::module_builder::ModuleBuilder,
     syntax::{
         self, FParam, FuncField, FunctionType, GlobalField, Instruction, MemoryField, Resolved,
@@ -83,7 +83,7 @@ pub fn make_spectest_module() -> syntax::Module<Resolved> {
                 lower: 10,
                 upper: Some(20),
             },
-            reftype: crate::types::RefType::Func,
+            reftype: wrausmt::types::RefType::Func,
         },
     });
     builder.add_memoryfield(MemoryField {

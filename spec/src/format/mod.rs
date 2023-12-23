@@ -1,5 +1,6 @@
 use {
-    crate::{
+    std::io::Read,
+    wrausmt::{
         format::{
             text::{
                 parse::{
@@ -15,12 +16,39 @@ use {
         syntax::{self as modulesyntax, Id, Resolved},
         types::{NumType, RefType},
     },
-    std::io::Read,
 };
 
-impl<R: Read> Parser<R> {
-    pub fn parse_spec_test(&mut self) -> Result<SpecTestScript> {
-        match self.zero_or_more(Self::try_cmd_entry) {
+pub trait SpecParser {
+    fn parse_spec_test(&mut self) -> Result<SpecTestScript>;
+    fn try_cmd_entry(&mut self) -> Result<Option<CmdEntry>>;
+    fn try_cmd(&mut self) -> Result<Option<Cmd>>;
+    fn try_module_cmd(&mut self) -> Result<Option<Cmd>>;
+    fn expect_spec_module(&mut self) -> Result<Module>;
+    fn try_spec_module(&mut self) -> Result<Option<Module>>;
+    fn try_register_cmd(&mut self) -> Result<Option<Cmd>>;
+    fn try_action_cmd(&mut self) -> Result<Option<Cmd>>;
+    fn try_action(&mut self) -> Result<Option<Action>>;
+    fn expect_action(&mut self) -> Result<Action>;
+    fn try_assertion_cmd(&mut self) -> Result<Option<Cmd>>;
+    fn try_invoke_action(&mut self) -> Result<Option<Action>>;
+    fn try_get_action(&mut self) -> Result<Option<Action>>;
+    fn try_meta_cmd(&mut self) -> Result<Option<Cmd>>;
+    fn try_assert_return(&mut self) -> Result<Option<Assertion>>;
+    fn try_assert_exhaustion(&mut self) -> Result<Option<Assertion>>;
+    fn try_assert_trap(&mut self) -> Result<Option<Assertion>>;
+    fn try_assert_invalid(&mut self) -> Result<Option<Assertion>>;
+    fn try_assert_malformed(&mut self) -> Result<Option<Assertion>>;
+    fn try_assert_unlinkable(&mut self) -> Result<Option<Assertion>>;
+    fn try_result(&mut self) -> Result<Option<ActionResult>>;
+    fn try_const(&mut self) -> Result<Option<Const>>;
+    fn try_num_type(&mut self) -> Result<Option<NumType>>;
+    fn try_nan_pat(&mut self, nt: NumType) -> Result<Option<NaNPat>>;
+    fn expect_num(&mut self, nt: NumType) -> Result<Num>;
+}
+
+impl<R: Read> SpecParser for Parser<R> {
+    fn parse_spec_test(&mut self) -> Result<SpecTestScript> {
+        match self.zero_or_more(Parser::try_cmd_entry) {
             Ok(cmds) => {
                 if self.current.token != Token::Eof {
                     return Err(self.unexpected_token("cmd"));

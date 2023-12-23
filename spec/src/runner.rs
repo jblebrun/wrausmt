@@ -4,7 +4,9 @@ use {
         format::{Action, ActionResult, CmdEntry, NumPat, SpecTestScript},
         spectest_module::make_spectest_module,
     },
-    crate::{
+    crate::format::{Assertion, Cmd, Module},
+    std::{collections::HashMap, io::Cursor, rc::Rc},
+    wrausmt::{
         format::text::string::WasmString,
         loader::Loader,
         logger::{Logger, PrintLogger, Tag},
@@ -14,11 +16,9 @@ use {
             values::{Num, Ref, Value},
             Runtime,
         },
-        spec::format::{Assertion, Cmd, Module},
         syntax::Id,
         types::RefType,
     },
-    std::{collections::HashMap, io::Cursor, rc::Rc},
 };
 
 #[macro_export]

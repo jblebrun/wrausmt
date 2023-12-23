@@ -11,4 +11,4 @@ edition = "2021"
 "codegen" = { path = "codegen" }
 
 [workspace]
-members = ["codegen"]
+members = ["codegen", "spec"]
