@@ -16,7 +16,7 @@ pub enum Tag {
     Op,
     Host,
     Spec,
-
+    SpecModule,
     Stack,
     LabelStack,
     ValStack,
