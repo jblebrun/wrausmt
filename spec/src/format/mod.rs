@@ -13,8 +13,11 @@ use {
             Location,
         },
         runtime::values::{Num, Ref, Value},
-        syntax::{self as modulesyntax, Id, Resolved},
-        types::{NumType, RefType},
+        syntax::{
+            self as modulesyntax,
+            types::{NumType, RefType},
+            Id, Resolved,
+        },
     },
 };
 

@@ -1,10 +1,11 @@
 use wrausmt::{
     format::text::module_builder::ModuleBuilder,
     syntax::{
-        self, FParam, FuncField, FunctionType, GlobalField, Instruction, MemoryField, Resolved,
+        self,
+        types::{GlobalType, Limits, MemType, NumType, TableType, ValueType},
+        FParam, FuncField, FunctionType, GlobalField, Instruction, MemoryField, Resolved,
         TableField, TypeUse, Unresolved,
     },
-    types::{GlobalType, Limits, MemType, NumType, TableType, ValueType},
 };
 
 /// (module
@@ -83,7 +84,7 @@ pub fn make_spectest_module() -> syntax::Module<Resolved> {
                 lower: 10,
                 upper: Some(20),
             },
-            reftype: wrausmt::types::RefType::Func,
+            reftype: wrausmt::syntax::types::RefType::Func,
         },
     });
     builder.add_memoryfield(MemoryField {

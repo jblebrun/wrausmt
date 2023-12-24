@@ -12,19 +12,19 @@ macro_rules! fparam {
     ( $id:expr; Func ) => {
         wrausmt::syntax::FParam {
             id:        $id,
-            valuetype: wrausmt::types::RefType::Func.into(),
+            valuetype: wrausmt::syntax::types::RefType::Func.into(),
         }
     };
     ( $id:expr; Extern ) => {
         wrausmt::syntax::FParam {
             id:        $id,
-            valuetype: wrausmt::types::RefType::Extern.into(),
+            valuetype: wrausmt::syntax::types::RefType::Extern.into(),
         }
     };
     ( $id:expr; $vt:ident ) => {
         wrausmt::syntax::FParam {
             id:        $id,
-            valuetype: wrausmt::types::NumType::$vt.into(),
+            valuetype: wrausmt::syntax::types::NumType::$vt.into(),
         }
     };
     ( $vt:tt ) => {
@@ -36,7 +36,7 @@ macro_rules! fparam {
 macro_rules! fresult {
     ( $vt:ident ) => {
         wrausmt::syntax::FResult {
-            valuetype: wrausmt::types::NumType::$vt.into(),
+            valuetype: wrausmt::syntax::types::NumType::$vt.into(),
         }
     };
 }

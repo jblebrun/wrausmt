@@ -10,8 +10,7 @@ use {
         instructions::{exec_method, op_consts},
         logger::{Logger, Tag},
         runtime::{instance::MemInstance, stack::Label},
-        syntax::Opcode,
-        types::RefType,
+        syntax::{types::RefType, Opcode},
     },
     std::convert::{TryFrom, TryInto},
 };

@@ -2,7 +2,7 @@
 //!
 //! [Spec]: https://webassembly.github.io/spec/core/appendix/algorithm.html
 
-use crate::types::{
+use crate::syntax::types::{
     FunctionType, GlobalType, MemType, ParamsType, RefType, ResultType, TableType, ValueType,
 };
 

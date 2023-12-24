@@ -1,6 +1,6 @@
 use {
     super::{super::token::Token, error::Result, Parser},
-    crate::types::{NumType, RefType, ValueType},
+    crate::syntax::types::{NumType, RefType, ValueType},
     std::io::Read,
 };
 

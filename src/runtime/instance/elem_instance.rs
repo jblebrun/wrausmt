@@ -1,4 +1,4 @@
-use crate::{runtime::values::Ref, types::RefType};
+use crate::{runtime::values::Ref, syntax::types::RefType};
 
 /// An element instance is the runtime representation of an element segment.
 /// [Spec][Spec]

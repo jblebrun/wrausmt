@@ -16,8 +16,7 @@ use {
             values::{Num, Ref, Value},
             Runtime,
         },
-        syntax::Id,
-        types::RefType,
+        syntax::{types::RefType, Id},
     },
 };
 

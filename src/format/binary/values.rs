@@ -3,9 +3,9 @@ use {
         error::{BinaryParseError, Result, WithContext},
         leb128::ReadLeb128,
     },
-    crate::{
-        syntax::{FParam, FResult, FunctionType, Index, IndexSpace, Resolved, TypeUse},
+    crate::syntax::{
         types::{GlobalType, Limits, MemType, NumType, RefType, TableType, ValueType},
+        FParam, FResult, FunctionType, Index, IndexSpace, Resolved, TypeUse,
     },
     std::convert::TryFrom,
 };

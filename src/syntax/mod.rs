@@ -3,17 +3,18 @@
 //! [Spec]: https://webassembly.github.io/spec/core/text/modules.html#modules
 
 mod indices;
+pub mod types;
 
 pub use indices::{
     DataIndex, ElemIndex, FuncIndex, GlobalIndex, IndexSpace, LabelIndex, LocalIndex, MemoryIndex,
     Resolved, ResolvedState, TableIndex, TypeIndex, Unresolved,
 };
 use {
-    crate::types::{GlobalType, MemType, RefType, TableType, ValueType},
     std::{
         fmt::{self, Debug},
         marker::PhantomData,
     },
+    types::{GlobalType, MemType, RefType, TableType, ValueType},
 };
 
 /// A wasm identifier. Contains only ascii bytes.

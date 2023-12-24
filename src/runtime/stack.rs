@@ -5,7 +5,7 @@ use {
     crate::{
         impl_bug,
         logger::{Logger, PrintLogger, Tag},
-        types::FunctionType,
+        syntax::types::FunctionType,
     },
     std::rc::Rc,
 };

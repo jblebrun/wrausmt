@@ -7,9 +7,9 @@ use {
     crate::{
         instructions::{instruction_data, op_consts, Operands, BAD_INSTRUCTION},
         syntax::{
-            self, Continuation, Expr, FuncField, Id, Instruction, Local, Opcode, Resolved, TypeUse,
+            self, types::ValueType, Continuation, Expr, FuncField, Id, Instruction, Local, Opcode,
+            Resolved, TypeUse,
         },
-        types::ValueType,
     },
     std::io::{Read, Write},
 };
