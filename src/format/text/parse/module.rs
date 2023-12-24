@@ -6,12 +6,12 @@ use {
     crate::{
         format::text::{module_builder::ModuleBuilder, token::Token},
         syntax::{
+            types::{GlobalType, Limits, MemType, TableType},
             DataField, DataInit, ElemField, ExportDesc, ExportField, Expr, FParam, FResult,
             FuncField, FunctionType, GlobalField, Id, ImportDesc, ImportField, Index, IndexSpace,
             Instruction, Local, MemoryField, MemoryIndex, ModeEntry, Module, Resolved,
             ResolvedState, StartField, TableField, TypeField, TypeUse, Unresolved,
         },
-        types::{GlobalType, Limits, MemType, TableType},
     },
     std::io::Read,
 };

@@ -22,7 +22,7 @@ use {
     crate::{
         impl_bug,
         runtime::error::RuntimeError,
-        types::{NumType, RefType, ValueType},
+        syntax::types::{NumType, RefType, ValueType},
     },
     std::convert::TryFrom,
 };

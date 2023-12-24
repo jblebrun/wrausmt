@@ -7,10 +7,9 @@ use {
     crate::{
         format::binary::error::BinaryParseError,
         syntax::{
-            self, ElemField, ElemList, Expr, FuncIndex, Index, Instruction, ModeEntry, Opcode,
-            Resolved, TablePosition, TableUse,
+            self, types::RefType, ElemField, ElemList, Expr, FuncIndex, Index, Instruction,
+            ModeEntry, Opcode, Resolved, TablePosition, TableUse,
         },
-        types::RefType,
     },
 };
 

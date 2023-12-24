@@ -6,7 +6,7 @@ use {
             instance::ModuleInstance,
             Value,
         },
-        types::{FunctionType, ValueType},
+        syntax::types::{FunctionType, ValueType},
     },
     std::rc::Rc,
 };

@@ -1,4 +1,4 @@
-use crate::{runtime::Value, types::ValueType};
+use crate::{runtime::Value, syntax::types::ValueType};
 
 /// A global instance is the runtime representation of a global variable.
 /// [Spec][Spec]

@@ -1,6 +1,6 @@
 use {
     super::*,
-    crate::{runtime::store::addr, types::FunctionType},
+    crate::{runtime::store::addr, syntax::types::FunctionType},
 };
 
 /// A module instance is the runtime representation of a module. [Spec][Spec]

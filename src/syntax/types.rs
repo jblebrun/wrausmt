@@ -5,7 +5,6 @@
 //! during validation, instantiation, and possibly execution.
 //!
 //! [Spec]: https://webassembly.github.io/spec/core/syntax/types.html
-use std::boxed::Box;
 
 /// Number types classify numeric values. [Spec][Spec]
 ///

@@ -16,10 +16,11 @@ use {
             values::Ref,
         },
         syntax::{
-            self, DataInit, ElemList, Expr, FuncField, ImportDesc, Instruction, ModeEntry,
-            Resolved, TablePosition,
+            self,
+            types::{FunctionType, ValueType},
+            DataInit, ElemList, Expr, FuncField, ImportDesc, Instruction, ModeEntry, Resolved,
+            TablePosition,
         },
-        types::{FunctionType, ValueType},
     },
     std::rc::Rc,
 };

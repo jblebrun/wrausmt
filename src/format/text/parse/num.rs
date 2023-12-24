@@ -4,7 +4,7 @@ use {
         error::{KindResult, ParseErrorKind, Result},
         ParseResult, Parser,
     },
-    crate::types::Limits,
+    crate::syntax::types::Limits,
     std::io::Read,
 };
 

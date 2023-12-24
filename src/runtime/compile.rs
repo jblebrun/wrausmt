@@ -1,8 +1,11 @@
 use crate::{
     instructions::op_consts,
     runtime::instance::{ExportInstance, ExternalVal, ModuleInstance},
-    syntax::{self, Expr, Opcode, Resolved, TypeUse},
-    types::{FunctionType, RefType, ValueType},
+    syntax::{
+        self,
+        types::{FunctionType, RefType, ValueType},
+        Expr, Opcode, Resolved, TypeUse,
+    },
 };
 
 const END_OPCODE: Opcode = Opcode::Normal(0xb);

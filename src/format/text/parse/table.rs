@@ -1,11 +1,9 @@
 use {
     super::{error::Result, module::Field, Parser},
-    crate::{
-        syntax::{
-            ElemField, ElemList, Expr, ImportDesc, ImportField, Instruction, ModeEntry, TableField,
-            TablePosition, TableUse, Unresolved,
-        },
+    crate::syntax::{
         types::{RefType, TableType},
+        ElemField, ElemList, Expr, ImportDesc, ImportField, Instruction, ModeEntry, TableField,
+        TablePosition, TableUse, Unresolved,
     },
     std::io::Read,
 };

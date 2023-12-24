@@ -3,7 +3,7 @@ use crate::{
         error::{Result, TrapKind},
         values::Ref,
     },
-    types::TableType,
+    syntax::types::TableType,
 };
 
 /// A table instance is the runtime representation of a table. [Spec][Spec]
