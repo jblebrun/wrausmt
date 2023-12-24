@@ -11,13 +11,6 @@ use {
     },
 };
 
-#[derive(Debug)]
-#[allow(dead_code)]
-enum FailMode {
-    Parse,
-    Run,
-}
-
 fn parse(f: &mut File) -> LoaderResult<SpecTestScript> {
     let tokenizer = Tokenizer::new(f)?;
     let mut parser = Parser::new(tokenizer)?;
@@ -37,32 +30,10 @@ fn parse_and_run_for_result(mut f: File, runset: RunSet) -> Result<()> {
     result
 }
 
-fn parse_and_run<S: std::fmt::Debug + AsRef<Path>>(
-    path: S,
-    runset: RunSet,
-    mode: FailMode,
-) -> Result<()> {
+fn parse_and_run<S: std::fmt::Debug + AsRef<Path>>(path: S, runset: RunSet) -> Result<()> {
     println!("OPENING: {:?}", path);
     let f = std::fs::File::open(&path)?;
-    let result = parse_and_run_for_result(f, runset);
-    let passingtext = match result {
-        Ok(()) => "PASSING",
-        _ => "FAILING",
-    };
-    println!("MODE {:?} {} ALL {:?}", mode, passingtext, path);
-    match result {
-        Err(e) => match mode {
-            FailMode::Parse => match e {
-                e if e.is_parse_error() => Err(e),
-                _ => {
-                    println!("{:?} -- SKIPPING PARSE MODE error {:?}", path, e);
-                    Ok(())
-                }
-            },
-            FailMode::Run => Err(e),
-        },
-        Ok(()) => Ok(()),
-    }
+    parse_and_run_for_result(f, runset)
 }
 
 // To regenerate the spectest! lines below using the transform this macro
@@ -70,19 +41,17 @@ fn parse_and_run<S: std::fmt::Debug + AsRef<Path>>(
 // ".format(i.replace(".wast","").replace("-","_x_")) for i in
 // sorted(os.listdir('testdata/spec'))])
 macro_rules! spectest {
-    ($name:ident; [$runset:expr]; [$failmode:expr]) => {
+    ($name:ident; [$runset:expr]) => {
         #[test]
         fn $name() -> Result<()> {
             parse_and_run(
                 format!("tests/data/{}.wast", stringify!($name)[2..].replace("_x_", "-")),
                 $runset,
-                $failmode,
             )
         }
     };
-    ($name:ident) => { spectest!($name; [RunSet::All]; [FailMode::Run]); };
-    ($name:ident; [$runset:expr]) => { spectest!($name; [$runset]; [FailMode::Run]); };
-    ($name:ident; []; $failmode:expr) => { spectest!($name; [RunSet::All]; [$failmode]); };
+    ($name:ident) => { spectest!($name; [RunSet::All]); };
+    ($name:ident; [$runset:expr]) => { spectest!($name; [$runset]); };
 }
 
 spectest!(r#address);
