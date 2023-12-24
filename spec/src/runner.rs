@@ -248,8 +248,9 @@ impl SpecTestRunner {
             }
             Cmd::Register { modname, id } => {
                 let module = self.module_for_action(&id);
-                self.logger
-                    .log(Tag::Spec, || format!("REGISTER {} {:?}", modname, module));
+                self.logger.log(Tag::SpecModule, || {
+                    format!("REGISTER {} {:?}", modname, module)
+                });
                 match module {
                     Ok(module) => self.runtime.register(modname, module.clone()),
                     Err(_) => return Err(SpecTestError::RegisterMissingModule(modname)),
