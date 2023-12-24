@@ -48,7 +48,7 @@ pub struct Failure {
 pub enum SpecTestError {
     NoModule(Option<Id>),
     Failures(Failures),
-    LoaderError(Box<LoaderError>),
+    LoaderError(LoaderError),
     InvocationError(RuntimeError),
     ResultLengthMismatch {
         results: Vec<Value>,
@@ -107,6 +107,12 @@ impl From<RuntimeError> for SpecTestError {
 
 impl From<LoaderError> for SpecTestError {
     fn from(e: LoaderError) -> Self {
-        SpecTestError::LoaderError(Box::new(e))
+        SpecTestError::LoaderError(e)
+    }
+}
+
+impl From<std::io::Error> for SpecTestError {
+    fn from(e: std::io::Error) -> Self {
+        SpecTestError::LoaderError(e.into())
     }
 }

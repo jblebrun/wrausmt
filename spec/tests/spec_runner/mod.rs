@@ -1,6 +1,6 @@
 use {
     spec::{
-        error::Result as SpecTestResult,
+        error::Result,
         format::{SpecParser, SpecTestScript},
         runner::{RunSet, SpecTestRunner},
     },
@@ -10,8 +10,6 @@ use {
         loader::Result as LoaderResult,
     },
 };
-
-type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
 #[derive(Debug)]
 #[allow(dead_code)]
@@ -27,7 +25,7 @@ fn parse(f: &mut File) -> LoaderResult<SpecTestScript> {
     Ok(result)
 }
 
-fn parse_and_run_for_result(mut f: File, runset: RunSet) -> SpecTestResult<()> {
+fn parse_and_run_for_result(mut f: File, runset: RunSet) -> Result<()> {
     println!("\n\n*****  PARSING {:?} *****\n\n", f);
     let spectest = parse(&mut f)?;
     let start = Instant::now();
@@ -55,13 +53,13 @@ fn parse_and_run<S: std::fmt::Debug + AsRef<Path>>(
     match result {
         Err(e) => match mode {
             FailMode::Parse => match e {
-                e if e.is_parse_error() => Err(Box::new(e)),
+                e if e.is_parse_error() => Err(e),
                 _ => {
                     println!("{:?} -- SKIPPING PARSE MODE error {:?}", path, e);
                     Ok(())
                 }
             },
-            FailMode::Run => Err(Box::new(e)),
+            FailMode::Run => Err(e),
         },
         Ok(()) => Ok(()),
     }
