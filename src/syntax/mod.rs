@@ -464,26 +464,36 @@ impl<R: ResolvedState> fmt::Debug for Expr<R> {
     }
 }
 
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub enum Opcode {
+    Normal(u8),
+    // 0xFC-prefixed instructions
+    Extended(u8),
+    // 0xFD-prefix instructions
+    Simd(u8),
+}
+
 #[derive(PartialEq)]
 pub struct Instruction<R: ResolvedState> {
     pub name:     Id,
-    pub opcode:   u8,
+    pub opcode:   Opcode,
     pub operands: Operands<R>,
 }
 
-impl<R: ResolvedState> Instruction<R> {
-    pub fn reffunc(idx: Index<R, FuncIndex>) -> Self {
-        Self {
-            name:     "ref.func".into(),
-            opcode:   0xD2,
-            operands: Operands::FuncIndex(idx),
+impl std::fmt::Display for Opcode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Normal(o) => write!(f, "{:#x}", o),
+            Self::Extended(o) => write!(f, "0xFC {:#x}", o),
+            Self::Simd(o) => write!(f, "0xFD {:#x}", o),
         }
     }
-
+}
+impl<R: ResolvedState> Instruction<R> {
     pub fn i32const(val: u32) -> Self {
         Self {
             name:     "i32.const".into(),
-            opcode:   0x41,
+            opcode:   Opcode::Normal(0x41),
             operands: Operands::I32(val),
         }
     }
@@ -491,15 +501,23 @@ impl<R: ResolvedState> Instruction<R> {
     pub fn i64const(val: u64) -> Self {
         Self {
             name:     "i64.const".into(),
-            opcode:   0x42,
+            opcode:   Opcode::Normal(0x42),
             operands: Operands::I64(val),
+        }
+    }
+
+    pub fn reffunc(idx: Index<R, FuncIndex>) -> Self {
+        Self {
+            name:     "ref.func".into(),
+            opcode:   Opcode::Normal(0xD2),
+            operands: Operands::FuncIndex(idx),
         }
     }
 
     pub fn f32const(val: f32) -> Self {
         Self {
             name:     "i32.const".into(),
-            opcode:   0x43,
+            opcode:   Opcode::Normal(0x43),
             operands: Operands::F32(val),
         }
     }
@@ -507,7 +525,7 @@ impl<R: ResolvedState> Instruction<R> {
     pub fn f64const(val: f64) -> Self {
         Self {
             name:     "f64.const".into(),
-            opcode:   0x44,
+            opcode:   Opcode::Normal(0x44),
             operands: Operands::F64(val),
         }
     }
@@ -515,7 +533,7 @@ impl<R: ResolvedState> Instruction<R> {
     pub fn tableinit(tableidx: u32, elemidx: u32) -> Self {
         Self {
             name:     "table.init".into(),
-            opcode:   0xE0 + 0x0c,
+            opcode:   Opcode::Extended(0x0c),
             operands: Operands::TableInit(Index::unnamed(tableidx), Index::unnamed(elemidx)),
         }
     }
@@ -523,7 +541,7 @@ impl<R: ResolvedState> Instruction<R> {
     pub fn elemdrop(elemidx: u32) -> Self {
         Self {
             name:     "elem.drop".into(),
-            opcode:   0xE0 + 0x0d,
+            opcode:   Opcode::Extended(0x0d),
             operands: Operands::ElemIndex(Index::unnamed(elemidx)),
         }
     }
@@ -531,7 +549,7 @@ impl<R: ResolvedState> Instruction<R> {
     pub fn meminit(dataidx: u32) -> Self {
         Self {
             name:     "mem.init".into(),
-            opcode:   0xE0 + 0x08,
+            opcode:   Opcode::Extended(0x08),
             operands: Operands::DataIndex(Index::unnamed(dataidx)),
         }
     }
@@ -539,7 +557,7 @@ impl<R: ResolvedState> Instruction<R> {
     pub fn datadrop(dataidx: u32) -> Self {
         Self {
             name:     "data.drop".into(),
-            opcode:   0xE0 + 0x09,
+            opcode:   Opcode::Extended(0x09),
             operands: Operands::DataIndex(Index::unnamed(dataidx)),
         }
     }
@@ -598,7 +616,7 @@ impl<R: ResolvedState> std::fmt::Display for Operands<R> {
 
 impl<R: ResolvedState> std::fmt::Debug for Instruction<R> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "({}({:#x}) {})", self.name, self.opcode, self.operands)
+        write!(f, "({}({}) {})", self.name, self.opcode, self.operands)
     }
 }
 

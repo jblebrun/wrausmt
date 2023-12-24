@@ -2,19 +2,23 @@
 //! WebAssembly function. Most of the code for instruction execution is
 //! generated. See the [codegen] crate for more details on the generation
 //! process.
-mod generated;
 
 use {
+    self::generated::{
+        data_table::{EXTENDED_INSTRUCTION_DATA, INSTRUCTION_DATA, SIMD_INSTRUCTION_DATA},
+        exec_table::{EXEC_TABLE, EXTENDED_EXEC_TABLE, SIMD_EXEC_TABLE},
+    },
     crate::{
         impl_bug,
         runtime::{
             error::{Result, WithContext},
             exec::ExecutionContext,
         },
-        syntax::Id,
+        syntax::{Id, Opcode},
     },
-    generated::{data_table::INSTRUCTION_DATA, exec_table::EXEC_TABLE},
 };
+
+mod generated;
 
 /// Function bodies, initialization values for globals, and offsets of element
 /// or data segments are given as expressions, which are sequences of
@@ -26,9 +30,10 @@ pub type Expr = [u8];
 /// Information about one assembly instruction, used during parsing.
 ///
 /// The `opcode` field contains the byte used to represent the instruction in
-/// the WebAssembly format. In the case of extended instructions in the 0xFC
-/// family (which are stored in separate tables), this will indicate the
-/// extended opcode.
+/// the WebAssembly format. The core instructions are one byte, but some are two
+/// bytes, with a prefix of 0xFC or 0xFD. The Opcode enum will contain an enum
+/// variant to select the space, and each variant holds the byte for opcode
+/// selection in that space.
 ///
 /// Tne `name` field contains the string name of the operation, as it appears in
 /// WebAssembly text format.
@@ -38,7 +43,7 @@ pub type Expr = [u8];
 /// guide parsing.
 #[derive(PartialEq, Debug)]
 pub struct InstructionData {
-    pub opcode:   u8,
+    pub opcode:   Opcode,
     pub name:     &'static str,
     pub operands: Operands,
 }
@@ -97,20 +102,29 @@ pub fn unimpl(_ec: &mut ExecutionContext) -> Result<()> {
 }
 
 pub const BAD_INSTRUCTION: InstructionData = InstructionData {
-    opcode:   0,
+    opcode:   Opcode::Normal(0),
     name:     "bad",
     operands: Operands::None,
 };
 
-pub fn exec_method(opcode: u8, ec: &mut ExecutionContext) -> Result<()> {
-    match EXEC_TABLE.get(opcode as usize) {
-        Some(ef) => ef(ec).ctx(|| format!("for op {:x} - {:?}", opcode, instruction_data(opcode))),
+pub fn exec_method(opcode: Opcode, ec: &mut ExecutionContext) -> Result<()> {
+    let exec_fn = match opcode {
+        Opcode::Extended(o) => EXTENDED_EXEC_TABLE.get(o as usize),
+        Opcode::Simd(o) => SIMD_EXEC_TABLE.get(o as usize),
+        Opcode::Normal(o) => EXEC_TABLE.get(o as usize),
+    };
+    match exec_fn {
+        Some(ef) => ef(ec).ctx(|| format!("for op {:?} - {:?}", opcode, instruction_data(&opcode))),
         None => Err(impl_bug!("Exec table short")),
     }
 }
 
-pub fn instruction_data(opcode: u8) -> &'static InstructionData {
-    &INSTRUCTION_DATA[opcode as usize]
+pub fn instruction_data(opcode: &Opcode) -> &'static InstructionData {
+    match *opcode {
+        Opcode::Normal(o) => &INSTRUCTION_DATA[o as usize],
+        Opcode::Extended(o) => &EXTENDED_INSTRUCTION_DATA[o as usize],
+        Opcode::Simd(o) => &SIMD_INSTRUCTION_DATA[o as usize],
+    }
 }
 
 // TODO - would it be significantly more performant to build a hash map here?
@@ -118,5 +132,12 @@ pub fn instruction_data(opcode: u8) -> &'static InstructionData {
 pub fn instruction_by_name(name: &Id) -> Option<&'static InstructionData> {
     INSTRUCTION_DATA
         .iter()
+        .chain(EXTENDED_INSTRUCTION_DATA.iter())
+        .chain(SIMD_INSTRUCTION_DATA.iter())
         .find(|&item| item.name.as_bytes() == name.data())
+}
+
+pub mod op_consts {
+    pub const EXTENDED_PREFIX: u8 = 0xFC;
+    pub const SIMD_PREFIX: u8 = 0xFD;
 }

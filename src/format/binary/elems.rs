@@ -7,8 +7,8 @@ use {
     crate::{
         format::binary::error::BinaryParseError,
         syntax::{
-            self, ElemField, ElemList, Expr, FuncIndex, Index, Instruction, ModeEntry, Resolved,
-            TablePosition, TableUse,
+            self, ElemField, ElemList, Expr, FuncIndex, Index, Instruction, ModeEntry, Opcode,
+            Resolved, TablePosition, TableUse,
         },
         types::RefType,
     },
@@ -73,7 +73,7 @@ pub trait ReadElems: ReadWasmValues + ReadCode {
             .map(|idx| Expr {
                 instr: vec![Instruction {
                     name:     "ref.func".into(),
-                    opcode:   0xD2,
+                    opcode:   Opcode::Normal(0xD2),
                     operands: syntax::Operands::FuncIndex(idx),
                 }],
             })
