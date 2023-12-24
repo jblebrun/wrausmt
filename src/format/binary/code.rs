@@ -5,8 +5,10 @@ use {
         values::ReadWasmValues,
     },
     crate::{
-        instructions::{instruction_data, Operands, BAD_INSTRUCTION},
-        syntax::{self, Continuation, Expr, FuncField, Id, Instruction, Local, Resolved, TypeUse},
+        instructions::{instruction_data, op_consts, Operands, BAD_INSTRUCTION},
+        syntax::{
+            self, Continuation, Expr, FuncField, Id, Instruction, Local, Opcode, Resolved, TypeUse,
+        },
         types::ValueType,
     },
     std::io::{Read, Write},
@@ -115,6 +117,14 @@ pub trait ReadCode: ReadWasmValues {
         Ok(ExpressionWithEnd { expr, end })
     }
 
+    fn read_secondary_opcode(&mut self) -> Result<u8> {
+        let secondary = self.read_u32_leb_128().ctx("parsing secondary opcode")?;
+
+        secondary
+            .try_into()
+            .map_err(|_| BinaryParseError::InvalidSecondaryOpcode(secondary))
+    }
+
     /// Returns -1 if EOF or end instruction was reached while parsing an
     /// opcode. Returns 1 if a new block was started
     /// Returns 0 if a normal instruction was parsed.
@@ -123,27 +133,20 @@ pub trait ReadCode: ReadWasmValues {
         let mut opcode_buf = [0u8; 1];
         self.read_exact(&mut opcode_buf).ctx("parsing opcode")?;
 
-        // 0xFC instructions are shifted into the normal opcode
-        // table starting at 0xE0.
-        let opcode = if opcode_buf[0] == 0xFC {
-            let second_opcode = self.read_u32_leb_128().ctx("parsing secondary opcode")?;
-            second_opcode as u8 + 0xE0
-        } else {
-            opcode_buf[0]
+        let opcode = match opcode_buf[0] {
+            op_consts::EXTENDED_PREFIX => Opcode::Extended(self.read_secondary_opcode()?),
+            op_consts::SIMD_PREFIX => Opcode::Simd(self.read_secondary_opcode()?),
+            _ => Opcode::Normal(opcode_buf[0]),
         };
 
-        let instruction_data = instruction_data(opcode);
+        let instruction_data = match opcode {
+            Opcode::Normal(0x0B) => return Ok(InstructionOrEnd::End(ExpressionEnd::End)),
+            Opcode::Normal(0x05) => return Ok(InstructionOrEnd::End(ExpressionEnd::Else)),
+            _ => instruction_data(&opcode),
+        };
 
         if instruction_data == &BAD_INSTRUCTION {
             return Err(BinaryParseError::InvalidOpcode(opcode));
-        }
-
-        // End of expression.
-        if opcode == 0x0B {
-            return Ok(InstructionOrEnd::End(ExpressionEnd::End));
-        }
-        if opcode == 0x05 {
-            return Ok(InstructionOrEnd::End(ExpressionEnd::Else));
         }
 
         // Handle any additional behavior
@@ -218,7 +221,7 @@ pub trait ReadCode: ReadWasmValues {
             }
             _ => {
                 panic!(
-                    "unsupported operands {:x?} for {:x}",
+                    "unsupported operands {:x?} for {}",
                     instruction_data.operands, opcode
                 )
             }

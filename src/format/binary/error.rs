@@ -1,4 +1,4 @@
-use {super::leb128::LEB128Error, std::string::FromUtf8Error};
+use {super::leb128::LEB128Error, crate::syntax::Opcode, std::string::FromUtf8Error};
 
 #[derive(Debug)]
 pub enum BinaryParseError {
@@ -12,7 +12,8 @@ pub enum BinaryParseError {
     Utf8Error(FromUtf8Error),
     DataCountMismatch,
     FuncSizeMismatch,
-    InvalidOpcode(u8),
+    InvalidOpcode(Opcode),
+    InvalidSecondaryOpcode(u32),
     InvalidBoolValue(u8),
     InvalidElemKind(u8),
     InvalidValueType(u8),

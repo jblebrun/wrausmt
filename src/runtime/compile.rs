@@ -1,11 +1,12 @@
 use crate::{
+    instructions::op_consts,
     runtime::instance::{ExportInstance, ExternalVal, ModuleInstance},
-    syntax::{self, Expr, Resolved, TypeUse},
+    syntax::{self, Expr, Opcode, Resolved, TypeUse},
     types::{FunctionType, RefType, ValueType},
 };
 
-const END_OPCODE: u8 = 0xb;
-const ELSE_OPCODE: u8 = 0x5;
+const END_OPCODE: Opcode = Opcode::Normal(0xb);
+const ELSE_OPCODE: Opcode = Opcode::Normal(0x5);
 
 impl From<syntax::FunctionType> for FunctionType {
     fn from(ast: syntax::FunctionType) -> FunctionType {
@@ -42,12 +43,13 @@ pub fn compile_export(
 }
 
 pub trait Emitter {
+    fn emit8(&mut self, v: u8);
     fn emit32(&mut self, v: u32);
     fn emit64(&mut self, v: u64);
     fn splice8(&mut self, idx: usize, v: u8);
     fn splice32(&mut self, idx: usize, v: u32);
     fn len(&self) -> usize;
-    fn push(&mut self, b: u8);
+    fn emit_opcode(&mut self, opcode: Opcode);
 
     fn is_empty(&self) -> bool;
 
@@ -73,7 +75,7 @@ pub trait Emitter {
         }
 
         self.emit_expr(expr);
-        self.push(END_OPCODE);
+        self.emit_opcode(END_OPCODE);
 
         // If the continuation is at the end of the block, we go back to the space
         // we reserved (just above), and write self the position of the last item
@@ -107,23 +109,22 @@ pub trait Emitter {
         if !el.instr.is_empty() {
             self.splice32(else_location, self.len() as u32 + 1);
             // Replace the `end` for the then expression with the else opcode.
-            self.push(ELSE_OPCODE);
+            self.emit_opcode(ELSE_OPCODE);
             self.emit_expr(el);
         } else {
             self.splice32(else_location, self.len() as u32);
         }
 
-        self.push(END_OPCODE);
+        self.emit_opcode(END_OPCODE);
         self.splice32(end_location, self.len() as u32);
     }
 
     fn emit_expr(&mut self, expr: &syntax::Expr<Resolved>) {
         for instr in &expr.instr {
             // Emit opcode
-            self.push(instr.opcode);
+            self.emit_opcode(instr.opcode);
 
             // Emit operands
-
             match &instr.operands {
                 syntax::Operands::None => (),
                 syntax::Operands::Block(_, typeuse, e, cnt) => self.emit_block(typeuse, e, cnt),
@@ -164,7 +165,7 @@ pub trait Emitter {
                         RefType::Func => 0x70,
                         RefType::Extern => 0x6F,
                     };
-                    self.push(htbyte);
+                    self.emit8(htbyte);
                 }
             }
         }
@@ -172,6 +173,10 @@ pub trait Emitter {
 }
 
 impl Emitter for Vec<u8> {
+    fn emit8(&mut self, v: u8) {
+        self.push(v);
+    }
+
     fn emit32(&mut self, v: u32) {
         let bytes = &v.to_le_bytes()[..];
         self.extend(bytes);
@@ -191,8 +196,12 @@ impl Emitter for Vec<u8> {
         self.extend(bytes);
     }
 
-    fn push(&mut self, b: u8) {
-        self.push(b)
+    fn emit_opcode(&mut self, opcode: Opcode) {
+        match opcode {
+            Opcode::Normal(o) => self.push(o),
+            Opcode::Extended(o) => self.extend(&[op_consts::EXTENDED_PREFIX, o]),
+            Opcode::Simd(o) => self.extend(&[op_consts::SIMD_PREFIX, o]),
+        }
     }
 
     fn len(&self) -> usize {
@@ -208,7 +217,7 @@ pub fn compile_function_body(func: &syntax::FuncField<Resolved>) -> Box<[u8]> {
     let mut out: Vec<u8> = Vec::new();
 
     out.emit_expr(&func.body);
-    out.push(END_OPCODE);
+    out.emit_opcode(END_OPCODE);
 
     // ???
     // profit!

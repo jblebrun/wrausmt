@@ -3,7 +3,7 @@ use {
     crate::{
         format::text::{num, token::Token},
         instructions::{instruction_by_name, Operands},
-        syntax::{self, Continuation, Expr, Index, Instruction, Unresolved},
+        syntax::{self, Continuation, Expr, Index, Instruction, Opcode, Unresolved},
     },
     std::io::Read,
 };
@@ -183,7 +183,7 @@ impl<R: Read> Parser<R> {
     fn parse_folded_block(
         &mut self,
         name: &str,
-        opcode: u8,
+        opcode: Opcode,
         cnt: Continuation,
     ) -> Result<Instruction<Unresolved>> {
         let label = self.try_id()?;
@@ -223,7 +223,7 @@ impl<R: Read> Parser<R> {
 
         unfolded.push(Instruction {
             name: "if".into(),
-            opcode: 0x04,
+            opcode: Opcode::Normal(0x04),
             operands,
         });
 
@@ -251,7 +251,7 @@ impl<R: Read> Parser<R> {
         if self.try_expr_start("block")? {
             return Ok(Some(vec![self.parse_folded_block(
                 "block",
-                0x02,
+                Opcode::Normal(0x02),
                 Continuation::End,
             )?]));
         }
@@ -259,7 +259,7 @@ impl<R: Read> Parser<R> {
         if self.try_expr_start("loop")? {
             return Ok(Some(vec![self.parse_folded_block(
                 "loop",
-                0x03,
+                Opcode::Normal(0x03),
                 Continuation::Start,
             )?]));
         }

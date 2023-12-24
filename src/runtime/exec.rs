@@ -7,9 +7,10 @@ use {
     },
     crate::{
         impl_bug,
-        instructions::exec_method,
+        instructions::{exec_method, op_consts},
         logger::{Logger, Tag},
         runtime::{instance::MemInstance, stack::Label},
+        syntax::Opcode,
         types::RefType,
     },
     std::convert::{TryFrom, TryInto},
@@ -470,10 +471,21 @@ impl<'l> ExecutionContext<'l> {
     pub fn run(&mut self) -> Result<()> {
         while self.pc < self.body.len() {
             let op = self.body[self.pc];
-            self.log(Tag::Op, || format!("BEGIN 0x{:x}", op));
+            let opcode = match op {
+                op_consts::EXTENDED_PREFIX => {
+                    self.pc += 1;
+                    Opcode::Extended(self.body[self.pc])
+                }
+                op_consts::SIMD_PREFIX => {
+                    self.pc += 1;
+                    Opcode::Simd(self.body[self.pc])
+                }
+                _ => Opcode::Normal(op),
+            };
+            self.log(Tag::Op, || format!("BEGIN 0x{:x?}", opcode));
             self.pc += 1;
-            exec_method(op, self)?;
-            self.log(Tag::Op, || format!("FINISHED 0x{:x}", op));
+            exec_method(opcode, self)?;
+            self.log(Tag::Op, || format!("FINISHED 0x{:x?}", opcode));
         }
         Ok(())
     }
