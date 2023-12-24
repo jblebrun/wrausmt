@@ -2,51 +2,44 @@
 /// module have been resolved into the proper numeric values. This needs to
 /// happen in a second pass after the initial parse, since index usage may occur
 /// before the index has been defined.
+
+macro_rules! marker {
+    (
+        $(#[$($attrss:tt)*])*
+        $n:ident: $t:ty
+    ) => {
+        $(#[$($attrss)*])*
+        #[derive(Clone, Debug, Default, PartialEq)]
+        pub struct $n {}
+        impl $t for $n {}
+    };
+}
+
 pub trait ResolvedState: std::fmt::Debug {}
+marker!(
+    /// A module parameterized by the [Resolved] type will have undergone index
+    /// resolution,  and type use resolution, and should be safe to compile further.
+    Resolved: ResolvedState
+);
+marker!(
+    /// A module parameterized by the [IndicesResolved] type will have undergone
+    /// index resolution, but not type use resolution.
+    IndicesResolved: ResolvedState
+);
+marker!(
+    /// A module parameterized by the [Unresolved] type will have undergone index
+    /// resolution, and must be compiled before it can be used by the runtime.
+    Unresolved: ResolvedState
+);
 
-/// A module parameterized by the [Resolved] type will have undergone index
-/// resolution,  and type use resolution, and should be safe to compile further.
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct Resolved {}
-impl ResolvedState for Resolved {}
-
-/// A module parameterized by the [IndicesResolved] type will have undergone
-/// index resolution, but not type use resolution.
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct IndicesResolved {}
-impl ResolvedState for IndicesResolved {}
-
-/// A module parameterized by the [Resolved] type will have undergone index
-/// resolution, and must be compiled before it can be used by the runtime.
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct Unresolved {}
-impl ResolvedState for Unresolved {}
-
+/// A marker trait to describe the resource that an index refers to.
 pub trait IndexSpace {}
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct FuncIndex {}
-impl IndexSpace for FuncIndex {}
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct TypeIndex {}
-impl IndexSpace for TypeIndex {}
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct TableIndex {}
-impl IndexSpace for TableIndex {}
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct GlobalIndex {}
-impl IndexSpace for GlobalIndex {}
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct MemoryIndex {}
-impl IndexSpace for MemoryIndex {}
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct DataIndex {}
-impl IndexSpace for DataIndex {}
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct ElemIndex {}
-impl IndexSpace for ElemIndex {}
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct LocalIndex {}
-impl IndexSpace for LocalIndex {}
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct LabelIndex {}
-impl IndexSpace for LabelIndex {}
+marker!(FuncIndex: IndexSpace);
+marker!(TypeIndex: IndexSpace);
+marker!(TableIndex: IndexSpace);
+marker!(GlobalIndex: IndexSpace);
+marker!(MemoryIndex: IndexSpace);
+marker!(DataIndex: IndexSpace);
+marker!(ElemIndex: IndexSpace);
+marker!(LocalIndex: IndexSpace);
+marker!(LabelIndex: IndexSpace);
