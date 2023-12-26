@@ -142,22 +142,3 @@ fn seps() -> Result<()> {
     );
     Ok(())
 }
-
-#[test]
-fn longer_test() -> Result<()> {
-    let mut f = std::fs::File::open("testdata/locals.wat").ctx("opening file")?;
-    let tokenizer = Tokenizer::new(&mut f)?;
-
-    println!("here we go");
-    for token in tokenizer {
-        match token {
-            Ok(t) => println!("{:?}", t),
-            Err(e) => {
-                println!("ERR {:?}", e);
-                return Err(e);
-            }
-        }
-    }
-
-    Ok(())
-}
