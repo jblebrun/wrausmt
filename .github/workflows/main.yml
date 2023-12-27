@@ -37,7 +37,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: fmt
-          args: --all -- --check
+          args: --all --check
 
 
   clippy:
@@ -54,7 +54,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: clippy
-          args: --all -- -D warnings
+          args: --all-targets -- -D warnings
 
   docs:
     name: Docs

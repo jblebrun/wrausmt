@@ -8,9 +8,9 @@ type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 #[test]
 fn simplefunc() -> Result<()> {
     let mut runtime = Runtime::new();
-    let env_mod = runtime.load_wasm("testdata/env.wasm")?;
+    let env_mod = runtime.load_wasm("data/env.wasm")?;
     runtime.register("env", env_mod);
-    let mod_inst = runtime.load_wasm("testdata/simplefunc.wasm")?;
+    let mod_inst = runtime.load_wasm("data/simplefunc.wasm")?;
 
     let res1 = runtime.call(&mod_inst, "test", &[100u32.into()])?;
     let v: Value = *res1.first().unwrap();
@@ -22,9 +22,9 @@ fn simplefunc() -> Result<()> {
 #[test]
 fn locals() -> Result<()> {
     let mut runtime = Runtime::new();
-    let env_mod = runtime.load_wasm("testdata/env.wasm")?;
+    let env_mod = runtime.load_wasm("data/env.wasm")?;
     runtime.register("env", env_mod);
-    let mod_inst = runtime.load_wasm("testdata/locals.wasm")?;
+    let mod_inst = runtime.load_wasm("data/locals.wasm")?;
 
     println!("BEGIN TEST");
     let res = runtime.call(&mod_inst, "test", &[100u32.into()])?;
@@ -37,9 +37,9 @@ fn locals() -> Result<()> {
 #[test]
 fn callandglobal() -> Result<()> {
     let mut runtime = Runtime::new();
-    let env_mod = runtime.load_wasm("testdata/env.wasm")?;
+    let env_mod = runtime.load_wasm("data/env.wasm")?;
     runtime.register("env", env_mod);
-    let mod_inst = runtime.load_wasm("testdata/callandglobal.wasm")?;
+    let mod_inst = runtime.load_wasm("data/callandglobal.wasm")?;
 
     let res = runtime.call(&mod_inst, "test", &[100u32.into()])?;
     let v: Value = *res.first().unwrap();
@@ -51,9 +51,9 @@ fn callandglobal() -> Result<()> {
 #[test]
 fn simplemem() -> Result<()> {
     let mut runtime = Runtime::new();
-    let env_mod = runtime.load_wasm("testdata/env.wasm")?;
+    let env_mod = runtime.load_wasm("data/env.wasm")?;
     runtime.register("env", env_mod);
-    let mod_inst = runtime.load_wasm("testdata/simplemem.wasm")?;
+    let mod_inst = runtime.load_wasm("data/simplemem.wasm")?;
 
     let res = runtime.call(&mod_inst, "test", &[100u32.into()])?;
     let v: Value = *res.first().unwrap();

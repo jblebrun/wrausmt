@@ -8,7 +8,7 @@ type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 #[test]
 fn memfloat() -> Result<()> {
     let runtime = &mut Runtime::new();
-    let mod_inst = runtime.load_wasm("testdata/meminstr.wasm")?;
+    let mod_inst = runtime.load_wasm("data/meminstr.wasm")?;
 
     runner!(runtime, &mod_inst);
 
