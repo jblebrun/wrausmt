@@ -1,7 +1,7 @@
 use {
     super::{error::Result, module::Field, Parser},
     std::io::Read,
-    wrausmt::syntax::{
+    wrausmt_runtime::syntax::{
         types::{RefType, TableType},
         ElemField, ElemList, Expr, ImportDesc, ImportField, Instruction, ModeEntry, TableField,
         TablePosition, TableUse, Unresolved,

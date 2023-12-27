@@ -1,7 +1,7 @@
 use {
     super::{super::token::Token, error::Result, Parser},
     std::io::Read,
-    wrausmt::syntax::types::{NumType, RefType, ValueType},
+    wrausmt_runtime::syntax::types::{NumType, RefType, ValueType},
 };
 
 impl<R: Read> Parser<R> {

@@ -5,7 +5,7 @@ use {
         ParseResult, Parser,
     },
     std::io::Read,
-    wrausmt::syntax::types::Limits,
+    wrausmt_runtime::syntax::types::Limits,
 };
 
 macro_rules! try_num {

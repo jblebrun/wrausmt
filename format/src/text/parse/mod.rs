@@ -6,7 +6,7 @@ use {
         token::{FileToken, Token},
     },
     std::io::Read,
-    wrausmt::syntax::Id,
+    wrausmt_runtime::syntax::Id,
 };
 
 mod combinator;

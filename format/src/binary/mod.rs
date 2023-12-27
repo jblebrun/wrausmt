@@ -33,7 +33,7 @@ use {
     section::SectionReader,
     std::io::Read,
     values::ReadWasmValues,
-    wrausmt::syntax::{FuncField, Index, Module, Resolved, TypeIndex},
+    wrausmt_runtime::syntax::{FuncField, Index, Module, Resolved, TypeIndex},
 };
 
 fn resolve_functypes(

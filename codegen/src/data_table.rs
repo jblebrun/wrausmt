@@ -1,4 +1,5 @@
-//! Functions to emit the table of wrausmt::instruction::InstructionData items.
+//! Functions to emit the table of wrausmt_runtime::instruction::InstructionData
+//! items.
 
 use {
     super::Instruction,
@@ -19,7 +20,7 @@ fn data_table_header(prefix: &str) -> String {
 
 pub trait EmitDataTable: Write {
     /// Emit the code for the table of
-    /// [InstructionData][wrausmt::instruction::InstructionData]
+    /// [InstructionData][wrausmt_runtime::instruction::InstructionData]
     /// items, in opcode order.
     fn emit_instruction_data_table(
         &mut self,

@@ -1,6 +1,6 @@
 use {
     super::{error::Result, leb128::ReadLeb128, values::ReadWasmValues},
-    wrausmt::syntax::MemoryField,
+    wrausmt_runtime::syntax::MemoryField,
 };
 
 /// Read the tables section of a binary module from a std::io::Read.

@@ -1,0 +1,11 @@
+[package]
+name = "wrausmt-runtime"
+authors = ["Jason LeBrun <jblebrun@gmail.com>"]
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+"codegen" = { path = "../codegen" }
+
+[build-dependencies]
+"codegen" = { path = "../codegen" }

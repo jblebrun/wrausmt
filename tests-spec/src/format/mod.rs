@@ -11,7 +11,7 @@ use {
         Location,
     },
     std::io::Read,
-    wrausmt::{
+    wrausmt_runtime::{
         runtime::values::{Num, Ref, Value},
         syntax::{
             self as modulesyntax,

@@ -1,4 +1,4 @@
-use {super::string::WasmString, crate::Location, wrausmt::syntax::Id};
+use {super::string::WasmString, crate::Location, wrausmt_runtime::syntax::Id};
 
 /// A [Token] along with context about its location in the source file.
 #[derive(Clone, Debug, Default, PartialEq)]

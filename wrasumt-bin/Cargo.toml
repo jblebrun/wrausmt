@@ -4,5 +4,5 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-wrausmt = { path = ".." }
+wrausmt-runtime = { path = "../wrausmt-runtime" }
 format = { path = "../format" }

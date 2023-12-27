@@ -9,7 +9,7 @@ use crate::{
 };
 use {
     std::{fs::File, io::Read, rc::Rc},
-    wrausmt::runtime::{error::RuntimeError, instance::ModuleInstance, Runtime},
+    wrausmt_runtime::runtime::{error::RuntimeError, instance::ModuleInstance, Runtime},
 };
 
 #[derive(Debug)]

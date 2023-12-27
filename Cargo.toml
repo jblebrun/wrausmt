@@ -1,14 +1,4 @@
-[package]
-name = "wrausmt"
-version = "0.1.0"
-authors = ["Jason LeBrun <jblebrun@gmail.com>"]
-edition = "2021"
 
-[dependencies]
-"codegen" = { path = "codegen" }
-
-[build-dependencies]
-"codegen" = { path = "codegen" }
 
 [workspace]
 members = [
@@ -16,5 +6,5 @@ members = [
     "format",
     "tests-spec",
     "tests-integration",
-    "wrasumt-bin",
+    "wrasumt-bin", "wrausmt-runtime",
 ]

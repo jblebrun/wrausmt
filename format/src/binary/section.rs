@@ -17,7 +17,7 @@ use {
         values::ReadWasmValues,
     },
     std::io::Read,
-    wrausmt::syntax,
+    wrausmt_runtime::syntax,
 };
 
 pub trait SectionReader: ReadWasmValues + ReadCode {

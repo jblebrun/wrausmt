@@ -10,7 +10,7 @@ version = "0.1.0"
 name = "format"
 version = "0.1.0"
 dependencies = [
- "wrausmt",
+ "wrausmt-runtime",
 ]
 
 [[package]]
@@ -18,7 +18,7 @@ name = "spec"
 version = "0.1.0"
 dependencies = [
  "format",
- "wrausmt",
+ "wrausmt-runtime",
 ]
 
 [[package]]
@@ -26,7 +26,7 @@ name = "tests"
 version = "0.1.0"
 dependencies = [
  "format",
- "wrausmt",
+ "wrausmt-runtime",
 ]
 
 [[package]]
@@ -34,11 +34,11 @@ name = "wrasumt-bin"
 version = "0.1.0"
 dependencies = [
  "format",
- "wrausmt",
+ "wrausmt-runtime",
 ]
 
 [[package]]
-name = "wrausmt"
+name = "wrausmt-runtime"
 version = "0.1.0"
 dependencies = [
  "codegen",

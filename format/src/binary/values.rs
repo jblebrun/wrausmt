@@ -4,7 +4,7 @@ use {
         leb128::ReadLeb128,
     },
     std::marker::Sized,
-    wrausmt::syntax::{
+    wrausmt_runtime::syntax::{
         types::{GlobalType, Limits, MemType, NumType, RefType, TableType, ValueType},
         FParam, FResult, FunctionType, Index, IndexSpace, Resolved, TypeUse,
     },
