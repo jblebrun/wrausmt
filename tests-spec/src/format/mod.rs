@@ -1,17 +1,17 @@
 use {
+    format::{
+        text::{
+            parse::{
+                error::{Result, WithMsg},
+                Parser,
+            },
+            string::WasmString,
+            token::Token,
+        },
+        Location,
+    },
     std::io::Read,
     wrausmt::{
-        format::{
-            text::{
-                parse::{
-                    error::{Result, WithMsg},
-                    Parser,
-                },
-                string::WasmString,
-                token::Token,
-            },
-            Location,
-        },
         runtime::values::{Num, Ref, Value},
         syntax::{
             self as modulesyntax,

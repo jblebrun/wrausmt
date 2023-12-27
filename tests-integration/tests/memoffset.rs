@@ -1,4 +1,7 @@
-use wrausmt::{loader::Loader, runner, runtime::Runtime};
+use {
+    format::loader::Loader,
+    wrausmt::{runner, runtime::Runtime},
+};
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 

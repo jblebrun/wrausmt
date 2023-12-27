@@ -5,10 +5,9 @@ use {
         spectest_module::make_spectest_module,
     },
     crate::format::{Assertion, Cmd, Module},
+    format::{loader::Loader, text::string::WasmString},
     std::{collections::HashMap, io::Cursor, rc::Rc},
     wrausmt::{
-        format::text::string::WasmString,
-        loader::Loader,
         logger::{Logger, PrintLogger, Tag},
         runtime::{
             error::TrapKind,
