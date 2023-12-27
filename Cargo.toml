@@ -1,10 +1,10 @@
-
-
 [workspace]
+resolver = "2"
 members = [
     "codegen",
     "format",
     "tests-spec",
     "tests-integration",
-    "wrasumt-bin", "wrausmt-runtime",
+    "wrasumt-bin",
+    "wrausmt-runtime",
 ]
