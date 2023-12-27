@@ -1,4 +1,4 @@
-use wrausmt::format::binary::leb128::{LEB128Error, ReadLeb128};
+use format::binary::leb128::{LEB128Error, ReadLeb128};
 
 macro_rules! assert_err {
     ( $res:expr, $match:pat ) => {

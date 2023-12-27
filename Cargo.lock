@@ -7,9 +7,17 @@ name = "codegen"
 version = "0.1.0"
 
 [[package]]
+name = "format"
+version = "0.1.0"
+dependencies = [
+ "wrausmt",
+]
+
+[[package]]
 name = "spec"
 version = "0.1.0"
 dependencies = [
+ "format",
  "wrausmt",
 ]
 
@@ -17,6 +25,15 @@ dependencies = [
 name = "tests"
 version = "0.1.0"
 dependencies = [
+ "format",
+ "wrausmt",
+]
+
+[[package]]
+name = "wrasumt-bin"
+version = "0.1.0"
+dependencies = [
+ "format",
  "wrausmt",
 ]
 

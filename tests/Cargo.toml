@@ -8,3 +8,7 @@ edition = "2021"
 [dependencies]
 wrausmt = { path = ".." }
 format = { path = "../format" }
+
+[[bin]]
+name = "tests"
+path = "main.rs"

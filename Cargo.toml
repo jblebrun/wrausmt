@@ -11,4 +11,10 @@ edition = "2021"
 "codegen" = { path = "codegen" }
 
 [workspace]
-members = ["codegen", "tests-spec", "tests-integration"]
+members = [
+    "codegen",
+    "format",
+    "tests-spec",
+    "tests-integration",
+    "wrasumt-bin",
+]

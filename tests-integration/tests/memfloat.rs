@@ -1,6 +1,7 @@
 use {
+    format::loader::Loader,
     std::convert::TryInto,
-    wrausmt::{loader::Loader, runner, runtime::Runtime},
+    wrausmt::{runner, runtime::Runtime},
 };
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;

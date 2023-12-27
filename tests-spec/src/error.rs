@@ -1,8 +1,7 @@
 use {
     super::format::ActionResult,
+    format::{loader::LoaderError, Location},
     wrausmt::{
-        format::Location,
-        loader::LoaderError,
         runtime::{
             error::{RuntimeError, TrapKind},
             values::Value,

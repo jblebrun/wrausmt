@@ -1,6 +1,6 @@
-use wrausmt::{
+use {
     format::text::module_builder::ModuleBuilder,
-    syntax::{
+    wrausmt::syntax::{
         self,
         types::{GlobalType, Limits, MemType, NumType, TableType, ValueType},
         FParam, FuncField, FunctionType, GlobalField, Instruction, MemoryField, Resolved,
