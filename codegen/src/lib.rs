@@ -151,9 +151,9 @@ fn read_instruction_list(file: &str, variant: Variant) -> io::Result<Instruction
 /// tables.
 pub fn parse() -> io::Result<()> {
     let inst_groups = &[
-        read_instruction_list("codegen/master_ops_list.csv", Variant::Normal)?,
-        read_instruction_list("codegen/master_extended_ops_list.csv", Variant::Extended)?,
-        read_instruction_list("codegen/master_simd_ops_list.csv", Variant::Simd)?,
+        read_instruction_list("../codegen/master_ops_list.csv", Variant::Normal)?,
+        read_instruction_list("../codegen/master_extended_ops_list.csv", Variant::Extended)?,
+        read_instruction_list("../codegen/master_simd_ops_list.csv", Variant::Simd)?,
     ];
 
     fs::create_dir_all("src/instructions/generated")?;
