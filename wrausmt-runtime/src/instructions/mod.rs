@@ -134,7 +134,7 @@ pub fn instruction_by_name(name: &Id) -> Option<&'static InstructionData> {
         .iter()
         .chain(EXTENDED_INSTRUCTION_DATA.iter())
         .chain(SIMD_INSTRUCTION_DATA.iter())
-        .find(|&item| item.name.as_bytes() == name.data())
+        .find(|&item| item.name == name.as_str())
 }
 
 pub mod op_consts {

@@ -28,10 +28,10 @@ pub struct Tokenizer<R> {
 }
 
 fn keyword_or_reserved(idchars: Id) -> Token {
-    if idchars.data()[0].is_keyword_start() {
+    if idchars[0].is_keyword_start() {
         Token::Keyword(idchars)
     } else {
-        Token::Reserved(idchars.as_str().into())
+        Token::Reserved(idchars.as_str().to_owned())
     }
 }
 
@@ -61,7 +61,7 @@ impl<R: Read> Tokenizer<R> {
                 .ctx("while consuming line comment"),
             b if b.is_idchar() => {
                 let idchars = self.consume_idchars().ctx("while reading next token")?;
-                if idchars.data()[0] == b'$' {
+                if idchars[0] == b'$' {
                     return Ok(Token::Id(idchars));
                 }
                 if let Some(n) = num::maybe_number(idchars.as_str()) {
@@ -205,7 +205,7 @@ impl<R: Read> Tokenizer<R> {
             result.push(self.current);
             self.advance()?;
         }
-        Ok(result.into())
+        Ok(result.try_into()?)
     }
 
     /// Handler for a '(' - if followed by ';, consumes a block comment and

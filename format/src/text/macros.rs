@@ -7,7 +7,7 @@
 #[macro_export]
 macro_rules! fparam {
     ( $pid:literal; $vt:ident ) => {
-        wrausmt_runtime::fparam! { Some($pid.into()); $vt }
+        wrausmt_runtime::fparam! { Some($pid); $vt }
     };
     ( $id:expr; Func ) => {
         wrausmt_runtime::syntax::FParam {
@@ -44,7 +44,9 @@ macro_rules! fresult {
 #[macro_export]
 macro_rules! typefield {
     ( $id:literal; [$( $pt:ident $($pid:literal)?),*] -> [$($rt:ident),*] ) => {
-        typefield! { Some($id.into()); [$($pt $($pid.into())?)*] -> [$($rt)*] }
+        typefield! {
+            Some(wrausmt::syntax::Id::literal($id)); [$($pt $($pid.into())?)*] -> [$($rt)*]
+         }
     };
     ( [$($pt:ident $($pid:literal)?),*] -> [$($rt:ident),*] ) => {
         typefield! { None; [$($pt $($pid)?)*] -> [$($rt)*] }
@@ -53,7 +55,9 @@ macro_rules! typefield {
         wrausmt_runtime::syntax::TypeField {
             id: $id,
             functiontype: $crate::syntax::FunctionType {
-                params: vec![$(wrausmt_runtime::fparam! { $($pid;)? $pt })*],
+                params: vec![$(wrausmt_runtime::fparam! {
+                    $(Some(wrausmt::syntax::Id::literal($pid));)? $pt
+                })*],
                 results: vec![$(wrausmt_runtime::fresult! { $rt })*],
             }
         }

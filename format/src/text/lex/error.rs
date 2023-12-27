@@ -2,7 +2,8 @@
 pub enum LexError {
     WithContext(Vec<String>, Box<LexError>),
     IoError(std::io::Error),
-    Utf8Error(std::string::FromUtf8Error),
+    FromUtf8Error(std::string::FromUtf8Error),
+    Utf8Error(std::str::Utf8Error),
     UnexpectedChar(char),
     InvalidEscape(String),
 }
@@ -50,6 +51,12 @@ impl From<std::io::Error> for LexError {
 
 impl From<std::string::FromUtf8Error> for LexError {
     fn from(e: std::string::FromUtf8Error) -> Self {
+        LexError::FromUtf8Error(e)
+    }
+}
+
+impl From<std::str::Utf8Error> for LexError {
+    fn from(e: std::str::Utf8Error) -> Self {
         LexError::Utf8Error(e)
     }
 }

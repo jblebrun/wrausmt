@@ -8,6 +8,7 @@ use {
         string::WasmString,
         token::{Base, NumToken},
     },
+    wrausmt_runtime::syntax::Id,
 };
 
 macro_rules! expect_tokens {
@@ -30,7 +31,7 @@ fn simple_parse() -> Result<()> {
     expect_tokens!(
         "(foo) \"hello\" (5.6 -0xF 0xF) (; comment (; nested ;) more ;)\n(yay)",
         Token::Open,
-        Token::Keyword("foo".into()),
+        Token::Keyword(Id::literal("foo")),
         Token::Close,
         Token::Whitespace,
         Token::String(WasmString::from_bytes("hello".as_bytes().into())),
@@ -52,7 +53,7 @@ fn simple_parse() -> Result<()> {
         Token::BlockComment,
         Token::Whitespace,
         Token::Open,
-        Token::Keyword("yay".into()),
+        Token::Keyword(Id::literal("yay")),
         Token::Close
     );
     Ok(())
