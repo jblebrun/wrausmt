@@ -4,7 +4,7 @@ use {
         Tokenizer,
     },
     crate::format::text::{
-        lex::error::{Result, WithContext},
+        lex::error::Result,
         string::WasmString,
         token::{Base, NumToken},
     },
@@ -140,24 +140,5 @@ fn seps() -> Result<()> {
         "100_000.500_000_1",
         floattoken(' ', Base::Dec, "100000", "5000001", "")
     );
-    Ok(())
-}
-
-#[test]
-fn longer_test() -> Result<()> {
-    let mut f = std::fs::File::open("testdata/locals.wat").ctx("opening file")?;
-    let tokenizer = Tokenizer::new(&mut f)?;
-
-    println!("here we go");
-    for token in tokenizer {
-        match token {
-            Ok(t) => println!("{:?}", t),
-            Err(e) => {
-                println!("ERR {:?}", e);
-                return Err(e);
-            }
-        }
-    }
-
     Ok(())
 }
