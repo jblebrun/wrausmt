@@ -4,7 +4,7 @@ use {
     std::io::Read,
     wrausmt_runtime::{
         instructions::{instruction_by_name, Operands},
-        syntax::{self, Continuation, Expr, Index, Instruction, Opcode, Unresolved},
+        syntax::{self, Continuation, Expr, Id, Index, Instruction, Opcode, Unresolved},
     },
 };
 
@@ -22,7 +22,7 @@ impl<R: Read> Parser<R> {
 
         // These mark the end of a block, so we should return none as a signal to the
         // caller.
-        if matches!(name.data(), b"else" | b"end") {
+        if matches!(name.as_str(), "else" | "end") {
             return Ok(None);
         }
 
@@ -182,7 +182,7 @@ impl<R: Read> Parser<R> {
 
     fn parse_folded_block(
         &mut self,
-        name: &str,
+        name: Id,
         opcode: Opcode,
         cnt: Continuation,
     ) -> Result<Instruction<Unresolved>> {
@@ -192,7 +192,7 @@ impl<R: Read> Parser<R> {
         self.expect_close()?;
         let operands = syntax::Operands::Block(label, typeuse, Expr { instr }, cnt);
         Ok(Instruction {
-            name: name.into(),
+            name,
             opcode,
             operands,
         })
@@ -222,7 +222,7 @@ impl<R: Read> Parser<R> {
         let operands = syntax::Operands::If(label, typeuse, thexpr, elexpr);
 
         unfolded.push(Instruction {
-            name: "if".into(),
+            name: Id::literal("if"),
             opcode: Opcode::Normal(0x04),
             operands,
         });
@@ -250,7 +250,7 @@ impl<R: Read> Parser<R> {
 
         if self.try_expr_start("block")? {
             return Ok(Some(vec![self.parse_folded_block(
-                "block",
+                Id::literal("block"),
                 Opcode::Normal(0x02),
                 Continuation::End,
             )?]));
@@ -258,7 +258,7 @@ impl<R: Read> Parser<R> {
 
         if self.try_expr_start("loop")? {
             return Ok(Some(vec![self.parse_folded_block(
-                "loop",
+                Id::literal("loop"),
                 Opcode::Normal(0x03),
                 Continuation::Start,
             )?]));

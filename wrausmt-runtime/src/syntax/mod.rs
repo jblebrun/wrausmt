@@ -11,8 +11,11 @@ pub use indices::{
 };
 use {
     std::{
+        borrow::Cow,
         fmt::{self, Debug},
         marker::PhantomData,
+        slice::SliceIndex,
+        str::Utf8Error,
     },
     types::{GlobalType, MemType, RefType, TableType, ValueType},
 };
@@ -20,56 +23,78 @@ use {
 /// A wasm identifier. Contains only ascii bytes.
 #[derive(Clone, Default, Debug, Eq, Hash, PartialEq)]
 pub struct Id {
-    data: Box<[u8]>,
+    data: Cow<'static, str>,
+}
+
+const fn is_idchar(c: u8) -> bool {
+    matches!(c,
+        b'0'..=b'9' | b'A'..=b'Z'  | b'a'..=b'z' | b'!' | b'#' |
+        b'$' | b'%' | b'&' | b'\'' | b'*' | b'+' | b'-' | b'/' |
+        b':' | b'<' | b'=' | b'>'  | b'?' | b'@' | b'\\' |
+        b'^' | b'_' | b'`' | b'|'  | b'~' | b'.'
+    )
 }
 
 impl Id {
-    pub fn data(&self) -> &[u8] {
-        self.data.as_ref()
+    pub fn literal(s: &'static str) -> Id {
+        assert!(s.bytes().all(is_idchar), "Invalid ID chars in {}", s);
+        Id {
+            data: Cow::Borrowed(s),
+        }
+    }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        self.data.as_bytes()
     }
 
     pub fn as_str(&self) -> &str {
-        // Evetually this is OK since we'll ensure only valid chars at construction.
-        unsafe { std::str::from_utf8_unchecked(self.data.as_ref()) }
+        &self.data
+    }
+}
+
+impl<Idx: SliceIndex<[u8], Output = u8>> std::ops::Index<Idx> for Id {
+    type Output = u8;
+
+    fn index(&self, index: Idx) -> &u8 {
+        &self.data.as_bytes()[index]
+    }
+}
+
+impl TryFrom<&str> for Id {
+    type Error = Utf8Error;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        Ok(Self {
+            data: value.to_owned().into(),
+        })
+    }
+}
+
+impl TryFrom<&[u8]> for Id {
+    type Error = Utf8Error;
+
+    fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
+        std::str::from_utf8(value)?.try_into()
+    }
+}
+
+impl TryFrom<Vec<u8>> for Id {
+    type Error = Utf8Error;
+
+    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
+        value.as_slice().try_into()
     }
 }
 
 impl PartialEq<str> for Id {
     fn eq(&self, other: &str) -> bool {
-        self.data.as_ref() == other.as_bytes()
-    }
-}
-
-impl From<&str> for Id {
-    fn from(value: &str) -> Self {
-        Self {
-            data: value.as_bytes().into(),
-        }
-    }
-}
-
-impl From<&[u8]> for Id {
-    fn from(value: &[u8]) -> Self {
-        Self {
-            data: value.to_owned().into(),
-        }
-    }
-}
-
-impl From<Vec<u8>> for Id {
-    fn from(value: Vec<u8>) -> Self {
-        Self {
-            data: value.into_boxed_slice(),
-        }
+        &*self.data == other
     }
 }
 
 impl std::fmt::Display for Id {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match std::str::from_utf8(&self.data) {
-            Ok(s) => f.write_str(s),
-            Err(_) => write!(f, "unparseable: [{:?}]", self.data),
-        }
+        f.write_str(&self.data)
     }
 }
 
@@ -490,10 +515,11 @@ impl std::fmt::Display for Opcode {
         }
     }
 }
+
 impl<R: ResolvedState> Instruction<R> {
     pub fn i32const(val: u32) -> Self {
         Self {
-            name:     "i32.const".into(),
+            name:     Id::literal("i32.const"),
             opcode:   Opcode::Normal(0x41),
             operands: Operands::I32(val),
         }
@@ -501,7 +527,7 @@ impl<R: ResolvedState> Instruction<R> {
 
     pub fn i64const(val: u64) -> Self {
         Self {
-            name:     "i64.const".into(),
+            name:     Id::literal("i64.const"),
             opcode:   Opcode::Normal(0x42),
             operands: Operands::I64(val),
         }
@@ -509,7 +535,7 @@ impl<R: ResolvedState> Instruction<R> {
 
     pub fn reffunc(idx: Index<R, FuncIndex>) -> Self {
         Self {
-            name:     "ref.func".into(),
+            name:     Id::literal("ref.func"),
             opcode:   Opcode::Normal(0xD2),
             operands: Operands::FuncIndex(idx),
         }
@@ -517,7 +543,7 @@ impl<R: ResolvedState> Instruction<R> {
 
     pub fn f32const(val: f32) -> Self {
         Self {
-            name:     "i32.const".into(),
+            name:     Id::literal("i32.const"),
             opcode:   Opcode::Normal(0x43),
             operands: Operands::F32(val),
         }
@@ -525,7 +551,7 @@ impl<R: ResolvedState> Instruction<R> {
 
     pub fn f64const(val: f64) -> Self {
         Self {
-            name:     "f64.const".into(),
+            name:     Id::literal("f64.const"),
             opcode:   Opcode::Normal(0x44),
             operands: Operands::F64(val),
         }
@@ -533,7 +559,7 @@ impl<R: ResolvedState> Instruction<R> {
 
     pub fn tableinit(tableidx: u32, elemidx: u32) -> Self {
         Self {
-            name:     "table.init".into(),
+            name:     Id::literal("table.init"),
             opcode:   Opcode::Extended(0x0c),
             operands: Operands::TableInit(Index::unnamed(tableidx), Index::unnamed(elemidx)),
         }
@@ -541,7 +567,7 @@ impl<R: ResolvedState> Instruction<R> {
 
     pub fn elemdrop(elemidx: u32) -> Self {
         Self {
-            name:     "elem.drop".into(),
+            name:     Id::literal("elem.drop"),
             opcode:   Opcode::Extended(0x0d),
             operands: Operands::ElemIndex(Index::unnamed(elemidx)),
         }
@@ -549,7 +575,7 @@ impl<R: ResolvedState> Instruction<R> {
 
     pub fn meminit(dataidx: u32) -> Self {
         Self {
-            name:     "mem.init".into(),
+            name:     Id::literal("mem.init"),
             opcode:   Opcode::Extended(0x08),
             operands: Operands::DataIndex(Index::unnamed(dataidx)),
         }
@@ -557,7 +583,7 @@ impl<R: ResolvedState> Instruction<R> {
 
     pub fn datadrop(dataidx: u32) -> Self {
         Self {
-            name:     "data.drop".into(),
+            name:     Id::literal("data.drop"),
             opcode:   Opcode::Extended(0x09),
             operands: Operands::DataIndex(Index::unnamed(dataidx)),
         }

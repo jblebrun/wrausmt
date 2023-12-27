@@ -108,12 +108,12 @@ impl<R: Read> Parser<R> {
         println!("POSITION {:?} {:?}", self.current, self.next);
     }
 
-    pub fn try_expr_start(&mut self, name: impl Into<Id>) -> Result<bool> {
+    pub fn try_expr_start(&mut self, name: &str) -> Result<bool> {
         if self.current.token != Token::Open {
             return Ok(false);
         }
         match &self.next.token {
-            Token::Keyword(k) if k == &name.into() => {
+            Token::Keyword(k) if k.as_str() == name => {
                 self.advance()?;
                 self.advance()?;
                 Ok(true)
@@ -122,17 +122,17 @@ impl<R: Read> Parser<R> {
         }
     }
 
-    pub fn peek_expr_start(&mut self, name: impl Into<Id>) -> Result<bool> {
+    pub fn peek_expr_start(&mut self, name: &str) -> Result<bool> {
         if self.current.token != Token::Open {
             return Ok(false);
         }
         match &self.next.token {
-            Token::Keyword(k) if k == &name.into() => Ok(true),
+            Token::Keyword(k) if k.as_str() == name => Ok(true),
             _ => Ok(false),
         }
     }
 
-    fn expect_expr_start(&mut self, name: impl Into<Id>) -> Result<()> {
+    fn expect_expr_start(&mut self, name: &str) -> Result<()> {
         if !self.try_expr_start(name)? {
             Err(self.unexpected_token("expression start"))
         } else {

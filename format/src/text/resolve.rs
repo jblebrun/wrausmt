@@ -141,7 +141,7 @@ macro_rules! index_resolver {
                 $ic: &ResolutionContext,
                 _: &mut Vec<TypeField>,
             ) -> Result<Index<Resolved, $it>> {
-                let value = if self.name().data().is_empty() {
+                let value = if self.name().as_str().is_empty() {
                     self.value()
                 } else {
                     // TODO - how to handle the different index types?

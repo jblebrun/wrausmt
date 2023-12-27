@@ -34,11 +34,6 @@ impl<IC: Into<char>> From<IC> for Sign {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub enum Reserved {
-    Id,
-    String,
-}
 /// An enum of all of the possible lexical tokens that can occur in a
 /// WebAssembly text file.
 #[derive(Clone, Debug, PartialEq)]

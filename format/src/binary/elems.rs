@@ -6,8 +6,8 @@ use {
     },
     crate::binary::error::BinaryParseError,
     wrausmt_runtime::syntax::{
-        self, types::RefType, ElemField, ElemList, Expr, FuncIndex, Index, Instruction, ModeEntry,
-        Opcode, Resolved, TablePosition, TableUse,
+        self, types::RefType, ElemField, ElemList, Expr, FuncIndex, Id, Index, Instruction,
+        ModeEntry, Opcode, Resolved, TablePosition, TableUse,
     },
 };
 
@@ -69,7 +69,7 @@ pub trait ReadElems: ReadWasmValues + ReadCode {
             .into_iter()
             .map(|idx| Expr {
                 instr: vec![Instruction {
-                    name:     "ref.func".into(),
+                    name:     Id::literal("ref.func"),
                     opcode:   Opcode::Normal(0xD2),
                     operands: syntax::Operands::FuncIndex(idx),
                 }],
