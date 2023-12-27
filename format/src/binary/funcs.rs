@@ -3,7 +3,7 @@ use {
         error::{Result, WithContext},
         values::ReadWasmValues,
     },
-    wrausmt::syntax::{Index, Resolved, TypeIndex},
+    wrausmt_runtime::syntax::{Index, Resolved, TypeIndex},
 };
 
 /// Read the funcs section of a binary module from a std::io::Read.

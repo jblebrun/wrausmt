@@ -2,7 +2,7 @@ use {
     super::{Parser, Result},
     crate::text::{num, token::Token},
     std::io::Read,
-    wrausmt::{
+    wrausmt_runtime::{
         instructions::{instruction_by_name, Operands},
         syntax::{self, Continuation, Expr, Index, Instruction, Opcode, Unresolved},
     },

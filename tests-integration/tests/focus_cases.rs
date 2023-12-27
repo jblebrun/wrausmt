@@ -1,6 +1,6 @@
 use {
     format::loader::Loader,
-    wrausmt::runtime::{values::Value, Runtime},
+    wrausmt_runtime::runtime::{values::Value, Runtime},
 };
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;

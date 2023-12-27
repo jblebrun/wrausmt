@@ -3,7 +3,7 @@ use {
         error::{BinaryParseError, Result, WithContext},
         values::ReadWasmValues,
     },
-    wrausmt::syntax::{ImportDesc, ImportField, Resolved},
+    wrausmt_runtime::syntax::{ImportDesc, ImportField, Resolved},
 };
 
 /// A trait to allow parsing of an imports section from something implementing

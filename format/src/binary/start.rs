@@ -1,6 +1,6 @@
 use {
     super::{error::Result, values::ReadWasmValues},
-    wrausmt::syntax::{Resolved, StartField},
+    wrausmt_runtime::syntax::{Resolved, StartField},
 };
 
 /// Read the tables section of a binary module from a std::io::Read.

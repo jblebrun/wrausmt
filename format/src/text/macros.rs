@@ -7,36 +7,36 @@
 #[macro_export]
 macro_rules! fparam {
     ( $pid:literal; $vt:ident ) => {
-        wrausmt::fparam! { Some($pid.into()); $vt }
+        wrausmt_runtime::fparam! { Some($pid.into()); $vt }
     };
     ( $id:expr; Func ) => {
-        wrausmt::syntax::FParam {
+        wrausmt_runtime::syntax::FParam {
             id:        $id,
-            valuetype: wrausmt::syntax::types::RefType::Func.into(),
+            valuetype: wrausmt_runtime::syntax::types::RefType::Func.into(),
         }
     };
     ( $id:expr; Extern ) => {
-        wrausmt::syntax::FParam {
+        wrausmt_runtime::syntax::FParam {
             id:        $id,
-            valuetype: wrausmt::syntax::types::RefType::Extern.into(),
+            valuetype: wrausmt_runtime::syntax::types::RefType::Extern.into(),
         }
     };
     ( $id:expr; $vt:ident ) => {
-        wrausmt::syntax::FParam {
+        wrausmt_runtime::syntax::FParam {
             id:        $id,
-            valuetype: wrausmt::syntax::types::NumType::$vt.into(),
+            valuetype: wrausmt_runtime::syntax::types::NumType::$vt.into(),
         }
     };
     ( $vt:tt ) => {
-        wrausmt::fparam! { None; $vt }
+        wrausmt_runtime::fparam! { None; $vt }
     };
 }
 
 #[macro_export]
 macro_rules! fresult {
     ( $vt:ident ) => {
-        wrausmt::syntax::FResult {
-            valuetype: wrausmt::syntax::types::NumType::$vt.into(),
+        wrausmt_runtime::syntax::FResult {
+            valuetype: wrausmt_runtime::syntax::types::NumType::$vt.into(),
         }
     };
 }
@@ -50,11 +50,11 @@ macro_rules! typefield {
         typefield! { None; [$($pt $($pid)?)*] -> [$($rt)*] }
     };
     ( $id:expr; [$($pt:ident $($pid:literal)?),*] -> [$($rt:ident),*] ) => {
-        wrausmt::syntax::TypeField {
+        wrausmt_runtime::syntax::TypeField {
             id: $id,
             functiontype: $crate::syntax::FunctionType {
-                params: vec![$(wrausmt::fparam! { $($pid;)? $pt })*],
-                results: vec![$(wrausmt::fresult! { $rt })*],
+                params: vec![$(wrausmt_runtime::fparam! { $($pid;)? $pt })*],
+                results: vec![$(wrausmt_runtime::fresult! { $rt })*],
             }
         }
     };

@@ -5,7 +5,7 @@ use {
         values::ReadWasmValues,
     },
     crate::binary::error::BinaryParseError,
-    wrausmt::syntax::{
+    wrausmt_runtime::syntax::{
         self, types::RefType, ElemField, ElemList, Expr, FuncIndex, Index, Instruction, ModeEntry,
         Opcode, Resolved, TablePosition, TableUse,
     },

@@ -8,7 +8,7 @@ use {
     chars::CharChecks,
     error::{Result, WithContext},
     std::{io::Read, iter::Iterator},
-    wrausmt::syntax::Id,
+    wrausmt_runtime::syntax::Id,
 };
 mod chars;
 pub mod error;

@@ -1,4 +1,4 @@
-use {super::leb128::LEB128Error, std::string::FromUtf8Error, wrausmt::syntax::Opcode};
+use {super::leb128::LEB128Error, std::string::FromUtf8Error, wrausmt_runtime::syntax::Opcode};
 
 #[derive(Debug)]
 pub enum BinaryParseError {

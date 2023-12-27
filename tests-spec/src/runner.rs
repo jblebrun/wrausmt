@@ -7,7 +7,7 @@ use {
     crate::format::{Assertion, Cmd, Module},
     format::{loader::Loader, text::string::WasmString},
     std::{collections::HashMap, io::Cursor, rc::Rc},
-    wrausmt::{
+    wrausmt_runtime::{
         logger::{Logger, PrintLogger, Tag},
         runtime::{
             error::TrapKind,

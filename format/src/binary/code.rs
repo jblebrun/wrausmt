@@ -5,7 +5,7 @@ use {
         values::ReadWasmValues,
     },
     std::io::{Read, Write},
-    wrausmt::{
+    wrausmt_runtime::{
         instructions::{instruction_data, op_consts, Operands, BAD_INSTRUCTION},
         syntax::{
             self, types::ValueType, Continuation, Expr, FuncField, Id, Instruction, Local, Opcode,

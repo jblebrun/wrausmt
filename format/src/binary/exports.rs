@@ -3,7 +3,7 @@ use {
         error::{BinaryParseError, Result, WithContext},
         values::ReadWasmValues,
     },
-    wrausmt::syntax::{ExportDesc, ExportField, Resolved},
+    wrausmt_runtime::syntax::{ExportDesc, ExportField, Resolved},
 };
 
 /// A trait to allow parsing of an exports section from something implementing

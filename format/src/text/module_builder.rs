@@ -1,7 +1,7 @@
 use {
     super::resolve::{ResolveModule, Result},
     std::collections::HashMap,
-    wrausmt::syntax::{
+    wrausmt_runtime::syntax::{
         DataField, ElemField, ExportDesc, ExportField, FuncField, FunctionType, GlobalField, Id,
         ImportDesc, ImportField, Index, MemoryField, Module, Resolved, StartField, TableField,
         TypeField, Unresolved,

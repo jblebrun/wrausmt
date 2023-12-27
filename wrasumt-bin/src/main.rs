@@ -1,4 +1,4 @@
-use {format::loader::Loader, wrausmt::runtime::Runtime};
+use {format::loader::Loader, wrausmt_runtime::runtime::Runtime};
 
 struct FlagsAndArgs {
     pub flags: Vec<(String, Option<String>)>,

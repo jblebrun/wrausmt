@@ -1,7 +1,7 @@
 //! Methods implementing index usage resolution.
 use {
     super::module_builder::ModuleIdentifiers,
-    wrausmt::syntax::{
+    wrausmt_runtime::syntax::{
         DataField, DataIndex, DataInit, ElemField, ElemIndex, ElemList, ExportDesc, ExportField,
         Expr, FParam, FuncField, FuncIndex, FunctionType, GlobalField, GlobalIndex, Id, ImportDesc,
         ImportField, Index, Instruction, LabelIndex, LocalIndex, MemoryIndex, ModeEntry, Module,

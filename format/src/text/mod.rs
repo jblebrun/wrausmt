@@ -8,7 +8,7 @@ use {
     },
     super::text::parse::error::Result,
     std::io::Read,
-    wrausmt::syntax::{Module, Resolved},
+    wrausmt_runtime::syntax::{Module, Resolved},
 };
 
 pub mod lex;

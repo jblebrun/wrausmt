@@ -5,7 +5,7 @@ use {
     },
     crate::text::{module_builder::ModuleBuilder, token::Token},
     std::io::Read,
-    wrausmt::syntax::{
+    wrausmt_runtime::syntax::{
         types::{GlobalType, Limits, MemType, TableType},
         DataField, DataInit, ElemField, ExportDesc, ExportField, Expr, FParam, FResult, FuncField,
         FunctionType, GlobalField, Id, ImportDesc, ImportField, Index, IndexSpace, Instruction,

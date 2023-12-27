@@ -3,7 +3,7 @@ use {
         error::{Result, WithContext},
         values::ReadWasmValues,
     },
-    wrausmt::syntax::TableField,
+    wrausmt_runtime::syntax::TableField,
 };
 
 /// Read the tables section of a binary module from a std::io::Read.

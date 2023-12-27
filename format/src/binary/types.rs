@@ -3,7 +3,7 @@ use {
         error::{Result, WithContext},
         values::ReadWasmValues,
     },
-    wrausmt::syntax::{FunctionType, TypeField},
+    wrausmt_runtime::syntax::{FunctionType, TypeField},
 };
 
 pub trait ReadTypes: ReadWasmValues {

@@ -4,7 +4,7 @@ use {
         error::{Result, WithContext},
         values::ReadWasmValues,
     },
-    wrausmt::syntax::{DataField, DataInit, Index, Resolved},
+    wrausmt_runtime::syntax::{DataField, DataInit, Index, Resolved},
 };
 
 /// Read the tables section of a binary module from a std::io::Read.
