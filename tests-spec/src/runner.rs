@@ -49,6 +49,7 @@ pub enum RunSet {
     SpecificIndex(Vec<usize>),
     Exclude(Vec<String>),
     ExcludeIndexed(Vec<usize>),
+    ExcludeFailure(Vec<String>),
     First(usize),
 }
 
@@ -66,6 +67,18 @@ impl RunSet {
             RunSet::First(n) => index <= n,
             RunSet::SpecificIndex(set) => set.iter().any(|i| i == index),
             RunSet::ExcludeIndexed(set) => !set.iter().any(|i| i == index),
+            _ => true,
+        }
+    }
+
+    fn should_run_cmd(&self, cmd: &Cmd) -> bool {
+        match self {
+            RunSet::ExcludeFailure(fs) => match cmd {
+                Cmd::Assertion(Assertion::Malformed { failure, .. }) => {
+                    !fs.iter().any(|f| failure.starts_with(f))
+                }
+                _ => true,
+            },
             _ => true,
         }
     }
@@ -232,6 +245,19 @@ impl SpecTestRunner {
         }
     }
 
+    fn verify_malformed_result<T>(result: CmdResult<T>, failure: String) -> TestResult<()> {
+        match result {
+            Err(e) => Err(TestFailureError::FailureMismatch {
+                result: Some(Box::new(e)),
+                expect: failure,
+            }),
+            _ => Err(TestFailureError::FailureMismatch {
+                result: None,
+                expect: failure,
+            }),
+        }
+    }
+
     fn run_cmd_entry(&mut self, cmd: Cmd, runset: &RunSet) -> CmdResult<()> {
         self.logger
             .log(Tag::Spec, || format!("EXECUTE CMD {:?}", cmd));
@@ -280,13 +306,9 @@ impl SpecTestRunner {
                         let result = self.handle_module(module);
                         Self::verify_trap_result(result, failure).map_err(|e| e.into())
                     }
-                    Assertion::Malformed {
-                        module: _,
-                        failure: _,
-                    } => {
-                        // let _ = self.handle_module(module);
-                        // TODO verify result
-                        Ok(())
+                    Assertion::Malformed { module, failure } => {
+                        let result = self.handle_module(module);
+                        Self::verify_malformed_result(result, failure).map_err(|e| e.into())
                     }
                     Assertion::Exhaustion { action, failure: _ } => {
                         let _ = self.handle_action(action);
@@ -350,7 +372,9 @@ impl SpecTestRunner {
             .cmds
             .into_iter()
             .enumerate()
-            .filter(|(idx, _)| runset.should_run_index(idx))
+            .filter(|(idx, cmd_entry)| {
+                runset.should_run_index(idx) && runset.should_run_cmd(&cmd_entry.cmd)
+            })
             .filter_map(|(idx, cmd_entry)| self.log_and_run_command(idx, cmd_entry, &runset))
             .collect();
 

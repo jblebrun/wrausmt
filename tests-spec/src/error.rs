@@ -54,6 +54,10 @@ pub enum TestFailureError {
         result: Option<Box<CmdError>>,
         expect: String,
     },
+    FailureMismatch {
+        result: Option<Box<CmdError>>,
+        expect: String,
+    },
 }
 
 impl std::error::Error for SpecTestError {}
