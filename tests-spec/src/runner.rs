@@ -1,6 +1,6 @@
 use {
     crate::{
-        error::{Failure, Failures, Result, SpecTestError},
+        error::{CmdError, Failure, Result, SpecTestError, TestFailureError},
         format::{Action, ActionResult, Assertion, Cmd, CmdEntry, Module, NumPat, SpecTestScript},
         spectest_module::make_spectest_module,
     },
@@ -9,7 +9,7 @@ use {
     wrausmt_runtime::{
         logger::{Logger, PrintLogger, Tag},
         runtime::{
-            error::TrapKind,
+            error::{RuntimeError, RuntimeErrorKind, TrapKind},
             instance::ModuleInstance,
             values::{Num, Ref, Value},
             Runtime,
@@ -17,6 +17,9 @@ use {
         syntax::{types::RefType, Id},
     },
 };
+
+pub type CmdResult<T> = std::result::Result<T, CmdError>;
+pub type TestResult<T> = std::result::Result<T, TestFailureError>;
 
 #[macro_export]
 macro_rules! runset_specific {
@@ -122,15 +125,15 @@ impl SpecTestRunner {
         }
     }
 
-    fn module_for_action(&self, modname: &Option<Id>) -> Result<Rc<ModuleInstance>> {
+    fn module_for_action(&self, modname: &Option<Id>) -> CmdResult<Rc<ModuleInstance>> {
         match modname {
             Some(name) => self.named_modules.get(name).cloned(),
             None => self.latest_module.clone(),
         }
-        .ok_or_else(|| SpecTestError::NoModule(modname.clone()))
+        .ok_or_else(|| CmdError::NoModule(modname.clone()))
     }
 
-    fn handle_action(&mut self, action: Action) -> Result<Vec<Value>> {
+    fn handle_action(&mut self, action: Action) -> CmdResult<Vec<Value>> {
         match action {
             Action::Invoke {
                 modname,
@@ -153,9 +156,9 @@ impl SpecTestRunner {
         }
     }
 
-    pub fn verify_result(results: Vec<Value>, expects: Vec<ActionResult>) -> Result<()> {
+    pub fn verify_result(results: Vec<Value>, expects: Vec<ActionResult>) -> TestResult<()> {
         if results.len() != expects.len() {
-            return Err(SpecTestError::ResultLengthMismatch { results, expects });
+            return Err(TestFailureError::ResultLengthMismatch { results, expects });
         }
 
         let mut expects = expects;
@@ -165,16 +168,16 @@ impl SpecTestRunner {
                 ActionResult::NumPat(NumPat::Num(num)) => {
                     let expectnum: Value = num.into();
                     if !result.same_bits(&expectnum) {
-                        return Err(SpecTestError::ResultMismatch { result, expect });
+                        return Err(TestFailureError::ResultMismatch { result, expect });
                     }
                 }
                 ActionResult::NumPat(NumPat::NaNPat(nanpat)) => {
                     let resultnum = match result.as_num() {
                         Some(n) => n,
-                        _ => return Err(SpecTestError::ResultMismatch { result, expect }),
+                        _ => return Err(TestFailureError::ResultMismatch { result, expect }),
                     };
                     if !nanpat.accepts(resultnum) {
-                        return Err(SpecTestError::ResultMismatch { result, expect });
+                        return Err(TestFailureError::ResultMismatch { result, expect });
                     }
                 }
                 ActionResult::Func => {
@@ -182,7 +185,7 @@ impl SpecTestRunner {
                         result,
                         Value::Ref(Ref::Null(RefType::Func)) | Value::Ref(Ref::Func(_))
                     ) {
-                        return Err(SpecTestError::ResultMismatch { result, expect });
+                        return Err(TestFailureError::ResultMismatch { result, expect });
                     }
                 }
                 ActionResult::Extern => {
@@ -190,7 +193,7 @@ impl SpecTestRunner {
                         result,
                         Value::Ref(Ref::Null(RefType::Extern)) | Value::Ref(Ref::Extern(_))
                     ) {
-                        return Err(SpecTestError::ResultMismatch { result, expect });
+                        return Err(TestFailureError::ResultMismatch { result, expect });
                     }
                 }
             }
@@ -198,7 +201,7 @@ impl SpecTestRunner {
         Ok(())
     }
 
-    fn handle_module(&mut self, m: Module) -> Result<(Option<Id>, Rc<ModuleInstance>)> {
+    fn handle_module(&mut self, m: Module) -> CmdResult<(Option<Id>, Rc<ModuleInstance>)> {
         match m {
             Module::Module(m) => Ok((m.id.clone(), self.runtime.load(m)?)),
             Module::Binary(n, b) => {
@@ -212,26 +215,24 @@ impl SpecTestRunner {
         }
     }
 
-    fn verify_trap_result<T>(result: Result<T>, failure: String) -> Result<()> {
+    fn verify_trap_result<T>(result: CmdResult<T>, failure: String) -> TestResult<()> {
         match result {
-            Err(e) => {
-                let trap_error = e.as_trap_error();
-                match trap_error {
-                    Some(tk) if failure.matches_trap(tk) => Ok(()),
-                    _ => Err(SpecTestError::TrapMismatch {
-                        result: Some(Box::new(e)),
-                        expect: failure,
-                    }),
-                }
-            }
-            _ => Err(SpecTestError::TrapMismatch {
+            Err(CmdError::InvocationError(RuntimeError {
+                kind: RuntimeErrorKind::Trap(trap_kind),
+                ..
+            })) if failure.matches_trap(&trap_kind) => Ok(()),
+            Err(e) => Err(TestFailureError::TrapMismatch {
+                result: Some(Box::new(e)),
+                expect: failure,
+            }),
+            _ => Err(TestFailureError::TrapMismatch {
                 result: None,
                 expect: failure,
             }),
         }
     }
 
-    fn run_cmd_entry(&mut self, cmd: Cmd, runset: &RunSet) -> Result<()> {
+    fn run_cmd_entry(&mut self, cmd: Cmd, runset: &RunSet) -> CmdResult<()> {
         self.logger
             .log(Tag::Spec, || format!("EXECUTE CMD {:?}", cmd));
         match cmd {
@@ -250,7 +251,7 @@ impl SpecTestRunner {
                 });
                 match module {
                     Ok(module) => self.runtime.register(modname, module.clone()),
-                    Err(_) => return Err(SpecTestError::RegisterMissingModule(modname)),
+                    Err(_) => return Err(CmdError::RegisterMissingModule(modname)),
                 }
                 Ok(())
             }
@@ -266,18 +267,18 @@ impl SpecTestRunner {
                             return Ok(());
                         }
                         let result = self.handle_action(action)?;
-                        Self::verify_result(result, results)
+                        Self::verify_result(result, results).map_err(|e| e.into())
                     }
                     Assertion::ActionTrap { action, failure } => {
                         if !runset.should_run_name(action.name()) {
                             return Ok(());
                         }
                         let result = self.handle_action(action);
-                        Self::verify_trap_result(result, failure)
+                        Self::verify_trap_result(result, failure).map_err(|e| e.into())
                     }
                     Assertion::ModuleTrap { module, failure } => {
                         let result = self.handle_module(module);
-                        Self::verify_trap_result(result, failure)
+                        Self::verify_trap_result(result, failure).map_err(|e| e.into())
                     }
                     Assertion::Malformed {
                         module: _,
@@ -336,22 +337,24 @@ impl SpecTestRunner {
             )
         });
         result
-            .map_err(|e| e.into_failure(cmd_entry.location, test_index))
+            .map_err(|e| Failure {
+                location: cmd_entry.location,
+                test_index,
+                err: e,
+            })
             .err()
     }
 
     pub fn run_spec_test(mut self, script: SpecTestScript, runset: RunSet) -> Result<()> {
-        let failures: Failures = Failures {
-            failures: script
-                .cmds
-                .into_iter()
-                .enumerate()
-                .filter(|(idx, _)| runset.should_run_index(idx))
-                .filter_map(|(idx, cmd_entry)| self.log_and_run_command(idx, cmd_entry, &runset))
-                .collect(),
-        };
+        let failures: Vec<Failure> = script
+            .cmds
+            .into_iter()
+            .enumerate()
+            .filter(|(idx, _)| runset.should_run_index(idx))
+            .filter_map(|(idx, cmd_entry)| self.log_and_run_command(idx, cmd_entry, &runset))
+            .collect();
 
-        if !failures.failures.is_empty() {
+        if !failures.is_empty() {
             return Err(SpecTestError::Failures(failures));
         }
         Ok(())
