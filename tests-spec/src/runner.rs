@@ -1,12 +1,11 @@
 use {
-    super::{
+    crate::{
         error::{Failure, Failures, Result, SpecTestError},
-        format::{Action, ActionResult, CmdEntry, NumPat, SpecTestScript},
+        format::{Action, ActionResult, Assertion, Cmd, CmdEntry, Module, NumPat, SpecTestScript},
         spectest_module::make_spectest_module,
     },
-    crate::format::{Assertion, Cmd, Module},
-    format::{loader::Loader, text::string::WasmString},
     std::{collections::HashMap, io::Cursor, rc::Rc},
+    wrausmt_format::{loader::Loader, text::string::WasmString},
     wrausmt_runtime::{
         logger::{Logger, PrintLogger, Tag},
         runtime::{

@@ -1,5 +1,5 @@
 use {
-    format::loader::Loader,
+    wrausmt_format::loader::Loader,
     wrausmt_runtime::{runner, runtime::Runtime},
 };
 

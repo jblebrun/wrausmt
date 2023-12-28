@@ -2,9 +2,9 @@
 resolver = "2"
 members = [
     "codegen",
-    "format",
     "tests-spec",
     "tests-integration",
-    "wrasumt-bin",
+    "wrausmt-bin",
+    "wrausmt-format",
     "wrausmt-runtime",
 ]

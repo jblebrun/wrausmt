@@ -4,11 +4,11 @@ use {
         format::{SpecParser, SpecTestScript},
     },
     crate::runner::{RunSet, SpecTestRunner},
-    format::{
+    std::{fs::File, path::Path},
+    wrausmt_format::{
         loader::Result as LoaderResult,
         text::{lex::Tokenizer, parse::Parser},
     },
-    std::{fs::File, path::Path},
 };
 
 pub fn parse(f: &mut File) -> LoaderResult<SpecTestScript> {
