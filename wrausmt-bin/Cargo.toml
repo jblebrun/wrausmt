@@ -1,8 +1,8 @@
 [package]
-name = "wrasumt-bin"
+name = "wrausmt-bin"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
 wrausmt-runtime = { path = "../wrausmt-runtime" }
-format = { path = "../format" }
+wrausmt-format = { path = "../wrausmt-format" }

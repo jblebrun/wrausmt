@@ -1,5 +1,5 @@
 use {
-    format::text::module_builder::ModuleBuilder,
+    wrausmt_format::text::module_builder::ModuleBuilder,
     wrausmt_runtime::syntax::{
         self,
         types::{GlobalType, Limits, MemType, NumType, TableType, ValueType},

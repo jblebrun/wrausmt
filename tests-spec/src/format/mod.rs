@@ -1,5 +1,6 @@
 use {
-    format::{
+    std::io::Read,
+    wrausmt_format::{
         text::{
             parse::{
                 error::{Result, WithMsg},
@@ -10,7 +11,6 @@ use {
         },
         Location,
     },
-    std::io::Read,
     wrausmt_runtime::{
         runtime::values::{Num, Ref, Value},
         syntax::{

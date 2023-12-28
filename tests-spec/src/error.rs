@@ -1,6 +1,6 @@
 use {
-    super::format::ActionResult,
-    format::{loader::LoaderError, Location},
+    crate::format::ActionResult,
+    wrausmt_format::{loader::LoaderError, Location},
     wrausmt_runtime::{
         runtime::{
             error::{RuntimeError, TrapKind},

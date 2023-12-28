@@ -1,6 +1,6 @@
 use {
-    format::loader::Loader,
     std::convert::TryInto,
+    wrausmt_format::loader::Loader,
     wrausmt_runtime::{runner, runtime::Runtime},
 };
 
