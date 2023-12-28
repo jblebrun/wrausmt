@@ -17,7 +17,7 @@ pub enum LoaderError {
     IoError(std::io::Error),
     ParseError(ParseError),
     BinaryParseError(BinaryParseError),
-    GenericError(Box<dyn std::error::Error>),
+    RuntimeError(RuntimeError),
 }
 
 impl LoaderError {
@@ -54,7 +54,7 @@ impl From<LexError> for LoaderError {
 
 impl From<RuntimeError> for LoaderError {
     fn from(e: RuntimeError) -> Self {
-        LoaderError::GenericError(Box::new(e))
+        LoaderError::RuntimeError(e)
     }
 }
 
