@@ -5,15 +5,11 @@ use {
     },
     crate::runner::{RunSet, SpecTestRunner},
     std::{fs::File, path::Path},
-    wrausmt_format::{
-        loader::Result as LoaderResult,
-        text::{lex::Tokenizer, parse::Parser},
-    },
+    wrausmt_format::{loader::Result as LoaderResult, text::parse::Parser},
 };
 
 pub fn parse(f: &mut File) -> LoaderResult<SpecTestScript> {
-    let tokenizer = Tokenizer::new(f)?;
-    let mut parser = Parser::new(tokenizer)?;
+    let mut parser = Parser::new(f);
     let result = parser.parse_spec_test()?;
     Ok(result)
 }

@@ -36,19 +36,20 @@ fn keyword_or_reserved(idchars: Id) -> Token {
 }
 
 impl<R: Read> Tokenizer<R> {
-    pub fn new(r: R) -> Result<Tokenizer<R>> {
-        let mut tokenizer = Tokenizer {
+    pub fn new(r: R) -> Tokenizer<R> {
+        Tokenizer {
             inner:    r,
             current:  0,
             eof:      false,
             location: Location::default(),
-        };
-        tokenizer.location.nextline();
-        tokenizer.advance()?;
-        Ok(tokenizer)
+        }
     }
 
     fn next_token(&mut self) -> Result<Token> {
+        if self.location.line == 0 {
+            self.location.nextline();
+            self.advance()?;
+        }
         if self.current.is_whitespace() {
             return self.consume_whitespace();
         }
@@ -83,7 +84,7 @@ impl<R: Read> Tokenizer<R> {
         self.current = buf[0];
         if amount_read == 0 {
             if self.eof {
-                panic!("unexpected eof");
+                return Err(LexError::UnexpectedEof);
             } else {
                 self.eof = true;
             }

@@ -37,13 +37,6 @@ pub struct ParseError {
 }
 
 impl ParseError {
-    pub fn new_nocontext(kind: ParseErrorKind) -> Self {
-        Self {
-            kind,
-            ..Default::default()
-        }
-    }
-
     pub fn new(kind: ParseErrorKind, context: ParseContext) -> Self {
         Self {
             kind,

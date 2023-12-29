@@ -51,15 +51,24 @@ impl<T, E: Into<ParseErrorKind>> ParseResult<T> for std::result::Result<T, E> {
 
 // Implementation for the basic token-handling methods.
 impl<R: Read> Parser<R> {
-    pub fn new(tokenizer: Tokenizer<R>) -> Result<Parser<R>> {
-        let mut p = Parser {
+    pub fn new_from_tokenizer(tokenizer: Tokenizer<R>) -> Parser<R> {
+        Parser {
             tokenizer,
             current: FileToken::default(),
             next: FileToken::default(),
-        };
-        p.advance()?;
-        p.advance()?;
-        Ok(p)
+        }
+    }
+
+    pub fn new(reader: R) -> Parser<R> {
+        Parser::new_from_tokenizer(Tokenizer::new(reader))
+    }
+
+    pub fn assure_started(&mut self) -> Result<()> {
+        if self.current.token == Token::Start {
+            self.advance()?;
+            self.advance()?;
+        }
+        Ok(())
     }
 
     pub fn err(&self, err: ParseErrorKind) -> ParseError {

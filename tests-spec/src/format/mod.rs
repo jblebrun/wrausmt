@@ -51,6 +51,7 @@ pub trait SpecParser {
 
 impl<R: Read> SpecParser for Parser<R> {
     fn parse_spec_test(&mut self) -> Result<SpecTestScript> {
+        self.assure_started()?;
         match self.zero_or_more(Parser::try_cmd_entry) {
             Ok(cmds) => {
                 if self.current.token != Token::Eof {

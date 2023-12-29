@@ -13,7 +13,7 @@ use {
 
 macro_rules! expect_tokens {
     ( $to_parse:expr, $($t:expr),* ) => {
-        let mut tokenizer = Tokenizer::new($to_parse.as_bytes())?;
+        let mut tokenizer = Tokenizer::new($to_parse.as_bytes());
         $(
             let rtok = tokenizer.next();
             match rtok {

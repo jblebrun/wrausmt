@@ -36,8 +36,9 @@ impl<IC: Into<char>> From<IC> for Sign {
 
 /// An enum of all of the possible lexical tokens that can occur in a
 /// WebAssembly text file.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub enum Token {
+    #[default]
     Start,
     Whitespace,
     LineComment,
@@ -74,13 +75,6 @@ pub enum NumToken {
     Inf(Sign),
     Integer(Sign, Base, String),
     Float(Sign, Base, String, String, String),
-}
-
-impl Default for Token {
-    /// Returns a default token of [Token::Start].
-    fn default() -> Token {
-        Token::Start
-    }
 }
 
 impl Location {
