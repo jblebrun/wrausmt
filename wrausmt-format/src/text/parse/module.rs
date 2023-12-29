@@ -46,6 +46,8 @@ impl<R: Read> Parser<R> {
     }
 
     pub fn parse_full_module(&mut self) -> Result<Module<Resolved>> {
+        self.assure_started()?;
+
         match self.try_module() {
             Ok(Some(m)) => {
                 if self.current.token != Token::Eof {

@@ -1,11 +1,5 @@
 use {
-    self::{
-        lex::Tokenizer,
-        parse::{
-            error::{ParseError, ParseErrorKind},
-            Parser,
-        },
-    },
+    self::parse::Parser,
     super::text::parse::error::Result,
     std::io::Read,
     wrausmt_runtime::syntax::{Module, Resolved},
@@ -22,8 +16,6 @@ pub mod resolve;
 pub mod string;
 
 pub fn parse_wast_data(reader: &mut impl Read) -> Result<Module<Resolved>> {
-    let tokenizer = Tokenizer::new(reader)
-        .map_err(|e| ParseError::new_nocontext(ParseErrorKind::LexError(e)))?;
-    let mut parser = Parser::new(tokenizer)?;
+    let mut parser = Parser::new(reader);
     parser.parse_full_module()
 }

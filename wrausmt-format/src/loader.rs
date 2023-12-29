@@ -1,11 +1,8 @@
 /// The loader module is the bridge between the format parsing code, and the
 /// runtime, which expects a fully resolved module as input.
 use crate::{
-    binary::error::BinaryParseError,
-    binary::parse_wasm_data,
-    text::parse::error::ParseError,
+    binary::error::BinaryParseError, binary::parse_wasm_data, text::parse::error::ParseError,
     text::parse_wast_data,
-    text::{lex::error::LexError, parse::error::ParseErrorKind},
 };
 use {
     std::{fs::File, io::Read, rc::Rc},
@@ -43,12 +40,6 @@ impl From<std::io::Error> for LoaderError {
 impl From<ParseError> for LoaderError {
     fn from(e: ParseError) -> Self {
         LoaderError::ParseError(e)
-    }
-}
-
-impl From<LexError> for LoaderError {
-    fn from(e: LexError) -> Self {
-        LoaderError::ParseError(ParseError::new_nocontext(ParseErrorKind::LexError(e)))
     }
 }
 
