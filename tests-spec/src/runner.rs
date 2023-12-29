@@ -137,6 +137,7 @@ impl MalformedMatch for str {
         match self {
             "alignment" => matches!(parse_err, Some(ParseErrorKind::InvalidAlignment(_))),
             "i32 constant" => matches!(parse_err, Some(ParseErrorKind::ParseIntError(_))),
+            "unexpected token" => matches!(parse_err, Some(ParseErrorKind::UnexpectedToken(_))),
             _ => false,
         }
     }

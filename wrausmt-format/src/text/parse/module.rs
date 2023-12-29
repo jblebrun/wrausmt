@@ -28,6 +28,11 @@ pub enum Field<R: ResolvedState> {
     Data(DataField<R>),
 }
 
+pub enum FParamId {
+    Allowed,
+    Forbidden,
+}
+
 const PAGE_SIZE: usize = 65536;
 
 // Implementation for module-specific parsing functions.
@@ -156,7 +161,7 @@ impl<R: Read> Parser<R> {
 
         self.expect_expr_start("func")?;
 
-        let functiontype = self.try_function_type()?;
+        let functiontype = self.try_function_type(FParamId::Allowed)?;
 
         // Close (func
         self.expect_close()?;
@@ -167,9 +172,15 @@ impl<R: Read> Parser<R> {
         Ok(Some(Field::Type(TypeField { id, functiontype })))
     }
 
-    pub fn try_function_type(&mut self) -> Result<FunctionType> {
+    pub fn try_function_type(&mut self, fparam_id: FParamId) -> Result<FunctionType> {
         Ok(FunctionType {
-            params:  self.zero_or_more_groups(Self::try_parse_fparam)?,
+            params:  self.zero_or_more_groups(match fparam_id {
+                // Using closures makes the combinators a lot more complicated.
+                // For this use case, it's simpler to just create variants for the
+                // two types of FParam variants.
+                FParamId::Allowed => Self::try_parse_fparam_id_allowed,
+                FParamId::Forbidden => Self::try_parse_fparam_id_forbidden,
+            })?,
             results: self.zero_or_more_groups(Self::try_parse_fresult)?,
         })
     }
@@ -186,7 +197,7 @@ impl<R: Read> Parser<R> {
 
         let import = self.try_inline_import()?;
 
-        let typeuse = self.parse_type_use()?;
+        let typeuse = self.parse_type_use(FParamId::Allowed)?;
 
         if let Some((modname, name)) = import {
             self.expect_close()?;
@@ -344,7 +355,7 @@ impl<R: Read> Parser<R> {
     pub fn expect_importdesc(&mut self) -> Result<(Option<Id>, ImportDesc<Unresolved>)> {
         if self.try_expr_start("func")? {
             let id = self.try_id()?;
-            let typeuse = self.parse_type_use()?;
+            let typeuse = self.parse_type_use(FParamId::Allowed)?;
             self.expect_close()?;
             Ok((id, ImportDesc::Func(typeuse)))
         } else if self.try_expr_start("table")? {
@@ -523,7 +534,7 @@ impl<R: Read> Parser<R> {
     // Try to parse one "type use" section, in an import or function.
     // := (type <typeidx>)
     //  | (type <typeidx>) (param <id>? <type>)* (result <type>)*
-    pub fn parse_type_use(&mut self) -> Result<TypeUse<Unresolved>> {
+    pub fn parse_type_use(&mut self, fparam_id: FParamId) -> Result<TypeUse<Unresolved>> {
         let typeidx = if self.try_expr_start("type")? {
             let idx = self.expect_index()?;
             self.expect_close()?;
@@ -532,7 +543,7 @@ impl<R: Read> Parser<R> {
             None
         };
 
-        let functiontype = self.try_function_type()?;
+        let functiontype = self.try_function_type(fparam_id)?;
 
         Ok(TypeUse {
             typeidx,
@@ -572,16 +583,26 @@ impl<R: Read> Parser<R> {
     // Try to parse a function parameter.
     // := (param $id <valtype>)
     //  | (param <valtype>*)
-    fn try_parse_fparam(&mut self) -> Result<Option<Vec<FParam>>> {
+    fn try_parse_fparam_id_allowed(&mut self) -> Result<Option<Vec<FParam>>> {
+        self.try_parse_fparam(FParamId::Allowed)
+    }
+
+    fn try_parse_fparam_id_forbidden(&mut self) -> Result<Option<Vec<FParam>>> {
+        self.try_parse_fparam(FParamId::Forbidden)
+    }
+
+    fn try_parse_fparam(&mut self, fparam_id: FParamId) -> Result<Option<Vec<FParam>>> {
         if !self.try_expr_start("param")? {
             return Ok(None);
         }
 
-        let id = self.try_id()?;
-        if id.is_some() {
-            let valuetype = self.expect_valtype()?;
-            self.expect_close()?;
-            return Ok(Some(vec![FParam { id, valuetype }]));
+        if matches!(fparam_id, FParamId::Allowed) {
+            let id = self.try_id()?;
+            if id.is_some() {
+                let valuetype = self.expect_valtype()?;
+                self.expect_close()?;
+                return Ok(Some(vec![FParam { id, valuetype }]));
+            }
         }
 
         // No id, any number of params in this group.

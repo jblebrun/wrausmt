@@ -58,7 +58,7 @@ impl<R: Read> Parser<R> {
                     }
                     Operands::CallIndirect => {
                         let idx = self.try_index()?.unwrap_or_else(|| Index::unnamed(0));
-                        let typeuse = self.parse_type_use()?;
+                        let typeuse = self.parse_type_use(super::module::FParamId::Forbidden)?;
                         syntax::Operands::CallIndirect(idx, typeuse)
                     }
                     Operands::I32 => syntax::Operands::I32(self.expect_i32()? as u32),
@@ -115,7 +115,7 @@ impl<R: Read> Parser<R> {
 
     fn parse_plain_block(&mut self, cnt: Continuation) -> Result<syntax::Operands<Unresolved>> {
         let label = self.try_id()?;
-        let typeuse = self.parse_type_use()?;
+        let typeuse = self.parse_type_use(super::module::FParamId::Forbidden)?;
         let instr = self.parse_instructions()?;
         self.expect_plain_end()?;
 
@@ -125,7 +125,7 @@ impl<R: Read> Parser<R> {
     fn parse_plain_if_operands(&mut self) -> Result<syntax::Operands<Unresolved>> {
         let label = self.try_id()?;
 
-        let typeuse = self.parse_type_use()?;
+        let typeuse = self.parse_type_use(super::module::FParamId::Forbidden)?;
 
         let thengroup = self.parse_instructions()?;
 
@@ -192,7 +192,7 @@ impl<R: Read> Parser<R> {
         cnt: Continuation,
     ) -> Result<Instruction<Unresolved>> {
         let label = self.try_id()?;
-        let typeuse = self.parse_type_use()?;
+        let typeuse = self.parse_type_use(super::module::FParamId::Forbidden)?;
         let instr = self.parse_instructions()?;
         self.expect_close()?;
         let operands = syntax::Operands::Block(label, typeuse, Expr { instr }, cnt);
@@ -205,7 +205,7 @@ impl<R: Read> Parser<R> {
 
     fn parse_folded_if(&mut self) -> Result<Vec<Instruction<Unresolved>>> {
         let label = self.try_id()?;
-        let typeuse = self.parse_type_use()?;
+        let typeuse = self.parse_type_use(super::module::FParamId::Forbidden)?;
         let condition = self.zero_or_more_groups(Self::try_folded_instruction)?;
         let mut unfolded = condition;
         let thexpr = if self.try_expr_start("then")? {
