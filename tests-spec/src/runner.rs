@@ -5,7 +5,13 @@ use {
         spectest_module::make_spectest_module,
     },
     std::{collections::HashMap, io::Cursor, rc::Rc},
-    wrausmt_format::{loader::Loader, text::string::WasmString},
+    wrausmt_format::{
+        loader::{Loader, LoaderError},
+        text::{
+            parse::error::{ParseError, ParseErrorKind},
+            string::WasmString,
+        },
+    },
     wrausmt_runtime::{
         logger::{Logger, PrintLogger, Tag},
         runtime::{
@@ -111,6 +117,26 @@ impl TrapMatch for str {
             "undefined element" => matches!(trap, TrapKind::OutOfBoundsTableAccess(..)),
             "uninitialized element" => matches!(trap, TrapKind::UninitializedElement),
             "uninitialized element 2" => matches!(trap, TrapKind::UninitializedElement),
+            _ => false,
+        }
+    }
+}
+
+trait MalformedMatch {
+    fn matches_malformed(&self, err: &CmdError) -> bool;
+}
+
+impl MalformedMatch for str {
+    fn matches_malformed(&self, err: &CmdError) -> bool {
+        let parse_err =
+            if let CmdError::LoaderError(LoaderError::ParseError(ParseError { kind, .. })) = err {
+                Some(kind)
+            } else {
+                None
+            };
+        match self {
+            "alignment" => matches!(parse_err, Some(ParseErrorKind::InvalidAlignment(_))),
+            "i32 constant" => matches!(parse_err, Some(ParseErrorKind::ParseIntError(_))),
             _ => false,
         }
     }
@@ -247,6 +273,7 @@ impl SpecTestRunner {
 
     fn verify_malformed_result<T>(result: CmdResult<T>, failure: String) -> TestResult<()> {
         match result {
+            Err(e) if failure.matches_malformed(&e) => Ok(()),
             Err(e) => Err(TestFailureError::FailureMismatch {
                 result: Some(Box::new(e)),
                 expect: failure,

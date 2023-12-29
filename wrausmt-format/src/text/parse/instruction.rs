@@ -1,5 +1,5 @@
 use {
-    super::{Parser, Result},
+    super::{error::ParseErrorKind, Parser, Result},
     crate::text::{num, token::Token},
     std::io::Read,
     wrausmt_runtime::{
@@ -151,16 +151,21 @@ impl<R: Read> Parser<R> {
     fn try_align_offset_value(&mut self, prefix: &str) -> Result<Option<u32>> {
         if let Some(kw) = self.take_keyword_if(|kw| kw.as_str().starts_with(prefix))? {
             if let Some(nt) = num::maybe_number(&kw.as_str()[prefix.len()..]) {
-                if let Ok(n) = nt.as_u32() {
-                    return Ok(Some(n));
-                }
+                return match nt.as_u32() {
+                    Ok(n) => Ok(Some(n)),
+                    Err(e) => Err(self.err(e)),
+                };
             }
         }
         Ok(None)
     }
 
     fn try_align(&mut self) -> Result<Option<u32>> {
-        self.try_align_offset_value("align=")
+        match self.try_align_offset_value("align=")? {
+            Some(align) if [1u32, 2u32, 4u32, 8u32, 16u32].contains(&align) => Ok(Some(align)),
+            Some(align) => Err(self.err(ParseErrorKind::InvalidAlignment(align))),
+            None => Ok(None),
+        }
     }
 
     fn try_offset(&mut self) -> Result<Option<u32>> {
