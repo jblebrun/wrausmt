@@ -23,8 +23,8 @@ macro_rules! nomalformed {
     };
 }
 
-spectest!(r#address; [nomalformed!("i32 constant")]);
-spectest!(r#align; [nomalformed!("alignment")]);
+spectest!(r#address);
+spectest!(r#align);
 spectest!(r#binary_x_leb128; [nomalformed!(
     "integer representation too long",
     "integer too large"
