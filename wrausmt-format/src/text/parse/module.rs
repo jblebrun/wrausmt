@@ -538,19 +538,28 @@ impl<R: Read> Parser<R> {
     }
 
     pub fn try_offset_expression(&mut self) -> Result<Option<Expr<Unresolved>>> {
+        self.try_item_or_offset_expression("offset")
+    }
+
+    pub fn try_item_expression(&mut self) -> Result<Option<Expr<Unresolved>>> {
+        self.try_item_or_offset_expression("item")
+    }
+
+    pub fn try_item_or_offset_expression(
+        &mut self,
+        which: &str,
+    ) -> Result<Option<Expr<Unresolved>>> {
         // (offset <instr>*)
         pctx!(self, "try offset expression");
-        if self.try_expr_start("offset")? {
+        if self.try_expr_start(which)? {
             let instr = self.parse_instructions()?;
             self.expect_close()?;
             return Ok(Some(Expr { instr }));
         }
-
-        // offset may also be bare instruction
-        match self.try_instruction()? {
-            Some(instr) => Ok(Some(Expr { instr })),
-            None => Ok(None),
-        }
+        // The `(instr)` form used as a special shortcut form for `item` and `offset`.
+        // It's expected that if we see an open paren, there should be a valid
+        // instruction and then one close parent.
+        Ok(self.try_folded_instruction()?.map(|instr| Expr { instr }))
     }
 
     // Try to parse one "type use" section, in an import or function.

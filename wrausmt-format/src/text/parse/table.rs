@@ -16,21 +16,6 @@ impl<R: Read> Parser<R> {
         }))
     }
 
-    fn try_elem_item(&mut self) -> Result<Option<Expr<Unresolved>>> {
-        pctx!(self, "try elem item");
-        if self.try_expr_start("item")? {
-            let instr = self.parse_instructions()?;
-            self.expect_close()?;
-            return Ok(Some(Expr { instr }));
-        }
-
-        if let Some(instr) = self.try_instruction()? {
-            return Ok(Some(Expr { instr }));
-        }
-
-        Ok(None)
-    }
-
     fn read_table_inline_func_elems(&mut self) -> Result<ElemList<Unresolved>> {
         pctx!(self, "read table inline func elems");
         // ‘(’ ‘𝚝𝚊𝚋𝚕𝚎’  𝚒𝚍?  𝚛𝚎𝚏𝚝𝚢𝚙𝚎  ‘(’ ‘𝚎𝚕𝚎𝚖’  𝚎𝚕𝚎𝚖𝚕𝚒𝚜𝚝 ‘)’
@@ -40,7 +25,7 @@ impl<R: Read> Parser<R> {
         // FuncRefs may just be a vector of indices
         let mut items = self.zero_or_more(Self::try_index_as_funcref)?;
         if items.is_empty() {
-            items = self.zero_or_more(Self::try_elem_item)?;
+            items = self.zero_or_more(Self::try_item_expression)?;
         }
 
         self.expect_close()?;
@@ -114,11 +99,10 @@ impl<R: Read> Parser<R> {
     fn try_elemlist(&mut self, allow_bare_funcidx: bool) -> Result<ElemList<Unresolved>> {
         pctx!(self, "try elemlist");
         let _reftype = self.try_reftype()?;
-        let items = self.zero_or_more(Self::try_elem_item)?;
+        let items = self.zero_or_more(Self::try_item_expression)?;
         if !items.is_empty() {
             return Ok(ElemList::func(items));
         }
-        // TODO single instruction
 
         if self.take_keyword_if(|kw| kw == "func")?.is_some() || allow_bare_funcidx {
             let items = self.zero_or_more(Self::try_index_as_funcref)?;
@@ -131,8 +115,8 @@ impl<R: Read> Parser<R> {
     // (elem <id>? <tableuse> (offset <expr>) <elemlist>) -> active
     // (elem <id>? declare <elemlist>) -> declarative
     // <tableuse> := (table <idx>)
-    // <instr> === (offset <instr>)
-    // <instr> === (item <instr>)
+    // (<instr>) === (offset <instr>)
+    // (<instr>) === (item <instr>)
     // tableuse can be omitted, defaulting to 0.
     pub fn try_elem_field(&mut self) -> Result<Option<Field<Unresolved>>> {
         if !self.try_expr_start("elem")? {
