@@ -1,7 +1,7 @@
 use {
     super::{
         error::{ParseErrorKind, Result, WithMsg},
-        ParseResult, Parser,
+        pctx, ParseResult, Parser,
     },
     crate::text::{module_builder::ModuleBuilder, token::Token},
     std::io::Read,
@@ -41,6 +41,7 @@ impl<R: Read> Parser<R> {
     /// On success, a vector of sections is returned. They can be organized into
     /// a module object.
     pub fn try_module(&mut self) -> Result<Option<Module<Resolved>>> {
+        pctx!(self, "try module");
         let (expect_close, id) = if self.try_expr_start("module")? {
             (true, self.try_id()?)
         } else {
@@ -51,6 +52,7 @@ impl<R: Read> Parser<R> {
     }
 
     pub fn parse_full_module(&mut self) -> Result<Module<Resolved>> {
+        pctx!(self, "parse full module");
         self.assure_started()?;
 
         match self.try_module() {
@@ -79,6 +81,7 @@ impl<R: Read> Parser<R> {
         id: Option<Id>,
         expect_close: bool,
     ) -> Result<Option<Module<Resolved>>> {
+        pctx!(self, "try module rest");
         let mut module_builder = ModuleBuilder::new(id);
 
         // section*
@@ -138,6 +141,7 @@ impl<R: Read> Parser<R> {
 
     // Parser should be located at the token immediately following a '('
     fn try_field(&mut self) -> Result<Option<Field<Unresolved>>> {
+        pctx!(self, "try field");
         self.first_of(&[
             Self::try_type_field,
             Self::try_func_field,
@@ -153,6 +157,7 @@ impl<R: Read> Parser<R> {
     }
 
     pub fn try_type_field(&mut self) -> Result<Option<Field<Unresolved>>> {
+        pctx!(self, "try type field");
         if !self.try_expr_start("type")? {
             return Ok(None);
         }
@@ -173,6 +178,7 @@ impl<R: Read> Parser<R> {
     }
 
     pub fn try_function_type(&mut self, fparam_id: FParamId) -> Result<FunctionType> {
+        pctx!(self, "try function type");
         Ok(FunctionType {
             params:  self.zero_or_more_groups(match fparam_id {
                 // Using closures makes the combinators a lot more complicated.
@@ -187,6 +193,7 @@ impl<R: Read> Parser<R> {
 
     // func := (func id? (export <name>)* (import <modname> <name>) <typeuse>)
     pub fn try_func_field(&mut self) -> Result<Option<Field<Unresolved>>> {
+        pctx!(self, "try function field");
         if !self.try_expr_start("func")? {
             return Ok(None);
         }
@@ -225,6 +232,7 @@ impl<R: Read> Parser<R> {
     }
 
     fn try_locals(&mut self) -> Result<Option<Vec<Local>>> {
+        pctx!(self, "try locals");
         if !self.try_expr_start("local")? {
             return Ok(None);
         }
@@ -244,10 +252,12 @@ impl<R: Read> Parser<R> {
     }
 
     pub fn try_read_indices<IS: IndexSpace>(&mut self) -> Result<Vec<Index<Unresolved, IS>>> {
+        pctx!(self, "try read indices");
         self.zero_or_more(Self::try_index)
     }
 
     fn try_inline_memory_data(&mut self) -> Result<Option<Box<[u8]>>> {
+        pctx!(self, "try inline memory data");
         if !self.try_expr_start("data")? {
             return Ok(None);
         }
@@ -267,6 +277,7 @@ impl<R: Read> Parser<R> {
     }
 
     pub fn try_memory_field(&mut self) -> Result<Option<Field<Unresolved>>> {
+        pctx!(self, "try memory field");
         if !self.try_expr_start("memory")? {
             return Ok(None);
         }
@@ -332,6 +343,7 @@ impl<R: Read> Parser<R> {
     //             | (memory <id?> <memtype>)
     //             | (global <id?> <globaltype>)
     pub fn try_import_field(&mut self) -> Result<Option<Field<Unresolved>>> {
+        pctx!(self, "try import field");
         if !self.try_expr_start("import")? {
             return Ok(None);
         }
@@ -353,6 +365,7 @@ impl<R: Read> Parser<R> {
     }
 
     pub fn expect_importdesc(&mut self) -> Result<(Option<Id>, ImportDesc<Unresolved>)> {
+        pctx!(self, "expect importdesc");
         if self.try_expr_start("func")? {
             let id = self.try_id()?;
             let typeuse = self.parse_type_use(FParamId::Allowed)?;
@@ -379,12 +392,14 @@ impl<R: Read> Parser<R> {
     }
 
     pub fn expect_tabletype(&mut self) -> Result<TableType> {
+        pctx!(self, "expect tabletype");
         let limits = self.expect_limits()?;
         let reftype = self.expect_reftype()?;
         Ok(TableType { limits, reftype })
     }
 
     pub fn expect_globaltype(&mut self) -> Result<GlobalType> {
+        pctx!(self, "expect globalype");
         let mutable = self.try_expr_start("mut")?;
 
         let valtype = self.expect_valtype()?;
@@ -397,6 +412,7 @@ impl<R: Read> Parser<R> {
     }
 
     pub fn try_export_field(&mut self) -> Result<Option<Field<Unresolved>>> {
+        pctx!(self, "try export field");
         if !self.try_expr_start("export")? {
             return Ok(None);
         }
@@ -411,6 +427,7 @@ impl<R: Read> Parser<R> {
     }
 
     fn expect_exportdesc(&mut self) -> Result<ExportDesc<Unresolved>> {
+        pctx!(self, "expect export desc");
         if self.try_expr_start("func")? {
             let index = self.expect_index()?;
             self.expect_close()?;
@@ -433,6 +450,7 @@ impl<R: Read> Parser<R> {
     }
 
     pub fn try_global_field(&mut self) -> Result<Option<Field<Unresolved>>> {
+        pctx!(self, "try global field");
         if !self.try_expr_start("global")? {
             return Ok(None);
         }
@@ -468,6 +486,7 @@ impl<R: Read> Parser<R> {
     }
 
     pub fn try_start_field(&mut self) -> Result<Option<Field<Unresolved>>> {
+        pctx!(self, "try start field");
         if !self.try_expr_start("start")? {
             return Ok(None);
         }
@@ -480,6 +499,7 @@ impl<R: Read> Parser<R> {
     }
 
     pub fn try_data_field(&mut self) -> Result<Option<Field<Unresolved>>> {
+        pctx!(self, "try data field");
         if !self.try_expr_start("data")? {
             return Ok(None);
         }
@@ -507,6 +527,7 @@ impl<R: Read> Parser<R> {
     }
 
     pub fn try_memuse(&mut self) -> Result<Index<Unresolved, MemoryIndex>> {
+        pctx!(self, "try memuse");
         if !self.try_expr_start("memory")? {
             return Ok(Index::unnamed(0));
         }
@@ -518,6 +539,7 @@ impl<R: Read> Parser<R> {
 
     pub fn try_offset_expression(&mut self) -> Result<Option<Expr<Unresolved>>> {
         // (offset <instr>*)
+        pctx!(self, "try offset expression");
         if self.try_expr_start("offset")? {
             let instr = self.parse_instructions()?;
             self.expect_close()?;
@@ -535,6 +557,7 @@ impl<R: Read> Parser<R> {
     // := (type <typeidx>)
     //  | (type <typeidx>) (param <id>? <type>)* (result <type>)*
     pub fn parse_type_use(&mut self, fparam_id: FParamId) -> Result<TypeUse<Unresolved>> {
+        pctx!(self, "parse type use");
         let typeidx = if self.try_expr_start("type")? {
             let idx = self.expect_index()?;
             self.expect_close()?;
@@ -554,6 +577,7 @@ impl<R: Read> Parser<R> {
     // Try to parse an inline export for a func, table, global, or memory.
     // := (export <name>)
     pub fn try_inline_export(&mut self) -> Result<Option<String>> {
+        pctx!(self, "try inline export");
         if !self.try_expr_start("export")? {
             return Ok(None);
         }
@@ -568,6 +592,7 @@ impl<R: Read> Parser<R> {
     // Try to parse an inline import for a func, table, global, or memory.
     // := (import <modname> <name>)
     pub fn try_inline_import(&mut self) -> Result<Option<(String, String)>> {
+        pctx!(self, "try inline import");
         if !self.try_expr_start("import")? {
             return Ok(None);
         }
@@ -592,6 +617,7 @@ impl<R: Read> Parser<R> {
     }
 
     fn try_parse_fparam(&mut self, fparam_id: FParamId) -> Result<Option<Vec<FParam>>> {
+        pctx!(self, "try parse fparam");
         if !self.try_expr_start("param")? {
             return Ok(None);
         }
@@ -614,6 +640,7 @@ impl<R: Read> Parser<R> {
     }
 
     fn try_valtype_as_fparam(&mut self) -> Result<Option<FParam>> {
+        pctx!(self, "try valtype as fparam");
         Ok(self.try_valtype()?.map(|valuetype| FParam {
             id: None,
             valuetype,
@@ -621,10 +648,12 @@ impl<R: Read> Parser<R> {
     }
 
     fn try_valtype_as_fresult(&mut self) -> Result<Option<FResult>> {
+        pctx!(self, "try valtype as fresult");
         Ok(self.try_valtype()?.map(|valuetype| FResult { valuetype }))
     }
 
     fn try_valtype_as_local(&mut self) -> Result<Option<Local>> {
+        pctx!(self, "try valtype as local");
         Ok(self
             .try_valtype()?
             .map(|valtype| Local { id: None, valtype }))
@@ -633,6 +662,7 @@ impl<R: Read> Parser<R> {
     // Try to parse a function result.
     // := (result <valtype>*)
     pub fn try_parse_fresult(&mut self) -> Result<Option<Vec<FResult>>> {
+        pctx!(self, "try parse fresult");
         if !self.try_expr_start("result")? {
             return Ok(None);
         }
@@ -646,6 +676,7 @@ impl<R: Read> Parser<R> {
 
     // parse an index usage. It can be either a number or a named identifier.
     pub fn try_index<I: IndexSpace>(&mut self) -> Result<Option<Index<Unresolved, I>>> {
+        pctx!(self, "try index");
         if let Some(id) = self.try_id()? {
             return Ok(Some(Index::named(id, 0)));
         }
@@ -658,6 +689,7 @@ impl<R: Read> Parser<R> {
     }
 
     pub fn expect_index<I: IndexSpace>(&mut self) -> Result<Index<Unresolved, I>> {
+        pctx!(self, "expect index");
         self.try_index()?.ok_or(self.unexpected_token("index"))
     }
 }

@@ -38,11 +38,11 @@ pub struct ParseError {
 }
 
 impl ParseError {
-    pub fn new(kind: ParseErrorKind, context: ParseContext) -> Self {
+    pub fn new(kind: ParseErrorKind, context: ParseContext, msgs: Vec<String>) -> Self {
         Self {
             kind,
             context,
-            msgs: Vec::new(),
+            msgs,
         }
     }
 

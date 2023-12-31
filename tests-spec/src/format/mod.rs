@@ -4,7 +4,7 @@ use {
         text::{
             parse::{
                 error::{Result, WithMsg},
-                Parser,
+                pctx, Parser,
             },
             string::WasmString,
             token::Token,
@@ -51,6 +51,7 @@ pub trait SpecParser {
 
 impl<R: Read> SpecParser for Parser<R> {
     fn parse_spec_test(&mut self) -> Result<SpecTestScript> {
+        pctx!(self, "parse spec test");
         self.assure_started()?;
         match self.zero_or_more(Parser::try_cmd_entry) {
             Ok(cmds) => {
@@ -64,12 +65,14 @@ impl<R: Read> SpecParser for Parser<R> {
     }
 
     fn try_cmd_entry(&mut self) -> Result<Option<CmdEntry>> {
+        pctx!(self, "try cmd entry");
         let location = self.current.location;
         self.try_cmd()
             .map(|c| c.map(|cmd| CmdEntry { cmd, location }))
     }
 
     fn try_cmd(&mut self) -> Result<Option<Cmd>> {
+        pctx!(self, "try cmd");
         self.first_of(&[
             Self::try_register_cmd,
             Self::try_action_cmd,
@@ -80,6 +83,7 @@ impl<R: Read> SpecParser for Parser<R> {
     }
 
     fn try_module_cmd(&mut self) -> Result<Option<Cmd>> {
+        pctx!(self, "try module cmd");
         if let Some(module) = self.try_spec_module()? {
             return Ok(Some(Cmd::Module(module)));
         }
@@ -88,11 +92,13 @@ impl<R: Read> SpecParser for Parser<R> {
     }
 
     fn expect_spec_module(&mut self) -> Result<Module> {
+        pctx!(self, "expect spec module");
         self.try_spec_module()?
             .ok_or(self.unexpected_token("spec module"))
     }
 
     fn try_spec_module(&mut self) -> Result<Option<Module>> {
+        pctx!(self, "try spec module");
         if !self.try_expr_start("module")? {
             return if let Some(inline_module) = self.try_module()? {
                 Ok(Some(Module::Module(inline_module)))
@@ -127,6 +133,7 @@ impl<R: Read> SpecParser for Parser<R> {
     }
 
     fn try_register_cmd(&mut self) -> Result<Option<Cmd>> {
+        pctx!(self, "try register cmd");
         if !self.try_expr_start("register")? {
             return Ok(None);
         }
@@ -141,19 +148,23 @@ impl<R: Read> SpecParser for Parser<R> {
     }
 
     fn try_action_cmd(&mut self) -> Result<Option<Cmd>> {
+        pctx!(self, "try action cmd");
         self.try_action().map(|a| a.map(Cmd::Action))
     }
 
     fn try_action(&mut self) -> Result<Option<Action>> {
+        pctx!(self, "try action");
         self.first_of(&[Self::try_invoke_action, Self::try_get_action])
     }
 
     fn expect_action(&mut self) -> Result<Action> {
+        pctx!(self, "expect action");
         self.try_action()?
             .ok_or(self.unexpected_token("spec test action"))
     }
 
     fn try_invoke_action(&mut self) -> Result<Option<Action>> {
+        pctx!(self, "try invoke action");
         if !self.try_expr_start("invoke")? {
             return Ok(None);
         }
@@ -174,6 +185,7 @@ impl<R: Read> SpecParser for Parser<R> {
     }
 
     fn try_get_action(&mut self) -> Result<Option<Action>> {
+        pctx!(self, "try get action");
         if !self.try_expr_start("get")? {
             return Ok(None);
         }
@@ -188,6 +200,7 @@ impl<R: Read> SpecParser for Parser<R> {
     }
 
     fn try_assertion_cmd(&mut self) -> Result<Option<Cmd>> {
+        pctx!(self, "try assertion cmd");
         self.first_of(&[
             Self::try_assert_return,
             Self::try_assert_exhaustion,
@@ -200,6 +213,7 @@ impl<R: Read> SpecParser for Parser<R> {
     }
 
     fn try_meta_cmd(&mut self) -> Result<Option<Cmd>> {
+        pctx!(self, "try meta cmd");
         if self.try_expr_start("script")? {
             let id = self.try_id()?;
             let script = self.expect_string().msg("script")?;
@@ -223,6 +237,7 @@ impl<R: Read> SpecParser for Parser<R> {
     }
 
     fn try_assert_return(&mut self) -> Result<Option<Assertion>> {
+        pctx!(self, "try assert return");
         if !self.try_expr_start("assert_return")? {
             return Ok(None);
         }
@@ -237,6 +252,7 @@ impl<R: Read> SpecParser for Parser<R> {
     }
 
     fn try_assert_exhaustion(&mut self) -> Result<Option<Assertion>> {
+        pctx!(self, "try assert exhaustion");
         if !self.try_expr_start("assert_exhaustion")? {
             return Ok(None);
         }
@@ -249,6 +265,7 @@ impl<R: Read> SpecParser for Parser<R> {
     }
 
     fn try_assert_trap(&mut self) -> Result<Option<Assertion>> {
+        pctx!(self, "try assert trap");
         if !self.try_expr_start("assert_trap")? {
             return Ok(None);
         }
@@ -271,6 +288,7 @@ impl<R: Read> SpecParser for Parser<R> {
     }
 
     fn try_assert_invalid(&mut self) -> Result<Option<Assertion>> {
+        pctx!(self, "try assert invalid");
         if !self.try_expr_start("assert_invalid")? {
             return Ok(None);
         }
@@ -285,6 +303,7 @@ impl<R: Read> SpecParser for Parser<R> {
     }
 
     fn try_assert_malformed(&mut self) -> Result<Option<Assertion>> {
+        pctx!(self, "try assert malformed");
         if !self.try_expr_start("assert_malformed")? {
             return Ok(None);
         }
@@ -299,6 +318,7 @@ impl<R: Read> SpecParser for Parser<R> {
     }
 
     fn try_assert_unlinkable(&mut self) -> Result<Option<Assertion>> {
+        pctx!(self, "try assert unlinkable");
         if !self.try_expr_start("assert_unlinkable")? {
             return Ok(None);
         }
@@ -313,6 +333,7 @@ impl<R: Read> SpecParser for Parser<R> {
     }
 
     fn try_result(&mut self) -> Result<Option<ActionResult>> {
+        pctx!(self, "try result");
         if self.try_expr_start("ref.null")? {
             let reftype = self.expect_heaptype()?;
             self.expect_close()?;
@@ -352,6 +373,7 @@ impl<R: Read> SpecParser for Parser<R> {
     }
 
     fn try_const(&mut self) -> Result<Option<Const>> {
+        pctx!(self, "try const");
         if self.try_expr_start("ref.null")? {
             let reftype = self.expect_heaptype()?;
             self.expect_close()?;
@@ -383,6 +405,7 @@ impl<R: Read> SpecParser for Parser<R> {
     }
 
     fn try_num_type(&mut self) -> Result<Option<NumType>> {
+        pctx!(self, "try num type");
         let kw = self.peek_next_keyword()?.map(|kw| kw.as_str());
         let found = match kw {
             Some("i32.const") => Some(NumType::I32),
@@ -402,6 +425,7 @@ impl<R: Read> SpecParser for Parser<R> {
     }
 
     fn try_nan_pat(&mut self, nt: NumType) -> Result<Option<NaNPat>> {
+        pctx!(self, "try nan pat");
         let kw = self.peek_keyword()?.map(|kw| kw.as_str());
         match kw {
             Some("nan:canonical") => {
@@ -417,6 +441,7 @@ impl<R: Read> SpecParser for Parser<R> {
     }
 
     fn expect_num(&mut self, nt: NumType) -> Result<Num> {
+        pctx!(self, "expect num");
         let result = match nt {
             NumType::I32 => Num::I32(self.expect_i32()? as u32),
             NumType::I64 => Num::I64(self.expect_i64()? as u64),

@@ -5,6 +5,7 @@ use {
         string::WasmString,
         token::{FileToken, Token},
     },
+    crate::tracer::{TraceDropper, Tracer},
     std::io::Read,
     wrausmt_runtime::syntax::Id,
 };
@@ -22,6 +23,7 @@ pub struct Parser<R: Read> {
     pub current: FileToken,
     // 1 token of lookahead
     pub next:    FileToken,
+    tracer:      Tracer,
 }
 
 trait Ignorable {
@@ -49,6 +51,14 @@ impl<T, E: Into<ParseErrorKind>> ParseResult<T> for std::result::Result<T, E> {
     }
 }
 
+#[macro_export]
+macro_rules! pctx {
+    ($s:ident, $msg:literal) => {
+        let _token = $s.fctx($msg);
+    };
+}
+pub use pctx;
+
 // Implementation for the basic token-handling methods.
 impl<R: Read> Parser<R> {
     pub fn new_from_tokenizer(tokenizer: Tokenizer<R>) -> Parser<R> {
@@ -56,7 +66,12 @@ impl<R: Read> Parser<R> {
             tokenizer,
             current: FileToken::default(),
             next: FileToken::default(),
+            tracer: Tracer::new("parser"),
         }
+    }
+
+    pub fn fctx(&mut self, msg: &str) -> TraceDropper {
+        self.tracer.trace(msg)
     }
 
     pub fn new(reader: R) -> Parser<R> {
@@ -72,10 +87,14 @@ impl<R: Read> Parser<R> {
     }
 
     pub fn err(&self, err: ParseErrorKind) -> ParseError {
-        ParseError::new(err, ParseContext {
-            current: self.current.clone(),
-            next:    self.next.clone(),
-        })
+        ParseError::new(
+            err,
+            ParseContext {
+                current: self.current.clone(),
+                next:    self.next.clone(),
+            },
+            self.tracer.clone_msgs(),
+        )
     }
 
     pub fn unexpected_token(&self, name: impl Into<String>) -> ParseError {
@@ -106,18 +125,11 @@ impl<R: Read> Parser<R> {
         while self.next.token.ignorable() {
             self.next()?;
         }
-        // println!(
-        // "TOKENS ARE NOW {:?} {:?}",
-        // self.current.token, self.next.token
-        // );
         Ok(out)
     }
 
-    pub fn state(&self) {
-        println!("POSITION {:?} {:?}", self.current, self.next);
-    }
-
     pub fn try_expr_start(&mut self, name: &str) -> Result<bool> {
+        pctx!(self, "tryp expr start");
         if self.current.token != Token::Open {
             return Ok(false);
         }
@@ -132,6 +144,7 @@ impl<R: Read> Parser<R> {
     }
 
     pub fn peek_expr_start(&mut self, name: &str) -> Result<bool> {
+        pctx!(self, "peek expr start");
         if self.current.token != Token::Open {
             return Ok(false);
         }
@@ -142,6 +155,7 @@ impl<R: Read> Parser<R> {
     }
 
     fn expect_expr_start(&mut self, name: &str) -> Result<()> {
+        pctx!(self, "expect expr start");
         if !self.try_expr_start(name)? {
             Err(self.unexpected_token("expression start"))
         } else {
@@ -150,6 +164,7 @@ impl<R: Read> Parser<R> {
     }
 
     pub fn expect_close(&mut self) -> Result<()> {
+        pctx!(self, "expect close");
         match self.current.token {
             Token::Close => {
                 self.advance()?;
@@ -160,9 +175,11 @@ impl<R: Read> Parser<R> {
     }
 
     pub fn try_wasm_string(&mut self) -> Result<Option<WasmString>> {
+        pctx!(self, "try wasm string");
         match self.current.token {
             Token::String(ref mut data) => {
                 let data = std::mem::take(data);
+                pctx!(self, "got string");
                 self.advance()?;
                 Ok(Some(data))
             }
@@ -171,11 +188,13 @@ impl<R: Read> Parser<R> {
     }
 
     pub fn expect_wasm_string(&mut self) -> Result<WasmString> {
+        pctx!(self, "expect wasm string");
         self.try_wasm_string()?
             .ok_or(self.unexpected_token("wasm string literal"))
     }
 
     pub fn try_string(&mut self) -> Result<Option<String>> {
+        pctx!(self, "try string");
         let result = self.try_wasm_string()?;
         Ok(match result {
             Some(ws) => Some(ws.into_string().result(self)?),
@@ -184,11 +203,13 @@ impl<R: Read> Parser<R> {
     }
 
     pub fn expect_string(&mut self) -> Result<String> {
+        pctx!(self, "expect string");
         self.try_string()?
             .ok_or(self.unexpected_token("utf8string literal"))
     }
 
     pub fn try_id(&mut self) -> Result<Option<Id>> {
+        pctx!(self, "try id");
         match self.current.token {
             Token::Id(ref mut id) => {
                 let id = std::mem::take(id);
@@ -200,6 +221,7 @@ impl<R: Read> Parser<R> {
     }
 
     pub fn try_keyword(&mut self) -> Result<Option<Id>> {
+        pctx!(self, "try keyword");
         match self.current.token {
             Token::Keyword(ref mut id) => {
                 let id = std::mem::take(id);
@@ -218,6 +240,7 @@ impl<R: Read> Parser<R> {
     }
 
     pub fn take_keyword_if(&mut self, pred: impl Fn(&Id) -> bool) -> Result<Option<Id>> {
+        pctx!(self, "take keyword if");
         match self.current.token {
             Token::Keyword(ref mut id) if pred(id) => {
                 let id = std::mem::take(id);
@@ -236,6 +259,7 @@ impl<R: Read> Parser<R> {
     }
 
     pub fn consume_expression(&mut self) -> Result<()> {
+        pctx!(self, "consume expression");
         let mut depth = 1;
         while depth > 0 {
             match self.current.token {
