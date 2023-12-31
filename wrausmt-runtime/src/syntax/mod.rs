@@ -5,6 +5,9 @@
 mod indices;
 pub mod types;
 
+#[cfg(test)]
+mod tests;
+
 pub use indices::{
     DataIndex, ElemIndex, FuncIndex, GlobalIndex, IndexSpace, LabelIndex, LocalIndex, MemoryIndex,
     Resolved, ResolvedState, TableIndex, TypeIndex, Unresolved,
@@ -15,15 +18,26 @@ use {
         fmt::{self, Debug},
         marker::PhantomData,
         slice::SliceIndex,
-        str::Utf8Error,
     },
     types::{GlobalType, MemType, RefType, TableType, ValueType},
 };
 
-/// A wasm identifier. Contains only ascii bytes.
+/// A wasm identifier. Contains only valid `idchar` characters.
 #[derive(Clone, Default, Debug, Eq, Hash, PartialEq)]
 pub struct Id {
     data: Cow<'static, str>,
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub enum IdError {
+    InvalidIdChar(u8),
+}
+
+impl std::error::Error for IdError {}
+impl std::fmt::Display for IdError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "{:?}", self)
+    }
 }
 
 const fn is_idchar(c: u8) -> bool {
@@ -35,9 +49,15 @@ const fn is_idchar(c: u8) -> bool {
     )
 }
 
+fn validate_chars(bytes: &[u8]) -> Result<(), IdError> {
+    match bytes.iter().find(|b| !is_idchar(**b)) {
+        Some(b) => Err(IdError::InvalidIdChar(*b)),
+        _ => Ok(()),
+    }
+}
 impl Id {
     pub fn literal(s: &'static str) -> Id {
-        assert!(s.bytes().all(is_idchar), "Invalid ID chars in {}", s);
+        validate_chars(s.as_bytes()).unwrap();
         Id {
             data: Cow::Borrowed(s),
         }
@@ -52,18 +72,11 @@ impl Id {
     }
 }
 
-impl<Idx: SliceIndex<[u8], Output = u8>> std::ops::Index<Idx> for Id {
-    type Output = u8;
-
-    fn index(&self, index: Idx) -> &u8 {
-        &self.data.as_bytes()[index]
-    }
-}
-
 impl TryFrom<&str> for Id {
-    type Error = Utf8Error;
+    type Error = IdError;
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
+        validate_chars(value.as_bytes())?;
         Ok(Self {
             data: value.to_owned().into(),
         })
@@ -71,15 +84,17 @@ impl TryFrom<&str> for Id {
 }
 
 impl TryFrom<&[u8]> for Id {
-    type Error = Utf8Error;
+    type Error = IdError;
 
     fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
-        std::str::from_utf8(value)?.try_into()
+        // If the utf8 is invalid, the from &str will fail when checking
+        // for all idchars.
+        unsafe { std::str::from_utf8_unchecked(value) }.try_into()
     }
 }
 
 impl TryFrom<Vec<u8>> for Id {
-    type Error = Utf8Error;
+    type Error = IdError;
 
     fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
         value.as_slice().try_into()
@@ -111,6 +126,14 @@ pub struct Index<R: ResolvedState, S: IndexSpace> {
     value:          u32,
     resolvedmarker: PhantomData<R>,
     indexmarker:    PhantomData<S>,
+}
+
+impl<Idx: SliceIndex<[u8], Output = u8>> std::ops::Index<Idx> for Id {
+    type Output = u8;
+
+    fn index(&self, index: Idx) -> &u8 {
+        &self.data.as_bytes()[index]
+    }
 }
 
 impl<S: IndexSpace> From<Index<Resolved, S>> for u32 {

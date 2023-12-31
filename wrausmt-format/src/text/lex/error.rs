@@ -1,8 +1,11 @@
+use wrausmt_runtime::syntax::IdError;
+
 #[derive(Debug)]
 pub enum LexError {
     WithContext(Vec<String>, Box<LexError>),
     IoError(std::io::Error),
     FromUtf8Error(std::string::FromUtf8Error),
+    IdError(IdError),
     Utf8Error(std::str::Utf8Error),
     UnexpectedChar(char),
     InvalidEscape(String),
@@ -59,5 +62,11 @@ impl From<std::string::FromUtf8Error> for LexError {
 impl From<std::str::Utf8Error> for LexError {
     fn from(e: std::str::Utf8Error) -> Self {
         LexError::Utf8Error(e)
+    }
+}
+
+impl From<IdError> for LexError {
+    fn from(value: IdError) -> Self {
+        LexError::IdError(value)
     }
 }
