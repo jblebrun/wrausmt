@@ -33,9 +33,7 @@ fn simple_parse() -> Result<()> {
         Token::Open,
         Token::Keyword(Id::literal("foo")),
         Token::Close,
-        Token::Whitespace,
         Token::String(WasmString::from_bytes("hello".as_bytes().into())),
-        Token::Whitespace,
         Token::Open,
         Token::Number(NumToken::Float(
             Sign::Unspecified,
@@ -44,14 +42,9 @@ fn simple_parse() -> Result<()> {
             "6".into(),
             "".into()
         )),
-        Token::Whitespace,
         Token::Number(NumToken::Integer(Sign::Negative, Base::Hex, "F".into())),
-        Token::Whitespace,
         Token::Number(NumToken::Integer(Sign::Unspecified, Base::Hex, "F".into())),
         Token::Close,
-        Token::Whitespace,
-        Token::BlockComment,
-        Token::Whitespace,
         Token::Open,
         Token::Keyword(Id::literal("yay")),
         Token::Close

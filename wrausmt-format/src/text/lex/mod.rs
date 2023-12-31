@@ -23,7 +23,9 @@ mod test;
 pub struct Tokenizer<R> {
     inner:    R,
     current:  u8,
+    next:     u8,
     eof:      bool,
+    finished: bool,
     location: Location,
 }
 
@@ -40,8 +42,21 @@ impl<R: Read> Tokenizer<R> {
         Tokenizer {
             inner:    r,
             current:  0,
+            next:     0,
             eof:      false,
+            finished: false,
             location: Location::default(),
+        }
+    }
+
+    fn consume_ignorable(&mut self) -> Result<()> {
+        loop {
+            match (self.current, self.next) {
+                (w, _) if w.is_whitespace() => self.consume_whitespace()?,
+                (b';', b';') => self.consume_line_comment()?,
+                (b'(', b';') => self.consume_block_comment()?,
+                _ => return Ok(()),
+            }
         }
     }
 
@@ -49,17 +64,19 @@ impl<R: Read> Tokenizer<R> {
         if self.location.line == 0 {
             self.location.nextline();
             self.advance()?;
+            self.advance()?;
         }
-        if self.current.is_whitespace() {
-            return self.consume_whitespace();
+
+        self.consume_ignorable()?;
+
+        if self.finished {
+            return Ok(Token::Eof);
         }
+
         match self.current {
             b'"' => self.consume_string().ctx("while reading string literal"),
-            b'(' => self.consume_open_or_block_comment(),
+            b'(' => self.consume_open(),
             b')' => self.consume_close(),
-            b';' => self
-                .consume_line_comment()
-                .ctx("while consuming line comment"),
             b if b.is_idchar() => {
                 let idchars = self.consume_idchars().ctx("while reading next token")?;
                 if idchars[0] == b'$' {
@@ -81,10 +98,14 @@ impl<R: Read> Tokenizer<R> {
     fn advance(&mut self) -> Result<()> {
         let mut buf = [0u8; 1];
         let amount_read = self.inner.read(&mut buf).ctx("reading")?;
-        self.current = buf[0];
+        self.current = self.next;
+        self.next = buf[0];
+        println!("ADVANCED TO {} {}", self.current, self.next);
         if amount_read == 0 {
-            if self.eof {
+            if self.eof && self.finished {
                 return Err(LexError::UnexpectedEof);
+            } else if self.eof && !self.finished {
+                self.finished = true;
             } else {
                 self.eof = true;
             }
@@ -98,55 +119,50 @@ impl<R: Read> Tokenizer<R> {
 
     /// Consume whitespace and return [Token::Whitespace]. Leaves the character
     /// pointer at the next non-whitespace token.
-    fn consume_whitespace(&mut self) -> Result<Token> {
+    fn consume_whitespace(&mut self) -> Result<()> {
         while self.current.is_whitespace() {
             self.advance()?
         }
-        Ok(Token::Whitespace)
+        Ok(())
     }
 
     /// Consume a line comment and return [Token::LineComment]. Leaves the
     /// character position at the start of the next line.
-    fn consume_line_comment(&mut self) -> Result<Token> {
+    fn consume_line_comment(&mut self) -> Result<()> {
         if self.current != b';' {
             return Err(LexError::UnexpectedChar(self.current as char));
         }
         while !matches!(self.current, b'\n' | b'\r') {
             self.advance()?;
         }
-        self.advance()?;
-        Ok(Token::LineComment)
+        Ok(())
     }
 
     /// Consume a block comment, also handling nested comments, returning them
     /// all as one [Token::BlockComment].  Caller should have consumed '(',
     /// and we will be on the ';'. Leaves the character position one past
     /// the final ')'.
-    fn consume_block_comment(&mut self) -> Result<Token> {
+    fn consume_block_comment(&mut self) -> Result<()> {
         let mut depth = 1;
+        // Past the (;
+        self.advance()?;
         self.advance()?;
         while depth > 0 {
-            match self.current {
-                b'(' => {
+            match (self.current, self.next) {
+                (b'(', b';') => {
+                    depth += 1;
                     self.advance()?;
-                    if self.current == b';' {
-                        depth += 1;
-                    }
+                    self.advance()?;
                 }
-                b';' => {
+                (b';', b')') => {
+                    depth -= 1;
                     self.advance()?;
-                    if self.current == b')' {
-                        depth -= 1;
-                        if depth == 0 {
-                            self.advance()?;
-                            break;
-                        }
-                    }
+                    self.advance()?;
                 }
                 _ => self.advance()?,
             }
         }
-        Ok(Token::BlockComment)
+        Ok(())
     }
 
     // Called during consume string to handle escape codes \xx
@@ -209,17 +225,11 @@ impl<R: Read> Tokenizer<R> {
         Ok(result.try_into()?)
     }
 
-    /// Handler for a '(' - if followed by ';, consumes a block comment and
-    /// returns [Token::BlockComment], otherwise just returns [Token::Open].
-    /// Leave the current character at the next character to parse.
-    fn consume_open_or_block_comment(&mut self) -> Result<Token> {
+    /// Handler for a ')', just returns [Token::Open] and advances the current
+    /// character.
+    fn consume_open(&mut self) -> Result<Token> {
         self.advance()?;
-        if self.current == b';' {
-            self.consume_block_comment()
-                .ctx("while parsing block comment")
-        } else {
-            Ok(Token::Open)
-        }
+        Ok(Token::Open)
     }
 
     /// Handler for a ')', just returns [Token::Close] and advances the current
@@ -234,7 +244,7 @@ impl<R: Read> Iterator for Tokenizer<R> {
     type Item = Result<FileToken>;
 
     fn next(&mut self) -> Option<Result<FileToken>> {
-        if self.eof {
+        if self.finished {
             return None;
         }
         let token = self.next_token().map(|t| self.location.token(t));
