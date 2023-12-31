@@ -40,9 +40,6 @@ impl<IC: Into<char>> From<IC> for Sign {
 pub enum Token {
     #[default]
     Start,
-    Whitespace,
-    LineComment,
-    BlockComment,
     Keyword(Id),
     Reserved(String),
     Number(NumToken),

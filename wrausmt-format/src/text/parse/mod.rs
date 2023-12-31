@@ -34,10 +34,7 @@ impl Ignorable for Token {
     /// Returns true if the token is ignorable (whitespace, start, or comment)
     /// by the parser.
     fn ignorable(&self) -> bool {
-        matches!(
-            self,
-            Token::Start | Token::Whitespace | Token::LineComment | Token::BlockComment
-        )
+        matches!(self, Token::Start)
     }
 }
 
