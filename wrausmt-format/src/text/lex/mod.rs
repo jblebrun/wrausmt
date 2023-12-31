@@ -100,7 +100,6 @@ impl<R: Read> Tokenizer<R> {
         let amount_read = self.inner.read(&mut buf).ctx("reading")?;
         self.current = self.next;
         self.next = buf[0];
-        println!("ADVANCED TO {} {}", self.current, self.next);
         if amount_read == 0 {
             if self.eof && self.finished {
                 return Err(LexError::UnexpectedEof);
