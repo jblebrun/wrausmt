@@ -1,5 +1,5 @@
 use {
-    super::{error::ParseErrorKind, Parser, Result},
+    super::{error::ParseErrorKind, pctx, Parser, Result},
     crate::text::{num, token::Token},
     std::io::Read,
     wrausmt_runtime::{
@@ -10,11 +10,13 @@ use {
 
 impl<R: Read> Parser<R> {
     pub fn parse_instructions(&mut self) -> Result<Vec<Instruction<Unresolved>>> {
+        pctx!(self, "parse instructiosn");
         self.zero_or_more_groups(Self::try_instruction)
     }
 
     /// Called at a point where we expect an instruction name keyword
     fn try_plain_instruction(&mut self) -> Result<Option<Instruction<Unresolved>>> {
+        pctx!(self, "try plain instruction");
         let name = match self.peek_keyword()? {
             None => return Ok(None),
             Some(kw) => kw,
@@ -103,6 +105,7 @@ impl<R: Read> Parser<R> {
     }
 
     fn expect_plain_end(&mut self) -> Result<()> {
+        pctx!(self, "expect plain end");
         match self.take_keyword_if(|kw| kw == "end")? {
             Some(_) => {
                 // Could have an ID that should match if. We don't check for now.
@@ -114,6 +117,7 @@ impl<R: Read> Parser<R> {
     }
 
     fn parse_plain_block(&mut self, cnt: Continuation) -> Result<syntax::Operands<Unresolved>> {
+        pctx!(self, "parse plain block");
         let label = self.try_id()?;
         let typeuse = self.parse_type_use(super::module::FParamId::Forbidden)?;
         let instr = self.parse_instructions()?;
@@ -123,6 +127,7 @@ impl<R: Read> Parser<R> {
     }
 
     fn parse_plain_if_operands(&mut self) -> Result<syntax::Operands<Unresolved>> {
+        pctx!(self, "parse plain if operands");
         let label = self.try_id()?;
 
         let typeuse = self.parse_type_use(super::module::FParamId::Forbidden)?;
@@ -149,6 +154,7 @@ impl<R: Read> Parser<R> {
     }
 
     fn try_align_offset_value(&mut self, prefix: &str) -> Result<Option<u32>> {
+        pctx!(self, "try align/offset value");
         if let Some(kw) = self.take_keyword_if(|kw| kw.as_str().starts_with(prefix))? {
             if let Some(nt) = num::maybe_number(&kw.as_str()[prefix.len()..]) {
                 return match nt.as_u32() {
@@ -161,6 +167,7 @@ impl<R: Read> Parser<R> {
     }
 
     fn try_align(&mut self) -> Result<Option<u32>> {
+        pctx!(self, "try align");
         match self.try_align_offset_value("align=")? {
             Some(align) if [1u32, 2u32, 4u32, 8u32, 16u32].contains(&align) => Ok(Some(align)),
             Some(align) => Err(self.err(ParseErrorKind::InvalidAlignment(align))),
@@ -169,16 +176,19 @@ impl<R: Read> Parser<R> {
     }
 
     fn try_offset(&mut self) -> Result<Option<u32>> {
+        pctx!(self, "try offset");
         self.try_align_offset_value("offset=")
     }
 
     pub fn try_plain_instruction_as_single(
         &mut self,
     ) -> Result<Option<Vec<Instruction<Unresolved>>>> {
+        pctx!(self, "try plain instruction as single");
         self.try_plain_instruction().map(|i| i.map(|i| vec![i]))
     }
 
     pub fn try_instruction(&mut self) -> Result<Option<Vec<Instruction<Unresolved>>>> {
+        pctx!(self, "try instruction");
         self.first_of(&[
             Self::try_folded_instruction,
             Self::try_plain_instruction_as_single,
@@ -191,6 +201,7 @@ impl<R: Read> Parser<R> {
         opcode: Opcode,
         cnt: Continuation,
     ) -> Result<Instruction<Unresolved>> {
+        pctx!(self, "parse folded block");
         let label = self.try_id()?;
         let typeuse = self.parse_type_use(super::module::FParamId::Forbidden)?;
         let instr = self.parse_instructions()?;
@@ -204,6 +215,7 @@ impl<R: Read> Parser<R> {
     }
 
     fn parse_folded_if(&mut self) -> Result<Vec<Instruction<Unresolved>>> {
+        pctx!(self, "parse folded if");
         let label = self.try_id()?;
         let typeuse = self.parse_type_use(super::module::FParamId::Forbidden)?;
         let condition = self.zero_or_more_groups(Self::try_folded_instruction)?;
@@ -242,6 +254,7 @@ impl<R: Read> Parser<R> {
     // <folded>* if <label> <bt> <instr>* <else <instr*>>? end
     // (if <label> <bt> <folded>* (then <instr>*) (else <instr>*)?)
     fn try_folded_instruction(&mut self) -> Result<Option<Vec<Instruction<Unresolved>>>> {
+        pctx!(self, "try folded instruction");
         if self.current.token != Token::Open {
             return Ok(None);
         }

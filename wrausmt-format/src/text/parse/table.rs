@@ -1,5 +1,5 @@
 use {
-    super::{error::Result, module::Field, Parser},
+    super::{error::Result, module::Field, pctx, Parser},
     std::io::Read,
     wrausmt_runtime::syntax::{
         types::{RefType, TableType},
@@ -10,12 +10,14 @@ use {
 
 impl<R: Read> Parser<R> {
     fn try_index_as_funcref(&mut self) -> Result<Option<Expr<Unresolved>>> {
+        pctx!(self, "try index as funcref");
         Ok(self.try_index()?.map(|idx| Expr {
             instr: vec![Instruction::reffunc(idx)],
         }))
     }
 
     fn try_elem_item(&mut self) -> Result<Option<Expr<Unresolved>>> {
+        pctx!(self, "try elem item");
         if self.try_expr_start("item")? {
             let instr = self.parse_instructions()?;
             self.expect_close()?;
@@ -30,6 +32,7 @@ impl<R: Read> Parser<R> {
     }
 
     fn read_table_inline_func_elems(&mut self) -> Result<ElemList<Unresolved>> {
+        pctx!(self, "read table inline func elems");
         // ‘(’ ‘𝚝𝚊𝚋𝚕𝚎’  𝚒𝚍?  𝚛𝚎𝚏𝚝𝚢𝚙𝚎  ‘(’ ‘𝚎𝚕𝚎𝚖’  𝚎𝚕𝚎𝚖𝚕𝚒𝚜𝚝 ‘)’
         // ‘(’ ‘𝚝𝚊𝚋𝚕𝚎’  𝚒𝚍?  𝚛𝚎𝚏𝚝𝚢𝚙𝚎  ‘(’ ‘𝚎𝚕𝚎𝚖’  𝑥𝑛:𝚟𝚎𝚌(𝚎𝚡𝚙𝚛) ‘)’  ‘)’
         self.expect_expr_start("elem")?;
@@ -45,6 +48,7 @@ impl<R: Read> Parser<R> {
     }
 
     pub fn try_table_field(&mut self) -> Result<Option<Field<Unresolved>>> {
+        pctx!(self, "try table field");
         if !self.try_expr_start("table")? {
             return Ok(None);
         }
@@ -94,6 +98,7 @@ impl<R: Read> Parser<R> {
     }
 
     fn try_table_use(&mut self) -> Result<Option<TableUse<Unresolved>>> {
+        pctx!(self, "try table use");
         if !self.try_expr_start("table")? {
             return Ok(None);
         }
@@ -107,6 +112,7 @@ impl<R: Read> Parser<R> {
     //           | <instr>
     //           | func <index>*
     fn try_elemlist(&mut self, allow_bare_funcidx: bool) -> Result<ElemList<Unresolved>> {
+        pctx!(self, "try elemlist");
         let _reftype = self.try_reftype()?;
         let items = self.zero_or_more(Self::try_elem_item)?;
         if !items.is_empty() {
