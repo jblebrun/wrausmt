@@ -100,7 +100,9 @@ impl<R: Read> Parser<R> {
                     operands,
                 }))
             }
-            None => Ok(None),
+            None => Err(self.err(ParseErrorKind::UnrecognizedInstruction(
+                name.as_str().into(),
+            ))),
         }
     }
 
@@ -253,7 +255,7 @@ impl<R: Read> Parser<R> {
     // loop <label> <bt> <instr>* end
     // <folded>* if <label> <bt> <instr>* <else <instr*>>? end
     // (if <label> <bt> <folded>* (then <instr>*) (else <instr>*)?)
-    fn try_folded_instruction(&mut self) -> Result<Option<Vec<Instruction<Unresolved>>>> {
+    pub fn try_folded_instruction(&mut self) -> Result<Option<Vec<Instruction<Unresolved>>>> {
         pctx!(self, "try folded instruction");
         if self.current.token != Token::Open {
             return Ok(None);

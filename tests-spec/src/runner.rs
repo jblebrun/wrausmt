@@ -137,7 +137,14 @@ impl MalformedMatch for str {
         match self {
             "alignment" => matches!(parse_err, Some(ParseErrorKind::InvalidAlignment(_))),
             "i32 constant" => matches!(parse_err, Some(ParseErrorKind::ParseIntError(_))),
-            "unexpected token" => matches!(parse_err, Some(ParseErrorKind::UnexpectedToken(_))),
+            "unexpected token" => matches!(
+                parse_err,
+                // This should really only be unexpected token, but blocks end up parsing
+                // out-of-order param/result/type as instructions. One approach to improve this
+                // coudl be to define all of the non-instruction keywords as their own tokens.
+                Some(ParseErrorKind::UnexpectedToken(_))
+                    | Some(ParseErrorKind::UnrecognizedInstruction(_))
+            ),
             _ => false,
         }
     }
