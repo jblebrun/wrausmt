@@ -194,7 +194,7 @@ impl<R: Read> Parser<R> {
         pctx!(self, "try string");
         let result = self.try_wasm_string()?;
         Ok(match result {
-            Some(ws) => Some(ws.into_string().result(self)?),
+            Some(ws) => Some(ws.try_into().result(self)?),
             None => None,
         })
     }

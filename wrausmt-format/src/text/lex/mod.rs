@@ -4,7 +4,7 @@ use {
         num,
         token::{FileToken, Token},
     },
-    crate::{text::string::WasmString, Location},
+    crate::Location,
     chars::CharChecks,
     error::{Result, WithContext},
     std::{io::Read, iter::Iterator},
@@ -205,7 +205,7 @@ impl<R: Read> Tokenizer<R> {
                 }
                 b'"' => {
                     self.advance()?;
-                    let ws = WasmString::from_bytes(result);
+                    let ws = result.as_slice().into();
                     return Ok(Token::String(ws));
                 }
                 _ => result.push(self.current),
