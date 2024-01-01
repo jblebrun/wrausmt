@@ -54,58 +54,39 @@ impl<R: Read> Tokenizer<R> {
             return Ok(Token::Eof);
         }
 
-        // First check: Open or Close expression, or string.
-        let mut bytes = match self.current {
-            b'(' => return self.consume_open(),
-            b')' => return self.consume_close(),
+        match self.current {
+            b'(' => self.consume_open(),
+            b')' => self.consume_close(),
             b'"' => {
                 let bytes = self.consume_string()?;
                 if self.current.is_token_separator() {
-                    return Ok(Token::String(bytes[1..bytes.len() - 1].into()));
+                    Ok(Token::String(bytes[1..bytes.len() - 1].into()))
+                } else {
+                    self.consume_reserved(bytes)
                 }
-                bytes
             }
             _ => {
                 let bytes = self.consume_idchars()?;
                 if self.finished || self.current.is_token_separator() {
-                    if let Some(t) = Self::interpret_idchars(&bytes)? {
-                        return Ok(t);
-                    }
-                }
-                bytes
-            }
-        };
-
-        // Read until next separator. If it's a string, we need to
-        // consume the whole string. We could just consume only idchars,
-        // but this approach lets us report the entire reserved token in the error.
-        while !self.current.is_token_separator() && !self.finished {
-            match self.current {
-                b'"' => bytes.extend(self.consume_string()?),
-                _ => {
-                    bytes.push(self.current);
-                    self.advance()?
+                    self.interpret_idchars(bytes)
+                } else {
+                    self.consume_reserved(bytes)
                 }
             }
         }
-
-        return Ok(Token::Reserved(String::from_utf8_lossy(&bytes).to_string()));
     }
 
-    fn interpret_idchars(bytes: &[u8]) -> Result<Option<Token>> {
-        if let Ok(id) = TryInto::<Id>::try_into(bytes) {
+    fn interpret_idchars(&mut self, bytes: Vec<u8>) -> Result<Token> {
+        if let Ok(id) = TryInto::<Id>::try_into(bytes.as_slice()) {
             if id.as_str().starts_with('$') {
-                Ok(Some(Token::Id(id)))
+                return Ok(Token::Id(id));
             } else if let Some(n) = num::maybe_number(id.as_str()) {
-                Ok(Some(Token::Number(n)))
+                return Ok(Token::Number(n));
             } else if id.as_bytes()[0].is_keyword_start() {
-                Ok(Some(Token::Keyword(id)))
-            } else {
-                Ok(None)
+                return Ok(Token::Keyword(id));
             }
-        } else {
-            Ok(None)
         }
+        self.consume_reserved(bytes)
     }
 
     /// Advance the current character to the next byte of the provided [Read].
@@ -143,6 +124,23 @@ impl<R: Read> Tokenizer<R> {
                 _ => return Ok(()),
             }
         }
+    }
+
+    /// Consume the remaining chars up to the next separator as a
+    /// [Token::Reserved], using the provided vector as the start of the token.
+    fn consume_reserved(&mut self, bytes: Vec<u8>) -> Result<Token> {
+        let mut bytes = bytes;
+        while !self.current.is_token_separator() && !self.finished {
+            match self.current {
+                b'"' => bytes.extend(self.consume_string()?),
+                _ => {
+                    bytes.push(self.current);
+                    self.advance()?
+                }
+            }
+        }
+
+        return Ok(Token::Reserved(String::from_utf8_lossy(&bytes).to_string()));
     }
 
     /// Consume whitespace and return [Token::Whitespace]. Leaves the character
