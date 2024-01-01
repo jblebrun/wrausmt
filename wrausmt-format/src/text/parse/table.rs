@@ -108,6 +108,7 @@ impl<R: Read> Parser<R> {
             let items = self.zero_or_more(Self::try_index_as_funcref)?;
             return Ok(ElemList::func(items));
         }
+
         Ok(ElemList::func(vec![]))
     }
 
@@ -119,6 +120,7 @@ impl<R: Read> Parser<R> {
     // (<instr>) === (item <instr>)
     // tableuse can be omitted, defaulting to 0.
     pub fn try_elem_field(&mut self) -> Result<Option<Field<Unresolved>>> {
+        pctx!(self, "try elem field");
         if !self.try_expr_start("elem")? {
             return Ok(None);
         }

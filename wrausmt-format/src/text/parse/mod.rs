@@ -118,10 +118,16 @@ impl<R: Read> Parser<R> {
     pub fn advance(&mut self) -> Result<Token> {
         let out: Token = std::mem::take(&mut self.current.token);
         self.current = std::mem::take(&mut self.next);
+
         self.next()?;
         while self.next.token.ignorable() {
             self.next()?;
         }
+
+        if let Token::Reserved(s) = &self.next.token {
+            return Err(self.err(ParseErrorKind::UnrecognizedInstruction(s.to_owned())));
+        }
+
         Ok(out)
     }
 

@@ -3,6 +3,7 @@ pub trait CharChecks {
     fn is_keyword_start(&self) -> bool;
     fn is_idchar(&self) -> bool;
     fn as_hex_digit(&self) -> Option<u8>;
+    fn is_token_separator(&self) -> bool;
 }
 
 impl CharChecks for u8 {
@@ -30,5 +31,9 @@ impl CharChecks for u8 {
             b'a'..=b'f' => Some(self - b'a' + 10),
             _ => None,
         }
+    }
+
+    fn is_token_separator(&self) -> bool {
+        self.is_whitespace() || matches!(self, b'(' | b')' | b';')
     }
 }
