@@ -1,7 +1,8 @@
 /// The loader module is the bridge between the format parsing code, and the
 /// runtime, which expects a fully resolved module as input.
 use crate::{
-    binary::error::BinaryParseError, binary::parse_wasm_data, text::parse::error::ParseError,
+    binary::{error::BinaryParseError, parse_wasm_data},
+    text::parse::error::ParseError,
     text::parse_wast_data,
 };
 use {

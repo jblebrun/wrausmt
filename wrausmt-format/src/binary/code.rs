@@ -1,6 +1,6 @@
 use {
     super::{
-        error::{BinaryParseError, Result, WithContext},
+        error::{BinaryParseErrorKind, Result, WithContext},
         leb128::ReadLeb128,
         BinaryParser, EnsureConsumed,
     },
@@ -91,7 +91,7 @@ impl<R: Read> BinaryParser<R> {
         let total: usize = local_records.iter().map(|(cnt, _)| *cnt as usize).sum();
 
         if total > MAX_LOCALS_PER_FUNC {
-            return Err(BinaryParseError::TooManyLocals);
+            return Err(BinaryParseErrorKind::TooManyLocals.into());
         }
 
         let result: Vec<Local> = local_records
@@ -125,7 +125,7 @@ impl<R: Read> BinaryParser<R> {
 
         secondary
             .try_into()
-            .map_err(|_| BinaryParseError::InvalidSecondaryOpcode(secondary))
+            .map_err(|_| BinaryParseErrorKind::InvalidSecondaryOpcode(secondary).into())
     }
 
     /// Returns -1 if EOF or end instruction was reached while parsing an
@@ -149,7 +149,7 @@ impl<R: Read> BinaryParser<R> {
         };
 
         if instruction_data == &BAD_INSTRUCTION {
-            return Err(BinaryParseError::InvalidOpcode(opcode));
+            return Err(BinaryParseErrorKind::InvalidOpcode(opcode).into());
         }
 
         // Handle any additional behavior

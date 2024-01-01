@@ -29,7 +29,7 @@ mod types;
 mod values;
 
 use {
-    crate::binary::{error::BinaryParseError, section::Section},
+    crate::binary::{error::BinaryParseErrorKind, section::Section},
     error::{Result, WithContext},
     std::io::Read,
     wrausmt_runtime::syntax::{FuncField, Index, Module, Resolved, TypeIndex},
@@ -42,7 +42,7 @@ fn resolve_functypes(
     // In a valid module, we will have parsed the func types section already, so
     // we'll have some partially-initialized function items ready.
     if funcs.len() != functypes.len() {
-        return Err(BinaryParseError::FuncSizeMismatch);
+        return Err(BinaryParseErrorKind::FuncSizeMismatch.into());
     }
 
     // Add the functype type to the returned function structs.
@@ -83,7 +83,7 @@ impl<R: Read> BinaryParser<R> {
                 Section::Data(d) => module.data = d,
                 Section::DataCount(c) => {
                     if module.data.len() != c as usize {
-                        return Err(BinaryParseError::DataCountMismatch);
+                        return Err(BinaryParseErrorKind::DataCountMismatch.into());
                     }
                 }
             }
@@ -104,7 +104,7 @@ impl<R: Read> EnsureConsumed<BinaryParser<Take<R>>> for BinaryParser<Take<R>> {
     fn ensure_consumed(&self) -> Result<()> {
         let remaining = self.tokenizer.limit();
         if remaining > 0 {
-            Err(BinaryParseError::ExtraSectionBytes(remaining))
+            Err(BinaryParseErrorKind::ExtraSectionBytes(remaining).into())
         } else {
             Ok(())
         }

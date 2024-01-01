@@ -1,6 +1,6 @@
 use {
     super::{
-        error::{BinaryParseError, Result, WithContext},
+        error::{BinaryParseErrorKind, Result, WithContext},
         BinaryParser,
     },
     std::io::Read,
@@ -35,7 +35,7 @@ impl<R: Read> BinaryParser<R> {
             3 => Ok(ExportDesc::Global(
                 self.read_index_use().ctx("parsing global")?,
             )),
-            _ => Err(BinaryParseError::InvalidExportType(kind)),
+            _ => Err(BinaryParseErrorKind::InvalidExportType(kind).into()),
         }
     }
 

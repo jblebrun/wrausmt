@@ -1,6 +1,6 @@
 use {
     super::{
-        error::{BinaryParseError, Result, WithContext},
+        error::{BinaryParseErrorKind, Result, WithContext},
         BinaryParser,
     },
     std::io::Read,
@@ -32,7 +32,7 @@ impl<R: Read> BinaryParser<R> {
                         1 => ImportDesc::Table(s.read_table_type().ctx("parsing table")?),
                         2 => ImportDesc::Mem(s.read_memory_type().ctx("parsing memory")?),
                         3 => ImportDesc::Global(s.read_global_type().ctx("parsing global")?),
-                        _ => return Err(BinaryParseError::InvalidImportType(kind)),
+                        _ => return Err(BinaryParseErrorKind::InvalidImportType(kind).into()),
                     }
                 },
             })
