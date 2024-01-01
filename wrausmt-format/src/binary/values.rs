@@ -1,6 +1,6 @@
 use {
     super::{
-        error::{BinaryParseError, Result, WithContext},
+        error::{BinaryParseError, BinaryParseErrorKind, Result, WithContext},
         leb128::ReadLeb128,
         BinaryParser,
     },
@@ -16,10 +16,10 @@ macro_rules! read_exact_bytes {
         let mut buf = [0u8; $size];
         $r.read_exact(&mut buf).ctx("reading")?;
         if buf != $expect {
-            Err(BinaryParseError::Unexpected {
+            Err(BinaryParseError::new(BinaryParseErrorKind::Unexpected {
                 got:    Box::new(buf),
                 expect: Box::new($expect),
-            })
+            }))
         } else {
             Ok(())
         }
@@ -71,7 +71,7 @@ impl<R: Read> BinaryParser<R> {
         match bool_byte {
             0 => Ok(false),
             1 => Ok(true),
-            _ => Err(BinaryParseError::InvalidBoolValue(bool_byte)),
+            _ => Err(BinaryParseErrorKind::InvalidBoolValue(bool_byte).into()),
         }
     }
 
@@ -113,7 +113,7 @@ impl Interpret<u8> for ValueType {
             0x7C => Ok(NumType::F64.into()),
             0x70 => Ok(RefType::Func.into()),
             0x6F => Ok(RefType::Extern.into()),
-            _ => Err(BinaryParseError::InvalidValueType(byte)),
+            _ => Err(BinaryParseErrorKind::InvalidValueType(byte).into()),
         }
     }
 }
@@ -123,7 +123,7 @@ impl Interpret<u8> for RefType {
         match byte {
             0x70 => Ok(RefType::Func),
             0x6F => Ok(RefType::Extern),
-            _ => Err(BinaryParseError::InvalidRefType(byte)),
+            _ => Err(BinaryParseErrorKind::InvalidRefType(byte).into()),
         }
     }
 }

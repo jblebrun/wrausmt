@@ -4,7 +4,7 @@ use {
         leb128::ReadLeb128,
         BinaryParser,
     },
-    crate::binary::error::BinaryParseError,
+    crate::binary::error::BinaryParseErrorKind,
     std::io::Read,
     wrausmt_runtime::syntax::{
         self, types::RefType, ElemField, ElemList, Expr, FuncIndex, Id, Index, Instruction,
@@ -59,7 +59,7 @@ impl<R: Read> BinaryParser<R> {
         // read elemkind type, always 0
         let elemkind = self.read_byte()?;
         if elemkind != 0 {
-            return Err(BinaryParseError::InvalidElemKind(elemkind));
+            return Err(BinaryParseErrorKind::InvalidElemKind(elemkind).into());
         }
         Ok(RefType::Func)
     }
