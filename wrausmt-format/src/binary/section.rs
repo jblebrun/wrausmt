@@ -1,33 +1,21 @@
 use {
     super::{
-        code::ReadCode,
-        custom::ReadCustom,
-        data::ReadData,
-        elems::ReadElems,
-        ensure_consumed::EnsureConsumed,
         error::{Result, WithContext},
-        exports::ReadExports,
-        funcs::ReadFuncs,
-        globals::ReadGlobals,
-        imports::ReadImports,
-        mems::ReadMems,
-        start::ReadStart,
-        tables::ReadTables,
-        types::ReadTypes,
-        values::ReadWasmValues,
+        BinaryParser,
     },
+    crate::binary::{leb128::ReadLeb128, EnsureConsumed},
     std::io::Read,
     wrausmt_runtime::syntax,
 };
 
-pub trait SectionReader: ReadWasmValues + ReadCode {
+impl<R: Read> BinaryParser<R> {
     /// Read and return the next section in a binary module being read by a
     /// std::io::Read If the end of the binary module has been reached,
     /// Section::Eof will be returned.
     ///
     /// [Spec]: https://webassembly.github.io/spec/core/binary/modules.html#sections
-    fn read_section(&mut self) -> Result<Section> {
-        let section_num = match self.bytes().next() {
+    pub(in crate::binary) fn read_section(&mut self) -> Result<Section> {
+        let section_num = match self.tokenizer.by_ref().bytes().next() {
             Some(Ok(v)) => v,
             Some(Err(e)) => return Err(e).ctx("parsing section"),
             None => return Ok(Section::Eof),
@@ -38,7 +26,10 @@ pub trait SectionReader: ReadWasmValues + ReadCode {
             "SECTION {} ({:x}) -- LENGTH {}",
             section_num, section_num, len
         );
-        let mut section_reader = self.take(len as u64);
+        let mut section_reader = BinaryParser {
+            tokenizer: self.by_ref().take(len as u64),
+        };
+
         let section = match section_num {
             0 => Section::Custom(section_reader.read_custom_section().ctx("reading custom")?),
             1 => Section::Types(section_reader.read_types_section().ctx("reading types")?),
@@ -84,8 +75,6 @@ pub trait SectionReader: ReadWasmValues + ReadCode {
         Ok(section)
     }
 }
-
-impl<R: ReadWasmValues + ReadCode> SectionReader for R {}
 
 #[derive(Debug)]
 pub enum Section {

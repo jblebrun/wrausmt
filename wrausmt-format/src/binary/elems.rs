@@ -1,10 +1,11 @@
 use {
     super::{
-        code::ReadCode,
         error::{Result, WithContext},
-        values::ReadWasmValues,
+        leb128::ReadLeb128,
+        BinaryParser,
     },
     crate::binary::error::BinaryParseError,
+    std::io::Read,
     wrausmt_runtime::syntax::{
         self, types::RefType, ElemField, ElemList, Expr, FuncIndex, Id, Index, Instruction,
         ModeEntry, Opcode, Resolved, TablePosition, TableUse,
@@ -49,8 +50,8 @@ impl ElemVariant {
 }
 
 /// Read the tables section of a binary module from a std::io::Read.
-pub trait ReadElems: ReadWasmValues + ReadCode {
-    fn read_elems_section(&mut self) -> Result<Vec<ElemField<Resolved>>> {
+impl<R: Read> BinaryParser<R> {
+    pub fn read_elems_section(&mut self) -> Result<Vec<ElemField<Resolved>>> {
         self.read_vec(|_, s| s.read_elem())
     }
 
@@ -144,5 +145,3 @@ pub trait ReadElems: ReadWasmValues + ReadCode {
             .collect()
     }
 }
-
-impl<I: ReadWasmValues + ReadCode> ReadElems for I {}

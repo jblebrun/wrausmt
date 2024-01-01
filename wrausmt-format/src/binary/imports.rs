@@ -1,14 +1,15 @@
 use {
     super::{
         error::{BinaryParseError, Result, WithContext},
-        values::ReadWasmValues,
+        BinaryParser,
     },
+    std::io::Read,
     wrausmt_runtime::syntax::{ImportDesc, ImportField, Resolved},
 };
 
 /// A trait to allow parsing of an imports section from something implementing
 /// std::io::Read.
-pub trait ReadImports: ReadWasmValues {
+impl<R: Read> BinaryParser<R> {
     /// Read the imports section of a module.
     /// importsec := section vec(import)
     /// import := modname:name nm:name d:exportdesc
@@ -17,7 +18,7 @@ pub trait ReadImports: ReadWasmValues {
     /// 0x01 (table) tt:tabletype
     /// 0x02 (memory) mt:memorytype
     /// 0x03 (global) gt:globaltype
-    fn read_imports_section(&mut self) -> Result<Vec<ImportField<Resolved>>> {
+    pub(in crate::binary) fn read_imports_section(&mut self) -> Result<Vec<ImportField<Resolved>>> {
         self.read_vec(|_, s| {
             Ok(ImportField {
                 id:      None,
@@ -38,5 +39,3 @@ pub trait ReadImports: ReadWasmValues {
         })
     }
 }
-
-impl<I: ReadWasmValues> ReadImports for I {}

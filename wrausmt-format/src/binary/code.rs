@@ -1,10 +1,10 @@
 use {
     super::{
-        ensure_consumed::EnsureConsumed,
         error::{BinaryParseError, Result, WithContext},
-        values::ReadWasmValues,
+        leb128::ReadLeb128,
+        BinaryParser, EnsureConsumed,
     },
-    std::io::{Read, Write},
+    std::io::Read,
     wrausmt_runtime::{
         instructions::{instruction_data, op_consts, Operands, BAD_INSTRUCTION},
         syntax::{
@@ -15,13 +15,13 @@ use {
 };
 
 #[derive(Debug)]
-pub enum ExpressionEnd {
+enum ExpressionEnd {
     End,
     Else,
 }
 
 #[derive(Debug)]
-pub enum InstructionOrEnd {
+enum InstructionOrEnd {
     End(ExpressionEnd),
     Instruction(Instruction<Resolved>),
 }
@@ -42,13 +42,17 @@ type LocalCount = u32;
 /// func := (t*)*:vec(locals) e:expr
 /// locals := n:u32 t:type
 /// expr := (instr)*
-pub trait ReadCode: ReadWasmValues {
-    fn read_code_section(&mut self) -> Result<Vec<FuncField<Resolved>>> {
+impl<R: Read> BinaryParser<R> {
+    pub(in crate::binary) fn read_code_section(&mut self) -> Result<Vec<FuncField<Resolved>>> {
         self.read_vec(|_, s| s.read_func().ctx("reading func"))
     }
 
-    fn read_vec_exprs(&mut self) -> Result<Vec<Expr<Resolved>>> {
+    pub(in crate::binary) fn read_vec_exprs(&mut self) -> Result<Vec<Expr<Resolved>>> {
         self.read_vec(|_, s| s.read_expr().ctx("reading expr"))
+    }
+
+    pub(in crate::binary) fn read_expr(&mut self) -> Result<Expr<Resolved>> {
+        self.read_expr_with_end().map(|ee| ee.expr)
     }
 
     /// code := size:u32 code:func
@@ -56,7 +60,9 @@ pub trait ReadCode: ReadWasmValues {
     /// The size is the size in bytes of the entire section, locals + exprs
     fn read_func(&mut self) -> Result<FuncField<Resolved>> {
         let codesize = self.read_u32_leb_128().ctx("parsing func")?;
-        let mut code_reader = self.take(codesize as u64);
+        let mut code_reader = BinaryParser {
+            tokenizer: self.take(codesize as u64),
+        };
         let function = FuncField {
             id:      None,
             exports: vec![],
@@ -65,6 +71,7 @@ pub trait ReadCode: ReadWasmValues {
             locals:  code_reader.read_locals().ctx("parsing locals")?,
             body:    code_reader.read_expr().ctx("parsing code")?,
         };
+
         code_reader.ensure_consumed()?;
         Ok(function)
     }
@@ -95,10 +102,6 @@ pub trait ReadCode: ReadWasmValues {
             .collect();
 
         Ok(result)
-    }
-
-    fn read_expr(&mut self) -> Result<Expr<Resolved>> {
-        self.read_expr_with_end().map(|ee| ee.expr)
     }
 
     /// Read the instructions from one function in the code section.
@@ -233,23 +236,4 @@ pub trait ReadCode: ReadWasmValues {
             operands,
         }))
     }
-
-    /// Clarity method: use to read a single LEB128 argument for an instruction.
-    fn read_u32_arg(&mut self, out: &mut impl Write) -> Result<()> {
-        self.emit_read_u32_leb_128(out).ctx("parsing arg 1/1")
-    }
-
-    /// Read one LEB128 value and emit it to the provided writer.
-    fn emit_read_u32_leb_128(&mut self, out: &mut impl Write) -> Result<()> {
-        out.write(
-            &self
-                .read_u32_leb_128()
-                .ctx("reading leb 128")?
-                .to_le_bytes(),
-        )
-        .ctx("writing leb 128")?;
-        Ok(())
-    }
 }
-
-impl<I: ReadWasmValues> ReadCode for I {}

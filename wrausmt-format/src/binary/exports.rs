@@ -1,14 +1,15 @@
 use {
     super::{
         error::{BinaryParseError, Result, WithContext},
-        values::ReadWasmValues,
+        BinaryParser,
     },
+    std::io::Read,
     wrausmt_runtime::syntax::{ExportDesc, ExportField, Resolved},
 };
 
 /// A trait to allow parsing of an exports section from something implementing
 /// std::io::Read.
-pub trait ReadExports: ReadWasmValues {
+impl<R: Read> BinaryParser<R> {
     /// Read the exports section of a module.
     /// exportsec := section vec(export)
     /// export := nm:name d:exportdesc
@@ -17,7 +18,7 @@ pub trait ReadExports: ReadWasmValues {
     /// 0x01 Table
     /// 0x02 Memory
     /// 0x03 Global
-    fn read_exports_section(&mut self) -> Result<Vec<ExportField<Resolved>>> {
+    pub(in crate::binary) fn read_exports_section(&mut self) -> Result<Vec<ExportField<Resolved>>> {
         self.read_vec(|_, s| s.read_export_field())
     }
 
@@ -45,5 +46,3 @@ pub trait ReadExports: ReadWasmValues {
         })
     }
 }
-
-impl<I: ReadWasmValues> ReadExports for I {}

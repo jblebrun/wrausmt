@@ -1,10 +1,11 @@
+use {self::tokenizer::Tokenizer, std::io::Take};
+
 pub mod error;
 
 mod code;
 mod custom;
 mod data;
 mod elems;
-mod ensure_consumed;
 mod exports;
 mod funcs;
 mod globals;
@@ -30,9 +31,7 @@ mod values;
 use {
     crate::binary::{error::BinaryParseError, section::Section},
     error::{Result, WithContext},
-    section::SectionReader,
     std::io::Read,
-    values::ReadWasmValues,
     wrausmt_runtime::syntax::{FuncField, Index, Module, Resolved, TypeIndex},
 };
 
@@ -53,54 +52,82 @@ fn resolve_functypes(
     Ok(())
 }
 
-/// Inner parse method accepts a mutable module, so that the outer parse method
-/// can return partial module results (useful for debugging).
-fn parse_inner(reader: &mut impl Read, module: &mut Module<Resolved>) -> Result<()> {
-    reader.read_magic()?;
-    reader.read_version()?;
+impl<R: Read> BinaryParser<R> {
+    /// Inner parse method accepts a mutable module, so that the outer parse
+    /// method can return partial module results (useful for debugging).
+    fn parse(&mut self, module: &mut Module<Resolved>) -> Result<()> {
+        self.read_magic()?;
+        self.read_version()?;
 
-    let mut functypes: Vec<Index<Resolved, TypeIndex>> = vec![];
+        let mut functypes: Vec<Index<Resolved, TypeIndex>> = vec![];
 
-    loop {
-        let section = reader.read_section()?;
-        match section {
-            Section::Eof => break,
-            Section::Skip => (),
-            Section::Custom(_) => (),
-            Section::Types(t) => module.types = t,
-            Section::Imports(i) => module.imports = i,
-            Section::Funcs(f) => functypes = f,
-            Section::Tables(t) => module.tables = t,
-            Section::Mems(m) => module.memories = m,
-            Section::Globals(g) => module.globals = g,
-            Section::Exports(e) => module.exports = e,
-            Section::Start(s) => module.start = Some(s),
-            Section::Elems(e) => module.elems = e,
-            Section::Code(c) => {
-                module.funcs = c;
-                resolve_functypes(module.funcs.as_mut(), &functypes)?
-            }
-            Section::Data(d) => module.data = d,
-            Section::DataCount(c) => {
-                if module.data.len() != c as usize {
-                    return Err(BinaryParseError::DataCountMismatch);
+        loop {
+            let section = self.read_section()?;
+            match section {
+                Section::Eof => break,
+                Section::Skip => (),
+                Section::Custom(_) => (),
+                Section::Types(t) => module.types = t,
+                Section::Imports(i) => module.imports = i,
+                Section::Funcs(f) => functypes = f,
+                Section::Tables(t) => module.tables = t,
+                Section::Mems(m) => module.memories = m,
+                Section::Globals(g) => module.globals = g,
+                Section::Exports(e) => module.exports = e,
+                Section::Start(s) => module.start = Some(s),
+                Section::Elems(e) => module.elems = e,
+                Section::Code(c) => {
+                    module.funcs = c;
+                    resolve_functypes(module.funcs.as_mut(), &functypes)?
+                }
+                Section::Data(d) => module.data = d,
+                Section::DataCount(c) => {
+                    if module.data.len() != c as usize {
+                        return Err(BinaryParseError::DataCountMismatch);
+                    }
                 }
             }
         }
+        Ok(())
     }
-    Ok(())
+}
+
+pub struct BinaryParser<R: Read + Sized> {
+    tokenizer: R,
+}
+
+pub trait EnsureConsumed<R> {
+    fn ensure_consumed(&self) -> Result<()>;
+}
+
+impl<R: Read> EnsureConsumed<BinaryParser<Take<R>>> for BinaryParser<Take<R>> {
+    fn ensure_consumed(&self) -> Result<()> {
+        let remaining = self.tokenizer.limit();
+        if remaining > 0 {
+            Err(BinaryParseError::ExtraSectionBytes(remaining))
+        } else {
+            Ok(())
+        }
+    }
+}
+
+impl<R: Read> Read for BinaryParser<R> {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        self.tokenizer.read(buf)
+    }
 }
 
 /// Attempt to interpret the data in the provided std::io:Read as a WASM binary
 /// module. If an error occurs, a ParseError will be returned containing the
 /// portion of the module that was successfully decoded.
 pub fn parse_wasm_data(src: &mut impl Read) -> Result<Module<Resolved>> {
-    let mut tokenizer = tokenizer::Tokenizer::new(src);
+    let tokenizer = Tokenizer::new(src);
+    let mut parser = BinaryParser { tokenizer };
 
     let mut module = Module::default();
 
-    match parse_inner(&mut tokenizer, &mut module) {
+    match parser.parse(&mut module) {
         Ok(()) => Ok(module),
-        Err(e) => Err(e.ctx(format!("at {:?}", tokenizer.location()))),
+        Err(e) => Err(e.ctx(format!("at {:?}", parser.tokenizer.location()))),
     }
 }

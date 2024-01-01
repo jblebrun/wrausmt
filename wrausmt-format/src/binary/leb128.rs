@@ -97,14 +97,17 @@ pub trait ReadLeb128: Read + Sized {
         let bytes = read_leb_128_bytes(self, 32, false)?;
         Ok(parse_leb_128(&bytes) as u32)
     }
+
     fn read_i32_leb_128(&mut self) -> Result<i32> {
         let bytes = read_leb_128_bytes(self, 32, true)?;
         Ok(parse_leb_128(&bytes) as i32)
     }
+
     fn read_u64_leb_128(&mut self) -> Result<u64> {
         let bytes = read_leb_128_bytes(self, 64, false)?;
         Ok(parse_leb_128(&bytes) as u64)
     }
+
     fn read_i64_leb_128(&mut self) -> Result<i64> {
         let bytes = read_leb_128_bytes(self, 64, true)?;
         let uresult = parse_leb_128(&bytes);
@@ -112,8 +115,7 @@ pub trait ReadLeb128: Read + Sized {
     }
 }
 
-impl<I: Read> ReadLeb128 for I {}
-
+impl<R: Read + Sized> ReadLeb128 for R {}
 #[cfg(test)]
 mod test {
     use super::parse_leb_128;
