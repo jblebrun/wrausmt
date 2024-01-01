@@ -268,7 +268,7 @@ impl<R: Read> Parser<R> {
 
         let data = datas
             .into_iter()
-            .flat_map(|d| d.into_boxed_bytes().into_vec())
+            .flat_map::<Vec<u8>, _>(|d| d.into())
             .collect();
 
         self.expect_close()?;
@@ -516,7 +516,7 @@ impl<R: Read> Parser<R> {
 
         let data = datas
             .into_iter()
-            .flat_map(|d| d.into_boxed_bytes().into_vec())
+            .flat_map::<Vec<u8>, _>(|d| d.into())
             .collect();
 
         self.expect_close()?;

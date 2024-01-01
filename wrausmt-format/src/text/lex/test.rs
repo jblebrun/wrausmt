@@ -5,7 +5,6 @@ use {
     },
     crate::text::{
         lex::error::Result,
-        string::WasmString,
         token::{Base, NumToken},
     },
     wrausmt_runtime::syntax::Id,
@@ -33,7 +32,7 @@ fn simple_parse() -> Result<()> {
         Token::Open,
         Token::Keyword(Id::literal("foo")),
         Token::Close,
-        Token::String(WasmString::from_bytes("hello".as_bytes().into())),
+        Token::String("hello".into()),
         Token::Open,
         Token::Number(NumToken::Float(
             Sign::Unspecified,

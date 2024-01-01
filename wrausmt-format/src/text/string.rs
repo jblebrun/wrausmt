@@ -4,21 +4,39 @@ use std::string::FromUtf8Error;
 /// They may contain any arbitrary bytes, not just valid UTF8.
 #[derive(Default, Debug, Clone, PartialEq)]
 pub struct WasmString {
-    pub bytes: Box<[u8]>,
+    bytes: Box<[u8]>,
 }
 
-impl WasmString {
-    pub fn from_bytes(bytes: Vec<u8>) -> WasmString {
+impl From<WasmString> for Box<[u8]> {
+    fn from(value: WasmString) -> Self {
+        value.bytes
+    }
+}
+
+impl From<WasmString> for Vec<u8> {
+    fn from(value: WasmString) -> Self {
+        value.bytes.into_vec()
+    }
+}
+
+impl From<&[u8]> for WasmString {
+    fn from(value: &[u8]) -> Self {
         WasmString {
-            bytes: bytes.into(),
+            bytes: Box::from(value),
         }
     }
+}
 
-    pub fn into_string(self) -> Result<String, FromUtf8Error> {
-        String::from_utf8(self.bytes.to_vec())
+impl From<&str> for WasmString {
+    fn from(value: &str) -> Self {
+        value.as_bytes().into()
     }
+}
 
-    pub fn into_boxed_bytes(self) -> Box<[u8]> {
-        self.bytes
+impl TryFrom<WasmString> for String {
+    type Error = FromUtf8Error;
+
+    fn try_from(value: WasmString) -> Result<Self, Self::Error> {
+        String::from_utf8(value.bytes.to_vec())
     }
 }

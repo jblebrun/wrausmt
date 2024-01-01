@@ -153,7 +153,7 @@ impl MalformedMatch for str {
 fn module_data(strings: Vec<WasmString>) -> Box<[u8]> {
     strings
         .into_iter()
-        .flat_map(|d| d.into_boxed_bytes().into_vec())
+        .flat_map::<Vec<u8>, _>(|d| d.into())
         .collect()
 }
 
