@@ -137,6 +137,7 @@ impl MalformedMatch for str {
         match self {
             "alignment" => matches!(parse_err, Some(ParseErrorKind::InvalidAlignment(_))),
             "i32 constant" => matches!(parse_err, Some(ParseErrorKind::ParseIntError(_))),
+            "unknown label" => matches!(parse_err, Some(ParseErrorKind::ResolveError(_))),
             "unexpected token" => matches!(
                 parse_err,
                 // This should really only be unexpected token, but blocks end up parsing
@@ -145,6 +146,13 @@ impl MalformedMatch for str {
                 Some(ParseErrorKind::UnexpectedToken(_))
                     | Some(ParseErrorKind::UnrecognizedInstruction(_))
             ),
+            _ if self.starts_with("unknown operator") => {
+                matches!(
+                    parse_err,
+                    Some(ParseErrorKind::UnexpectedToken(_))
+                        | Some(ParseErrorKind::UnrecognizedInstruction(_))
+                )
+            }
             _ => false,
         }
     }

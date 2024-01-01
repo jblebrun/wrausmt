@@ -23,6 +23,13 @@ macro_rules! nomalformed {
     };
 }
 
+#[allow(unused_macros)]
+macro_rules! indices {
+    ($($idx:literal),*) => {
+        RunSet::SpecificIndex(vec![$($idx),*])
+    }
+}
+
 spectest!(r#address);
 spectest!(r#align);
 spectest!(r#binary_x_leb128; [nomalformed!(
@@ -101,7 +108,7 @@ spectest!(r#int_literals; [nomalformed!("unknown operator")]);
 spectest!(r#labels);
 spectest!(r#left_x_to_x_right);
 spectest!(r#linking);
-spectest!(r#load; [nomalformed!("unknown operator")]);
+spectest!(r#load);
 spectest!(r#local_get);
 spectest!(r#local_set);
 spectest!(r#local_tee);
@@ -116,7 +123,7 @@ spectest!(r#memory_size);
 spectest!(r#memory_trap);
 spectest!(r#names);
 spectest!(r#nop);
-spectest!(r#obsolete_x_keywords; [nomalformed!("unknown operator")]);
+spectest!(r#obsolete_x_keywords);
 spectest!(r#ref_func);
 spectest!(r#ref_is_null);
 spectest!(r#ref_null);
@@ -125,7 +132,7 @@ spectest!(r#select);
 spectest!(r#skip_x_stack_x_guard_x_page);
 spectest!(r#stack);
 spectest!(r#start; [nomalformed!("multiple start sections")]);
-spectest!(r#store; [nomalformed!("unknown operator")]);
+spectest!(r#store);
 spectest!(r#switch);
 spectest!(r#table_x_sub);
 spectest!(r#table; [nomalformed!("i32 constant out of range", "duplicate table")]);
@@ -136,7 +143,7 @@ spectest!(r#table_grow);
 spectest!(r#table_init);
 spectest!(r#table_set);
 spectest!(r#table_size);
-spectest!(r#token; [nomalformed!("unknown operator", "unknown label")]);
+spectest!(r#token);
 spectest!(r#traps);
 spectest!(r#type);
 spectest!(r#unreachable);

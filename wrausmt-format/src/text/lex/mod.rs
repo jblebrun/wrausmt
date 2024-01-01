@@ -28,15 +28,6 @@ pub struct Tokenizer<R> {
     finished: bool,
     location: Location,
 }
-
-fn keyword_or_reserved(idchars: Id) -> Token {
-    if idchars[0].is_keyword_start() {
-        Token::Keyword(idchars)
-    } else {
-        Token::Reserved(idchars.as_str().to_owned())
-    }
-}
-
 impl<R: Read> Tokenizer<R> {
     pub fn new(r: R) -> Tokenizer<R> {
         Tokenizer {
@@ -49,17 +40,7 @@ impl<R: Read> Tokenizer<R> {
         }
     }
 
-    fn consume_ignorable(&mut self) -> Result<()> {
-        loop {
-            match (self.current, self.next) {
-                (w, _) if w.is_whitespace() => self.consume_whitespace()?,
-                (b';', b';') => self.consume_line_comment()?,
-                (b'(', b';') => self.consume_block_comment()?,
-                _ => return Ok(()),
-            }
-        }
-    }
-
+    // Read the next token bytes into a buffer up to the next separator.
     fn next_token(&mut self) -> Result<Token> {
         if self.location.line == 0 {
             self.location.nextline();
@@ -73,21 +54,57 @@ impl<R: Read> Tokenizer<R> {
             return Ok(Token::Eof);
         }
 
-        match self.current {
-            b'"' => self.consume_string().ctx("while reading string literal"),
-            b'(' => self.consume_open(),
-            b')' => self.consume_close(),
-            b if b.is_idchar() => {
-                let idchars = self.consume_idchars().ctx("while reading next token")?;
-                if idchars[0] == b'$' {
-                    return Ok(Token::Id(idchars));
+        // First check: Open or Close expression, or string.
+        let mut bytes = match self.current {
+            b'(' => return self.consume_open(),
+            b')' => return self.consume_close(),
+            b'"' => {
+                let bytes = self.consume_string()?;
+                if self.current.is_token_separator() {
+                    return Ok(Token::String(bytes[1..bytes.len() - 1].into()));
                 }
-                if let Some(n) = num::maybe_number(idchars.as_str()) {
-                    return Ok(Token::Number(n));
-                }
-                Ok(keyword_or_reserved(idchars))
+                bytes
             }
-            _ => Err(LexError::UnexpectedChar(self.current as char)),
+            _ => {
+                let bytes = self.consume_idchars()?;
+                if self.finished || self.current.is_token_separator() {
+                    if let Some(t) = Self::interpret_idchars(&bytes)? {
+                        return Ok(t);
+                    }
+                }
+                bytes
+            }
+        };
+
+        // Read until next separator. If it's a string, we need to
+        // consume the whole string. We could just consume only idchars,
+        // but this approach lets us report the entire reserved token in the error.
+        while !self.current.is_token_separator() && !self.finished {
+            match self.current {
+                b'"' => bytes.extend(self.consume_string()?),
+                _ => {
+                    bytes.push(self.current);
+                    self.advance()?
+                }
+            }
+        }
+
+        return Ok(Token::Reserved(String::from_utf8_lossy(&bytes).to_string()));
+    }
+
+    fn interpret_idchars(bytes: &[u8]) -> Result<Option<Token>> {
+        if let Ok(id) = TryInto::<Id>::try_into(bytes) {
+            if id.as_str().starts_with('$') {
+                Ok(Some(Token::Id(id)))
+            } else if let Some(n) = num::maybe_number(id.as_str()) {
+                Ok(Some(Token::Number(n)))
+            } else if id.as_bytes()[0].is_keyword_start() {
+                Ok(Some(Token::Keyword(id)))
+            } else {
+                Ok(None)
+            }
+        } else {
+            Ok(None)
         }
     }
 
@@ -114,6 +131,18 @@ impl<R: Read> Tokenizer<R> {
             self.location.nextchar();
         }
         Ok(())
+    }
+
+    /// Consume all contiguous whitespace and comments.
+    fn consume_ignorable(&mut self) -> Result<()> {
+        loop {
+            match (self.current, self.next) {
+                (w, _) if w.is_whitespace() => self.consume_whitespace()?,
+                (b';', b';') => self.consume_line_comment()?,
+                (b'(', b';') => self.consume_block_comment()?,
+                _ => return Ok(()),
+            }
+        }
     }
 
     /// Consume whitespace and return [Token::Whitespace]. Leaves the character
@@ -190,38 +219,36 @@ impl<R: Read> Tokenizer<R> {
         }
     }
 
-    /// Consume a string literal. Leaves the current character one position past
-    /// the final '"'.
-    fn consume_string(&mut self) -> Result<Token> {
-        let mut result: Vec<u8> = vec![];
+    fn consume_idchars(&mut self) -> Result<Vec<u8>> {
+        let mut result: Vec<u8> = Vec::new();
+        while self.current.is_idchar() {
+            result.push(self.current);
+            self.advance()?;
+        }
+        Ok(result)
+    }
 
+    /// Consume a string literal. Leaves the current character one position past
+    /// the final '"'. The quotes are included in the result.
+    fn consume_string(&mut self) -> Result<Vec<u8>> {
+        let mut dest: Vec<u8> = Vec::new();
+        dest.push(self.current);
         loop {
             self.advance()?;
             match self.current {
                 b'\\' => {
                     self.advance()?;
                     let value = self.consume_escape()?;
-                    result.push(value);
+                    dest.push(value);
                 }
                 b'"' => {
+                    dest.push(self.current);
                     self.advance()?;
-                    let ws = result.as_slice().into();
-                    return Ok(Token::String(ws));
+                    return Ok(dest);
                 }
-                _ => result.push(self.current),
+                _ => dest.push(self.current),
             }
         }
-    }
-
-    /// Consume a contiguous block of idchars, which will eventually become
-    /// either: A number, a keyword, an ID, or a reserved token.
-    fn consume_idchars(&mut self) -> Result<Id> {
-        let mut result: Vec<u8> = vec![];
-        while self.current.is_idchar() {
-            result.push(self.current);
-            self.advance()?;
-        }
-        Ok(result.try_into()?)
     }
 
     /// Handler for a ')', just returns [Token::Open] and advances the current
@@ -243,10 +270,9 @@ impl<R: Read> Iterator for Tokenizer<R> {
     type Item = Result<FileToken>;
 
     fn next(&mut self) -> Option<Result<FileToken>> {
-        if self.finished {
-            return None;
+        match self.next_token() {
+            Ok(Token::Eof) => None,
+            t => Some(t.map(|t| self.location.token(t))),
         }
-        let token = self.next_token().map(|t| self.location.token(t));
-        Some(token)
     }
 }
