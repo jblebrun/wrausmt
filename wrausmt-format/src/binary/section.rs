@@ -15,7 +15,7 @@ impl<R: Read> BinaryParser<R> {
     ///
     /// [Spec]: https://webassembly.github.io/spec/core/binary/modules.html#sections
     pub(in crate::binary) fn read_section(&mut self) -> Result<Section> {
-        let section_num = match self.tokenizer.by_ref().bytes().next() {
+        let section_num = match (&mut self.reader).bytes().next() {
             Some(Ok(v)) => v,
             Some(Err(e)) => return Err(e).ctx("parsing section"),
             None => return Ok(Section::Eof),
@@ -26,10 +26,7 @@ impl<R: Read> BinaryParser<R> {
             "SECTION {} ({:x}) -- LENGTH {}",
             section_num, section_num, len
         );
-        let mut section_reader = BinaryParser {
-            tokenizer: self.by_ref().take(len as u64),
-        };
-
+        let mut section_reader = self.limited(len as u64);
         let section = match section_num {
             0 => Section::Custom(section_reader.read_custom_section().ctx("reading custom")?),
             1 => Section::Types(section_reader.read_types_section().ctx("reading types")?),

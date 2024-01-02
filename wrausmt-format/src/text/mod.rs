@@ -6,6 +6,7 @@ use {
 };
 
 pub mod lex;
+pub mod location;
 pub mod num;
 pub mod token;
 
