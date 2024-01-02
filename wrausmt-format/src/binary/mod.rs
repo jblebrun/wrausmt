@@ -1,4 +1,4 @@
-use {self::tokenizer::Tokenizer, std::io::Take};
+use {self::read_with_location::ReadWithLocation, std::io::Take};
 
 pub mod error;
 
@@ -21,10 +21,10 @@ mod imports;
 /// binary parsing task as traits on [std::io::Read].
 pub mod leb128;
 mod mems;
+mod read_with_location;
 mod section;
 mod start;
 mod tables;
-mod tokenizer;
 mod types;
 mod values;
 
@@ -93,7 +93,19 @@ impl<R: Read> BinaryParser<R> {
 }
 
 pub struct BinaryParser<R: Read + Sized> {
-    tokenizer: R,
+    reader: R,
+}
+
+impl<R: Read + Sized> BinaryParser<R> {
+    pub fn new(reader: R) -> Self {
+        BinaryParser { reader }
+    }
+
+    pub fn limited(&mut self, limit: u64) -> BinaryParser<Take<&mut R>> {
+        BinaryParser {
+            reader: self.reader.by_ref().take(limit),
+        }
+    }
 }
 
 pub trait EnsureConsumed<R> {
@@ -102,7 +114,7 @@ pub trait EnsureConsumed<R> {
 
 impl<R: Read> EnsureConsumed<BinaryParser<Take<R>>> for BinaryParser<Take<R>> {
     fn ensure_consumed(&self) -> Result<()> {
-        let remaining = self.tokenizer.limit();
+        let remaining = self.reader.limit();
         if remaining > 0 {
             Err(BinaryParseErrorKind::ExtraSectionBytes(remaining).into())
         } else {
@@ -113,7 +125,7 @@ impl<R: Read> EnsureConsumed<BinaryParser<Take<R>>> for BinaryParser<Take<R>> {
 
 impl<R: Read> Read for BinaryParser<R> {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        self.tokenizer.read(buf)
+        self.reader.read(buf)
     }
 }
 
@@ -121,13 +133,13 @@ impl<R: Read> Read for BinaryParser<R> {
 /// module. If an error occurs, a ParseError will be returned containing the
 /// portion of the module that was successfully decoded.
 pub fn parse_wasm_data(src: &mut impl Read) -> Result<Module<Resolved>> {
-    let tokenizer = Tokenizer::new(src);
-    let mut parser = BinaryParser { tokenizer };
+    let reader = ReadWithLocation::new(src);
+    let mut parser = BinaryParser::new(reader);
 
     let mut module = Module::default();
 
     match parser.parse(&mut module) {
         Ok(()) => Ok(module),
-        Err(e) => Err(e.ctx(format!("at {:?}", parser.tokenizer.location()))),
+        Err(e) => Err(e.ctx(format!("at {:?}", parser.reader.location()))),
     }
 }

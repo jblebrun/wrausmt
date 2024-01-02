@@ -1,10 +1,10 @@
 use {
     self::error::LexError,
     super::{
+        location::Location,
         num,
         token::{FileToken, Token},
     },
-    crate::Location,
     chars::CharChecks,
     error::{Result, WithContext},
     std::{io::Read, iter::Iterator},

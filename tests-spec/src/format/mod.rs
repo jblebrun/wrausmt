@@ -1,15 +1,13 @@
 use {
     std::io::Read,
-    wrausmt_format::{
-        text::{
-            parse::{
-                error::{Result, WithMsg},
-                pctx, Parser,
-            },
-            string::WasmString,
-            token::Token,
+    wrausmt_format::text::{
+        location::Location,
+        parse::{
+            error::{Result, WithMsg},
+            pctx, Parser,
         },
-        Location,
+        string::WasmString,
+        token::Token,
     },
     wrausmt_runtime::{
         runtime::values::{Num, Ref, Value},

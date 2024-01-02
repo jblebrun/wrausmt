@@ -60,9 +60,7 @@ impl<R: Read> BinaryParser<R> {
     /// The size is the size in bytes of the entire section, locals + exprs
     fn read_func(&mut self) -> Result<FuncField<Resolved>> {
         let codesize = self.read_u32_leb_128().ctx("parsing func")?;
-        let mut code_reader = BinaryParser {
-            tokenizer: self.take(codesize as u64),
-        };
+        let mut code_reader = self.limited(codesize as u64);
         let function = FuncField {
             id:      None,
             exports: vec![],
