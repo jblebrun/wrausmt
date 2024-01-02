@@ -1,4 +1,8 @@
-use {super::leb128::LEB128Error, std::string::FromUtf8Error, wrausmt_runtime::syntax::Opcode};
+use {
+    super::{leb128::LEB128Error, BinaryParser},
+    std::{io::Read, string::FromUtf8Error},
+    wrausmt_runtime::syntax::Opcode,
+};
 
 #[derive(Debug)]
 pub enum BinaryParseErrorKind {
@@ -26,53 +30,29 @@ pub enum BinaryParseErrorKind {
 
 #[derive(Debug)]
 pub struct BinaryParseError {
-    kind: BinaryParseErrorKind,
-    msgs: Vec<String>,
+    kind:     BinaryParseErrorKind,
+    msgs:     Vec<String>,
+    location: usize,
 }
 
 impl BinaryParseError {
-    pub fn new(kind: BinaryParseErrorKind) -> Self {
+    pub fn new(kind: BinaryParseErrorKind, msgs: Vec<String>) -> Self {
         Self {
             kind,
-            msgs: Vec::new(),
+            msgs,
+            location: 0,
+        }
+    }
+
+    pub fn with_location(self, location: usize) -> Self {
+        Self {
+            kind: self.kind,
+            msgs: self.msgs,
+            location,
         }
     }
 }
-pub trait WithContext<T> {
-    fn ctx(self, msg: impl Into<String>) -> T;
-}
 
-impl WithContext<BinaryParseError> for BinaryParseErrorKind {
-    fn ctx(self, msg: impl Into<String>) -> BinaryParseError {
-        BinaryParseError {
-            kind: self,
-            msgs: vec![msg.into()],
-        }
-    }
-}
-impl WithContext<BinaryParseError> for BinaryParseError {
-    fn ctx(mut self, msg: impl Into<String>) -> BinaryParseError {
-        self.msgs.push(msg.into());
-        self
-    }
-}
-impl<T> WithContext<Result<T>> for Result<T> {
-    fn ctx(self, msg: impl Into<String>) -> Result<T> {
-        self.map_err(|e| e.ctx(msg))
-    }
-}
-
-impl<T, E: Into<BinaryParseErrorKind>> WithContext<Result<T>> for std::result::Result<T, E> {
-    fn ctx(self, msg: impl Into<String>) -> Result<T> {
-        self.map_err(|e| e.into().ctx(msg))
-    }
-}
-
-impl From<BinaryParseErrorKind> for BinaryParseError {
-    fn from(value: BinaryParseErrorKind) -> Self {
-        BinaryParseError::new(value)
-    }
-}
 impl From<std::io::Error> for BinaryParseErrorKind {
     fn from(e: std::io::Error) -> BinaryParseErrorKind {
         BinaryParseErrorKind::IOError(e)
@@ -85,12 +65,6 @@ impl From<LEB128Error> for BinaryParseErrorKind {
     }
 }
 
-impl From<LEB128Error> for BinaryParseError {
-    fn from(e: LEB128Error) -> BinaryParseError {
-        BinaryParseErrorKind::LEB128Error(e).into()
-    }
-}
-
 impl From<FromUtf8Error> for BinaryParseErrorKind {
     fn from(e: FromUtf8Error) -> BinaryParseErrorKind {
         BinaryParseErrorKind::Utf8Error(e)
@@ -99,10 +73,35 @@ impl From<FromUtf8Error> for BinaryParseErrorKind {
 
 impl std::fmt::Display for BinaryParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}: [{:?}]", self.kind, self.msgs)
+        write!(
+            f,
+            "{:?}: (at {}) [{:?}]",
+            self.kind, self.location, self.msgs
+        )
+    }
+}
+
+pub trait ParseError<T: Read> {
+    fn err(self, parser: BinaryParser<T>) -> BinaryParseError;
+}
+
+pub trait ParseResult<T: Read, RT> {
+    fn result(self, parser: &mut BinaryParser<T>) -> Result<RT>;
+}
+
+impl<T: Read, E: Into<BinaryParseErrorKind>> ParseError<T> for E {
+    fn err(self, parser: BinaryParser<T>) -> BinaryParseError {
+        parser.err(self.into())
+    }
+}
+
+impl<T: Read, RT, E: Into<BinaryParseErrorKind>> ParseResult<T, RT> for std::result::Result<RT, E> {
+    fn result(self, parser: &mut BinaryParser<T>) -> Result<RT> {
+        self.map_err(|e| parser.err(e.into()))
     }
 }
 
 impl std::error::Error for BinaryParseError {}
 
-pub type Result<T> = std::result::Result<T, BinaryParseError>;
+/// Most functions internally work with BinaryParseErrorKind as a type.
+pub(in crate::binary) type Result<T> = std::result::Result<T, BinaryParseError>;

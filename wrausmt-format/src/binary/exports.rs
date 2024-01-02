@@ -1,8 +1,9 @@
 use {
     super::{
-        error::{BinaryParseErrorKind, Result, WithContext},
+        error::{BinaryParseErrorKind, Result},
         BinaryParser,
     },
+    crate::pctx,
     std::io::Read,
     wrausmt_runtime::syntax::{ExportDesc, ExportField, Resolved},
 };
@@ -23,25 +24,21 @@ impl<R: Read> BinaryParser<R> {
     }
 
     fn read_export_desc(&mut self) -> Result<ExportDesc<Resolved>> {
-        let kind = self.read_byte().ctx("parsing kind")?;
+        pctx!(self, "read exprt desc");
+        let kind = self.read_byte()?;
         match kind {
-            0 => Ok(ExportDesc::Func(self.read_index_use().ctx("parsing func")?)),
-            1 => Ok(ExportDesc::Table(
-                self.read_index_use().ctx("parsing table")?,
-            )),
-            2 => Ok(ExportDesc::Mem(
-                self.read_index_use().ctx("parsing memory")?,
-            )),
-            3 => Ok(ExportDesc::Global(
-                self.read_index_use().ctx("parsing global")?,
-            )),
-            _ => Err(BinaryParseErrorKind::InvalidExportType(kind).into()),
+            0 => Ok(ExportDesc::Func(self.read_index_use()?)),
+            1 => Ok(ExportDesc::Table(self.read_index_use()?)),
+            2 => Ok(ExportDesc::Mem(self.read_index_use()?)),
+            3 => Ok(ExportDesc::Global(self.read_index_use()?)),
+            _ => Err(self.err(BinaryParseErrorKind::InvalidExportType(kind))),
         }
     }
 
     fn read_export_field(&mut self) -> Result<ExportField<Resolved>> {
+        pctx!(self, "read exprt field");
         Ok(ExportField {
-            name:       self.read_name().ctx("parsing name")?,
+            name:       self.read_name()?,
             exportdesc: self.read_export_desc()?,
         })
     }

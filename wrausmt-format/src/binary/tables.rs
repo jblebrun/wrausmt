@@ -1,8 +1,6 @@
 use {
-    super::{
-        error::{Result, WithContext},
-        BinaryParser,
-    },
+    super::{error::Result, BinaryParser},
+    crate::pctx,
     std::io::Read,
     wrausmt_runtime::syntax::TableField,
 };
@@ -13,10 +11,12 @@ impl<R: Read> BinaryParser<R> {
     /// The values here don't correspond to a real module section, instead they
     /// correlate with the rest of the function data in the code section.
     pub(in crate::binary) fn read_tables_section(&mut self) -> Result<Vec<TableField>> {
-        self.read_vec(|_, s| s.read_table_field().ctx("read table type"))
+        pctx!(self, "read tables section");
+        self.read_vec(|_, s| s.read_table_field())
     }
 
     fn read_table_field(&mut self) -> Result<TableField> {
+        pctx!(self, "read table field");
         Ok(TableField {
             id:        None,
             tabletype: self.read_table_type()?,

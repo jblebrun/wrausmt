@@ -1,9 +1,6 @@
 use {
-    super::{
-        error::{Result, WithContext},
-        leb128::ReadLeb128,
-        BinaryParser,
-    },
+    super::{error::Result, leb128::ReadLeb128, BinaryParser},
+    crate::{binary::error::ParseResult, pctx},
     std::io::Read,
     wrausmt_runtime::syntax::{
         types::{GlobalType, Limits, MemType, TableType, ValueType},
@@ -13,23 +10,26 @@ use {
 
 impl<R: Read> BinaryParser<R> {
     pub fn read_types_section(&mut self) -> Result<Vec<TypeField>> {
+        pctx!(self, "read types section");
         self.read_vec(|_, s| {
-            s.read_specific_byte(0x60).ctx("checking type byte")?;
+            s.read_specific_byte(0x60)?;
             Ok(TypeField {
                 id:           None,
                 functiontype: FunctionType {
-                    params:  s.read_fparam().ctx("parsing params")?,
-                    results: s.read_fresult().ctx("parsing result")?,
+                    params:  s.read_fparam()?,
+                    results: s.read_fresult()?,
                 },
             })
         })
     }
 
     fn read_result_type(&mut self) -> Result<Vec<ValueType>> {
+        pctx!(self, "read result type");
         self.read_vec(|_, s| s.read_value_type())
     }
 
     fn read_fparam(&mut self) -> Result<Vec<FParam>> {
+        pctx!(self, "read fparam type");
         Ok(self
             .read_result_type()?
             .into_iter()
@@ -41,6 +41,7 @@ impl<R: Read> BinaryParser<R> {
     }
 
     fn read_fresult(&mut self) -> Result<Vec<FResult>> {
+        pctx!(self, "read fresult type");
         Ok(self
             .read_result_type()?
             .into_iter()
@@ -49,6 +50,7 @@ impl<R: Read> BinaryParser<R> {
     }
 
     pub(in crate::binary) fn read_type_use(&mut self) -> Result<TypeUse<Resolved>> {
+        pctx!(self, "read type use");
         Ok(TypeUse {
             typeidx:      Some(self.read_index_use()?),
             functiontype: FunctionType::default(),
@@ -56,31 +58,35 @@ impl<R: Read> BinaryParser<R> {
     }
 
     pub(in crate::binary) fn read_memory_type(&mut self) -> Result<MemType> {
+        pctx!(self, "read memory type");
         Ok(MemType {
-            limits: self.read_limits().ctx("parsing limits")?,
+            limits: self.read_limits()?,
         })
     }
 
     pub(in crate::binary) fn read_table_type(&mut self) -> Result<TableType> {
+        pctx!(self, "read table type");
         Ok(TableType {
-            reftype: self.read_ref_type().ctx("parsing reftype")?,
-            limits:  self.read_limits().ctx("parsing limits")?,
+            reftype: self.read_ref_type()?,
+            limits:  self.read_limits()?,
         })
     }
 
     pub(in crate::binary) fn read_global_type(&mut self) -> Result<GlobalType> {
+        pctx!(self, "read global type");
         Ok(GlobalType {
-            valtype: self.read_value_type().ctx("parsing value")?,
-            mutable: self.read_bool().ctx("parsing mutable")?,
+            valtype: self.read_value_type()?,
+            mutable: self.read_bool()?,
         })
     }
 
     fn read_limits(&mut self) -> Result<Limits> {
-        let has_upper = self.read_bool().ctx("parsing has upper")?;
+        pctx!(self, "read limits");
+        let has_upper = self.read_bool()?;
         Ok(Limits {
-            lower: self.read_u32_leb_128().ctx("parsing lower")?,
+            lower: self.read_u32_leb_128().result(self)?,
             upper: if has_upper {
-                Some(self.read_u32_leb_128().ctx("parsing upper")?)
+                Some(self.read_u32_leb_128().result(self)?)
             } else {
                 None
             },

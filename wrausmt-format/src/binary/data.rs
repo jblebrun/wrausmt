@@ -1,9 +1,6 @@
 use {
-    super::{
-        error::{Result, WithContext},
-        leb128::ReadLeb128,
-        BinaryParser,
-    },
+    super::{error::Result, leb128::ReadLeb128, BinaryParser},
+    crate::{binary::error::ParseResult, pctx},
     std::io::Read,
     wrausmt_runtime::syntax::{DataField, DataInit, Index, Resolved},
 };
@@ -14,27 +11,31 @@ impl<R: Read> BinaryParser<R> {
     /// The values here don't correspond to a real module section, instead they
     /// correlate with the rest of the function data in the code section.
     pub(in crate::binary) fn read_data_section(&mut self) -> Result<Vec<DataField<Resolved>>> {
+        pctx!(self, "read data section");
         self.read_vec(|_, s| s.read_data_field())
     }
 
     pub(in crate::binary) fn read_data_count_section(&mut self) -> Result<u32> {
-        self.read_u32_leb_128().ctx("parsing data count")
+        pctx!(self, "read data count section");
+        let r = self.read_u32_leb_128().result(self)?;
+        Ok(r)
     }
 
     fn read_data_field(&mut self) -> Result<DataField<Resolved>> {
-        let variants = self.read_u32_leb_128().ctx("parsing item count")?;
+        pctx!(self, "read data field");
+        let variants = self.read_u32_leb_128().result(self)?;
         let active = (variants & 0x01) == 0;
         let active_memidx = (variants & 0x02) != 0;
 
         let init = if active {
             let memidx = if active_memidx {
-                self.read_index_use().ctx("parsing memidx")?
+                self.read_index_use()?
             } else {
                 Index::unnamed(0)
             };
             Some(DataInit {
                 memidx,
-                offset: self.read_expr().ctx("reading init offset")?,
+                offset: self.read_expr()?,
             })
         } else {
             None
