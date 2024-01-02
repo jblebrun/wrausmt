@@ -1,10 +1,9 @@
 use {
-    super::{
-        error::{Result, WithContext},
-        leb128::ReadLeb128,
-        BinaryParser,
+    super::{error::Result, leb128::ReadLeb128, BinaryParser},
+    crate::{
+        binary::error::{BinaryParseErrorKind, ParseResult},
+        pctx,
     },
-    crate::binary::error::BinaryParseErrorKind,
     std::io::Read,
     wrausmt_runtime::syntax::{
         self, types::RefType, ElemField, ElemList, Expr, FuncIndex, Id, Index, Instruction,
@@ -52,19 +51,22 @@ impl ElemVariant {
 /// Read the tables section of a binary module from a std::io::Read.
 impl<R: Read> BinaryParser<R> {
     pub fn read_elems_section(&mut self) -> Result<Vec<ElemField<Resolved>>> {
+        pctx!(self, "read elems section");
         self.read_vec(|_, s| s.read_elem())
     }
 
     fn read_elem_kind(&mut self) -> Result<RefType> {
+        pctx!(self, "read elem kind");
         // read elemkind type, always 0
         let elemkind = self.read_byte()?;
         if elemkind != 0 {
-            return Err(BinaryParseErrorKind::InvalidElemKind(elemkind).into());
+            return Err(self.err(BinaryParseErrorKind::InvalidElemKind(elemkind)));
         }
         Ok(RefType::Func)
     }
 
     fn read_init_funcs(&mut self) -> Result<Vec<Expr<Resolved>>> {
+        pctx!(self, "read init funcs");
         Ok(self
             .read_vec_funcidx()?
             .into_iter()
@@ -79,7 +81,8 @@ impl<R: Read> BinaryParser<R> {
     }
 
     fn read_elem(&mut self) -> Result<ElemField<Resolved>> {
-        let variants = ElemVariant::new(self.read_u32_leb_128()?);
+        pctx!(self, "read elem");
+        let variants = ElemVariant::new(self.read_u32_leb_128().result(self)?);
 
         let tidx = if variants.has_tableidx() {
             // read table idx
@@ -90,7 +93,7 @@ impl<R: Read> BinaryParser<R> {
 
         let offset_expr = if variants.active() {
             // read offset expr
-            self.read_expr().ctx("read offset expr")?
+            self.read_expr()?
         } else {
             Expr::default()
         };
@@ -98,14 +101,14 @@ impl<R: Read> BinaryParser<R> {
         let (typekind, init_expr) = if variants.use_initexpr() {
             let reftype = if variants.read_eltypekind() {
                 // read element kind
-                self.read_ref_type().ctx("parsing ref type")?
+                self.read_ref_type()?
             } else {
                 RefType::Func
             };
             (reftype, self.read_vec_exprs()?)
         } else {
             let elemkind = if variants.read_eltypekind() {
-                self.read_elem_kind().ctx("parsing elem kind")?
+                self.read_elem_kind()?
             } else {
                 RefType::Func
             };
@@ -139,9 +142,8 @@ impl<R: Read> BinaryParser<R> {
     }
 
     fn read_vec_funcidx(&mut self) -> Result<Vec<Index<Resolved, FuncIndex>>> {
-        let items = self.read_u32_leb_128().ctx("parsing item count")?;
-        (0..items)
-            .map(|_| self.read_index_use().ctx("reading funcidx"))
-            .collect()
+        pctx!(self, "read vec funcidx");
+        let items = self.read_u32_leb_128().result(self)?;
+        (0..items).map(|_| self.read_index_use()).collect()
     }
 }

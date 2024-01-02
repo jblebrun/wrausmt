@@ -1,9 +1,10 @@
 use {
     super::{
-        error::{BinaryParseErrorKind, Result, WithContext},
+        error::{BinaryParseErrorKind, Result},
         leb128::ReadLeb128,
         BinaryParser, EnsureConsumed,
     },
+    crate::{binary::error::ParseResult, pctx},
     std::io::Read,
     wrausmt_runtime::{
         instructions::{instruction_data, op_consts, Operands, BAD_INSTRUCTION},
@@ -44,11 +45,13 @@ type LocalCount = u32;
 /// expr := (instr)*
 impl<R: Read> BinaryParser<R> {
     pub(in crate::binary) fn read_code_section(&mut self) -> Result<Vec<FuncField<Resolved>>> {
-        self.read_vec(|_, s| s.read_func().ctx("reading func"))
+        pctx!(self, "read code section");
+        self.read_vec(|_, s| s.read_func())
     }
 
     pub(in crate::binary) fn read_vec_exprs(&mut self) -> Result<Vec<Expr<Resolved>>> {
-        self.read_vec(|_, s| s.read_expr().ctx("reading expr"))
+        pctx!(self, "read vec exprs");
+        self.read_vec(|_, s| s.read_expr())
     }
 
     pub(in crate::binary) fn read_expr(&mut self) -> Result<Expr<Resolved>> {
@@ -59,15 +62,16 @@ impl<R: Read> BinaryParser<R> {
     /// func := (t*)*:vec(locals) e:expr
     /// The size is the size in bytes of the entire section, locals + exprs
     fn read_func(&mut self) -> Result<FuncField<Resolved>> {
-        let codesize = self.read_u32_leb_128().ctx("parsing func")?;
+        pctx!(self, "read func");
+        let codesize = self.read_u32_leb_128().result(self)?;
         let mut code_reader = self.limited(codesize as u64);
         let function = FuncField {
             id:      None,
             exports: vec![],
             // The types are parsed earlier and will be set on the returned values.
             typeuse: TypeUse::default(),
-            locals:  code_reader.read_locals().ctx("parsing locals")?,
-            body:    code_reader.read_expr().ctx("parsing code")?,
+            locals:  code_reader.read_locals()?,
+            body:    code_reader.read_expr()?,
         };
 
         code_reader.ensure_consumed()?;
@@ -75,21 +79,23 @@ impl<R: Read> BinaryParser<R> {
     }
 
     fn read_local_record(&mut self) -> Result<(LocalCount, ValueType)> {
+        pctx!(self, "read local record");
         Ok((
-            self.read_u32_leb_128().ctx("parsing type rep")?,
-            self.read_value_type().ctx("parsing value type")?,
+            self.read_u32_leb_128().result(self)?,
+            self.read_value_type()?,
         ))
     }
 
     /// Read the locals description for the function.
     /// locals := n:u32 t:type
     fn read_locals(&mut self) -> Result<Vec<Local>> {
+        pctx!(self, "read locals");
         let local_records = self.read_vec(|_, s| s.read_local_record())?;
 
         let total: usize = local_records.iter().map(|(cnt, _)| *cnt as usize).sum();
 
         if total > MAX_LOCALS_PER_FUNC {
-            return Err(BinaryParseErrorKind::TooManyLocals.into());
+            return Err(self.err(BinaryParseErrorKind::TooManyLocals));
         }
 
         let result: Vec<Local> = local_records
@@ -108,6 +114,7 @@ impl<R: Read> BinaryParser<R> {
     /// converted to little-endian format.
     /// expr := (instr)* 0x0B
     fn read_expr_with_end(&mut self) -> Result<ExpressionWithEnd> {
+        pctx!(self, "read expr with end");
         let mut expr = Expr::default();
         let end = loop {
             match self.read_inst()? {
@@ -119,11 +126,13 @@ impl<R: Read> BinaryParser<R> {
     }
 
     fn read_secondary_opcode(&mut self) -> Result<u8> {
-        let secondary = self.read_u32_leb_128().ctx("parsing secondary opcode")?;
+        pctx!(self, "read secondary opcode");
+        let secondary = self.read_u32_leb_128().result(self)?;
 
         secondary
             .try_into()
-            .map_err(|_| BinaryParseErrorKind::InvalidSecondaryOpcode(secondary).into())
+            .map_err(|_| BinaryParseErrorKind::InvalidSecondaryOpcode(secondary))
+            .result(self)
     }
 
     /// Returns -1 if EOF or end instruction was reached while parsing an
@@ -131,8 +140,9 @@ impl<R: Read> BinaryParser<R> {
     /// Returns 0 if a normal instruction was parsed.
     /// Returns Err result otherwise.
     fn read_inst(&mut self) -> Result<InstructionOrEnd> {
+        pctx!(self, "read inst");
         let mut opcode_buf = [0u8; 1];
-        self.read_exact(&mut opcode_buf).ctx("parsing opcode")?;
+        self.read_exact(&mut opcode_buf).result(self)?;
 
         let opcode = match opcode_buf[0] {
             op_consts::EXTENDED_PREFIX => Opcode::Extended(self.read_secondary_opcode()?),
@@ -147,7 +157,7 @@ impl<R: Read> BinaryParser<R> {
         };
 
         if instruction_data == &BAD_INSTRUCTION {
-            return Err(BinaryParseErrorKind::InvalidOpcode(opcode).into());
+            return Err(self.err(BinaryParseErrorKind::InvalidOpcode(opcode)));
         }
 
         // Handle any additional behavior
@@ -166,23 +176,23 @@ impl<R: Read> BinaryParser<R> {
                 idxs.push(last);
                 syntax::Operands::BrTable(idxs)
             }
-            Operands::I32 => syntax::Operands::I32(self.read_i32_leb_128().ctx("i32")? as u32),
-            Operands::I64 => syntax::Operands::I64(self.read_i64_leb_128().ctx("i64")? as u64),
+            Operands::I32 => syntax::Operands::I32(self.read_i32_leb_128().result(self)? as u32),
+            Operands::I64 => syntax::Operands::I64(self.read_i64_leb_128().result(self)? as u64),
             Operands::F32 => {
                 let mut buf = [0u8; 4];
-                self.read_exact(&mut buf).ctx("reading f32 byte")?;
+                self.read_exact(&mut buf).result(self)?;
                 let val = f32::from_bits(u32::from_le_bytes(buf));
                 syntax::Operands::F32(val)
             }
             Operands::F64 => {
                 let mut buf = [0u8; 8];
-                self.read_exact(&mut buf).ctx("reading f64 byte")?;
+                self.read_exact(&mut buf).result(self)?;
                 let val = f64::from_bits(u64::from_le_bytes(buf));
                 syntax::Operands::F64(val)
             }
             Operands::Memargs => syntax::Operands::Memargs(
-                self.read_u32_leb_128().ctx("memarg1")?,
-                self.read_u32_leb_128().ctx("memarg2")?,
+                self.read_u32_leb_128().result(self)?,
+                self.read_u32_leb_128().result(self)?,
             ),
             Operands::MemorySize
             | Operands::MemoryGrow

@@ -1,9 +1,9 @@
 use {
-    super::{
-        error::{Result, WithContext},
-        BinaryParser,
+    super::{error::Result, BinaryParser},
+    crate::{
+        binary::{error::ParseResult, leb128::ReadLeb128, EnsureConsumed},
+        pctx,
     },
-    crate::binary::{leb128::ReadLeb128, EnsureConsumed},
     std::io::Read,
     wrausmt_runtime::syntax,
 };
@@ -15,59 +15,36 @@ impl<R: Read> BinaryParser<R> {
     ///
     /// [Spec]: https://webassembly.github.io/spec/core/binary/modules.html#sections
     pub(in crate::binary) fn read_section(&mut self) -> Result<Section> {
+        pctx!(self, "read section");
         let section_num = match (&mut self.reader).bytes().next() {
             Some(Ok(v)) => v,
-            Some(Err(e)) => return Err(e).ctx("parsing section"),
+            Some(Err(e)) => return Err(e).result(self)?,
             None => return Ok(Section::Eof),
         };
 
-        let len = self.read_u32_leb_128().ctx("parsing length")?;
-        println!(
-            "SECTION {} ({:x}) -- LENGTH {}",
-            section_num, section_num, len
-        );
+        let len = self.read_u32_leb_128().result(self)?;
         let mut section_reader = self.limited(len as u64);
         let section = match section_num {
-            0 => Section::Custom(section_reader.read_custom_section().ctx("reading custom")?),
-            1 => Section::Types(section_reader.read_types_section().ctx("reading types")?),
-            2 => Section::Imports(
-                section_reader
-                    .read_imports_section()
-                    .ctx("reading imports")?,
-            ),
-            3 => Section::Funcs(section_reader.read_funcs_section().ctx("reading funcs")?),
-            4 => Section::Tables(section_reader.read_tables_section().ctx("reading tables")?),
-            5 => Section::Mems(section_reader.read_mems_section().ctx("reading mems")?),
-            6 => Section::Globals(
-                section_reader
-                    .read_globals_section()
-                    .ctx("reading globals")?,
-            ),
-            7 => Section::Exports(
-                section_reader
-                    .read_exports_section()
-                    .ctx("reading exports")?,
-            ),
-            8 => Section::Start(section_reader.read_start_section().ctx("reading start")?),
-            9 => Section::Elems(section_reader.read_elems_section().ctx("reading elems")?),
-            10 => Section::Code(section_reader.read_code_section().ctx("reading code")?),
-            11 => Section::Data(section_reader.read_data_section().ctx("reading data")?),
-            12 => Section::DataCount(
-                section_reader
-                    .read_data_count_section()
-                    .ctx("reading data count")?,
-            ),
+            0 => Section::Custom(section_reader.read_custom_section()?),
+            1 => Section::Types(section_reader.read_types_section()?),
+            2 => Section::Imports(section_reader.read_imports_section()?),
+            3 => Section::Funcs(section_reader.read_funcs_section()?),
+            4 => Section::Tables(section_reader.read_tables_section()?),
+            5 => Section::Mems(section_reader.read_mems_section()?),
+            6 => Section::Globals(section_reader.read_globals_section()?),
+            7 => Section::Exports(section_reader.read_exports_section()?),
+            8 => Section::Start(section_reader.read_start_section()?),
+            9 => Section::Elems(section_reader.read_elems_section()?),
+            10 => Section::Code(section_reader.read_code_section()?),
+            11 => Section::Data(section_reader.read_data_section()?),
+            12 => Section::DataCount(section_reader.read_data_count_section()?),
             _ => {
-                section_reader
-                    .read_custom_section()
-                    .ctx("while skipping section")?;
+                section_reader.read_custom_section()?;
                 Section::Skip
             }
         };
 
-        section_reader
-            .ensure_consumed()
-            .ctx(format!("Section {}", section_num))?;
+        section_reader.ensure_consumed()?;
 
         Ok(section)
     }

@@ -1,5 +1,6 @@
 use {
     super::{error::Result, BinaryParser},
+    crate::pctx,
     std::io::Read,
     wrausmt_runtime::syntax::{Resolved, StartField},
 };
@@ -10,6 +11,7 @@ impl<R: Read> BinaryParser<R> {
     /// The values here don't correspond to a real module section, instead they
     /// correlate with the rest of the function data in the code section.
     pub(in crate::binary) fn read_start_section(&mut self) -> Result<StartField<Resolved>> {
+        pctx!(self, "read start");
         Ok(StartField {
             idx: self.read_index_use()?,
         })

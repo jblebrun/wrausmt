@@ -1,8 +1,9 @@
 use {
     super::{
-        error::{BinaryParseErrorKind, Result, WithContext},
+        error::{BinaryParseErrorKind, Result},
         BinaryParser,
     },
+    crate::pctx,
     std::io::Read,
     wrausmt_runtime::syntax::{ImportDesc, ImportField, Resolved},
 };
@@ -19,20 +20,21 @@ impl<R: Read> BinaryParser<R> {
     /// 0x02 (memory) mt:memorytype
     /// 0x03 (global) gt:globaltype
     pub(in crate::binary) fn read_imports_section(&mut self) -> Result<Vec<ImportField<Resolved>>> {
+        pctx!(self, "read imports section");
         self.read_vec(|_, s| {
             Ok(ImportField {
                 id:      None,
-                modname: s.read_name().ctx("parsing module name")?,
-                name:    s.read_name().ctx("parsing name")?,
+                modname: s.read_name()?,
+                name:    s.read_name()?,
                 exports: vec![],
                 desc:    {
-                    let kind = s.read_byte().ctx("parsing kind")?;
+                    let kind = s.read_byte()?;
                     match kind {
-                        0 => ImportDesc::Func(s.read_type_use().ctx("parsing func")?),
-                        1 => ImportDesc::Table(s.read_table_type().ctx("parsing table")?),
-                        2 => ImportDesc::Mem(s.read_memory_type().ctx("parsing memory")?),
-                        3 => ImportDesc::Global(s.read_global_type().ctx("parsing global")?),
-                        _ => return Err(BinaryParseErrorKind::InvalidImportType(kind).into()),
+                        0 => ImportDesc::Func(s.read_type_use()?),
+                        1 => ImportDesc::Table(s.read_table_type()?),
+                        2 => ImportDesc::Mem(s.read_memory_type()?),
+                        3 => ImportDesc::Global(s.read_global_type()?),
+                        _ => return Err(s.err(BinaryParseErrorKind::InvalidImportType(kind))),
                     }
                 },
             })
