@@ -24,13 +24,14 @@ pub enum BinaryParseErrorKind {
     InvalidRefType(u8),
     InvalidExportType(u8),
     InvalidImportType(u8),
+    InvalidFuncType(u8),
     ExtraSectionBytes(u64),
     TooManyLocals,
 }
 
 #[derive(Debug)]
 pub struct BinaryParseError {
-    kind:     BinaryParseErrorKind,
+    pub kind: BinaryParseErrorKind,
     msgs:     Vec<String>,
     location: usize,
 }

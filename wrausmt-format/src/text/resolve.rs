@@ -427,6 +427,7 @@ pub trait ResolveModule {
 impl ResolveModule for Module<Unresolved> {
     fn resolve(mut self, mi: ModuleIdentifiers) -> Result<Module<Resolved>> {
         let rc = ResolutionContext::new(mi);
+        let customs = self.customs;
         let types = &mut self.types;
         let funcs = resolve_all!(self.funcs, rc, types)?;
         let imports = resolve_all!(self.imports, rc, types)?;
@@ -438,6 +439,7 @@ impl ResolveModule for Module<Unresolved> {
 
         Ok(Module {
             id: self.id,
+            customs,
             types: self.types,
             funcs,
             tables: self.tables,

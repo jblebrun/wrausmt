@@ -54,7 +54,7 @@ impl<R: Read> BinaryParser<R> {
 pub enum Section {
     Eof,
     Skip,
-    Custom(Box<[u8]>),
+    Custom(syntax::CustomField),
     Types(Vec<syntax::TypeField>),
     Imports(Vec<syntax::ImportField<syntax::Resolved>>),
     Funcs(Vec<syntax::Index<syntax::Resolved, syntax::TypeIndex>>),

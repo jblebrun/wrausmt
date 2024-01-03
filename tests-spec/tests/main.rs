@@ -32,10 +32,7 @@ macro_rules! indices {
 
 spectest!(r#address);
 spectest!(r#align);
-spectest!(r#binary_x_leb128; [nomalformed!(
-    "integer representation too long",
-    "integer too large"
-)]);
+spectest!(r#binary_x_leb128);
 spectest!(r#binary; [nomalformed!(
     "magic header not detected",
     "unexpected end",
@@ -54,7 +51,6 @@ spectest!(r#binary; [nomalformed!(
     "malformed reference type",
     "length out of bounds",
     "malformed import kind",
-    "integer representation too long",
     "unexpected content after last section"
 )]);
 spectest!(r#block; [nomalformed!("inline function type", "mismatching label")]);

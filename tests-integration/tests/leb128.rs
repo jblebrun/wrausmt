@@ -97,7 +97,7 @@ fn test_leb128_u64() -> Result<()> {
 
 #[test]
 fn test_leb128_i32() {
-    let data: Vec<u8> = vec![0xFF, 0xFF, 0xFF, 0xFF, 0x0F];
+    let data: Vec<u8> = vec![0xFF, 0xFF, 0xFF, 0xFF, 0x7F];
     let res = data.as_slice().read_i32_leb_128().unwrap();
     assert_eq!(res, -1);
 
@@ -120,7 +120,7 @@ fn test_leb128_i64() {
     let res = data.as_slice().read_i64_leb_128().unwrap();
     assert_eq!(res, 0x7FFFFFFFFFFFFFFF);
 
-    let data: Vec<u8> = vec![0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x01];
+    let data: Vec<u8> = vec![0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x7F];
     let res = data.as_slice().read_i64_leb_128().unwrap();
     assert_eq!(res, -0x8000000000000000);
 
@@ -128,7 +128,7 @@ fn test_leb128_i64() {
     let res = data.as_slice().read_i64_leb_128().unwrap();
     assert_eq!(res, -128);
 
-    let data: Vec<u8> = vec![0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x01];
+    let data: Vec<u8> = vec![0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F];
     let res = data.as_slice().read_i64_leb_128().unwrap();
     assert_eq!(res, -1);
 
