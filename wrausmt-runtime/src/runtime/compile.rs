@@ -64,7 +64,7 @@ pub trait Emitter {
     ) {
         let startcnt = self.len() as u32 - 1;
 
-        self.emit32(typeuse.index_value());
+        self.emit32(typeuse.index().value());
 
         let continuation_location = self.len();
         // If the continuation is at the start, we write self the current length
@@ -97,7 +97,7 @@ pub trait Emitter {
     }
 
     fn emit_if(&mut self, typeuse: &TypeUse<Resolved>, th: &Expr<Resolved>, el: &Expr<Resolved>) {
-        self.emit32(typeuse.index_value());
+        self.emit32(typeuse.index().value());
 
         // Store the space for end continuation
         let end_location = self.len();
@@ -134,7 +134,7 @@ pub trait Emitter {
                 syntax::Operands::BrTable(indices) => self.emit_br_table(indices),
                 syntax::Operands::CallIndirect(idx, typeuse) => {
                     self.emit32(idx.value());
-                    self.emit32(typeuse.index_value());
+                    self.emit32(typeuse.index().value());
                 }
                 syntax::Operands::Select(_) => (),
                 syntax::Operands::If(_, typeuse, th, el) => self.emit_if(typeuse, th, el),

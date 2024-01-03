@@ -3,10 +3,10 @@ use {
     super::module_builder::ModuleIdentifiers,
     wrausmt_runtime::syntax::{
         DataField, DataIndex, DataInit, ElemField, ElemIndex, ElemList, ExportDesc, ExportField,
-        Expr, FParam, FuncField, FuncIndex, FunctionType, GlobalField, GlobalIndex, Id, ImportDesc,
-        ImportField, Index, Instruction, LabelIndex, LocalIndex, MemoryIndex, ModeEntry, Module,
-        Operands, Resolved, StartField, TableIndex, TablePosition, TableUse, TypeField, TypeIndex,
-        TypeUse, Unresolved,
+        Expr, FParam, FuncField, FuncIndex, GlobalField, GlobalIndex, Id, ImportDesc, ImportField,
+        Index, Instruction, LabelIndex, LocalIndex, MemoryIndex, ModeEntry, Module, Operands,
+        Resolved, StartField, TableIndex, TablePosition, TableUse, TypeField, TypeIndex, TypeUse,
+        Unresolved,
     },
 };
 
@@ -460,54 +460,55 @@ impl Resolve<TypeUse<Resolved>> for TypeUse<Unresolved> {
         ic: &ResolutionContext,
         types: &mut Vec<TypeField>,
     ) -> Result<TypeUse<Resolved>> {
-        let typeidx = resolve_option!(self.typeidx.clone(), ic, types);
+        match self {
+            TypeUse::ById(idx) => Ok(TypeUse::ById(idx.resolve(ic, types)?)),
+            // TODO: validate that the functiontype matches any existing one
+            TypeUse::NamedInline {
+                index,
+                functiontype,
+            } => Ok(TypeUse::NamedInline {
+                functiontype,
+                index: index.resolve(ic, types)?,
+            }),
+            TypeUse::AnonymousInline(functiontype) => {
+                // Creating a new inline use if a matching type doesn't exist.
+                let existing = types
+                    .iter()
+                    .position(|t| t.functiontype.anonymous() == functiontype.anonymous());
 
-        // If there is a typeidx, look up the existing type.
-        let (typeidx, functiontype) = if let Some(typeidx) = &typeidx {
-            // We don't care about the existing functiontype, since the index is sufficient.
-            //  Don't validate the index here, or spec tests will fail at parse time.
-            (typeidx.clone(), FunctionType::default())
-        } else {
-            let functiontype = self.functiontype;
-            let existing = types
-                .iter()
-                .position(|t| t.functiontype.anonymous() == functiontype.anonymous());
-
-            let typeidx = match existing {
-                Some(existing) => Index::unnamed(existing as u32),
-                None => {
-                    let newidx = types.len();
-                    types.push(TypeField {
-                        id:           None,
-                        functiontype: functiontype.clone(),
-                    });
-                    Index::unnamed(newidx as u32)
-                }
-            };
-            (typeidx, functiontype)
-        };
-
-        Ok(TypeUse {
-            typeidx: Some(typeidx),
-            functiontype,
-        })
+                let index: Index<Resolved, TypeIndex> = match existing {
+                    Some(existing) => Index::unnamed(existing as u32),
+                    None => {
+                        let newidx = types.len();
+                        types.push(TypeField {
+                            id:           None,
+                            functiontype: functiontype.clone(),
+                        });
+                        Index::unnamed(newidx as u32)
+                    }
+                };
+                // We no longer need to carry the function data along.
+                Ok(TypeUse::NamedInline {
+                    functiontype,
+                    index,
+                })
+            }
+        }
     }
 }
 
 fn get_func_params(typeuse: &TypeUse<Resolved>, types: &[TypeField]) -> Vec<FParam> {
-    if !typeuse.functiontype.params.is_empty() {
-        return typeuse.functiontype.params.clone();
-    }
-
-    match &typeuse.typeidx {
-        Some(typeidx) => {
+    match typeuse {
+        TypeUse::AnonymousInline(functiontype) | TypeUse::NamedInline { functiontype, .. } => {
+            functiontype.params.clone()
+        }
+        _ => {
             let existing = types
-                .get(typeidx.value() as usize)
+                .get(typeuse.index().value() as usize)
                 .map(|tf| tf.functiontype.clone())
                 .unwrap_or_default();
             existing.params
         }
-        _ => vec![],
     }
 }
 
@@ -534,7 +535,7 @@ impl Resolve<FuncField<Resolved>> for FuncField<Unresolved> {
         Ok(FuncField {
             id: self.id,
             exports: self.exports,
-            typeuse,
+            typeuse: TypeUse::ById(typeuse.index().clone()),
             locals: self.locals,
             body,
         })

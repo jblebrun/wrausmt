@@ -148,13 +148,10 @@ pub fn make_spectest_module() -> syntax::Module<Resolved> {
 fn mkfunc(name: impl Into<String>, params: Vec<FParam>) -> FuncField<Unresolved> {
     FuncField {
         exports: vec![name.into()],
-        typeuse: TypeUse {
-            typeidx:      None,
-            functiontype: FunctionType {
-                params,
-                results: vec![],
-            },
-        },
+        typeuse: TypeUse::AnonymousInline(FunctionType {
+            params,
+            results: vec![],
+        }),
         ..FuncField::default()
     }
 }

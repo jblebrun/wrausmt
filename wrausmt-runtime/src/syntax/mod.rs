@@ -260,6 +260,10 @@ impl FunctionType {
             results: self.results.clone(),
         }
     }
+
+    pub fn is_void(&self) -> bool {
+        self.params.is_empty() && self.results.is_empty()
+    }
 }
 
 impl std::fmt::Debug for FunctionType {
@@ -278,28 +282,54 @@ impl std::fmt::Debug for FunctionType {
 /// A [Resolved] TypeUse has not just its index name resolved, but also provides
 /// a guarantee that the index value stored corresponds to a type use in this
 /// module.
-#[derive(PartialEq, Clone, Default)]
-pub struct TypeUse<R: ResolvedState> {
-    pub typeidx:      Option<Index<R, TypeIndex>>,
-    pub functiontype: FunctionType,
+#[derive(PartialEq, Clone)]
+pub enum TypeUse<R: ResolvedState> {
+    ById(Index<R, TypeIndex>),
+    AnonymousInline(FunctionType),
+    NamedInline {
+        functiontype: FunctionType,
+        index:        Index<R, TypeIndex>,
+    },
+}
+
+impl<R: ResolvedState> Default for TypeUse<R> {
+    fn default() -> Self {
+        TypeUse::AnonymousInline(FunctionType::default())
+    }
 }
 
 impl TypeUse<Resolved> {
-    pub fn index_value(&self) -> u32 {
-        match &self.typeidx {
-            Some(idx) => idx.value(),
-            None => panic!("improperly resolved typeuse (compiler error) {:?}", self),
+    pub fn index(&self) -> &Index<Resolved, TypeIndex> {
+        match self {
+            TypeUse::ById(i) => i,
+            TypeUse::NamedInline { index, .. } => index,
+            TypeUse::AnonymousInline(_) => {
+                panic!("improperly resolved typeuse (compiler error) {:?}", self)
+            }
+        }
+    }
+}
+
+impl TypeUse<Unresolved> {
+    pub fn index(&self) -> Option<&Index<Unresolved, TypeIndex>> {
+        match self {
+            TypeUse::ById(i) => Some(i),
+            TypeUse::NamedInline { index, .. } => Some(index),
+            TypeUse::AnonymousInline(_) => None,
         }
     }
 }
 
 impl<R: ResolvedState> std::fmt::Debug for TypeUse<R> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if let Some(typeidx) = &self.typeidx {
-            write!(f, "(type {:?})", typeidx)?;
+        match self {
+            TypeUse::ById(idx) => write!(f, "(type {idx:?}"),
+            TypeUse::NamedInline {
+                functiontype,
+                index,
+            } => write!(f, "(type {index:?}) {functiontype:?}"),
+            TypeUse::AnonymousInline(functiontype) => write!(f, "{functiontype:?}"),
         }
-
-        write!(f, " {:?}", self.functiontype)
     }
 }
 

@@ -577,10 +577,14 @@ impl<R: Read> Parser<R> {
 
         let functiontype = self.try_function_type(fparam_id)?;
 
-        Ok(TypeUse {
-            typeidx,
-            functiontype,
-        })
+        match (functiontype, typeidx) {
+            (ft, None) => Ok(TypeUse::AnonymousInline(ft)),
+            (ft, Some(ti)) if ft.is_void() => Ok(TypeUse::ById(ti)),
+            (functiontype, Some(index)) => Ok(TypeUse::NamedInline {
+                functiontype,
+                index,
+            }),
+        }
     }
 
     // Try to parse an inline export for a func, table, global, or memory.
