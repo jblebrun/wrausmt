@@ -34,11 +34,12 @@ type Result<T> = std::result::Result<T, LEB128Error>;
 // The final bit is the MSB. If it's unsigned, none of the high bits should be
 // set. If it's signed, *all* of the high bits should be set.
 fn validate_final_byte(result: &[u8], size: usize, signed: bool) -> Result<()> {
-    let overflow_bit_count = 7 - (result.len() * 7) % size;
-    let remainder_mask = 0xFF << overflow_bit_count;
+    let bits_used_in_last_byte = 7 - (result.len() * 7) % size;
+    let remainder_mask = 0xFF << bits_used_in_last_byte;
 
-    let signbit = result.last().unwrap() & 0x40 == 0x40;
-    let expect = if signed && signbit {
+    let signmask: u8 = 1 << (bits_used_in_last_byte - 1);
+    let signbit = result.last().unwrap() & signmask == signmask;
+    let expect = if signbit && signed {
         remainder_mask & 0x7f
     } else {
         0x00
@@ -54,8 +55,11 @@ fn validate_final_byte(result: &[u8], size: usize, signed: bool) -> Result<()> {
 
 fn sign_extend(result: &mut Vec<u8>, size: usize, signed: bool) {
     if signed {
-        let signbit = result.last().unwrap() & 0x40 == 0x40;
+        let last = result.last_mut().unwrap();
+        let signbit = *last & 0x40 == 0x40;
         if signbit {
+            // Sign extend into the terminal flag bit
+            *last = (((*last << 1) as i8) >> 1) as u8;
             while result.len() < size {
                 result.push(0xFF)
             }
@@ -76,7 +80,7 @@ fn read_leb_128_bytes(r: &mut impl Read, size: usize, signed: bool) -> Result<Ve
                 validate_final_byte(&result, size, signed)?;
             }
 
-            sign_extend(&mut result, size, signed);
+            sign_extend(&mut result, bytecount, signed);
 
             return Ok(result);
         }
@@ -112,6 +116,22 @@ pub trait ReadLeb128: Read + Sized {
         let bytes = read_leb_128_bytes(self, 64, true)?;
         let uresult = parse_leb_128(&bytes);
         Ok(uresult as i64)
+    }
+
+    /// Weird thing for types that could also be indices.
+    ///
+    /// From [Spec][Spec]:
+    /// In some places, possible types include both type constructors or types
+    /// denoted by type indices. Thus, the binary format for type constructors
+    /// corresponds to the encodings of small negative  values, such that they
+    /// can unambiguously occur in the same place as (positive) type
+    /// indices.
+    ///
+    /// [Spec]: https://webassembly.github.io/spec/core/binary/types.html#value-types
+    fn read_byte_as_i7_leb_128(&mut self) -> Result<i8> {
+        let bytes = read_leb_128_bytes(self, 7, true)?;
+        let parsed = parse_leb_128(&bytes);
+        Ok(parsed as i8)
     }
 }
 

@@ -6,6 +6,10 @@ use {
     },
     std::{collections::HashMap, io::Cursor, rc::Rc},
     wrausmt_format::{
+        binary::{
+            error::{BinaryParseError, BinaryParseErrorKind},
+            leb128::LEB128Error,
+        },
         loader::{Loader, LoaderError},
         text::{
             parse::error::{ParseError, ParseErrorKind},
@@ -134,6 +138,16 @@ impl MalformedMatch for str {
             } else {
                 None
             };
+        let bin_parse_err =
+            if let CmdError::LoaderError(LoaderError::BinaryParseError(BinaryParseError {
+                kind,
+                ..
+            })) = err
+            {
+                Some(kind)
+            } else {
+                None
+            };
         match self {
             "alignment" => matches!(parse_err, Some(ParseErrorKind::InvalidAlignment(_))),
             "i32 constant" => matches!(parse_err, Some(ParseErrorKind::ParseIntError(_))),
@@ -153,6 +167,16 @@ impl MalformedMatch for str {
                         | Some(ParseErrorKind::UnrecognizedInstruction(_))
                 )
             }
+            "integer too large" => matches!(
+                bin_parse_err,
+                Some(BinaryParseErrorKind::LEB128Error(LEB128Error::Overflow(_)))
+            ),
+            "integer representation too long" => matches!(
+                bin_parse_err,
+                Some(BinaryParseErrorKind::LEB128Error(
+                    LEB128Error::Unterminated(_)
+                )) | Some(BinaryParseErrorKind::InvalidFuncType(_))
+            ),
             _ => false,
         }
     }

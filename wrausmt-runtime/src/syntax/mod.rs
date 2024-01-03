@@ -195,6 +195,7 @@ impl<R: ResolvedState, S: IndexSpace> fmt::Debug for Index<R, S> {
 /// [Spec]: https://webassembly.github.io/spec/core/text/modules.html#modules
 pub struct Module<R: ResolvedState> {
     pub id:       Option<Id>,
+    pub customs:  Vec<CustomField>,
     pub types:    Vec<TypeField>,
     pub funcs:    Vec<FuncField<R>>,
     pub tables:   Vec<TableField>,
@@ -328,6 +329,14 @@ impl std::fmt::Debug for FResult {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "(result {:?})", self.valuetype)
     }
+}
+
+#[derive(Debug, Default, Clone, PartialEq)]
+// customsec := section_0(custom)
+// custom := name byte*
+pub struct CustomField {
+    pub name:    String,
+    pub content: Box<[u8]>,
 }
 
 // type := (type id? <functype>)

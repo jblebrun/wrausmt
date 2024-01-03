@@ -1,6 +1,9 @@
 use {
     super::{error::Result, leb128::ReadLeb128, BinaryParser},
-    crate::{binary::error::ParseResult, pctx},
+    crate::{
+        binary::error::{BinaryParseErrorKind, ParseResult},
+        pctx,
+    },
     std::io::Read,
     wrausmt_runtime::syntax::{
         types::{GlobalType, Limits, MemType, TableType, ValueType},
@@ -12,14 +15,17 @@ impl<R: Read> BinaryParser<R> {
     pub fn read_types_section(&mut self) -> Result<Vec<TypeField>> {
         pctx!(self, "read types section");
         self.read_vec(|_, s| {
-            s.read_specific_byte(0x60)?;
-            Ok(TypeField {
-                id:           None,
-                functiontype: FunctionType {
-                    params:  s.read_fparam()?,
-                    results: s.read_fresult()?,
-                },
-            })
+            let binary_type = s.read_byte_as_i7_leb_128().result(s)?;
+            match binary_type {
+                -0x20 => Ok(TypeField {
+                    id:           None,
+                    functiontype: FunctionType {
+                        params:  s.read_fparam()?,
+                        results: s.read_fresult()?,
+                    },
+                }),
+                bt => Err(s.err(BinaryParseErrorKind::InvalidFuncType(bt as u8))),
+            }
         })
     }
 

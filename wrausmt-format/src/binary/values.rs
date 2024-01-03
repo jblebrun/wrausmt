@@ -5,7 +5,7 @@ use {
         BinaryParser,
     },
     crate::{binary::error::ParseResult, pctx},
-    std::{io::Read, marker::Sized},
+    std::io::Read,
     wrausmt_runtime::syntax::{
         types::{NumType, RefType, ValueType},
         Index, IndexSpace, Resolved,
@@ -47,13 +47,6 @@ impl<R: Read> BinaryParser<R> {
         Ok(buf[0])
     }
 
-    /// Read a single byte, returning an error if it doesn't match the value
-    /// provided.
-    pub(in crate::binary) fn read_specific_byte(&mut self, expect: u8) -> Result<()> {
-        pctx!(self, "read specific byte");
-        read_exact_bytes!(self, 1, [expect])
-    }
-
     /// Read a "name" field.
     /// Names are encoded as a vec(byte).
     pub(in crate::binary) fn read_name(&mut self) -> Result<String> {
@@ -76,24 +69,33 @@ impl<R: Read> BinaryParser<R> {
     /// false).
     pub(in crate::binary) fn read_bool(&mut self) -> Result<bool> {
         pctx!(self, "read bool");
-        let bool_byte = self.read_byte()?;
-        match bool_byte {
+        match self.read_byte_as_i7_leb_128().result(self)? {
             0 => Ok(false),
             1 => Ok(true),
-            _ => Err(self.err(BinaryParseErrorKind::InvalidBoolValue(bool_byte))),
+            b => Err(self.err(BinaryParseErrorKind::InvalidBoolValue(b as u8))),
         }
     }
 
     pub(in crate::binary) fn read_value_type(&mut self) -> Result<ValueType> {
         pctx!(self, "read value type");
-        let b = self.read_byte()?;
-        ValueType::interpret(b).ok_or(self.err(BinaryParseErrorKind::InvalidValueType(b)))
+        match self.read_byte_as_i7_leb_128().result(self)? {
+            -0x01 => Ok(NumType::I32.into()),
+            -0x02 => Ok(NumType::I64.into()),
+            -0x03 => Ok(NumType::F32.into()),
+            -0x04 => Ok(NumType::F64.into()),
+            -0x10 => Ok(RefType::Func.into()),
+            -0x11 => Ok(RefType::Extern.into()),
+            b => Err(self.err(BinaryParseErrorKind::InvalidValueType(b as u8))),
+        }
     }
 
     pub(in crate::binary) fn read_ref_type(&mut self) -> Result<RefType> {
         pctx!(self, "read ref type");
-        let b = self.read_byte()?;
-        RefType::interpret(b).ok_or(self.err(BinaryParseErrorKind::InvalidRefType(b)))
+        match self.read_byte_as_i7_leb_128().result(self)? {
+            -0x10 => Ok(RefType::Func),
+            -0x11 => Ok(RefType::Extern),
+            b => Err(self.err(BinaryParseErrorKind::InvalidRefType(b as u8))),
+        }
     }
 
     pub(in crate::binary) fn read_vec<T>(
@@ -110,35 +112,5 @@ impl<R: Read> BinaryParser<R> {
     ) -> Result<Index<Resolved, IS>> {
         pctx!(self, "read index use");
         Ok(Index::unnamed(self.read_u32_leb_128().result(self)?))
-    }
-}
-
-trait Interpret<T> {
-    fn interpret(t: T) -> Option<Self>
-    where
-        Self: Sized;
-}
-
-impl Interpret<u8> for ValueType {
-    fn interpret(byte: u8) -> Option<ValueType> {
-        match byte {
-            0x7F => Some(NumType::I32.into()),
-            0x7E => Some(NumType::I64.into()),
-            0x7D => Some(NumType::F32.into()),
-            0x7C => Some(NumType::F64.into()),
-            0x70 => Some(RefType::Func.into()),
-            0x6F => Some(RefType::Extern.into()),
-            _ => None,
-        }
-    }
-}
-
-impl Interpret<u8> for RefType {
-    fn interpret(byte: u8) -> Option<RefType> {
-        match byte {
-            0x70 => Some(RefType::Func),
-            0x6F => Some(RefType::Extern),
-            _ => None,
-        }
     }
 }
