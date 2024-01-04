@@ -203,6 +203,7 @@ impl MalformedMatch for str {
                 matches!(parse_err, Some(ParseErrorKind::Utf8Error(_)))
                     || matches!(bin_parse_err, Some(BinaryParseErrorKind::Utf8Error(_e)))
             }
+            "constant out of range" => matches!(parse_err, Some(ParseErrorKind::InvalidNaN(_))),
             _ => false,
         }
     }

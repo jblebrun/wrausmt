@@ -53,7 +53,7 @@ pub enum Token {
     Eof,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Base {
     Dec,
     Hex,

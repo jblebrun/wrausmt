@@ -26,6 +26,7 @@ pub enum ParseErrorKind {
     ParseIntError(ParseIntError),
     ParseFloatError(ParseFloatError),
     InvalidAlignment(u32),
+    InvalidNaN(u64),
     TooManyLocals,
     Incomplete,
 }

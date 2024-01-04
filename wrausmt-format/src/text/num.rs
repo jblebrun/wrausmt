@@ -1,14 +1,7 @@
 use crate::text::token::{Base, NumToken, Sign};
 
-fn is_digit(ch: char, hex: bool) -> bool {
-    if matches!(ch, '0'..='9' | '_') {
-        return true;
-    }
-    if !hex {
-        return false;
-    }
-
-    matches!(ch, 'a'..='f' | 'A'..='F')
+fn is_digit(ch: u8, base: Base) -> bool {
+    ch.is_ascii_digit() || (matches!(base, Base::Hex) && matches!(ch, b'a'..=b'f' | b'A'..=b'F'))
 }
 
 #[derive(Debug)]
@@ -42,17 +35,30 @@ impl<'a> StrCursor<'a> {
         self.chars == other
     }
 
-    pub fn consume_while(&mut self, pred: impl Fn(char) -> bool) -> String {
+    // Consume a group of digits, which can be separated by _
+    // But no _ before or after, and no contiguous.
+    pub fn consume_digit_group(&mut self, base: Base) -> String {
         let mut i = 0;
-        let mut iter = self.chars.chars();
-        while matches!(iter.next(), Some(cur) if pred(cur)) {
+        let bytes = self.chars.as_bytes();
+        let mut result = String::new();
+        let mut final_sep = false;
+
+        while i < bytes.len() && is_digit(bytes[i], base) {
+            final_sep = false;
+            result.push(bytes[i] as char);
             i += 1;
+            if i < bytes.len() && bytes[i] == b'_' {
+                final_sep = true;
+                i += 1;
+            }
         }
 
-        let result = self.chars.get(0..i).unwrap();
-
-        self.advance_by(i);
-        result.to_owned()
+        if final_sep {
+            String::new()
+        } else {
+            self.advance_by(i);
+            result
+        }
     }
 }
 
@@ -77,36 +83,38 @@ pub fn maybe_number(idchars: &str) -> Option<NumToken> {
 
     if cursor.matches("nan:0x") {
         cursor.advance_by(6);
-        let payload = cursor.consume_while(|c| is_digit(c, true));
+        let payload = cursor.consume_digit_group(Base::Hex);
         return match cursor.is_empty() {
             true => Some(NumToken::NaNx(sign, payload)),
             false => None,
         };
     }
 
-    let hex = cursor.matches("0x");
-    if hex {
+    let base = if cursor.matches("0x") {
         cursor.advance_by(2);
-    }
+        Base::Hex
+    } else {
+        Base::Dec
+    };
 
-    let base = if hex { Base::Hex } else { Base::Dec };
-
-    let whole = cursor.consume_while(|c| is_digit(c, hex));
-    let whole = whole.replace('_', "");
+    let whole = cursor.consume_digit_group(base);
 
     if whole.is_empty() {
         return None;
     }
 
     let have_point = cursor.matches(".");
-    if have_point {
-        cursor.advance_by(1)
-    }
+    let frac = if have_point {
+        cursor.advance_by(1);
+        cursor.consume_digit_group(base)
+    } else {
+        String::new()
+    };
 
-    let frac = cursor.consume_while(|c| is_digit(c, hex));
-    let frac = frac.replace('_', "");
-
-    let expchars = if hex { ['p', 'P'] } else { ['e', 'E'] };
+    let expchars = match base {
+        Base::Hex => ['p', 'P'],
+        Base::Dec => ['e', 'E'],
+    };
 
     let have_exp = matches!(cursor.cur(), Some(cur) if expchars.contains(&cur));
 
@@ -114,8 +122,15 @@ pub fn maybe_number(idchars: &str) -> Option<NumToken> {
         cursor.advance_by(1);
     }
 
-    let exp = cursor.consume_while(|c| is_digit(c, false) || c == '+' || c == '-');
-    let exp = exp.replace('_', "");
+    let mut exp = match cursor.cur() {
+        Some('+') => "+".to_string(),
+        Some('-') => "-".to_string(),
+        _ => String::new(),
+    };
+
+    cursor.advance_by(exp.len());
+
+    exp += &cursor.consume_digit_group(Base::Dec);
 
     if !cursor.is_empty() {
         return None;
