@@ -116,7 +116,7 @@ impl<R: Read> Parser<R> {
                         });
                     }
                 }
-                Field::Import(f) => module_builder.add_importfield(f),
+                Field::Import(f) => module_builder.add_importfield(f).result(self)?,
                 Field::Export(f) => module_builder.add_exportfield(f),
                 Field::Global(f) => module_builder.add_globalfield(f),
                 Field::Start(f) => module_builder.add_startfield(f),

@@ -15,6 +15,10 @@ pub enum ResolveError {
     UnresolvedIndex(Id),
     UnresolvedType(Index<Resolved, TypeIndex>),
     DuplicateTypeIndex(Id),
+    ImportAfterFunction,
+    ImportAfterGlobal,
+    ImportAfterTable,
+    ImportAfterMemory,
 }
 
 pub type Result<T> = std::result::Result<T, ResolveError>;

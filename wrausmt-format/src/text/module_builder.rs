@@ -1,5 +1,5 @@
 use {
-    super::resolve::{ResolveModule, Result},
+    super::resolve::{ResolveError, ResolveModule, Result},
     std::collections::HashMap,
     wrausmt_runtime::syntax::{
         DataField, ElemField, ExportDesc, ExportField, FuncField, GlobalField, Id, ImportDesc,
@@ -132,7 +132,16 @@ impl ModuleBuilder {
         // data contents may define new data
     }
 
-    pub fn add_importfield(&mut self, f: ImportField<Unresolved>) {
+    pub fn add_importfield(&mut self, f: ImportField<Unresolved>) -> Result<()> {
+        if !self.module.funcs.is_empty() {
+            return Err(ResolveError::ImportAfterFunction);
+        } else if !self.module.globals.is_empty() {
+            return Err(ResolveError::ImportAfterGlobal);
+        } else if !self.module.memories.is_empty() {
+            return Err(ResolveError::ImportAfterMemory);
+        } else if !self.module.tables.is_empty() {
+            return Err(ResolveError::ImportAfterTable);
+        }
         // Imports contribute to index counts in their corresponding
         // space, and must appear before any declarations of that type
         // in the module, so we track their counts of each type in order
@@ -180,6 +189,7 @@ impl ModuleBuilder {
             }
         }
         self.module.imports.push(f);
+        Ok(())
     }
 
     pub fn add_exportfield(&mut self, f: ExportField<Unresolved>) {
