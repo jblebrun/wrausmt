@@ -1,5 +1,5 @@
 use {
-    wrausmt_format::text::module_builder::ModuleBuilder,
+    wrausmt_format::text::{module_builder::ModuleBuilder, resolve::Result},
     wrausmt_runtime::syntax::{
         self,
         types::{GlobalType, Limits, MemType, NumType, TableType, ValueType},
@@ -26,7 +26,7 @@ use {
 ///  (func (export "print_i32_f32") (param i32 f32))
 ///  (func (export "print_f64_f64") (param f64 f64))
 /// )
-pub fn make_spectest_module() -> syntax::Module<Resolved> {
+pub fn make_spectest_module() -> Result<syntax::Module<Resolved>> {
     let mut builder = ModuleBuilder::default();
 
     builder.add_globalfield(GlobalField {
@@ -98,27 +98,27 @@ pub fn make_spectest_module() -> syntax::Module<Resolved> {
         },
     });
 
-    builder.add_funcfield(mkfunc("print", vec![]));
+    builder.add_funcfield(mkfunc("print", vec![]))?;
 
     builder.add_funcfield(mkfunc("print_i32", vec![FParam {
         id:        None,
         valuetype: ValueType::Num(NumType::I32),
-    }]));
+    }]))?;
 
     builder.add_funcfield(mkfunc("print_i64", vec![FParam {
         id:        None,
         valuetype: ValueType::Num(NumType::I64),
-    }]));
+    }]))?;
 
     builder.add_funcfield(mkfunc("print_f32", vec![FParam {
         id:        None,
         valuetype: ValueType::Num(NumType::F32),
-    }]));
+    }]))?;
 
     builder.add_funcfield(mkfunc("print_f64", vec![FParam {
         id:        None,
         valuetype: ValueType::Num(NumType::F64),
-    }]));
+    }]))?;
 
     builder.add_funcfield(mkfunc("print_i32_f32", vec![
         FParam {
@@ -129,7 +129,7 @@ pub fn make_spectest_module() -> syntax::Module<Resolved> {
             id:        None,
             valuetype: ValueType::Num(NumType::F32),
         },
-    ]));
+    ]))?;
 
     builder.add_funcfield(mkfunc("print_f64_f64", vec![
         FParam {
@@ -140,9 +140,9 @@ pub fn make_spectest_module() -> syntax::Module<Resolved> {
             id:        None,
             valuetype: ValueType::Num(NumType::F64),
         },
-    ]));
+    ]))?;
 
-    builder.build().unwrap()
+    builder.build()
 }
 
 fn mkfunc(name: impl Into<String>, params: Vec<FParam>) -> FuncField<Unresolved> {

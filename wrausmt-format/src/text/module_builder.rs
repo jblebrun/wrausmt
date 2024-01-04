@@ -2,9 +2,9 @@ use {
     super::resolve::{ResolveModule, Result},
     std::collections::HashMap,
     wrausmt_runtime::syntax::{
-        DataField, ElemField, ExportDesc, ExportField, FuncField, FunctionType, GlobalField, Id,
-        ImportDesc, ImportField, Index, MemoryField, Module, Resolved, StartField, TableField,
-        TypeField, Unresolved,
+        DataField, ElemField, ExportDesc, ExportField, FuncField, GlobalField, Id, ImportDesc,
+        ImportField, Index, MemoryField, Module, Resolved, StartField, TableField, TypeField,
+        Unresolved,
     },
 };
 
@@ -87,27 +87,9 @@ impl ModuleBuilder {
         self.module.types.push(typefield);
     }
 
-    pub fn add_inline_typeuse(&mut self, functiontype: FunctionType) -> u32 {
-        let existing = self
-            .module
-            .types
-            .iter()
-            .position(|t| t.functiontype == functiontype);
-        match existing {
-            None => {
-                let idx = self.module.types.len();
-                self.module.types.push(TypeField {
-                    id: None,
-                    functiontype,
-                });
-                idx as u32
-            }
-            Some(idx) => idx as u32,
-        }
-    }
-
-    pub fn add_funcfield(&mut self, f: FuncField<Unresolved>) {
+    pub fn add_funcfield(&mut self, f: FuncField<Unresolved>) -> Result<()> {
         add_ident!(self, f, funcindices, funcs, self.funcidx_offset);
+        // self.validate_inline_typeuse(&f.typeuse)?;
 
         // export field may define new exports.
         let funcidx = self.module.funcs.len() as u32 + self.funcidx_offset;
@@ -118,6 +100,7 @@ impl ModuleBuilder {
             })
         }
         self.module.funcs.push(f);
+        Ok(())
     }
 
     pub fn add_tablefield(&mut self, f: TableField) {

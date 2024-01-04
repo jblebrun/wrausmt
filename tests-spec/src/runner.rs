@@ -13,6 +13,7 @@ use {
         loader::{Loader, LoaderError},
         text::{
             parse::error::{ParseError, ParseErrorKind},
+            resolve::ResolveError,
             string::WasmString,
         },
     },
@@ -177,6 +178,12 @@ impl MalformedMatch for str {
                     LEB128Error::Unterminated(_)
                 )) | Some(BinaryParseErrorKind::InvalidFuncType(_))
             ),
+            "inline function type" => matches!(
+                parse_err,
+                Some(ParseErrorKind::ResolveError(
+                    ResolveError::DuplicateTypeIndex(_)
+                ))
+            ),
             _ => false,
         }
     }
@@ -196,7 +203,7 @@ fn module_cursor(strings: Vec<WasmString>) -> Cursor<Box<[u8]>> {
 impl SpecTestRunner {
     pub fn new() -> Self {
         let mut runtime = Runtime::new();
-        let spectest_module = runtime.load(make_spectest_module()).unwrap();
+        let spectest_module = runtime.load(make_spectest_module().unwrap()).unwrap();
         runtime.register("spectest", spectest_module);
         SpecTestRunner {
             runtime,
