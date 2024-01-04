@@ -5,6 +5,7 @@ use {
         tracer::{TraceDropper, Tracer},
     },
     std::{cell::RefCell, io::Take, rc::Rc},
+    wrausmt_runtime::syntax::TypeUse,
 };
 
 pub mod error;
@@ -100,7 +101,7 @@ impl<R: Read> BinaryParser<R> {
 
         // Add the functype type to the returned function structs.
         for (i, func) in funcs.iter_mut().enumerate() {
-            func.typeuse.typeidx = Some(functypes[i].clone());
+            func.typeuse = TypeUse::ById(functypes[i].clone());
         }
         Ok(())
     }

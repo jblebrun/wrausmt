@@ -62,8 +62,8 @@ impl Runtime {
         modinst: Rc<ModuleInstance>,
     ) -> Result<FunctionInstance> {
         let functype = types
-            .get(f.typeuse.index_value() as usize)
-            .ok_or(RuntimeErrorKind::TypeNotFound(f.typeuse.index_value()).error())?
+            .get(f.typeuse.index().value() as usize)
+            .ok_or(RuntimeErrorKind::TypeNotFound(f.typeuse.index().value()).error())?
             .clone();
         let locals: Box<[ValueType]> = f.locals.iter().map(|l| l.valtype).collect();
         let body = compile_function_body(&f);

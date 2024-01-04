@@ -57,10 +57,7 @@ impl<R: Read> BinaryParser<R> {
 
     pub(in crate::binary) fn read_type_use(&mut self) -> Result<TypeUse<Resolved>> {
         pctx!(self, "read type use");
-        Ok(TypeUse {
-            typeidx:      Some(self.read_index_use()?),
-            functiontype: FunctionType::default(),
-        })
+        Ok(TypeUse::ById(self.read_index_use()?))
     }
 
     pub(in crate::binary) fn read_memory_type(&mut self) -> Result<MemType> {
