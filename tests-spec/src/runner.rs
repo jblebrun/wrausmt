@@ -199,6 +199,10 @@ impl MalformedMatch for str {
                     ResolveError::DuplicateTypeIndex(_)
                 ))
             ),
+            "malformed UTF-8 encoding" => {
+                matches!(parse_err, Some(ParseErrorKind::Utf8Error(_)))
+                    || matches!(bin_parse_err, Some(BinaryParseErrorKind::Utf8Error(_e)))
+            }
             _ => false,
         }
     }
