@@ -53,13 +53,13 @@ spectest!(r#binary; [nomalformed!(
     "malformed import kind",
     "unexpected content after last section"
 )]);
-spectest!(r#block; [nomalformed!("inline function type", "mismatching label")]);
+spectest!(r#block; [nomalformed!("mismatching label")]);
 spectest!(r#br);
 spectest!(r#br_if);
 spectest!(r#br_table);
 spectest!(r#bulk);
 spectest!(r#call);
-spectest!(r#call_indirect; [nomalformed!("inline function type")]);
+spectest!(r#call_indirect);
 spectest!(r#comments);
 spectest!(r#const; [nomalformed!("unknown operator", "constant out of range")]);
 spectest!(r#conversions);
@@ -87,7 +87,6 @@ spectest!(r#float_memory);
 spectest!(r#float_misc);
 spectest!(r#forward);
 spectest!(r#func; [nomalformed!(
-    "inline function type",
     "duplicate func",
     "duplicate local",
     "unknown type"
@@ -96,7 +95,7 @@ spectest!(r#func_ptrs);
 spectest!(r#global; [nomalformed!("malformed mutability", "duplicate global")]);
 spectest!(r#i32);
 spectest!(r#i64);
-spectest!(r#if; [nomalformed!("inline function type", "mismatching label")]);
+spectest!(r#if; [nomalformed!("mismatching label")]);
 spectest!(r#imports; [nomalformed!("import after function", "import after global", "import after table", "import after memory")]);
 spectest!(r#inline_x_module);
 spectest!(r#int_exprs);
@@ -108,7 +107,7 @@ spectest!(r#load);
 spectest!(r#local_get);
 spectest!(r#local_set);
 spectest!(r#local_tee);
-spectest!(r#loop; [nomalformed!("inline function type", "mismatching label")]);
+spectest!(r#loop; [nomalformed!("mismatching label")]);
 spectest!(r#memory; [nomalformed!("i32 constant out of range", "duplicate memory")]);
 spectest!(r#memory_copy);
 spectest!(r#memory_fill);

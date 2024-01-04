@@ -88,10 +88,10 @@ impl<R: Read> Parser<R> {
         // As we parse each field, we populate the module.
         // This is a fairly involved match tree, since many fields may generate
         // multiple fields due to inline type defs or imports/exports.
-        for field in std::iter::from_fn(|| self.try_field().transpose()) {
+        while let Some(field) = self.try_field().transpose() {
             match field? {
                 Field::Type(f) => module_builder.add_typefield(f),
-                Field::Func(f) => module_builder.add_funcfield(f),
+                Field::Func(f) => module_builder.add_funcfield(f).result(self)?,
                 Field::Table(t, e) => {
                     let tableidx = module_builder.tables();
                     module_builder.add_tablefield(t);

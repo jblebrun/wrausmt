@@ -247,22 +247,22 @@ pub struct FunctionType {
 }
 
 impl FunctionType {
-    pub fn anonymous(&self) -> FunctionType {
-        FunctionType {
-            params:  self
+    pub fn anonymously_equals(&self, other: &Self) -> bool {
+        self.params.len() == other.params.len()
+            && self.results == other.results
+            && self
                 .params
                 .iter()
-                .map(|p| FParam {
-                    id:        None,
-                    valuetype: p.valuetype,
-                })
-                .collect(),
-            results: self.results.clone(),
-        }
+                .zip(other.params.iter())
+                .all(|(a, b)| a.valuetype == b.valuetype)
     }
 
     pub fn is_void(&self) -> bool {
         self.params.is_empty() && self.results.is_empty()
+    }
+
+    pub fn matches_existing(&self, existing: &Self) -> bool {
+        self.is_void() || self.anonymously_equals(existing)
     }
 }
 
@@ -284,8 +284,11 @@ impl std::fmt::Debug for FunctionType {
 /// module.
 #[derive(PartialEq, Clone)]
 pub enum TypeUse<R: ResolvedState> {
+    /// Represents a type use that was only `(type $n)`
     ById(Index<R, TypeIndex>),
+    // Represents a type use that was only `(param _)* (result _)*`
     AnonymousInline(FunctionType),
+    // Represents a type use with everything: `type ($n) (param _)* (result _)*`
     NamedInline {
         functiontype: FunctionType,
         index:        Index<R, TypeIndex>,
@@ -316,6 +319,14 @@ impl TypeUse<Unresolved> {
             TypeUse::ById(i) => Some(i),
             TypeUse::NamedInline { index, .. } => Some(index),
             TypeUse::AnonymousInline(_) => None,
+        }
+    }
+
+    pub fn function_type(&self) -> Option<&FunctionType> {
+        match self {
+            TypeUse::ById(_) => None,
+            TypeUse::NamedInline { functiontype, .. } => Some(functiontype),
+            TypeUse::AnonymousInline(ft) => Some(ft),
         }
     }
 }

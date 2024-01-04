@@ -14,6 +14,7 @@ use {
 pub enum ResolveError {
     UnresolvedIndex(Id),
     UnresolvedType(Index<Resolved, TypeIndex>),
+    DuplicateTypeIndex(Id),
 }
 
 pub type Result<T> = std::result::Result<T, ResolveError>;
@@ -460,6 +461,7 @@ impl Resolve<TypeUse<Resolved>> for TypeUse<Unresolved> {
         ic: &ResolutionContext,
         types: &mut Vec<TypeField>,
     ) -> Result<TypeUse<Resolved>> {
+        validate_inline_typeuse(&self, types, ic)?;
         match self {
             TypeUse::ById(idx) => Ok(TypeUse::ById(idx.resolve(ic, types)?)),
             // TODO: validate that the functiontype matches any existing one
@@ -474,7 +476,7 @@ impl Resolve<TypeUse<Resolved>> for TypeUse<Unresolved> {
                 // Creating a new inline use if a matching type doesn't exist.
                 let existing = types
                     .iter()
-                    .position(|t| t.functiontype.anonymous() == functiontype.anonymous());
+                    .position(|t| t.functiontype.anonymously_equals(&functiontype));
 
                 let index: Index<Resolved, TypeIndex> = match existing {
                     Some(existing) => Index::unnamed(existing as u32),
@@ -512,14 +514,46 @@ fn get_func_params(typeuse: &TypeUse<Resolved>, types: &[TypeField]) -> Vec<FPar
     }
 }
 
+// Verifies that the incoming `typeuse` doesn't say anything that contradicts an
+// already-existing type.
+fn validate_inline_typeuse(
+    typeuse: &TypeUse<Unresolved>,
+    types: &[TypeField],
+    ic: &ResolutionContext,
+) -> Result<()> {
+    // We only need to check something if the incoming inline typeuse defined a
+    // function and an index explicitly.
+    let (new_typeidx, new_functiontype) = match (typeuse.index(), typeuse.function_type()) {
+        (Some(ti), Some(ft)) if !ti.name().as_bytes().is_empty() => (ti, ft),
+        _ => return Ok(()),
+    };
+
+    // If a type doesn't exist, then one is (hopefully) being created. That
+    // gets checked elsewhere.
+    let existing_functiontype = match ic.typeindex(new_typeidx.name()) {
+        Some(ei) => &types[ei as usize].functiontype,
+        _ => return Ok(()),
+    };
+
+    // If no params/results were in the inline def, the existing type doesn't
+    // need to be void, since in that case, the (type $i) is just reference
+    // type i as anything.
+    if !new_functiontype.matches_existing(existing_functiontype) {
+        Err(ResolveError::DuplicateTypeIndex(new_typeidx.name().clone()))
+    } else {
+        Ok(())
+    }
+}
+
 impl Resolve<FuncField<Resolved>> for FuncField<Unresolved> {
     fn resolve(
         self,
         ic: &ResolutionContext,
         types: &mut Vec<TypeField>,
     ) -> Result<FuncField<Resolved>> {
-        let typeuse = self.typeuse.resolve(ic, types)?;
+        validate_inline_typeuse(&self.typeuse, types, ic)?;
 
+        let typeuse = self.typeuse.resolve(ic, types)?;
         let params = get_func_params(&typeuse, types);
 
         let localindices = params
