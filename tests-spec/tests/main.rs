@@ -34,7 +34,6 @@ spectest!(r#address);
 spectest!(r#align);
 spectest!(r#binary_x_leb128);
 spectest!(r#binary; [nomalformed!(
-    "malformed section id",
     "END opcode expected",
     "unexpected end of section or function",
     "section size mismatch",

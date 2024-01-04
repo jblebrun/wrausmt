@@ -58,7 +58,6 @@ impl<R: Read> BinaryParser<R> {
             let section = self.read_section()?;
             match section {
                 Section::Eof => break,
-                Section::Skip => (),
                 Section::Custom(_) => (),
                 Section::Types(t) => module.types = t,
                 Section::Imports(i) => module.imports = i,

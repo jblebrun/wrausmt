@@ -39,8 +39,9 @@ impl<R: Read> BinaryParser<R> {
             11 => Section::Data(section_reader.read_data_section()?),
             12 => Section::DataCount(section_reader.read_data_count_section()?),
             _ => {
-                section_reader.read_custom_section()?;
-                Section::Skip
+                return Err(self.err(
+                    crate::binary::error::BinaryParseErrorKind::MalformedSectionId(section_num),
+                ))
             }
         };
 
@@ -53,7 +54,6 @@ impl<R: Read> BinaryParser<R> {
 #[derive(Debug)]
 pub enum Section {
     Eof,
-    Skip,
     Custom(syntax::CustomField),
     Types(Vec<syntax::TypeField>),
     Imports(Vec<syntax::ImportField<syntax::Resolved>>),
