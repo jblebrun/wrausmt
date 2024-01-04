@@ -227,6 +227,10 @@ impl MalformedMatch for str {
                 ))
             ),
             "constant out of range" => matches!(parse_err, Some(ParseErrorKind::InvalidNaN(_))),
+            "malformed section id" => matches!(
+                bin_parse_err,
+                Some(BinaryParseErrorKind::MalformedSectionId(_))
+            ),
             _ => false,
         }
     }

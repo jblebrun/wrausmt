@@ -23,6 +23,7 @@ pub enum BinaryParseErrorKind {
     InvalidImportType(u8),
     InvalidFuncType(u8),
     ExtraSectionBytes(u64),
+    MalformedSectionId(u8),
     TooManyLocals,
 }
 
