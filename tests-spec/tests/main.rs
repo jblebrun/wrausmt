@@ -93,7 +93,7 @@ spectest!(r#global; [nomalformed!("malformed mutability", "duplicate global")]);
 spectest!(r#i32);
 spectest!(r#i64);
 spectest!(r#if; [nomalformed!("mismatching label")]);
-spectest!(r#imports; [nomalformed!("import after function", "import after global", "import after table", "import after memory")]);
+spectest!(r#imports);
 spectest!(r#inline_x_module);
 spectest!(r#int_exprs);
 spectest!(r#int_literals);
