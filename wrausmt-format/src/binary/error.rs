@@ -6,12 +6,9 @@ use {
 
 #[derive(Debug)]
 pub enum BinaryParseErrorKind {
-    WithContext(Vec<String>, Box<BinaryParseErrorKind>),
+    IncorrectMagic([u8; 4]),
+    IncorrectVersion([u8; 4]),
     IOError(std::io::Error),
-    Unexpected {
-        got:    Box<[u8]>,
-        expect: Box<[u8]>,
-    },
     LEB128Error(LEB128Error),
     Utf8Error(FromUtf8Error),
     DataCountMismatch,
@@ -62,7 +59,10 @@ impl From<std::io::Error> for BinaryParseErrorKind {
 
 impl From<LEB128Error> for BinaryParseErrorKind {
     fn from(e: LEB128Error) -> BinaryParseErrorKind {
-        BinaryParseErrorKind::LEB128Error(e)
+        match e {
+            LEB128Error::IOError(io) => BinaryParseErrorKind::IOError(io),
+            _ => BinaryParseErrorKind::LEB128Error(e),
+        }
     }
 }
 

@@ -12,31 +12,23 @@ use {
     },
 };
 
-macro_rules! read_exact_bytes {
-    ( $r:expr, $size:expr, $expect:expr ) => {{
-        let mut buf = [0u8; $size];
-        $r.read_exact(&mut buf).result($r)?;
-        if buf != $expect {
-            Err($r.err(BinaryParseErrorKind::Unexpected {
-                got:    Box::new(buf),
-                expect: Box::new($expect),
-            }))
-        } else {
-            Ok(())
-        }
-    }};
-}
-
-/// A collection of read helpers used by the various section reader traits.
 impl<R: Read> BinaryParser<R> {
     pub(in crate::binary) fn read_magic(&mut self) -> Result<()> {
         pctx!(self, "read magic");
-        read_exact_bytes!(self, 4, [0x00, 0x61, 0x73, 0x6d])
+        let mut buf = [0u8; 4];
+        self.read_exact(&mut buf).result(self)?;
+        (&buf == b"\0asm")
+            .then_some(())
+            .ok_or(self.err(BinaryParseErrorKind::IncorrectMagic(buf)))
     }
 
     pub(in crate::binary) fn read_version(&mut self) -> Result<()> {
         pctx!(self, "read version");
-        read_exact_bytes!(self, 4, [0x01, 0x00, 0x00, 0x00])
+        let mut buf = [0u8; 4];
+        self.read_exact(&mut buf).result(self)?;
+        (&buf == b"\x01\0\0\0")
+            .then_some(())
+            .ok_or(self.err(BinaryParseErrorKind::IncorrectVersion(buf)))
     }
 
     /// Read a single byte, returning an errror for EOF.

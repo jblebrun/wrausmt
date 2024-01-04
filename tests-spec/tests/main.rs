@@ -34,9 +34,6 @@ spectest!(r#address);
 spectest!(r#align);
 spectest!(r#binary_x_leb128);
 spectest!(r#binary; [nomalformed!(
-    "magic header not detected",
-    "unexpected end",
-    "unknown binary version",
     "malformed section id",
     "END opcode expected",
     "unexpected end of section or function",
