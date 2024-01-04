@@ -1,4 +1,4 @@
-use std::io::Read;
+use std::io::{Error as IOError, ErrorKind as IOErrorKind, Read};
 
 #[derive(Debug)]
 pub enum LEB128Error {
@@ -74,6 +74,7 @@ fn read_leb_128_bytes(r: &mut impl Read, size: usize, signed: bool) -> Result<Ve
     for br in r.bytes().take(bytecount) {
         let b = br.map_err(LEB128Error::IOError)?;
         result.push(b & 0x7f);
+        // Last byte
         if b & 0x80 == 0 {
             // Check for bit overflow for requested size
             if result.len() == bytecount {
@@ -86,7 +87,13 @@ fn read_leb_128_bytes(r: &mut impl Read, size: usize, signed: bool) -> Result<Ve
         }
     }
 
-    Err(LEB128Error::unterminated(&result))
+    if result.is_empty() {
+        Err(LEB128Error::IOError(IOError::from(
+            IOErrorKind::UnexpectedEof,
+        )))
+    } else {
+        Err(LEB128Error::unterminated(&result))
+    }
 }
 
 // Generalized converter for both signed & unsigned LEB128 of any size.

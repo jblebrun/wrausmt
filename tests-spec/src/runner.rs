@@ -4,7 +4,7 @@ use {
         format::{Action, ActionResult, Assertion, Cmd, CmdEntry, Module, NumPat, SpecTestScript},
         spectest_module::make_spectest_module,
     },
-    std::{collections::HashMap, io::Cursor, rc::Rc},
+    std::{collections::HashMap, io::ErrorKind, rc::Rc},
     wrausmt_format::{
         binary::{
             error::{BinaryParseError, BinaryParseErrorKind},
@@ -178,6 +178,21 @@ impl MalformedMatch for str {
                     LEB128Error::Unterminated(_)
                 )) | Some(BinaryParseErrorKind::InvalidFuncType(_))
             ),
+            "magic header not detected" => {
+                matches!(bin_parse_err, Some(BinaryParseErrorKind::IncorrectMagic(_)))
+            }
+            "unknown binary version" => {
+                matches!(
+                    bin_parse_err,
+                    Some(BinaryParseErrorKind::IncorrectVersion(_))
+                )
+            }
+            "unexpected end" => {
+                matches!(
+                    bin_parse_err,
+                    Some(BinaryParseErrorKind::IOError(e)) if e.kind() == ErrorKind::UnexpectedEof
+                )
+            }
             "inline function type" => matches!(
                 parse_err,
                 Some(ParseErrorKind::ResolveError(
@@ -194,10 +209,6 @@ fn module_data(strings: Vec<WasmString>) -> Box<[u8]> {
         .into_iter()
         .flat_map::<Vec<u8>, _>(|d| d.into())
         .collect()
-}
-
-fn module_cursor(strings: Vec<WasmString>) -> Cursor<Box<[u8]>> {
-    Cursor::new(module_data(strings))
 }
 
 impl SpecTestRunner {
@@ -291,12 +302,12 @@ impl SpecTestRunner {
         match m {
             Module::Module(m) => Ok((m.id.clone(), self.runtime.load(m)?)),
             Module::Binary(n, b) => {
-                let mut data = module_cursor(b);
-                Ok((n, self.runtime.load_wasm_data(&mut data)?))
+                let data = module_data(b);
+                Ok((n, self.runtime.load_wasm_data(&mut data.as_ref())?))
             }
             Module::Quote(n, b) => {
-                let mut data = module_cursor(b);
-                Ok((n, self.runtime.load_wast_data(&mut data)?))
+                let data = module_data(b);
+                Ok((n, self.runtime.load_wast_data(&mut data.as_ref())?))
             }
         }
     }

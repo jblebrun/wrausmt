@@ -1,19 +1,22 @@
-use wrausmt_format::binary::leb128::{LEB128Error, ReadLeb128};
+use {
+    std::io::ErrorKind,
+    wrausmt_format::binary::leb128::{LEB128Error, ReadLeb128},
+};
 
 macro_rules! assert_err {
-    ( $res:expr, $match:pat ) => {
+    ( $res:expr, $match:pat, $cond:expr) => {
         match $res {
-            Err($match) => Ok(()),
+            Err($match) if $cond => Ok(()),
             Err(e) => Err(format!(
                 "Expected error containg {}, got {}",
                 stringify!($match),
                 e
             )),
-            Ok(_) => Err(format!(
-                "Expected error containg {}, got Ok",
-                stringify!($match)
-            )),
+            Ok(_) => panic!("Expected error containg {}, got Ok", stringify!($match)),
         }
+    };
+    ( $res:expr, $match:pat) => {
+        assert_err!($res, $match, true)
     };
 }
 
@@ -23,7 +26,11 @@ type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 fn test_leb128_u32() -> Result<()> {
     let data = vec![];
     let res = data.as_slice().read_u32_leb_128();
-    assert_err!(res, LEB128Error::Unterminated(_))?;
+    assert_err!(
+        res,
+        LEB128Error::IOError(e),
+        e.kind() == ErrorKind::UnexpectedEof
+    )?;
 
     let data: Vec<u8> = vec![8];
     let res = data.as_slice().read_u32_leb_128().unwrap();
@@ -60,7 +67,11 @@ fn test_leb128_u32() -> Result<()> {
 fn test_leb128_u64() -> Result<()> {
     let data = vec![];
     let res = data.as_slice().read_u64_leb_128();
-    assert_err!(res, LEB128Error::Unterminated(_))?;
+    assert_err!(
+        res,
+        LEB128Error::IOError(e),
+        e.kind() == ErrorKind::UnexpectedEof
+    )?;
 
     let data: Vec<u8> = vec![8];
     let res = data.as_slice().read_u64_leb_128().unwrap();

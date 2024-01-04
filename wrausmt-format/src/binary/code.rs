@@ -55,6 +55,7 @@ impl<R: Read> BinaryParser<R> {
     }
 
     pub(in crate::binary) fn read_expr(&mut self) -> Result<Expr<Resolved>> {
+        pctx!(self, "read expr");
         self.read_expr_with_end().map(|ee| ee.expr)
     }
 
