@@ -1,12 +1,11 @@
 use {
-    super::{error::Result, leb128::ReadLeb128, BinaryParser},
+    super::{error::Result, leb128::ReadLeb128, BinaryParser, ParserReader},
     crate::{binary::error::ParseResult, pctx},
-    std::io::Read,
     wrausmt_runtime::syntax::{DataField, DataInit, Index, Resolved},
 };
 
 /// Read the tables section of a binary module from a std::io::Read.
-impl<R: Read> BinaryParser<R> {
+impl<R: ParserReader> BinaryParser<R> {
     /// Read a funcs section. This is just a vec(TypeIndex).
     /// The values here don't correspond to a real module section, instead they
     /// correlate with the rest of the function data in the code section.

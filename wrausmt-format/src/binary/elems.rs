@@ -1,10 +1,9 @@
 use {
-    super::{error::Result, leb128::ReadLeb128, BinaryParser},
+    super::{error::Result, leb128::ReadLeb128, BinaryParser, ParserReader},
     crate::{
         binary::error::{BinaryParseErrorKind, ParseResult},
         pctx,
     },
-    std::io::Read,
     wrausmt_runtime::syntax::{
         self, types::RefType, ElemField, ElemList, Expr, FuncIndex, Id, Index, Instruction,
         ModeEntry, Opcode, Resolved, TablePosition, TableUse,
@@ -49,7 +48,7 @@ impl ElemVariant {
 }
 
 /// Read the tables section of a binary module from a std::io::Read.
-impl<R: Read> BinaryParser<R> {
+impl<R: ParserReader> BinaryParser<R> {
     pub fn read_elems_section(&mut self) -> Result<Vec<ElemField<Resolved>>> {
         pctx!(self, "read elems section");
         self.read_vec(|_, s| s.read_elem())

@@ -1,14 +1,17 @@
 use {
-    super::{error::Result, BinaryParser},
+    super::{error::Result, BinaryParser, ParserReader},
     crate::{
-        binary::{error::ParseResult, leb128::ReadLeb128, EnsureConsumed},
+        binary::{
+            error::{BinaryParseErrorKind, ParseResult},
+            leb128::ReadLeb128,
+        },
         pctx,
     },
     std::io::Read,
     wrausmt_runtime::syntax,
 };
 
-impl<R: Read> BinaryParser<R> {
+impl<R: ParserReader> BinaryParser<R> {
     /// Read and return the next section in a binary module being read by a
     /// std::io::Read If the end of the binary module has been reached,
     /// Section::Eof will be returned.
@@ -22,32 +25,40 @@ impl<R: Read> BinaryParser<R> {
             None => return Ok(Section::Eof),
         };
 
-        let len = self.read_u32_leb_128().result(self)?;
-        let mut section_reader = self.limited(len as u64);
-        let section = match section_num {
-            0 => Section::Custom(section_reader.read_custom_section()?),
-            1 => Section::Types(section_reader.read_types_section()?),
-            2 => Section::Imports(section_reader.read_imports_section()?),
-            3 => Section::Funcs(section_reader.read_funcs_section()?),
-            4 => Section::Tables(section_reader.read_tables_section()?),
-            5 => Section::Mems(section_reader.read_mems_section()?),
-            6 => Section::Globals(section_reader.read_globals_section()?),
-            7 => Section::Exports(section_reader.read_exports_section()?),
-            8 => Section::Start(section_reader.read_start_section()?),
-            9 => Section::Elems(section_reader.read_elems_section()?),
-            10 => Section::Code(section_reader.read_code_section()?),
-            11 => Section::Data(section_reader.read_data_section()?),
-            12 => Section::DataCount(section_reader.read_data_count_section()?),
-            _ => {
-                return Err(self.err(
-                    crate::binary::error::BinaryParseErrorKind::MalformedSectionId(section_num),
-                ))
+        let section_size_expected = self.read_u32_leb_128().result(self)? as usize;
+        let (section, amount_read) = self.count_reads(|s| {
+            Ok(match section_num {
+                0 => Section::Custom(s.read_custom_section(section_size_expected)?),
+                1 => Section::Types(s.read_types_section()?),
+                2 => Section::Imports(s.read_imports_section()?),
+                3 => Section::Funcs(s.read_funcs_section()?),
+                4 => Section::Tables(s.read_tables_section()?),
+                5 => Section::Mems(s.read_mems_section()?),
+                6 => Section::Globals(s.read_globals_section()?),
+                7 => Section::Exports(s.read_exports_section()?),
+                8 => Section::Start(s.read_start_section()?),
+                9 => Section::Elems(s.read_elems_section()?),
+                10 => Section::Code(s.read_code_section()?),
+                11 => Section::Data(s.read_data_section()?),
+                12 => Section::DataCount(s.read_data_count_section()?),
+                _ => {
+                    return Err(s.err(
+                        crate::binary::error::BinaryParseErrorKind::MalformedSectionId(section_num),
+                    ))
+                }
+            })
+        })?;
+
+        // It's safe here.
+        match amount_read {
+            cnt if cnt < section_size_expected => {
+                Err(self.err(BinaryParseErrorKind::SectionTooShort))
             }
-        };
-
-        section_reader.ensure_consumed()?;
-
-        Ok(section)
+            cnt if cnt > section_size_expected => {
+                Err(self.err(BinaryParseErrorKind::SectionTooLong))
+            }
+            _ => Ok(section),
+        }
     }
 }
 
