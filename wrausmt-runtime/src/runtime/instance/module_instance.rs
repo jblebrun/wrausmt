@@ -53,7 +53,6 @@ impl ModuleInstance {
     }
 
     pub fn elem(&self, idx: u32) -> addr::ElemAddr {
-        println!("GET ELEM {} FROM {:?}", idx, self.elems);
         self.elems[idx as usize]
     }
 

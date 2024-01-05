@@ -1,6 +1,10 @@
 use {
     super::{
-        error::Result, instance::FunctionInstance, store::addr, values::Value, ModuleInstance,
+        error::{Result, RuntimeErrorKind},
+        instance::FunctionInstance,
+        store::addr,
+        values::Value,
+        ModuleInstance,
     },
     crate::{
         impl_bug,
@@ -107,7 +111,7 @@ impl Stack {
 
     pub fn push_activation(&mut self, funcinst: &FunctionInstance) -> Result<()> {
         if self.activation_stack.len() > 256 {
-            return Err(impl_bug!("stack overflow"));
+            return Err(RuntimeErrorKind::CallStackExhaustion.error());
         }
 
         let frame_start = self.value_stack.len() - funcinst.functype.params.len();

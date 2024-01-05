@@ -42,6 +42,7 @@ pub enum RuntimeErrorKind {
     ImportMismatch(ImportDesc<Resolved>, ExternalVal),
     ValidationError(String),
     ArgumentCountError { expected: usize, got: usize },
+    CallStackExhaustion,
     Trap(TrapKind),
 }
 

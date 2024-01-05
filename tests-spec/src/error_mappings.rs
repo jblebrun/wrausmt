@@ -14,15 +14,12 @@ use {
             resolve::ResolveError,
         },
     },
-    wrausmt_runtime::runtime::error::{RuntimeError, RuntimeErrorKind, TrapKind},
+    wrausmt_runtime::runtime::error::{RuntimeErrorKind, TrapKind},
 };
 
 pub fn verify_failure<T>(result: CmdResult<T>, failure: &str) -> TestResult<()> {
     match result {
-        Err(CmdError::InvocationError(RuntimeError {
-            kind: RuntimeErrorKind::Trap(trap_kind),
-            ..
-        })) if matches_trap(failure, &trap_kind) => Ok(()),
+        Err(CmdError::InvocationError(re)) if matches_runtime_error(failure, &re.kind) => Ok(()),
         Err(CmdError::LoaderError(LoaderError::ParseError(ParseError { kind, .. })))
             if matches_parse_error(failure, &kind) =>
         {
@@ -34,6 +31,14 @@ pub fn verify_failure<T>(result: CmdResult<T>, failure: &str) -> TestResult<()> 
         }))) if matches_bin_parse_error(failure, &kind) => Ok(()),
         Err(e) => Err(TestFailureError::failure_mismatch(failure, e)),
         _ => Err(TestFailureError::failure_missing(failure)),
+    }
+}
+
+fn matches_runtime_error(failure: &str, error: &RuntimeErrorKind) -> bool {
+    match error {
+        RuntimeErrorKind::Trap(trap_kind) => matches_trap(failure, trap_kind),
+        RuntimeErrorKind::CallStackExhaustion => failure == "call stack exhausted",
+        _ => false,
     }
 }
 
