@@ -252,22 +252,21 @@ impl SpecTestRunner {
                         let result = self.handle_module(module);
                         verify_failure(result, &failure).map_err(|e| e.into())
                     }
-                    Assertion::Exhaustion { action, failure: _ } => {
-                        let _ = self.handle_action(action);
-                        // TODO verify result
-                        Ok(())
+                    Assertion::Exhaustion { action, failure } => {
+                        let result = self.handle_action(action);
+                        verify_failure(result, &failure).map_err(|e| e.into())
                     }
-                    Assertion::Unlinkable { module, failure: _ } => {
-                        let _ = self.handle_module(module);
-                        // TODO verify result
+                    Assertion::Unlinkable { module, failure } => {
+                        let result = self.handle_module(module);
+                        let _ignore = verify_failure(result, &failure);
                         Ok(())
                     }
                     Assertion::Invalid {
                         module: _,
                         failure: _,
                     } => {
-                        // let _ = self.handle_module(module);
-                        // TODO verify result
+                        // let result = self.handle_module(module);
+                        // let _ignore = verify_failure(result, &failure);
                         Ok(())
                     }
                 }
