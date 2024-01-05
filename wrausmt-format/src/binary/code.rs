@@ -2,7 +2,7 @@ use {
     super::{
         error::{BinaryParseErrorKind, Result},
         leb128::ReadLeb128,
-        BinaryParser, EnsureConsumed,
+        BinaryParser, ParserReader,
     },
     crate::{binary::error::ParseResult, pctx},
     std::io::Read,
@@ -43,7 +43,7 @@ type LocalCount = u32;
 /// func := (t*)*:vec(locals) e:expr
 /// locals := n:u32 t:type
 /// expr := (instr)*
-impl<R: Read> BinaryParser<R> {
+impl<R: ParserReader> BinaryParser<R> {
     pub(in crate::binary) fn read_code_section(&mut self) -> Result<Vec<FuncField<Resolved>>> {
         pctx!(self, "read code section");
         self.read_vec(|_, s| s.read_func())
@@ -64,19 +64,25 @@ impl<R: Read> BinaryParser<R> {
     /// The size is the size in bytes of the entire section, locals + exprs
     fn read_func(&mut self) -> Result<FuncField<Resolved>> {
         pctx!(self, "read func");
-        let codesize = self.read_u32_leb_128().result(self)?;
-        let mut code_reader = self.limited(codesize as u64);
-        let function = FuncField {
-            id:      None,
-            exports: vec![],
-            // The types are parsed earlier and will be set on the returned values.
-            typeuse: TypeUse::default(),
-            locals:  code_reader.read_locals()?,
-            body:    code_reader.read_expr()?,
-        };
+        let code_size_expected = self.read_u32_leb_128().result(self)? as usize;
 
-        code_reader.ensure_consumed()?;
-        Ok(function)
+        let (function, amount_read) = self.count_reads(|s| {
+            Ok(FuncField {
+                id:      None,
+                exports: vec![],
+                // The types are parsed earlier and will be set on the returned values.
+                typeuse: TypeUse::default(),
+                locals:  s.read_locals()?,
+                body:    s.read_expr()?,
+            })
+        })?;
+
+        // It's safe here: the counter holds a pointer to this parser.
+        match amount_read {
+            cnt if cnt < code_size_expected => Err(self.err(BinaryParseErrorKind::CodeTooShort)),
+            cnt if cnt > code_size_expected => Err(self.err(BinaryParseErrorKind::CodeTooLong)),
+            _ => Ok(function),
+        }
     }
 
     fn read_local_record(&mut self) -> Result<(LocalCount, ValueType)> {

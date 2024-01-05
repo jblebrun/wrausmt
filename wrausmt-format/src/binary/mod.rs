@@ -1,10 +1,10 @@
 use {
-    self::{error::BinaryParseError, read_with_location::ReadWithLocation},
-    crate::{
-        pctx,
-        tracer::{TraceDropper, Tracer},
+    self::{
+        error::BinaryParseError,
+        read_with_location::{Location, ReadWithLocation},
     },
-    std::{cell::RefCell, io::Take, rc::Rc},
+    crate::tracer::{TraceDropper, Tracer},
+    std::{cell::RefCell, rc::Rc},
     wrausmt_runtime::syntax::TypeUse,
 };
 
@@ -43,7 +43,9 @@ use {
     wrausmt_runtime::syntax::{FuncField, Index, Module, Resolved, TypeIndex},
 };
 
-impl<R: Read> BinaryParser<R> {
+pub trait ParserReader: Read + Location {}
+
+impl<R: ParserReader> BinaryParser<R> {
     /// Inner parse method accepts a mutable module, so that the outer parse
     /// method can return partial module results (useful for debugging).
     fn parse(&mut self) -> Result<Module<Resolved>> {
@@ -106,12 +108,12 @@ impl<R: Read> BinaryParser<R> {
     }
 }
 
-pub struct BinaryParser<R: Read + Sized> {
+pub struct BinaryParser<R: Read + Location + Sized> {
     reader: R,
     tracer: Rc<RefCell<Tracer>>,
 }
 
-impl<R: Read> BinaryParser<R> {
+impl<R: ParserReader> BinaryParser<R> {
     pub fn new(reader: R) -> Self {
         BinaryParser {
             reader,
@@ -119,58 +121,43 @@ impl<R: Read> BinaryParser<R> {
         }
     }
 
-    pub fn limited(&mut self, limit: u64) -> BinaryParser<Take<&mut R>> {
-        BinaryParser {
-            reader: self.reader.by_ref().take(limit),
-            tracer: self.tracer.clone(),
-        }
-    }
-
     // We use this to create errors that capture the current Tracer context into the
     // error. If we tried to do it any later than error creation time, the error
     // would be cleared.
     pub(in crate::binary) fn err(&self, kind: BinaryParseErrorKind) -> BinaryParseError {
-        BinaryParseError::new(kind, self.tracer.borrow().clone_msgs())
+        BinaryParseError::new(kind, self.tracer.borrow().clone_msgs(), self.location())
     }
 
-    fn take_reader(self) -> R {
-        self.reader
-    }
-}
-
-pub trait EnsureConsumed<R> {
-    fn ensure_consumed(&self) -> Result<()>;
-}
-
-impl<R: Read> EnsureConsumed<BinaryParser<Take<R>>> for BinaryParser<Take<R>> {
-    fn ensure_consumed(&self) -> Result<()> {
-        pctx!(self, "ensure consumed");
-        let remaining = self.reader.limit();
-        if remaining > 0 {
-            Err(self.err(BinaryParseErrorKind::ExtraSectionBytes(remaining)))
-        } else {
-            Ok(())
-        }
+    // A helper that tracks the amount of data read for the duration of the provided
+    // action closure.
+    pub fn count_reads<T>(
+        &mut self,
+        action: impl Fn(&mut Self) -> Result<T>,
+    ) -> Result<(T, usize)> {
+        let start = self.location();
+        Ok((action(self)?, self.location() - start))
     }
 }
 
-impl<R: Read> Read for BinaryParser<R> {
+impl<T: Read> ParserReader for ReadWithLocation<T> {}
+
+impl<T: ParserReader> Read for BinaryParser<T> {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         self.reader.read(buf)
     }
 }
+impl<T: ParserReader> Location for BinaryParser<T> {
+    fn location(&self) -> usize {
+        self.reader.location()
+    }
+}
+impl<T: ParserReader> ParserReader for BinaryParser<T> {}
 
 /// Attempt to interpret the data in the provided std::io:Read as a WASM binary
 /// module. If an error occurs, a ParseError will be returned containing the
 /// portion of the module that was successfully decoded.
 pub fn parse_wasm_data(src: &mut impl Read) -> Result<Module<Resolved>> {
-    // TODO: Is it possible to structure this so that BinaryParser creates a
-    // ReaderWithLocation internally from the source, and then populated into
-    // the error as part of the err method? Needing to re-wrap the reader in
-    // Take made this complicated.
     let reader = ReadWithLocation::new(src);
     let mut parser = BinaryParser::new(reader);
-    parser
-        .parse()
-        .map_err(|e| e.with_location(parser.take_reader().location()))
+    parser.parse()
 }

@@ -2,7 +2,7 @@ use {
     super::{
         error::{BinaryParseErrorKind, Result},
         leb128::ReadLeb128,
-        BinaryParser,
+        BinaryParser, ParserReader,
     },
     crate::{binary::error::ParseResult, pctx},
     std::io::Read,
@@ -12,7 +12,7 @@ use {
     },
 };
 
-impl<R: Read> BinaryParser<R> {
+impl<R: ParserReader> BinaryParser<R> {
     pub(in crate::binary) fn read_magic(&mut self) -> Result<()> {
         pctx!(self, "read magic");
         let mut buf = [0u8; 4];

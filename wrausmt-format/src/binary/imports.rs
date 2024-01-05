@@ -1,16 +1,15 @@
 use {
     super::{
         error::{BinaryParseErrorKind, Result},
-        BinaryParser,
+        BinaryParser, ParserReader,
     },
     crate::pctx,
-    std::io::Read,
     wrausmt_runtime::syntax::{ImportDesc, ImportField, Resolved},
 };
 
 /// A trait to allow parsing of an imports section from something implementing
 /// std::io::Read.
-impl<R: Read> BinaryParser<R> {
+impl<R: ParserReader> BinaryParser<R> {
     /// Read the imports section of a module.
     /// importsec := section vec(import)
     /// import := modname:name nm:name d:exportdesc

@@ -1,17 +1,16 @@
 use {
-    super::{error::Result, leb128::ReadLeb128, BinaryParser},
+    super::{error::Result, leb128::ReadLeb128, BinaryParser, ParserReader},
     crate::{
         binary::error::{BinaryParseErrorKind, ParseResult},
         pctx,
     },
-    std::io::Read,
     wrausmt_runtime::syntax::{
         types::{GlobalType, Limits, MemType, TableType, ValueType},
         FParam, FResult, FunctionType, Resolved, TypeField, TypeUse,
     },
 };
 
-impl<R: Read> BinaryParser<R> {
+impl<R: ParserReader> BinaryParser<R> {
     pub fn read_types_section(&mut self) -> Result<Vec<TypeField>> {
         pctx!(self, "read types section");
         self.read_vec(|_, s| {

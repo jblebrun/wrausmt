@@ -6,6 +6,10 @@ pub struct ReadWithLocation<R> {
     location: usize,
 }
 
+pub trait Location {
+    fn location(&self) -> usize;
+}
+
 impl<R> ReadWithLocation<R> {
     pub fn new(r: R) -> Self {
         ReadWithLocation {
@@ -24,5 +28,11 @@ impl<T: Read> Read for ReadWithLocation<T> {
         let cnt = self.inner.read(buf)?;
         self.location += cnt;
         Ok(cnt)
+    }
+}
+
+impl<T: Read> Location for ReadWithLocation<T> {
+    fn location(&self) -> usize {
+        self.location()
     }
 }

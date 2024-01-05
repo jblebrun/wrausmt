@@ -1,5 +1,5 @@
 use {
-    super::{leb128::LEB128Error, BinaryParser},
+    super::{leb128::LEB128Error, read_with_location::Location, BinaryParser, ParserReader},
     std::{io::Read, string::FromUtf8Error},
     wrausmt_runtime::syntax::Opcode,
 };
@@ -23,6 +23,10 @@ pub enum BinaryParseErrorKind {
     InvalidImportType(u8),
     InvalidFuncType(u8),
     ExtraSectionBytes(u64),
+    CodeTooShort,
+    CodeTooLong,
+    SectionTooShort,
+    SectionTooLong,
     MalformedSectionId(u8),
     TooManyLocals,
 }
@@ -35,11 +39,11 @@ pub struct BinaryParseError {
 }
 
 impl BinaryParseError {
-    pub fn new(kind: BinaryParseErrorKind, msgs: Vec<String>) -> Self {
+    pub fn new(kind: BinaryParseErrorKind, msgs: Vec<String>, location: usize) -> Self {
         Self {
             kind,
             msgs,
-            location: 0,
+            location,
         }
     }
 
@@ -83,21 +87,23 @@ impl std::fmt::Display for BinaryParseError {
     }
 }
 
-pub trait ParseError<T: Read> {
+pub trait ParseError<T: Read + Location> {
     fn err(self, parser: BinaryParser<T>) -> BinaryParseError;
 }
 
-pub trait ParseResult<T: Read, RT> {
+pub trait ParseResult<T: ParserReader, RT> {
     fn result(self, parser: &mut BinaryParser<T>) -> Result<RT>;
 }
 
-impl<T: Read, E: Into<BinaryParseErrorKind>> ParseError<T> for E {
+impl<T: ParserReader, E: Into<BinaryParseErrorKind>> ParseError<T> for E {
     fn err(self, parser: BinaryParser<T>) -> BinaryParseError {
         parser.err(self.into())
     }
 }
 
-impl<T: Read, RT, E: Into<BinaryParseErrorKind>> ParseResult<T, RT> for std::result::Result<RT, E> {
+impl<T: ParserReader, RT, E: Into<BinaryParseErrorKind>> ParseResult<T, RT>
+    for std::result::Result<RT, E>
+{
     fn result(self, parser: &mut BinaryParser<T>) -> Result<RT> {
         self.map_err(|e| parser.err(e.into()))
     }
