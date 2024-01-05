@@ -177,19 +177,20 @@ impl Runtime {
             format!("LOADED FUNCTIONS {:?}", modinst_builder.funcs)
         });
 
-        let table_insts: Vec<TableInstance> = module
+        let table_insts = module
             .tables
             .into_iter()
-            .map(|t| TableInstance::new(t.tabletype))
-            .collect();
-        let range = self.store.alloc_tables(table_insts.into_iter());
+            .map(|t| TableInstance::new(t.tabletype));
+
+        let range = self.store.alloc_tables(table_insts)?;
         modinst_builder.tables.extend(range);
         self.logger.log(Tag::Load, || {
             format!("LOADED TABLES {:?}", modinst_builder.tables)
         });
 
         let mem_insts = module.memories.into_iter().map(MemInstance::new_ast);
-        let range = self.store.alloc_mems(mem_insts);
+
+        let range = self.store.alloc_mems(mem_insts)?;
         modinst_builder.mems.extend(range);
         self.logger.log(Tag::Load, || {
             format!("LOADED MEMS {:?}", modinst_builder.mems)

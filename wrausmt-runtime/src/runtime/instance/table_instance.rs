@@ -1,6 +1,6 @@
 use crate::{
     runtime::{
-        error::{Result, TrapKind},
+        error::{Result, RuntimeErrorKind, TrapKind},
         values::Ref,
     },
     syntax::types::TableType,
@@ -26,11 +26,14 @@ pub struct TableInstance {
 }
 
 impl TableInstance {
-    pub fn new(tabletype: TableType) -> TableInstance {
+    pub fn new(tabletype: TableType) -> Result<TableInstance> {
+        if tabletype.limits.lower > 0xFFFF {
+            return Err(RuntimeErrorKind::ValidationError("Memory too big".to_string()).into());
+        }
         let elem: Vec<Ref> = std::iter::repeat(tabletype.reftype.default())
             .take(tabletype.limits.lower as usize)
             .collect();
-        TableInstance { tabletype, elem }
+        Ok(TableInstance { tabletype, elem })
     }
 
     pub fn grow(&mut self, amt: u32, val: Ref) -> Option<u32> {

@@ -1,7 +1,7 @@
 use {
     crate::{
         logger::{Logger, PrintLogger, Tag},
-        runtime::error::{Result, TrapKind},
+        runtime::error::{Result, RuntimeErrorKind, TrapKind},
         syntax::{types::MemType, MemoryField},
     },
     std::ops::Range,
@@ -46,13 +46,17 @@ impl MemInstance {
         }
     }
 
-    pub fn new_ast(memfield: MemoryField) -> MemInstance {
+    pub fn new_ast(memfield: MemoryField) -> Result<MemInstance> {
         let memtype = memfield.memtype;
-        let data = vec![0u8; memtype.limits.lower as usize * PAGE_SIZE];
-        MemInstance {
-            logger: PrintLogger,
-            memtype,
-            data,
+        if memtype.limits.lower > 65536 {
+            Err(RuntimeErrorKind::ValidationError("Memory too large".to_string()).into())
+        } else {
+            let data = vec![0u8; memtype.limits.lower as usize * PAGE_SIZE];
+            Ok(MemInstance {
+                logger: PrintLogger,
+                memtype,
+                data,
+            })
         }
     }
 

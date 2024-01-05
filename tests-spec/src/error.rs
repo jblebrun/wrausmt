@@ -54,6 +54,7 @@ pub enum TestFailureError {
         result: Option<Box<CmdError>>,
         expect: String,
     },
+    Panic(String),
 }
 
 impl TestFailureError {

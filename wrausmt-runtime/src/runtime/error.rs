@@ -93,3 +93,12 @@ impl<T> WithContext<Result<T>> for Result<T> {
         self.map_err(|e| e.with_context(msg()))
     }
 }
+
+impl From<RuntimeErrorKind> for RuntimeError {
+    fn from(kind: RuntimeErrorKind) -> Self {
+        RuntimeError {
+            kind,
+            context: Vec::new(),
+        }
+    }
+}
