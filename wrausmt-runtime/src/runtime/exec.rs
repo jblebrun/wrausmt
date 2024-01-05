@@ -230,7 +230,7 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
     fn mem(&mut self, idx: u32) -> Result<&mut MemInstance> {
         let memaddr = self.runtime.stack.get_mem_addr(idx)?;
         self.log(Tag::Mem, || format!("USING MEM {:?}", memaddr));
-        self.runtime.store.mem(memaddr)
+        self.runtime.store.mem_mut(memaddr)
     }
 
     fn mem_init(&mut self) -> Result<()> {

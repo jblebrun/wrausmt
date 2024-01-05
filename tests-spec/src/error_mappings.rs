@@ -38,6 +38,8 @@ fn matches_runtime_error(failure: &str, error: &RuntimeErrorKind) -> bool {
     match error {
         RuntimeErrorKind::Trap(trap_kind) => matches_trap(failure, trap_kind),
         RuntimeErrorKind::CallStackExhaustion => failure == "call stack exhausted",
+        RuntimeErrorKind::ImportMismatch(..) => failure == "incompatible import type",
+        RuntimeErrorKind::ImportNotFound(..) => failure == "unknown import",
         _ => false,
     }
 }
