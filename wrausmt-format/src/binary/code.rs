@@ -124,7 +124,8 @@ impl<R: ParserReader> BinaryParser<R> {
         pctx!(self, "read expr with end");
         let mut expr = Expr::default();
         let end = loop {
-            match self.read_inst()? {
+            let inst = self.read_inst();
+            match inst? {
                 InstructionOrEnd::Instruction(inst) => expr.instr.push(inst),
                 InstructionOrEnd::End(end) => break end,
             }
@@ -151,6 +152,7 @@ impl<R: ParserReader> BinaryParser<R> {
         let mut opcode_buf = [0u8; 1];
         self.read_exact(&mut opcode_buf).result(self)?;
 
+        pctx!(self, &format!("read inst {:?}", opcode_buf));
         let opcode = match opcode_buf[0] {
             op_consts::EXTENDED_PREFIX => Opcode::Extended(self.read_secondary_opcode()?),
             op_consts::SIMD_PREFIX => Opcode::Simd(self.read_secondary_opcode()?),

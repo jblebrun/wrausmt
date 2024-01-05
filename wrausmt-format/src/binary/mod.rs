@@ -1,6 +1,6 @@
 use {
     self::{
-        error::BinaryParseError,
+        error::{BinaryParseError, EofAsKind},
         read_with_location::{Location, ReadWithLocation},
     },
     crate::tracer::{TraceDropper, Tracer},
@@ -51,13 +51,17 @@ impl<R: ParserReader> BinaryParser<R> {
     fn parse(&mut self) -> Result<Module<Resolved>> {
         let mut module = Module::default();
 
-        self.read_magic()?;
-        self.read_version()?;
+        self.read_magic()
+            .eof_as_kind(BinaryParseErrorKind::UnexpectedEnd)?;
+        self.read_version()
+            .eof_as_kind(BinaryParseErrorKind::UnexpectedEnd)?;
 
         let mut functypes: Vec<Index<Resolved, TypeIndex>> = vec![];
 
         loop {
-            let section = self.read_section()?;
+            let section = self
+                .read_section()
+                .eof_as_kind(BinaryParseErrorKind::UnxpectedEndOfSectionOrFunction)?;
             match section {
                 Section::Eof => break,
                 Section::Custom(_) => (),

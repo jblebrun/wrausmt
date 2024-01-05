@@ -35,18 +35,13 @@ spectest!(r#align);
 spectest!(r#binary_x_leb128);
 spectest!(r#binary; [nomalformed!(
     "END opcode expected",
-    "unexpected end of section or function",
-    "section size mismatch",
     "illegal opcode",
     "zero byte expected",
     "integer too large",
-    "too many locals",
     "function and code section have inconsistent lengths",
     "data count and data section have inconsistent lengths",
     "data count section required",
-    "malformed reference type",
     "length out of bounds",
-    "malformed import kind",
     "unexpected content after last section"
 )]);
 spectest!(r#block; [nomalformed!("mismatching label")]);
@@ -60,9 +55,7 @@ spectest!(r#comments);
 spectest!(r#const; [nomalformed!("unknown operator", "constant out of range")]);
 spectest!(r#conversions);
 spectest!(r#custom; [nomalformed!(
-    "unexpected end",
     "length out of bounds",
-    "malformed section id",
     "function and code section have inconsistent lengths",
     "data count and data section have inconsistent lengths"
 )]);

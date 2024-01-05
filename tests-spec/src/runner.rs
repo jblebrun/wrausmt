@@ -4,7 +4,7 @@ use {
         format::{Action, ActionResult, Assertion, Cmd, CmdEntry, Module, NumPat, SpecTestScript},
         spectest_module::make_spectest_module,
     },
-    std::{collections::HashMap, io::ErrorKind, rc::Rc},
+    std::{collections::HashMap, rc::Rc},
     wrausmt_format::{
         binary::{
             error::{BinaryParseError, BinaryParseErrorKind},
@@ -157,21 +157,21 @@ impl MalformedMatch for str {
                 parse_err,
                 // This should really only be unexpected token, but blocks end up parsing
                 // out-of-order param/result/type as instructions. One approach to improve this
-                // coudl be to define all of the non-instruction keywords as their own tokens.
+                // could be to define all of the non-instruction keywords as their own tokens.
                 Some(ParseErrorKind::UnexpectedToken(_))
                     | Some(ParseErrorKind::UnrecognizedInstruction(_))
             ),
-            _ if self.starts_with("unknown operator") => {
-                matches!(
-                    parse_err,
-                    Some(ParseErrorKind::UnexpectedToken(_))
-                        | Some(ParseErrorKind::UnrecognizedInstruction(_))
-                )
-            }
+            _ if self.starts_with("unknown operator") => matches!(
+                parse_err,
+                // TODO - remove the need for UnexpectedToken
+                Some(ParseErrorKind::UnexpectedToken(_))
+                    | Some(ParseErrorKind::UnrecognizedInstruction(_))
+            ),
             "integer too large" => matches!(
                 bin_parse_err,
                 Some(BinaryParseErrorKind::LEB128Error(LEB128Error::Overflow(_)))
             ),
+            // TODO - remove the need for InvalidFuncType
             "integer representation too long" => matches!(
                 bin_parse_err,
                 Some(BinaryParseErrorKind::LEB128Error(
@@ -181,18 +181,10 @@ impl MalformedMatch for str {
             "magic header not detected" => {
                 matches!(bin_parse_err, Some(BinaryParseErrorKind::IncorrectMagic(_)))
             }
-            "unknown binary version" => {
-                matches!(
-                    bin_parse_err,
-                    Some(BinaryParseErrorKind::IncorrectVersion(_))
-                )
-            }
-            "unexpected end" => {
-                matches!(
-                    bin_parse_err,
-                    Some(BinaryParseErrorKind::IOError(e)) if e.kind() == ErrorKind::UnexpectedEof
-                )
-            }
+            "unknown binary version" => matches!(
+                bin_parse_err,
+                Some(BinaryParseErrorKind::IncorrectVersion(_))
+            ),
             "inline function type" => matches!(
                 parse_err,
                 Some(ParseErrorKind::ResolveError(
@@ -203,7 +195,6 @@ impl MalformedMatch for str {
                 matches!(parse_err, Some(ParseErrorKind::Utf8Error(_)))
                     || matches!(bin_parse_err, Some(BinaryParseErrorKind::Utf8Error(_e)))
             }
-
             "import after function" => matches!(
                 parse_err,
                 Some(ParseErrorKind::ResolveError(
@@ -231,6 +222,32 @@ impl MalformedMatch for str {
                 bin_parse_err,
                 Some(BinaryParseErrorKind::MalformedSectionId(_))
             ),
+            "malformed import kind" => matches!(
+                bin_parse_err,
+                Some(BinaryParseErrorKind::MalformedImportKind(_))
+            ),
+            "malformed reference type" => matches!(
+                bin_parse_err,
+                Some(BinaryParseErrorKind::MalformedRefType(_))
+            ),
+            "section size mismatch" => matches!(
+                bin_parse_err,
+                Some(BinaryParseErrorKind::SectionTooShort)
+                    | Some(BinaryParseErrorKind::SectionTooLong)
+                    | Some(BinaryParseErrorKind::CodeTooLong)
+            ),
+            // TODO - remove the need for UnxpectedEndOfSectionOrFunction
+            "unexpected end" => matches!(
+                bin_parse_err,
+                Some(BinaryParseErrorKind::UnexpectedEnd)
+                    | Some(BinaryParseErrorKind::UnxpectedEndOfSectionOrFunction)
+            ),
+
+            "unexpected end of section or function" => matches!(
+                bin_parse_err,
+                Some(BinaryParseErrorKind::UnxpectedEndOfSectionOrFunction)
+            ),
+            "too many locals" => matches!(bin_parse_err, Some(BinaryParseErrorKind::TooManyLocals)),
             _ => false,
         }
     }
