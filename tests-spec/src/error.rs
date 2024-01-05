@@ -50,14 +50,26 @@ pub enum TestFailureError {
         result: Value,
         expect: ActionResult,
     },
-    TrapMismatch {
-        result: Option<Box<CmdError>>,
-        expect: String,
-    },
     FailureMismatch {
         result: Option<Box<CmdError>>,
         expect: String,
     },
+}
+
+impl TestFailureError {
+    pub fn failure_mismatch(failure: &str, error: CmdError) -> TestFailureError {
+        TestFailureError::FailureMismatch {
+            result: Some(Box::new(error)),
+            expect: failure.to_string(),
+        }
+    }
+
+    pub fn failure_missing(failure: &str) -> TestFailureError {
+        TestFailureError::FailureMismatch {
+            result: None,
+            expect: failure.to_string(),
+        }
+    }
 }
 
 impl std::error::Error for SpecTestError {}

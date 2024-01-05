@@ -1,26 +1,15 @@
 use {
     crate::{
         error::{CmdError, Failure, Result, SpecTestError, TestFailureError},
+        error_mappings::verify_failure,
         format::{Action, ActionResult, Assertion, Cmd, CmdEntry, Module, NumPat, SpecTestScript},
         spectest_module::make_spectest_module,
     },
     std::{collections::HashMap, rc::Rc},
-    wrausmt_format::{
-        binary::{
-            error::{BinaryParseError, BinaryParseErrorKind},
-            leb128::LEB128Error,
-        },
-        loader::{Loader, LoaderError},
-        text::{
-            parse::error::{ParseError, ParseErrorKind},
-            resolve::ResolveError,
-            string::WasmString,
-        },
-    },
+    wrausmt_format::{loader::Loader, text::string::WasmString},
     wrausmt_runtime::{
         logger::{Logger, PrintLogger, Tag},
         runtime::{
-            error::{RuntimeError, RuntimeErrorKind, TrapKind},
             instance::ModuleInstance,
             values::{Num, Ref, Value},
             Runtime,
@@ -101,156 +90,6 @@ pub struct SpecTestRunner {
     latest_module: Option<Rc<ModuleInstance>>,
     named_modules: HashMap<Id, Rc<ModuleInstance>>,
     logger:        PrintLogger,
-}
-
-trait TrapMatch {
-    fn matches_trap(&self, trap: &TrapKind) -> bool;
-}
-
-impl TrapMatch for str {
-    fn matches_trap(&self, trap: &TrapKind) -> bool {
-        match self {
-            "invalid conversion to integer" => matches!(trap, TrapKind::InvalidConversionToInteger),
-            "out of bounds memory access" => {
-                matches!(trap, TrapKind::OutOfBoundsMemoryAccess(..))
-            }
-            "out of bounds table access" => matches!(trap, TrapKind::OutOfBoundsTableAccess(..)),
-            "indirect call type mismatch" => matches!(trap, TrapKind::CallIndirectTypeMismatch),
-            "integer divide by zero" => matches!(trap, TrapKind::IntegerDivideByZero),
-            "integer overflow" => matches!(trap, TrapKind::IntegerOverflow),
-            "unreachable" => matches!(trap, TrapKind::Unreachable),
-            "undefined element" => matches!(trap, TrapKind::OutOfBoundsTableAccess(..)),
-            "uninitialized element" => matches!(trap, TrapKind::UninitializedElement),
-            "uninitialized element 2" => matches!(trap, TrapKind::UninitializedElement),
-            _ => false,
-        }
-    }
-}
-
-trait MalformedMatch {
-    fn matches_malformed(&self, err: &CmdError) -> bool;
-}
-
-impl MalformedMatch for str {
-    fn matches_malformed(&self, err: &CmdError) -> bool {
-        let parse_err =
-            if let CmdError::LoaderError(LoaderError::ParseError(ParseError { kind, .. })) = err {
-                Some(kind)
-            } else {
-                None
-            };
-        let bin_parse_err =
-            if let CmdError::LoaderError(LoaderError::BinaryParseError(BinaryParseError {
-                kind,
-                ..
-            })) = err
-            {
-                Some(kind)
-            } else {
-                None
-            };
-        match self {
-            "alignment" => matches!(parse_err, Some(ParseErrorKind::InvalidAlignment(_))),
-            "i32 constant" => matches!(parse_err, Some(ParseErrorKind::ParseIntError(_))),
-            "unknown label" => matches!(parse_err, Some(ParseErrorKind::ResolveError(_))),
-            "unexpected token" => matches!(
-                parse_err,
-                // This should really only be unexpected token, but blocks end up parsing
-                // out-of-order param/result/type as instructions. One approach to improve this
-                // could be to define all of the non-instruction keywords as their own tokens.
-                Some(ParseErrorKind::UnexpectedToken(_))
-                    | Some(ParseErrorKind::UnrecognizedInstruction(_))
-            ),
-            _ if self.starts_with("unknown operator") => matches!(
-                parse_err,
-                // TODO - remove the need for UnexpectedToken
-                Some(ParseErrorKind::UnexpectedToken(_))
-                    | Some(ParseErrorKind::UnrecognizedInstruction(_))
-            ),
-            "integer too large" => matches!(
-                bin_parse_err,
-                Some(BinaryParseErrorKind::LEB128Error(LEB128Error::Overflow(_)))
-            ),
-            // TODO - remove the need for InvalidFuncType
-            "integer representation too long" => matches!(
-                bin_parse_err,
-                Some(BinaryParseErrorKind::LEB128Error(
-                    LEB128Error::Unterminated(_)
-                )) | Some(BinaryParseErrorKind::InvalidFuncType(_))
-            ),
-            "magic header not detected" => {
-                matches!(bin_parse_err, Some(BinaryParseErrorKind::IncorrectMagic(_)))
-            }
-            "unknown binary version" => matches!(
-                bin_parse_err,
-                Some(BinaryParseErrorKind::IncorrectVersion(_))
-            ),
-            "inline function type" => matches!(
-                parse_err,
-                Some(ParseErrorKind::ResolveError(
-                    ResolveError::DuplicateTypeIndex(_)
-                ))
-            ),
-            "malformed UTF-8 encoding" => {
-                matches!(parse_err, Some(ParseErrorKind::Utf8Error(_)))
-                    || matches!(bin_parse_err, Some(BinaryParseErrorKind::Utf8Error(_e)))
-            }
-            "import after function" => matches!(
-                parse_err,
-                Some(ParseErrorKind::ResolveError(
-                    ResolveError::ImportAfterFunction
-                ))
-            ),
-            "import after global" => matches!(
-                parse_err,
-                Some(ParseErrorKind::ResolveError(
-                    ResolveError::ImportAfterGlobal
-                ))
-            ),
-            "import after table" => matches!(
-                parse_err,
-                Some(ParseErrorKind::ResolveError(ResolveError::ImportAfterTable))
-            ),
-            "import after memory" => matches!(
-                parse_err,
-                Some(ParseErrorKind::ResolveError(
-                    ResolveError::ImportAfterMemory
-                ))
-            ),
-            "constant out of range" => matches!(parse_err, Some(ParseErrorKind::InvalidNaN(_))),
-            "malformed section id" => matches!(
-                bin_parse_err,
-                Some(BinaryParseErrorKind::MalformedSectionId(_))
-            ),
-            "malformed import kind" => matches!(
-                bin_parse_err,
-                Some(BinaryParseErrorKind::MalformedImportKind(_))
-            ),
-            "malformed reference type" => matches!(
-                bin_parse_err,
-                Some(BinaryParseErrorKind::MalformedRefType(_))
-            ),
-            "section size mismatch" => matches!(
-                bin_parse_err,
-                Some(BinaryParseErrorKind::SectionTooShort)
-                    | Some(BinaryParseErrorKind::SectionTooLong)
-                    | Some(BinaryParseErrorKind::CodeTooLong)
-            ),
-            // TODO - remove the need for UnxpectedEndOfSectionOrFunction
-            "unexpected end" => matches!(
-                bin_parse_err,
-                Some(BinaryParseErrorKind::UnexpectedEnd)
-                    | Some(BinaryParseErrorKind::UnxpectedEndOfSectionOrFunction)
-            ),
-
-            "unexpected end of section or function" => matches!(
-                bin_parse_err,
-                Some(BinaryParseErrorKind::UnxpectedEndOfSectionOrFunction)
-            ),
-            "too many locals" => matches!(bin_parse_err, Some(BinaryParseErrorKind::TooManyLocals)),
-            _ => false,
-        }
-    }
 }
 
 fn module_data(strings: Vec<WasmString>) -> Box<[u8]> {
@@ -361,37 +200,6 @@ impl SpecTestRunner {
         }
     }
 
-    fn verify_trap_result<T>(result: CmdResult<T>, failure: String) -> TestResult<()> {
-        match result {
-            Err(CmdError::InvocationError(RuntimeError {
-                kind: RuntimeErrorKind::Trap(trap_kind),
-                ..
-            })) if failure.matches_trap(&trap_kind) => Ok(()),
-            Err(e) => Err(TestFailureError::TrapMismatch {
-                result: Some(Box::new(e)),
-                expect: failure,
-            }),
-            _ => Err(TestFailureError::TrapMismatch {
-                result: None,
-                expect: failure,
-            }),
-        }
-    }
-
-    fn verify_malformed_result<T>(result: CmdResult<T>, failure: String) -> TestResult<()> {
-        match result {
-            Err(e) if failure.matches_malformed(&e) => Ok(()),
-            Err(e) => Err(TestFailureError::FailureMismatch {
-                result: Some(Box::new(e)),
-                expect: failure,
-            }),
-            _ => Err(TestFailureError::FailureMismatch {
-                result: None,
-                expect: failure,
-            }),
-        }
-    }
-
     fn run_cmd_entry(&mut self, cmd: Cmd, runset: &RunSet) -> CmdResult<()> {
         self.logger
             .log(Tag::Spec, || format!("EXECUTE CMD {:?}", cmd));
@@ -434,15 +242,15 @@ impl SpecTestRunner {
                             return Ok(());
                         }
                         let result = self.handle_action(action);
-                        Self::verify_trap_result(result, failure).map_err(|e| e.into())
+                        verify_failure(result, &failure).map_err(|e| e.into())
                     }
                     Assertion::ModuleTrap { module, failure } => {
                         let result = self.handle_module(module);
-                        Self::verify_trap_result(result, failure).map_err(|e| e.into())
+                        verify_failure(result, &failure).map_err(|e| e.into())
                     }
                     Assertion::Malformed { module, failure } => {
                         let result = self.handle_module(module);
-                        Self::verify_malformed_result(result, failure).map_err(|e| e.into())
+                        verify_failure(result, &failure).map_err(|e| e.into())
                     }
                     Assertion::Exhaustion { action, failure: _ } => {
                         let _ = self.handle_action(action);
