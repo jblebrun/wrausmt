@@ -50,7 +50,7 @@ impl<T, E: Into<ParseErrorKind>> ParseResult<T> for std::result::Result<T, E> {
 
 #[macro_export]
 macro_rules! pctx {
-    ($s:ident, $msg:literal) => {
+    ($s:ident, $msg:expr) => {
         let _token = $s.fctx($msg);
     };
 }

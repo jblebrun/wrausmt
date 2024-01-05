@@ -86,7 +86,7 @@ impl<R: ParserReader> BinaryParser<R> {
         match self.read_byte_as_i7_leb_128().result(self)? {
             -0x10 => Ok(RefType::Func),
             -0x11 => Ok(RefType::Extern),
-            b => Err(self.err(BinaryParseErrorKind::InvalidRefType(b as u8))),
+            b => Err(self.err(BinaryParseErrorKind::MalformedRefType(b as u8))),
         }
     }
 

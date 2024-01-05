@@ -33,7 +33,7 @@ impl<R: ParserReader> BinaryParser<R> {
                         1 => ImportDesc::Table(s.read_table_type()?),
                         2 => ImportDesc::Mem(s.read_memory_type()?),
                         3 => ImportDesc::Global(s.read_global_type()?),
-                        _ => return Err(s.err(BinaryParseErrorKind::InvalidImportType(kind))),
+                        _ => return Err(s.err(BinaryParseErrorKind::MalformedImportKind(kind))),
                     }
                 },
             })

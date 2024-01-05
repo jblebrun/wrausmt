@@ -1,7 +1,10 @@
 use {
     super::{error::Result, BinaryParser, ParserReader},
     crate::{
-        binary::{error::ParseResult, read_with_location::Location},
+        binary::{
+            error::{BinaryParseErrorKind, ParseResult},
+            read_with_location::Location,
+        },
         pctx,
     },
     std::io::Read,
@@ -15,6 +18,9 @@ impl<R: ParserReader> BinaryParser<R> {
         expected_section_size: usize,
     ) -> Result<syntax::CustomField> {
         pctx!(self, "read custom section");
+        if expected_section_size == 0 {
+            return Err(self.err(BinaryParseErrorKind::UnexpectedEnd));
+        }
         let name_start = self.location();
         let name = self.read_name()?;
         let name_size = self.location() - name_start;

@@ -18,16 +18,17 @@ pub enum BinaryParseErrorKind {
     InvalidBoolValue(u8),
     InvalidElemKind(u8),
     InvalidValueType(u8),
-    InvalidRefType(u8),
     InvalidExportType(u8),
-    InvalidImportType(u8),
     InvalidFuncType(u8),
-    ExtraSectionBytes(u64),
     CodeTooShort,
     CodeTooLong,
     SectionTooShort,
     SectionTooLong,
+    MalformedRefType(u8),
     MalformedSectionId(u8),
+    MalformedImportKind(u8),
+    UnxpectedEndOfSectionOrFunction,
+    UnexpectedEnd,
     TooManyLocals,
 }
 
@@ -113,3 +114,22 @@ impl std::error::Error for BinaryParseError {}
 
 /// Most functions internally work with BinaryParseErrorKind as a type.
 pub(in crate::binary) type Result<T> = std::result::Result<T, BinaryParseError>;
+
+pub trait EofAsKind {
+    fn eof_as_kind(self, kind: BinaryParseErrorKind) -> Self;
+}
+
+impl<T> EofAsKind for Result<T> {
+    fn eof_as_kind(self, kind: BinaryParseErrorKind) -> Self {
+        self.map_err(|mut se| match &se {
+            BinaryParseError {
+                kind: BinaryParseErrorKind::IOError(e),
+                ..
+            } if e.kind() == std::io::ErrorKind::UnexpectedEof => {
+                se.kind = kind;
+                se
+            }
+            _ => se,
+        })
+    }
+}
