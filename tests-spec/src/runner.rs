@@ -258,8 +258,7 @@ impl SpecTestRunner {
                     }
                     Assertion::Unlinkable { module, failure } => {
                         let result = self.handle_module(module);
-                        let _ignore = verify_failure(result, &failure);
-                        Ok(())
+                        verify_failure(result, &failure).map_err(|e| e.into())
                     }
                     Assertion::Invalid {
                         module: _,

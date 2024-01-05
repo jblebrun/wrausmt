@@ -88,6 +88,12 @@ impl Store {
             .map(|g| g.val)
     }
 
+    pub fn global_inst(&self, addr: addr::GlobalAddr) -> Result<&GlobalInstance> {
+        self.globals
+            .get(addr as usize)
+            .ok_or_else(|| impl_bug!("no global at addr {}", addr))
+    }
+
     pub fn set_global(&mut self, addr: addr::GlobalAddr, val: Value) -> Result<()> {
         let g = self
             .globals
@@ -98,13 +104,19 @@ impl Store {
         Ok(())
     }
 
-    pub fn mem(&mut self, addr: addr::MemoryAddr) -> Result<&mut MemInstance> {
+    pub fn mem(&self, addr: addr::MemoryAddr) -> Result<&MemInstance> {
+        self.mems
+            .get(addr as usize)
+            .ok_or_else(|| impl_bug!("no mem at addr {}", addr))
+    }
+
+    pub fn mem_mut(&mut self, addr: addr::MemoryAddr) -> Result<&mut MemInstance> {
         self.mems
             .get_mut(addr as usize)
             .ok_or_else(|| impl_bug!("no mem at addr {}", addr))
     }
 
-    pub fn table(&mut self, addr: addr::TableAddr) -> Result<&TableInstance> {
+    pub fn table(&self, addr: addr::TableAddr) -> Result<&TableInstance> {
         self.tables
             .get(addr as usize)
             .ok_or_else(|| impl_bug!("no table at addr {}", addr))
@@ -117,8 +129,12 @@ impl Store {
     }
 
     pub fn grow_mem(&mut self, addr: addr::MemoryAddr, pgs: u32) -> Result<Option<u32>> {
-        let mem = self.mem(addr)?;
-        Ok(mem.grow(pgs))
+        let mem = self.mem_mut(addr)?;
+        let old_size = mem.grow(pgs);
+        if old_size.is_some() {
+            mem.memtype.limits.lower = mem.size() as u32;
+        }
+        Ok(old_size)
     }
 
     pub fn grow_table(
@@ -133,7 +149,7 @@ impl Store {
     }
 
     pub fn fill_mem(&mut self, addr: addr::MemoryAddr, n: usize, val: u8, i: usize) -> Result<()> {
-        let mem = self.mem(addr)?;
+        let mem = self.mem_mut(addr)?;
         mem.data
             .get_mut(i..i + n)
             .ok_or(TrapKind::OutOfBoundsMemoryAccess(i, n))?

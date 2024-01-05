@@ -90,6 +90,21 @@ pub struct Limits {
     pub upper: Option<u32>,
 }
 
+impl Limits {
+    /// Limits (n1, m1), (n2, m2) match iff:
+    /// n1 >= n2
+    /// AND
+    /// m2 Empty OR m1 and m2 are non empty and m1 <= m2
+    pub fn works_as(&self, other: &Limits) -> bool {
+        self.lower >= other.lower
+            && match (self.upper, other.upper) {
+                (_, None) => true,
+                (Some(su), Some(ou)) => su <= ou,
+                _ => false,
+            }
+    }
+}
+
 /// Memory types classify linear memories and their size range. [Spec][Spec]
 ///
 /// The limits constrain the minimum and optionally the maximum size of a

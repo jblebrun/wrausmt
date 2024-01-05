@@ -32,7 +32,42 @@ impl Runtime {
         self.instantiate(module)
     }
 
-    fn find_import(&self, import: &syntax::ImportField<Resolved>) -> Result<ExternalVal> {
+    fn validate_import(
+        &self,
+        import: &syntax::ImportField<Resolved>,
+        candidate_addr: &ExternalVal,
+        types: &[FunctionType],
+    ) -> Result<()> {
+        let matches = match (&import.desc, &candidate_addr) {
+            (ImportDesc::Func(fi), ExternalVal::Func(fa)) => {
+                let resolved = &self.store.func(*fa)?.functype;
+                let imported = &types[fi.index().value() as usize];
+                resolved == imported
+            }
+            (ImportDesc::Table(ti), ExternalVal::Table(ta)) => {
+                let resolved = &self.store.table(*ta)?.tabletype;
+                resolved.reftype == ti.reftype && resolved.limits.works_as(&ti.limits)
+            }
+            (ImportDesc::Mem(mi), ExternalVal::Memory(ma)) => {
+                let resolved = &self.store.mem(*ma)?;
+                resolved.memtype.limits.works_as(&mi.limits)
+            }
+            (ImportDesc::Global(gi), ExternalVal::Global(ga)) => {
+                let existing = self.store.global_inst(*ga)?;
+                existing.val.valtype() == gi.valtype && existing.mutable == gi.mutable
+            }
+            _ => false,
+        };
+        matches
+            .then_some(())
+            .ok_or(RuntimeErrorKind::ImportMismatch(import.desc.clone(), *candidate_addr).error())
+    }
+
+    fn find_import(
+        &self,
+        import: &syntax::ImportField<Resolved>,
+        types: &[FunctionType],
+    ) -> Result<ExternalVal> {
         let regmod = self
             .registered
             .get(&import.modname)
@@ -41,17 +76,9 @@ impl Runtime {
         let exportinst = regmod.resolve(&import.name).ok_or_else(|| {
             RuntimeErrorKind::ImportNotFound(import.modname.clone(), import.name.clone()).error()
         })?;
-        match (&import.desc, &exportinst.addr) {
-            (ImportDesc::Func(_), ExternalVal::Func(_)) => (),
-            (ImportDesc::Table(_), ExternalVal::Table(_)) => (),
-            (ImportDesc::Mem(_), ExternalVal::Memory(_)) => (),
-            (ImportDesc::Global(_), ExternalVal::Global(_)) => (),
-            _ => {
-                return Err(
-                    RuntimeErrorKind::ImportMismatch(import.desc.clone(), exportinst.addr).error(),
-                )
-            }
-        };
+
+        self.validate_import(import, &exportinst.addr, types)?;
+
         Ok(exportinst.addr)
     }
 
@@ -125,7 +152,7 @@ impl Runtime {
         };
 
         for import in module.imports {
-            let found = self.find_import(&import)?;
+            let found = self.find_import(&import, &modinst_builder.types)?;
             modinst_builder.add_external_val(found);
         }
 
@@ -229,6 +256,7 @@ impl Runtime {
                 let val = self.eval_expr(&initexpr)?;
                 Ok(GlobalInstance {
                     typ: g.globaltype.valtype,
+                    mutable: g.globaltype.mutable,
                     val,
                 })
             })

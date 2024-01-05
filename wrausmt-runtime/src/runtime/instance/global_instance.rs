@@ -14,6 +14,7 @@ use crate::{runtime::Value, syntax::types::ValueType};
 /// [Spec]: https://webassembly.github.io/spec/core/exec/runtime.html#global-instances
 #[derive(Debug)]
 pub struct GlobalInstance {
-    pub typ: ValueType,
-    pub val: Value,
+    pub typ:     ValueType,
+    pub mutable: bool,
+    pub val:     Value,
 }
