@@ -9,6 +9,7 @@ use {
         syntax::types::{FunctionType, ValueType},
     },
     std::rc::Rc,
+    wrausmt_common::true_or::TrueOr,
 };
 
 /// A function instance is the runtime representation of a function.
@@ -52,13 +53,10 @@ struct HostFunc {
 impl FunctionInstance {
     pub fn validate_args(&self, args: &[Value]) -> Result<()> {
         let params_arity = self.functype.params.len();
-        if params_arity != args.len() {
-            return Err(RuntimeErrorKind::ArgumentCountError {
-                expected: params_arity,
-                got:      args.len(),
-            }
-            .error());
-        }
+        (params_arity == args.len()).true_or_else(|| RuntimeErrorKind::ArgumentCountError {
+            expected: params_arity,
+            got:      args.len(),
+        })?;
         Ok(())
     }
 

@@ -5,6 +5,7 @@ use {
         syntax::{types::MemType, MemoryField},
     },
     std::ops::Range,
+    wrausmt_common::true_or::TrueOr,
 };
 
 /// A memory instance is the runtime representation of a linear memory.
@@ -84,18 +85,13 @@ impl MemInstance {
     }
 
     fn offset(&self, o: usize, b: usize, n: usize) -> Result<Range<usize>> {
-        let i = o as u64 + b as u64;
+        let i = o + b;
+        let end = i + n;
         self.logger
             .log(Tag::Mem, || format!("READ {} IN {}", i, self.data.len()));
-        if (i + n as u64) > self.data.len() as u64 {
-            return Err(TrapKind::OutOfBoundsMemoryAccess(
-                (i + n as u64) as usize,
-                self.data.len(),
-            )
-            .into());
-        }
-        let i = i as usize;
-        Ok(i..i + n)
+        (end <= self.data.len())
+            .true_or(TrapKind::OutOfBoundsMemoryAccess(end, self.data.len()))?;
+        Ok(i..end)
     }
 
     pub fn read(&self, o: usize, b: usize, n: usize) -> Result<&[u8]> {
@@ -110,12 +106,8 @@ impl MemInstance {
     }
 
     pub fn copy_within(&mut self, src: usize, dst: usize, count: usize) -> Result<()> {
-        (src + count <= self.data.len())
-            .then_some(())
-            .ok_or(TrapKind::OutOfBoundsMemoryAccess(src, count))?;
-        (dst + count <= self.data.len())
-            .then_some(())
-            .ok_or(TrapKind::OutOfBoundsMemoryAccess(dst, count))?;
+        (src + count <= self.data.len()).true_or(TrapKind::OutOfBoundsMemoryAccess(src, count))?;
+        (dst + count <= self.data.len()).true_or(TrapKind::OutOfBoundsMemoryAccess(dst, count))?;
         self.data.copy_within(src..src + count, dst);
         Ok(())
     }

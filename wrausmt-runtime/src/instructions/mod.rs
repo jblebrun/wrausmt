@@ -10,10 +10,7 @@ use {
     },
     crate::{
         impl_bug,
-        runtime::{
-            error::{Result, WithContext},
-            exec::ExecutionContext,
-        },
+        runtime::{error::Result, exec::ExecutionContext},
         syntax::{Id, Opcode},
     },
 };
@@ -93,12 +90,12 @@ pub type ExecFn = fn(ec: &mut ExecutionContext) -> Result<()>;
 /// This function appears in the lookup table for opcodes that don't have a
 /// corresponding operation in the specification.
 pub fn bad(_ec: &mut ExecutionContext) -> Result<()> {
-    Err(impl_bug!("unknown opcode"))
+    Err(impl_bug!("unknown opcode"))?
 }
 
 /// This function is used to mark not-yet-implemented instructions in the table.
 pub fn unimpl(_ec: &mut ExecutionContext) -> Result<()> {
-    Err(impl_bug!("not yet implemented"))
+    Err(impl_bug!("not yet implemented"))?
 }
 
 pub const BAD_INSTRUCTION: InstructionData = InstructionData {
@@ -114,8 +111,8 @@ pub fn exec_method(opcode: Opcode, ec: &mut ExecutionContext) -> Result<()> {
         Opcode::Normal(o) => EXEC_TABLE.get(o as usize),
     };
     match exec_fn {
-        Some(ef) => ef(ec).ctx(|| format!("for op {:?} - {:?}", opcode, instruction_data(&opcode))),
-        None => Err(impl_bug!("Exec table short")),
+        Some(ef) => ef(ec),
+        None => Err(impl_bug!("Exec table short"))?,
     }
 }
 

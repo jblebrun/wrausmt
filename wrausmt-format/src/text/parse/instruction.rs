@@ -76,7 +76,7 @@ impl<R: Read> Parser<R> {
                         let tabidx = self.try_index()?;
                         let elemidx = self.try_index()?;
                         let (tabidx, elemidx) = match (tabidx, elemidx) {
-                            (None, None) => return Err(self.unexpected_token("elem idx")),
+                            (None, None) => Err(self.unexpected_token("elem idx"))?,
                             (None, Some(elemidx)) => (Index::unnamed(0), elemidx),
                             (Some(tabidx), None) => (Index::unnamed(0), tabidx.convert()),
                             (Some(tabidx), Some(elemidx)) => (tabidx, elemidx),
@@ -227,7 +227,7 @@ impl<R: Read> Parser<R> {
             self.expect_close()?;
             Expr { instr }
         } else {
-            return Err(self.unexpected_token("then"));
+            Err(self.unexpected_token("then"))?
         };
         let elexpr = if self.try_expr_start("else")? {
             let instr = self.zero_or_more_groups(Self::try_instruction)?;

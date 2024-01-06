@@ -193,8 +193,8 @@ impl SpecTestRunner {
                     }
                 }
                 ActionResult::NumPat(NumPat::NaNPat(nanpat)) => {
-                    let resultnum = match result.as_num() {
-                        Some(n) => n,
+                    let resultnum = match result {
+                        Value::Num(n) => n,
                         _ => return Err(TestFailureError::ResultMismatch { result, expect }),
                     };
                     if !nanpat.accepts(resultnum) {

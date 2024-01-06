@@ -2,8 +2,11 @@
 //!
 //! [Spec]: https://webassembly.github.io/spec/core/appendix/algorithm.html
 
-use crate::syntax::types::{
-    FunctionType, GlobalType, MemType, ParamsType, RefType, ResultType, TableType, ValueType,
+use {
+    crate::syntax::types::{
+        FunctionType, GlobalType, MemType, ParamsType, RefType, ResultType, TableType, ValueType,
+    },
+    wrausmt_common::true_or::TrueOr,
 };
 
 #[derive(Debug)]
@@ -83,11 +86,11 @@ impl Validation {
             .last()
             .ok_or(ValidationError::CtrlStackUnderflow)?;
         if self.val_stack.len() == ctrl.height {
-            if ctrl.unreachable {
-                return Ok(ValidationType::Unknown);
+            return if ctrl.unreachable {
+                Ok(ValidationType::Unknown)
             } else {
-                return Err(ValidationError::ValStackUnderflow);
-            }
+                Err(ValidationError::ValStackUnderflow)
+            };
         }
         let val = self
             .val_stack
@@ -138,9 +141,7 @@ impl Validation {
             .pop()
             .ok_or(ValidationError::CtrlStackUnderflow)?;
         let vals = self.pop_vals(&frame.end_types)?;
-        if vals.len() != frame.height {
-            return Err(ValidationError::UnusedValues);
-        }
+        (vals.len() == frame.height).true_or(ValidationError::UnusedValues)?;
         Ok(frame)
     }
 

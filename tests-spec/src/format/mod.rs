@@ -2,10 +2,7 @@ use {
     std::io::Read,
     wrausmt_format::text::{
         location::Location,
-        parse::{
-            error::{Result, WithMsg},
-            pctx, Parser,
-        },
+        parse::{error::Result, pctx, Parser},
         string::WasmString,
         token::Token,
     },
@@ -136,7 +133,7 @@ impl<R: Read> SpecParser for Parser<R> {
             return Ok(None);
         }
 
-        let modname = self.expect_string().msg("parsing modname in register")?;
+        let modname = self.expect_string()?;
 
         let id = self.try_id()?;
 
@@ -169,7 +166,7 @@ impl<R: Read> SpecParser for Parser<R> {
 
         let modname = self.try_id()?;
 
-        let name = self.expect_string().msg("name")?;
+        let name = self.expect_string()?;
 
         let params = self.zero_or_more(Self::try_const)?;
 
@@ -190,7 +187,7 @@ impl<R: Read> SpecParser for Parser<R> {
 
         let modname = self.try_id()?;
 
-        let name = self.expect_string().msg("name")?;
+        let name = self.expect_string()?;
 
         self.expect_close()?;
 
@@ -214,19 +211,19 @@ impl<R: Read> SpecParser for Parser<R> {
         pctx!(self, "try meta cmd");
         if self.try_expr_start("script")? {
             let id = self.try_id()?;
-            let script = self.expect_string().msg("script")?;
+            let script = self.expect_string()?;
             self.expect_close()?;
             return Ok(Some(Cmd::Meta(Meta::Script { id, script })));
         }
         if self.try_expr_start("input")? {
             let id = self.try_id()?;
-            let file = self.expect_string().msg("input")?;
+            let file = self.expect_string()?;
             self.expect_close()?;
             return Ok(Some(Cmd::Meta(Meta::Input { id, file })));
         }
         if self.try_expr_start("output")? {
             let id = self.try_id()?;
-            let file = self.expect_string().msg("output")?;
+            let file = self.expect_string()?;
             self.expect_close()?;
             return Ok(Some(Cmd::Meta(Meta::Output { id, file })));
         }
@@ -256,7 +253,7 @@ impl<R: Read> SpecParser for Parser<R> {
         }
 
         let action = self.expect_action()?;
-        let failure = self.expect_string().msg("failure")?;
+        let failure = self.expect_string()?;
         self.expect_close()?;
 
         Ok(Some(Assertion::Exhaustion { action, failure }))
@@ -293,7 +290,7 @@ impl<R: Read> SpecParser for Parser<R> {
 
         let module = self.expect_spec_module()?;
 
-        let failure = self.expect_string().msg("failure")?;
+        let failure = self.expect_string()?;
 
         self.expect_close()?;
 
@@ -308,7 +305,7 @@ impl<R: Read> SpecParser for Parser<R> {
 
         let module = self.expect_spec_module()?;
 
-        let failure = self.expect_string().msg("failure")?;
+        let failure = self.expect_string()?;
 
         self.expect_close()?;
 

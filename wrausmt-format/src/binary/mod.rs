@@ -4,7 +4,10 @@ use {
         read_with_location::{Location, ReadWithLocation},
     },
     std::{cell::RefCell, rc::Rc},
-    wrausmt_common::tracer::{TraceDropper, Tracer},
+    wrausmt_common::{
+        tracer::{TraceDropper, Tracer},
+        true_or::TrueOr,
+    },
     wrausmt_runtime::syntax::TypeUse,
 };
 
@@ -80,9 +83,8 @@ impl<R: ParserReader> BinaryParser<R> {
                 }
                 Section::Data(d) => module.data = d,
                 Section::DataCount(c) => {
-                    if module.data.len() != c as usize {
-                        return Err(self.err(BinaryParseErrorKind::DataCountMismatch));
-                    }
+                    (module.data.len() == c as usize)
+                        .true_or_else(|| self.err(BinaryParseErrorKind::DataCountMismatch))?;
                 }
             }
         }
@@ -100,9 +102,8 @@ impl<R: ParserReader> BinaryParser<R> {
     ) -> Result<()> {
         // In a valid module, we will have parsed the func types section already, so
         // we'll have some partially-initialized function items ready.
-        if funcs.len() != functypes.len() {
-            return Err(self.err(BinaryParseErrorKind::FuncSizeMismatch));
-        }
+        (funcs.len() == functypes.len())
+            .true_or_else(|| self.err(BinaryParseErrorKind::FuncSizeMismatch))?;
 
         // Add the functype type to the returned function structs.
         for (i, func) in funcs.iter_mut().enumerate() {

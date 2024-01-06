@@ -23,6 +23,7 @@ use {
         },
     },
     std::rc::Rc,
+    wrausmt_common::true_or::TrueOr,
 };
 
 impl Runtime {
@@ -58,9 +59,9 @@ impl Runtime {
             }
             _ => false,
         };
-        matches
-            .then_some(())
-            .ok_or(RuntimeErrorKind::ImportMismatch(import.desc.clone(), *candidate_addr).error())
+        Ok(matches.true_or_else(|| {
+            RuntimeErrorKind::ImportMismatch(import.desc.clone(), *candidate_addr)
+        })?)
     }
 
     fn find_import(
@@ -71,10 +72,10 @@ impl Runtime {
         let regmod = self
             .registered
             .get(&import.modname)
-            .ok_or_else(|| RuntimeErrorKind::ModuleNotFound(import.modname.clone()).error())?;
+            .ok_or_else(|| RuntimeErrorKind::ModuleNotFound(import.modname.clone()))?;
 
         let exportinst = regmod.resolve(&import.name).ok_or_else(|| {
-            RuntimeErrorKind::ImportNotFound(import.modname.clone(), import.name.clone()).error()
+            RuntimeErrorKind::ImportNotFound(import.modname.clone(), import.name.clone())
         })?;
 
         self.validate_import(import, &exportinst.addr, types)?;
@@ -90,7 +91,7 @@ impl Runtime {
     ) -> Result<FunctionInstance> {
         let functype = types
             .get(f.typeuse.index().value() as usize)
-            .ok_or(RuntimeErrorKind::TypeNotFound(f.typeuse.index().value()).error())?
+            .ok_or(RuntimeErrorKind::TypeNotFound(f.typeuse.index().value()))?
             .clone();
         let locals: Box<[ValueType]> = f.locals.iter().map(|l| l.valtype).collect();
         let body = compile_function_body(&f);
@@ -121,8 +122,7 @@ impl Runtime {
         self.exec_expr(&init_code)?;
         init_code.clear();
         init_code.emit_expr(&Expr { instr: initexpr });
-        self.exec_expr(&init_code)?;
-        Ok(())
+        self.exec_expr(&init_code)
     }
 
     fn init_mem(&mut self, datainit: &DataInit<Resolved>, n: u32, di: u32) -> Result<()> {
@@ -137,8 +137,7 @@ impl Runtime {
         self.exec_expr(&init_code)?;
         init_code.clear();
         init_code.emit_expr(&Expr { instr: initexpr });
-        self.exec_expr(&init_code)?;
-        Ok(())
+        self.exec_expr(&init_code)
     }
 
     fn instantiate(&mut self, module: syntax::Module<Resolved>) -> Result<Rc<ModuleInstance>> {
@@ -159,6 +158,7 @@ impl Runtime {
         let rcinst = Rc::new(modinst_builder.clone().build());
 
         // During init, we will reset this a few times.
+        // TODO -- maybe there's a better way that avoids unsafe.
         let rcptr = Rc::as_ptr(&rcinst) as *mut ModuleInstance;
 
         // (Alloc 2.) Allocate functions
