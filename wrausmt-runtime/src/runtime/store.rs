@@ -295,12 +295,14 @@ impl Store {
     // Returns the value of the first allocated tables.
     pub fn alloc_tables(
         &mut self,
-        tables: impl Iterator<Item = TableInstance>,
-    ) -> Range<addr::TableAddr> {
+        tables: impl Iterator<Item = Result<TableInstance>>,
+    ) -> Result<Range<addr::TableAddr>> {
         let base_addr = self.tables.len() as u32;
-        self.tables.extend(tables);
+        for table in tables {
+            self.tables.push(table?);
+        }
         let count = self.tables.len() as u32 - base_addr;
-        base_addr..base_addr + count
+        Ok(base_addr..base_addr + count)
     }
 
     // Allocate a collection of mems.
@@ -308,12 +310,14 @@ impl Store {
     // Returns the value of the first allocated mems.
     pub fn alloc_mems(
         &mut self,
-        mems: impl Iterator<Item = MemInstance>,
-    ) -> Range<addr::MemoryAddr> {
+        mems: impl Iterator<Item = Result<MemInstance>>,
+    ) -> Result<Range<addr::MemoryAddr>> {
         let base_addr = self.mems.len() as u32;
-        self.mems.extend(mems);
+        for mem in mems {
+            self.mems.push(mem?);
+        }
         let count = self.mems.len() as u32 - base_addr;
-        base_addr..base_addr + count
+        Ok(base_addr..base_addr + count)
     }
 
     pub fn alloc_globals(

@@ -5,7 +5,11 @@ use {
         format::{Action, ActionResult, Assertion, Cmd, CmdEntry, Module, NumPat, SpecTestScript},
         spectest_module::make_spectest_module,
     },
-    std::{collections::HashMap, rc::Rc},
+    std::{
+        collections::HashMap,
+        panic::{catch_unwind, PanicInfo},
+        rc::Rc,
+    },
     wrausmt_format::{loader::Loader, text::string::WasmString},
     wrausmt_runtime::{
         logger::{Logger, PrintLogger, Tag},
@@ -43,6 +47,37 @@ macro_rules! runset_exclude {
     }
 }
 
+static GLOBAL_FAILURES_TO_IGNORE: &[&str] = &[
+    "alignment must not be larger than natural",
+    "constant expression required",
+    "duplicate export name",
+    "global is immutable",
+    "invalid result arity",
+    "memory size must be at most 65536 pages (4GiB)",
+    "multiple memories",
+    "size minimum must not be greater than maximum",
+    "start function",
+    "type mismatch",
+    "undeclared function reference",
+    "unknown data segment",
+    "unknown data segment 1",
+    "unknown elem segment 0",
+    "unknown elem segment 4",
+    "unknown function",
+    "unknown function 7",
+    "unknown global",
+    "unknown global 0",
+    "unknown global 1",
+    "unknown label",
+    "unknown local",
+    "unknown memory",
+    "unknown memory 0",
+    "unknown memory 1",
+    "unknown table",
+    "unknown table 0",
+    "unknown type",
+];
+
 pub enum RunSet {
     All,
     Specific(Vec<String>),
@@ -74,7 +109,8 @@ impl RunSet {
     fn should_run_cmd(&self, cmd: &Cmd) -> bool {
         match self {
             RunSet::ExcludeFailure(fs) => match cmd {
-                Cmd::Assertion(Assertion::Malformed { failure, .. }) => {
+                Cmd::Assertion(Assertion::Invalid { failure, .. })
+                | Cmd::Assertion(Assertion::Malformed { failure, .. }) => {
                     !fs.iter().any(|f| failure.starts_with(f))
                 }
                 _ => true,
@@ -260,13 +296,28 @@ impl SpecTestRunner {
                         let result = self.handle_module(module);
                         verify_failure(result, &failure).map_err(|e| e.into())
                     }
-                    Assertion::Invalid {
-                        module: _,
-                        failure: _,
-                    } => {
-                        // let result = self.handle_module(module);
-                        // let _ignore = verify_failure(result, &failure);
-                        Ok(())
+                    Assertion::Invalid { module, failure } => {
+                        if GLOBAL_FAILURES_TO_IGNORE.contains(&failure.as_str()) {
+                            return Ok(());
+                        }
+                        let result = unsafe {
+                            let pself = self as *mut Self;
+                            catch_unwind(|| (*pself).handle_module(module))
+                        };
+                        match result {
+                            Ok(result) => verify_failure(result, &failure).map_err(|e| e.into()),
+                            Err(p) => {
+                                if let Some(pi) = p.downcast_ref::<PanicInfo>() {
+                                    Err(TestFailureError::Panic(pi.to_string()).into())
+                                } else if let Some(m) = p.downcast_ref::<&'static str>() {
+                                    Err(TestFailureError::Panic(m.to_string()).into())
+                                } else if let Some(m) = p.downcast_ref::<String>() {
+                                    Err(TestFailureError::Panic(m.to_string()).into())
+                                } else {
+                                    Err(TestFailureError::Panic("dunno".to_string()).into())
+                                }
+                            }
+                        }
                     }
                 }
             }
