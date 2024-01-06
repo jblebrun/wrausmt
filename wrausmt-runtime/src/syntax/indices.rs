@@ -1,19 +1,8 @@
+use wrausmt_common::marker;
 /// ResolvedState is used to track whether or not the symbolic indices in the
 /// module have been resolved into the proper numeric values. This needs to
 /// happen in a second pass after the initial parse, since index usage may occur
 /// before the index has been defined.
-
-macro_rules! marker {
-    (
-        $(#[$($attrss:tt)*])*
-        $n:ident: $t:ty
-    ) => {
-        $(#[$($attrss)*])*
-        #[derive(Clone, Debug, Default, PartialEq)]
-        pub struct $n {}
-        impl $t for $n {}
-    };
-}
 
 pub trait ResolvedState: std::fmt::Debug {}
 marker!(
