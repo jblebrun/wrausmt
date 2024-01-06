@@ -1,7 +1,7 @@
 use {
     super::{
         error::{Result, RuntimeError, TrapKind},
-        store::addr,
+        instance::{addr, addr::Address},
         values::{Ref, Value},
         Runtime,
     },
@@ -54,7 +54,7 @@ pub trait ExecutionContextActions {
     fn pop_label(&mut self) -> Result<Label>;
     fn pop<T: TryValue>(&mut self) -> Result<T>;
     fn call(&mut self, idx: u32) -> Result<()>;
-    fn call_addr(&mut self, addr: addr::FuncAddr, typeidx: u32) -> Result<()>;
+    fn call_addr(&mut self, addr: Address<addr::Function>, typeidx: u32) -> Result<()>;
     fn mem(&mut self, idx: u32) -> Result<&mut MemInstance>;
     fn mem_init(&mut self) -> Result<()>;
     fn mem_size(&mut self) -> Result<()>;
@@ -223,7 +223,7 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
 
     fn get_func_table(&mut self, tidx: u32, elemidx: u32) -> Result<u32> {
         match self.get_table_elem(tidx, elemidx)? {
-            Ref::Func(a) => Ok(a),
+            Ref::Func(a) => Ok(a.0),
             Ref::Null(RefType::Func) => Err(TrapKind::UninitializedElement.into()),
             e => Err(impl_bug!("not a func {:?} FOR {} {}", e, tidx, elemidx))?,
         }
@@ -458,7 +458,7 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
             .invoke_addr(self.runtime.stack.get_function_addr(idx)?)
     }
 
-    fn call_addr(&mut self, addr: addr::FuncAddr, typeidx: u32) -> Result<()> {
+    fn call_addr(&mut self, addr: Address<addr::Function>, typeidx: u32) -> Result<()> {
         let funcinst = self.runtime.store.func(addr)?;
         let expected_type = self.runtime.stack.get_func_type(typeidx)?;
         (&funcinst.functype == expected_type)

@@ -2,32 +2,17 @@ use {
     super::{
         error::{Result, TrapKind},
         instance::{
+            addr,
+            addr::{Address, AddressRange},
             DataInstance, ElemInstance, FunctionInstance, GlobalInstance, MemInstance,
             TableInstance,
         },
         values::{Ref, Value},
     },
     crate::impl_bug,
-    std::{iter::Iterator, ops::Range, rc::Rc},
+    std::{iter::Iterator, rc::Rc},
     wrausmt_common::true_or::TrueOr,
 };
-
-/// Function instances, table instances, memory instances, and global instances,
-/// element instances, and data instances in the store are referenced with
-/// abstract addresses. These are simply indices into the respective store
-/// component. In addition, an embedder may supply an uninterpreted set of host
-/// addresses.
-///
-/// [Spec]: https://webassembly.github.io/spec/core/exec/runtime.html#addresses
-pub mod addr {
-    pub type FuncAddr = u32;
-    pub type TableAddr = u32;
-    pub type MemoryAddr = u32;
-    pub type GlobalAddr = u32;
-    pub type ElemAddr = u32;
-    pub type DataAddr = u32;
-    pub type ExternAddr = u32;
-}
 
 /// The WebAssembly Store as described in [the specification][Spec].
 ///
@@ -63,68 +48,68 @@ pub struct Store {
 }
 
 impl Store {
-    pub fn func(&self, addr: addr::FuncAddr) -> Result<Rc<FunctionInstance>> {
+    pub fn func(&self, addr: Address<addr::Function>) -> Result<Rc<FunctionInstance>> {
         Ok(self
             .funcs
-            .get(addr as usize)
+            .get(addr.0 as usize)
             .cloned()
-            .ok_or_else(|| impl_bug!("no function at addr {}", addr))?)
+            .ok_or_else(|| impl_bug!("no function at addr {addr:?}"))?)
     }
 
-    pub fn global(&self, addr: addr::GlobalAddr) -> Result<Value> {
+    pub fn global(&self, addr: Address<addr::Global>) -> Result<Value> {
         Ok(self
             .globals
-            .get(addr as usize)
-            .ok_or_else(|| impl_bug!("no global at addr {}", addr))?
+            .get(addr.0 as usize)
+            .ok_or_else(|| impl_bug!("no global at addr {addr:?}"))?
             .val)
     }
 
-    pub fn global_inst(&self, addr: addr::GlobalAddr) -> Result<&GlobalInstance> {
+    pub fn global_inst(&self, addr: Address<addr::Global>) -> Result<&GlobalInstance> {
         Ok(self
             .globals
-            .get(addr as usize)
-            .ok_or_else(|| impl_bug!("no global at addr {}", addr))?)
+            .get(addr.0 as usize)
+            .ok_or_else(|| impl_bug!("no global at addr {addr:?}"))?)
     }
 
-    pub fn set_global(&mut self, addr: addr::GlobalAddr, val: Value) -> Result<()> {
+    pub fn set_global(&mut self, addr: Address<addr::Global>, val: Value) -> Result<()> {
         let g = self
             .globals
-            .get_mut(addr as usize)
-            .ok_or_else(|| impl_bug!("no global at addr {}", addr))?;
+            .get_mut(addr.0 as usize)
+            .ok_or_else(|| impl_bug!("no global at addr {addr:?}"))?;
 
         g.val = val;
         Ok(())
     }
 
-    pub fn mem(&self, addr: addr::MemoryAddr) -> Result<&MemInstance> {
+    pub fn mem(&self, addr: Address<addr::Memory>) -> Result<&MemInstance> {
         Ok(self
             .mems
-            .get(addr as usize)
-            .ok_or_else(|| impl_bug!("no mem at addr {}", addr))?)
+            .get(addr.0 as usize)
+            .ok_or_else(|| impl_bug!("no mem at addr {addr:?}"))?)
     }
 
-    pub fn mem_mut(&mut self, addr: addr::MemoryAddr) -> Result<&mut MemInstance> {
+    pub fn mem_mut(&mut self, addr: Address<addr::Memory>) -> Result<&mut MemInstance> {
         Ok(self
             .mems
-            .get_mut(addr as usize)
-            .ok_or_else(|| impl_bug!("no mem at addr {}", addr))?)
+            .get_mut(addr.0 as usize)
+            .ok_or_else(|| impl_bug!("no mem at addr {addr:?}"))?)
     }
 
-    pub fn table(&self, addr: addr::TableAddr) -> Result<&TableInstance> {
+    pub fn table(&self, addr: Address<addr::Table>) -> Result<&TableInstance> {
         Ok(self
             .tables
-            .get(addr as usize)
-            .ok_or_else(|| impl_bug!("no table at addr {}", addr))?)
+            .get(addr.0 as usize)
+            .ok_or_else(|| impl_bug!("no table at addr {addr:?}"))?)
     }
 
-    pub fn table_mut(&mut self, addr: addr::TableAddr) -> Result<&mut TableInstance> {
+    pub fn table_mut(&mut self, addr: Address<addr::Table>) -> Result<&mut TableInstance> {
         Ok(self
             .tables
-            .get_mut(addr as usize)
-            .ok_or_else(|| impl_bug!("no table at addr {}", addr))?)
+            .get_mut(addr.0 as usize)
+            .ok_or_else(|| impl_bug!("no table at addr {addr:?}"))?)
     }
 
-    pub fn grow_mem(&mut self, addr: addr::MemoryAddr, pgs: u32) -> Result<Option<u32>> {
+    pub fn grow_mem(&mut self, addr: Address<addr::Memory>, pgs: u32) -> Result<Option<u32>> {
         let mem = self.mem_mut(addr)?;
         let old_size = mem.grow(pgs);
         if old_size.is_some() {
@@ -135,7 +120,7 @@ impl Store {
 
     pub fn grow_table(
         &mut self,
-        addr: addr::TableAddr,
+        addr: Address<addr::Table>,
         elems: u32,
         val: Ref,
     ) -> Result<Option<u32>> {
@@ -144,7 +129,13 @@ impl Store {
         Ok(growres)
     }
 
-    pub fn fill_mem(&mut self, addr: addr::MemoryAddr, n: usize, val: u8, i: usize) -> Result<()> {
+    pub fn fill_mem(
+        &mut self,
+        addr: Address<addr::Memory>,
+        n: usize,
+        val: u8,
+        i: usize,
+    ) -> Result<()> {
         self.mem_mut(addr)?
             .data
             .get_mut(i..i + n)
@@ -156,24 +147,24 @@ impl Store {
     // Use by the table.set and table.init ops
     pub fn copy_elems_to_table(
         &mut self,
-        tabaddr: addr::TableAddr,
-        elemaddr: addr::ElemAddr,
+        tabaddr: Address<addr::Table>,
+        elemaddr: Address<addr::Elem>,
         src: usize,
         dst: usize,
         count: usize,
     ) -> Result<()> {
         let elems = &self
             .elems
-            .get(elemaddr as usize)
-            .ok_or_else(|| impl_bug!("no elem at addr {}", elemaddr))?
+            .get(elemaddr.0 as usize)
+            .ok_or_else(|| impl_bug!("no elem at addr {elemaddr:?}"))?
             .elems
             .get(src..src + count)
             .ok_or(TrapKind::OutOfBoundsTableAccess(src, count))?;
 
         let table = &mut self
             .tables
-            .get_mut(tabaddr as usize)
-            .ok_or_else(|| impl_bug!("no table at {}", tabaddr))?
+            .get_mut(tabaddr.0 as usize)
+            .ok_or_else(|| impl_bug!("no table at {tabaddr:?}"))?
             .elem
             .get_mut(dst..dst + count)
             .ok_or(TrapKind::OutOfBoundsTableAccess(src, count))?;
@@ -185,14 +176,14 @@ impl Store {
     // Use by the table.set and table.init ops
     pub fn copy_table_to_table(
         &mut self,
-        dstaddr: addr::TableAddr,
-        srcaddr: addr::TableAddr,
+        dstaddr: Address<addr::Table>,
+        srcaddr: Address<addr::Table>,
         dst: usize,
         src: usize,
         count: usize,
     ) -> Result<()> {
-        if dstaddr == srcaddr {
-            let tbl = self.tables.get_mut(srcaddr as usize).unwrap();
+        if dstaddr.0 == srcaddr.0 {
+            let tbl = self.tables.get_mut(srcaddr.0 as usize).unwrap();
             (src + count <= tbl.elem.len())
                 .true_or(TrapKind::OutOfBoundsTableAccess(src, count))?;
             (dst + count <= tbl.elem.len())
@@ -201,8 +192,8 @@ impl Store {
         } else {
             let [src_table, dst_table] = self
                 .tables
-                .get_many_mut([srcaddr as usize, dstaddr as usize])
-                .map_err(|_| impl_bug!("Couldn't get both tables {} {}", dstaddr, srcaddr))?;
+                .get_many_mut([srcaddr.0 as usize, dstaddr.0 as usize])
+                .map_err(|_| impl_bug!("Couldn't get both tables {dstaddr:?} {srcaddr:?}"))?;
 
             let srcitems = src_table
                 .elem
@@ -220,29 +211,29 @@ impl Store {
 
     pub fn copy_data_to_mem(
         &mut self,
-        memaddr: addr::MemoryAddr,
-        dataaddr: addr::DataAddr,
+        memaddr: Address<addr::Memory>,
+        dataaddr: Address<addr::Data>,
         src: usize,
         dst: usize,
         count: usize,
     ) -> Result<()> {
         let data = self
             .datas
-            .get(dataaddr as usize)
-            .ok_or_else(|| impl_bug!("no data at {}", dataaddr))?
+            .get(dataaddr.0 as usize)
+            .ok_or_else(|| impl_bug!("no data at {dataaddr:?}"))?
             .bytes
             .get(src..src + count)
             .ok_or(TrapKind::OutOfBoundsMemoryAccess(src, count))?;
 
         self.mems
-            .get_mut(memaddr as usize)
-            .ok_or_else(|| impl_bug!("no mem at {}", memaddr))?
+            .get_mut(memaddr.0 as usize)
+            .ok_or_else(|| impl_bug!("no mem at {memaddr:?}"))?
             .write(0, dst, data)
     }
 
     pub fn copy_mem_to_mem(
         &mut self,
-        memaddr: addr::MemoryAddr,
+        memaddr: Address<addr::Memory>,
         src: usize,
         dst: usize,
         count: usize,
@@ -253,7 +244,7 @@ impl Store {
 
     pub fn fill_table(
         &mut self,
-        addr: addr::TableAddr,
+        addr: Address<addr::Table>,
         n: usize,
         val: Ref,
         i: usize,
@@ -261,21 +252,21 @@ impl Store {
         self.table_mut(addr)?.fill(n, val, i)
     }
 
-    pub fn elem_drop(&mut self, elemaddr: addr::ElemAddr) -> Result<()> {
+    pub fn elem_drop(&mut self, elemaddr: Address<addr::Elem>) -> Result<()> {
         let elem = self
             .elems
-            .get_mut(elemaddr as usize)
-            .ok_or_else(|| impl_bug!("no elem at {}", elemaddr))?;
+            .get_mut(elemaddr.0 as usize)
+            .ok_or_else(|| impl_bug!("no elem at {elemaddr:?}"))?;
 
         elem.elems = Box::new([]);
         Ok(())
     }
 
-    pub fn data_drop(&mut self, dataaddr: addr::DataAddr) -> Result<()> {
+    pub fn data_drop(&mut self, dataaddr: Address<addr::Data>) -> Result<()> {
         let data = self
             .datas
-            .get_mut(dataaddr as usize)
-            .ok_or_else(|| impl_bug!("no elem at {}", dataaddr))?;
+            .get_mut(dataaddr.0 as usize)
+            .ok_or_else(|| impl_bug!("no elem at {dataaddr:?}"))?;
 
         data.bytes = Box::new([]);
         Ok(())
@@ -287,11 +278,11 @@ impl Store {
     pub fn alloc_funcs(
         &mut self,
         funcs: impl IntoIterator<Item = FunctionInstance>,
-    ) -> Range<addr::FuncAddr> {
+    ) -> AddressRange<addr::Function> {
         let base_addr = self.funcs.len() as u32;
         self.funcs.extend(funcs.into_iter().map(Rc::new));
         let count = self.funcs.len() as u32 - base_addr;
-        base_addr..base_addr + count
+        AddressRange::new(base_addr, base_addr + count)
     }
 
     // Allocate a collection of tables.
@@ -300,13 +291,13 @@ impl Store {
     pub fn alloc_tables(
         &mut self,
         tables: impl Iterator<Item = Result<TableInstance>>,
-    ) -> Result<Range<addr::TableAddr>> {
+    ) -> Result<AddressRange<addr::Table>> {
         let base_addr = self.tables.len() as u32;
         for table in tables {
             self.tables.push(table?);
         }
         let count = self.tables.len() as u32 - base_addr;
-        Ok(base_addr..base_addr + count)
+        Ok(AddressRange::new(base_addr, base_addr + count))
     }
 
     // Allocate a collection of mems.
@@ -315,43 +306,43 @@ impl Store {
     pub fn alloc_mems(
         &mut self,
         mems: impl Iterator<Item = Result<MemInstance>>,
-    ) -> Result<Range<addr::MemoryAddr>> {
+    ) -> Result<AddressRange<addr::Memory>> {
         let base_addr = self.mems.len() as u32;
         for mem in mems {
             self.mems.push(mem?);
         }
         let count = self.mems.len() as u32 - base_addr;
-        Ok(base_addr..base_addr + count)
+        Ok(AddressRange::new(base_addr, base_addr + count))
     }
 
     pub fn alloc_globals(
         &mut self,
         globals: impl Iterator<Item = GlobalInstance>,
-    ) -> Range<addr::GlobalAddr>
+    ) -> AddressRange<addr::Global>
 where {
         let base_addr = self.globals.len() as u32;
         self.globals.extend(globals);
         let count = self.globals.len() as u32 - base_addr;
-        base_addr..base_addr + count
+        AddressRange::new(base_addr, base_addr + count)
     }
 
     pub fn alloc_elems(
         &mut self,
         elems: impl Iterator<Item = ElemInstance>,
-    ) -> Range<addr::ElemAddr> {
+    ) -> AddressRange<addr::Elem> {
         let base_addr = self.elems.len() as u32;
         self.elems.extend(elems);
         let count = self.elems.len() as u32 - base_addr;
-        base_addr..base_addr + count
+        AddressRange::new(base_addr, base_addr + count)
     }
 
     pub fn alloc_data(
         &mut self,
         datas: impl Iterator<Item = DataInstance>,
-    ) -> Range<addr::DataAddr> {
+    ) -> AddressRange<addr::Data> {
         let base_addr = self.datas.len() as u32;
         self.datas.extend(datas);
         let count = self.datas.len() as u32 - base_addr;
-        base_addr..base_addr + count
+        AddressRange::new(base_addr, base_addr + count)
     }
 }

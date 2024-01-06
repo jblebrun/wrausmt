@@ -29,6 +29,7 @@ pub static CODE_HEADER: &[u8] = br#"use crate::runtime::error::Result;
 use crate::runtime::{
     error::TrapKind,
     exec::{ExecutionContext, ExecutionContextActions},
+    instance::addr::Address,
     values::Ref,
 };
 "#;

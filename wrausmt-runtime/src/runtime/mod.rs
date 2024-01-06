@@ -1,3 +1,5 @@
+use self::instance::addr::{self, Address};
+
 mod compile;
 pub mod error;
 pub mod exec;
@@ -18,7 +20,7 @@ use {
     instance::{ExportInstance, ExternalVal, ModuleInstance},
     stack::Stack,
     std::{collections::HashMap, rc::Rc},
-    store::{addr, Store},
+    store::Store,
     values::Value,
 };
 
@@ -46,7 +48,7 @@ impl Runtime {
         self.registered.insert(modname.into(), module);
     }
 
-    pub fn invoke_addr(&mut self, addr: addr::FuncAddr) -> Result<()> {
+    pub fn invoke_addr(&mut self, addr: Address<addr::Function>) -> Result<()> {
         // 1. Assert S.funcaddr exists
         // 2. Let funcinst = S.funcs[funcaddr]
         let funcinst = self.store.func(addr)?;
@@ -107,7 +109,7 @@ impl Runtime {
         }?;
 
         self.logger
-            .log(Tag::Host, || format!("calling {} at {}", name, funcaddr));
+            .log(Tag::Host, || format!("calling {} at {:?}", name, funcaddr));
         // 1. Assert S.funcaddr exists
         // 2. Let funcinst = S.funcs[funcaddr]
         let funcinst = self.store.func(funcaddr)?;
@@ -169,7 +171,7 @@ impl Runtime {
         };
 
         self.logger
-            .log(Tag::Host, || format!("calling {} at {}", name, globaladdr));
+            .log(Tag::Host, || format!("calling {name} at {globaladdr:?}"));
         // 1. Assert S.funcaddr exists
         // 2. Let funcinst = S.funcs[funcaddr]
         let globalinst = self.store.global(globaladdr)?;

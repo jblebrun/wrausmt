@@ -10,7 +10,7 @@
 ///
 /// ```
 /// trait MarkerTrait {}
-/// #[derive(Clone, Debug, Default, PartialEq)]
+/// #[derive(Clone, Copy, Debug, Default, PartialEq)]
 /// pub struct SubType {}
 /// impl MarkerTrait for SubType {}
 /// ````
@@ -21,7 +21,7 @@ macro_rules! marker {
         $n:ident: $t:ty
     ) => {
         $(#[$($attrss)*])*
-        #[derive(Clone, Debug, Default, PartialEq)]
+        #[derive(Clone, Copy, Debug, Default, PartialEq)]
         pub struct $n {}
         impl $t for $n {}
     };

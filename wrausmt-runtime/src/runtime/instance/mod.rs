@@ -1,3 +1,4 @@
+pub mod addr;
 pub mod data_instance;
 pub mod elem_instance;
 pub mod export_instance;
