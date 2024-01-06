@@ -104,4 +104,15 @@ impl MemInstance {
         self.data[range].clone_from_slice(bs);
         Ok(())
     }
+
+    pub fn copy_within(&mut self, src: usize, dst: usize, count: usize) -> Result<()> {
+        (src + count <= self.data.len())
+            .then_some(())
+            .ok_or(TrapKind::OutOfBoundsMemoryAccess(src, count))?;
+        (dst + count <= self.data.len())
+            .then_some(())
+            .ok_or(TrapKind::OutOfBoundsMemoryAccess(dst, count))?;
+        self.data.copy_within(src..src + count, dst);
+        Ok(())
+    }
 }

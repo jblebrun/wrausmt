@@ -8,7 +8,7 @@ use {
         values::{Ref, Value},
     },
     crate::impl_bug,
-    std::{iter::Iterator, ops::Range, rc::Rc, slice},
+    std::{iter::Iterator, ops::Range, rc::Rc},
 };
 
 /// Function instances, table instances, memory instances, and global instances,
@@ -59,18 +59,6 @@ pub struct Store {
     pub globals: Vec<GlobalInstance>,
     pub elems:   Vec<ElemInstance>,
     pub datas:   Vec<DataInstance>,
-}
-
-trait UnsafeCopyFromSlice<T> {
-    unsafe fn copy_from_slice_unsafe(&self, src: &[T]);
-}
-
-impl<T: Copy> UnsafeCopyFromSlice<T> for [T] {
-    unsafe fn copy_from_slice_unsafe(&self, src: &[T]) {
-        let dstptr = self.as_ptr() as *mut T;
-        let dstitems = slice::from_raw_parts_mut(dstptr, self.len());
-        dstitems.copy_from_slice(src);
-    }
 }
 
 impl Store {
@@ -195,29 +183,32 @@ impl Store {
         src: usize,
         count: usize,
     ) -> Result<()> {
-        let tables = &self.tables;
-        let srcitems = tables
-            .get(srcaddr as usize)
-            .ok_or_else(|| impl_bug!("no table at addr {}", srcaddr))?
-            .elem
-            .get(src..src + count)
-            .ok_or(TrapKind::OutOfBoundsTableAccess(src, count))?;
+        if dstaddr == srcaddr {
+            let tbl = self.tables.get_mut(srcaddr as usize).unwrap();
+            (src + count <= tbl.elem.len())
+                .then_some(())
+                .ok_or(TrapKind::OutOfBoundsTableAccess(src, count))?;
+            (dst + count <= tbl.elem.len())
+                .then_some(())
+                .ok_or(TrapKind::OutOfBoundsTableAccess(dst, count))?;
+            tbl.elem.copy_within(src..src + count, dst);
+        } else {
+            let [src_table, dst_table] = self
+                .tables
+                .get_many_mut([srcaddr as usize, dstaddr as usize])
+                .map_err(|_| impl_bug!("Couldn't get both tables {} {}", dstaddr, srcaddr))?;
 
-        let dstitems = tables
-            .get(dstaddr as usize)
-            .ok_or_else(|| impl_bug!("no table at {}", dstaddr))?
-            .elem
-            .get(dst..dst + count)
-            .ok_or(TrapKind::OutOfBoundsTableAccess(src, count))?;
+            let srcitems = src_table
+                .elem
+                .get_mut(src..src + count)
+                .ok_or(TrapKind::OutOfBoundsTableAccess(src, count))?;
 
-        // Can't get a mut ref to one table in the vector of tables while we have a
-        // const ref to another one.
-        // But we are ok here: nothing is touching the tables themselves, and the
-        // copy_from_slice will not trigger any re-allocation, so we can force the
-        // ref to a mutable pointer, then convert it back into a mutable slice.
-        unsafe {
-            dstitems.copy_from_slice_unsafe(srcitems);
-        }
+            let dstitems = dst_table
+                .elem
+                .get_mut(dst..dst + count)
+                .ok_or(TrapKind::OutOfBoundsTableAccess(src, count))?;
+            dstitems.copy_from_slice(srcitems);
+        };
         Ok(())
     }
 
@@ -250,19 +241,8 @@ impl Store {
         dst: usize,
         count: usize,
     ) -> Result<()> {
-        let mem = &self.mem(memaddr)?;
-        let srcitems = mem.read(0, src, count)?;
-        let dstitems = mem.read(0, dst, count)?;
-
-        // Can't get a mut ref to one table in the vector of tables while we have a
-        // const ref to another one.
-        // But we are ok here: nothing is touching the tables themselves, and the
-        // copy_from_slice will not trigger any re-allocation, so we can force the
-        // ref to a mutable pointer, then convert it back into a mutable slice.
-        unsafe {
-            dstitems.copy_from_slice_unsafe(srcitems);
-        }
-        Ok(())
+        let mem = self.mem_mut(memaddr)?;
+        mem.copy_within(src, dst, count)
     }
 
     pub fn fill_table(
