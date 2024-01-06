@@ -1,14 +1,13 @@
 use {
     super::{
         error::{Result, RuntimeErrorKind},
-        instance::{addr, addr::Address, FunctionInstance},
+        instance::FunctionInstance,
         values::Value,
         ModuleInstance,
     },
     crate::{
         impl_bug,
         logger::{Logger, PrintLogger, Tag},
-        syntax::types::FunctionType,
     },
     std::rc::Rc,
     wrausmt_common::true_or::TrueOr,
@@ -74,8 +73,7 @@ struct ActivationFrame {
 impl Stack {
     pub fn push_value(&mut self, entry: Value) {
         self.value_stack.push(entry);
-        self.logger
-            .log(Tag::ValStack, || format!("PUSH {:?}", entry));
+        self.logger.log(Tag::ValStack, || format!("PUSH {entry:?}"));
         self.logger
             .log(Tag::DumpValStack, || format!("{:?}", self.value_stack));
     }
@@ -86,6 +84,10 @@ impl Stack {
 
     fn label_stack_mut(&mut self) -> Result<&mut Vec<Label>> {
         Ok(self.peek_activation_mut()?.label_stack.as_mut())
+    }
+
+    pub fn active_module(&self) -> Result<&ModuleInstance> {
+        Ok(&self.peek_activation()?.module)
     }
 
     pub fn push_label(
@@ -102,7 +104,7 @@ impl Stack {
             return_spot: self.value_stack.len() - param_arity as usize,
         };
         self.logger
-            .log(Tag::LabelStack, || format!("PUSH {:?}", label));
+            .log(Tag::LabelStack, || format!("PUSH {label:?}"));
         self.label_stack_mut()?.push(label);
         self.logger
             .log(Tag::DumpLabelStack, || format!("{:?}", self.label_stack()));
@@ -128,10 +130,8 @@ impl Stack {
         });
         self.logger.log(Tag::Activate, || {
             format!(
-                "arity {} local_start {} stack size {}",
-                arity,
-                frame_start,
-                self.activation_stack.len()
+                "arity {arity} local_start {frame_start} stack size {stacksize}",
+                stacksize = self.activation_stack.len()
             )
         });
         Ok(())
@@ -187,7 +187,7 @@ impl Stack {
     // Handle adjusting return values to a new stack top for breaks and returns.
     fn move_return_values(&mut self, arity: u32, newtop: usize) -> Result<()> {
         self.logger.log(Tag::Stack, || {
-            format!("MOVING RETURN VALUES FOR arity {} newtop {}", arity, newtop)
+            format!("MOVING RETURN VALUES FOR arity {arity} newtop {newtop}")
         });
         self.logger
             .log(Tag::DumpStack, || format!("STACK {:?}", self.value_stack));
@@ -253,40 +253,6 @@ impl Stack {
         let localidx = self.peek_activation()?.local_start;
         self.value_stack[localidx + idx as usize] = val;
         Ok(())
-    }
-
-    pub fn get_func_type(&self, idx: u32) -> Result<&FunctionType> {
-        Ok(self.peek_activation()?.module.func_type(idx))
-    }
-
-    // Get the function address for the provided index in the current activation.
-    pub fn get_function_addr(&self, idx: u32) -> Result<Address<addr::Function>> {
-        Ok(self.peek_activation()?.module.func(idx))
-    }
-
-    // Get the function address for the provided index in the current activation.
-    pub fn get_mem_addr(&self, idx: u32) -> Result<Address<addr::Memory>> {
-        Ok(self.peek_activation()?.module.mem(idx))
-    }
-
-    // Get the global address for the provided index in the current activation.
-    pub fn get_global_addr(&self, idx: u32) -> Result<Address<addr::Global>> {
-        Ok(self.peek_activation()?.module.global(idx))
-    }
-
-    // Get the function address for the provided index in the current activation.
-    pub fn get_table_addr(&self, idx: u32) -> Result<Address<addr::Table>> {
-        Ok(self.peek_activation()?.module.table(idx))
-    }
-
-    // Get the function address for the provided index in the current activation.
-    pub fn get_elem_addr(&self, idx: u32) -> Result<Address<addr::Elem>> {
-        Ok(self.peek_activation()?.module.elem(idx))
-    }
-
-    // Get the function address for the provided index in the current activation.
-    pub fn get_data_addr(&self, idx: u32) -> Result<Address<addr::Data>> {
-        Ok(self.peek_activation()?.module.data(idx))
     }
 
     pub fn get_label(&self, idx: u32) -> Result<&Label> {
