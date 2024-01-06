@@ -41,21 +41,21 @@ pub trait ExecutionContextActions {
     fn op_u32(&mut self) -> Result<u32>;
     fn op_u64(&mut self) -> Result<u64>;
     fn op_reftype(&mut self) -> Result<RefType>;
-    fn get_local(&mut self, idx: u32) -> Result<Value>;
-    fn set_local(&mut self, idx: u32, val: Value) -> Result<()>;
-    fn get_global(&mut self, idx: u32) -> Result<Value>;
-    fn set_global(&mut self, idx: u32, val: Value) -> Result<()>;
+    fn get_local(&mut self, locidx: u32) -> Result<Value>;
+    fn set_local(&mut self, locidx: u32, val: Value) -> Result<()>;
+    fn get_global(&mut self, gidx: u32) -> Result<Value>;
+    fn set_global(&mut self, gidx: u32, val: Value) -> Result<()>;
     fn push_value(&mut self, val: Value) -> Result<()>;
-    fn push_func_ref(&mut self, idx: u32) -> Result<()>;
+    fn push_func_ref(&mut self, fidx: u32) -> Result<()>;
     fn push_label_end(&mut self) -> Result<()>;
     fn push_label_start(&mut self) -> Result<()>;
     fn push(&mut self, val: impl Into<Value>) -> Result<()>;
     fn pop_value(&mut self) -> Result<Value>;
     fn pop_label(&mut self) -> Result<Label>;
     fn pop<T: TryValue>(&mut self) -> Result<T>;
-    fn call(&mut self, idx: u32) -> Result<()>;
-    fn call_addr(&mut self, addr: Address<addr::Function>, typeidx: u32) -> Result<()>;
-    fn mem(&mut self, idx: u32) -> Result<&mut MemInstance>;
+    fn call(&mut self, fidx: u32) -> Result<()>;
+    fn call_addr(&mut self, addr: Address<addr::Function>, tyidx: u32) -> Result<()>;
+    fn mem(&mut self, midx: u32) -> Result<&mut MemInstance>;
     fn mem_init(&mut self) -> Result<()>;
     fn mem_size(&mut self) -> Result<()>;
     fn mem_grow(&mut self) -> Result<()>;
@@ -66,7 +66,7 @@ pub trait ExecutionContextActions {
     fn table_grow(&mut self) -> Result<()>;
     fn table_fill(&mut self) -> Result<()>;
     fn table_copy(&mut self) -> Result<()>;
-    fn get_func_table(&mut self, tidx: u32, elemidx: u32) -> Result<u32>;
+    fn get_func_table(&mut self, tidx: u32, eidx: u32) -> Result<u32>;
     fn get_table_elem(&mut self, tidx: u32, eidx: u32) -> Result<Ref>;
     fn set_table_elem(
         &mut self,
@@ -77,7 +77,7 @@ pub trait ExecutionContextActions {
     fn elem_drop(&mut self) -> Result<()>;
     fn data_drop(&mut self) -> Result<()>;
 
-    fn br(&mut self, labelidx: u32) -> Result<()>;
+    fn br(&mut self, labidx: u32) -> Result<()>;
     fn continuation(&mut self, cnt: u32) -> Result<()>;
     fn ret(&mut self) -> Result<()>;
 
@@ -154,7 +154,7 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
         let result = u32::from_le_bytes(
             self.body[self.pc..self.pc + 4]
                 .try_into()
-                .map_err(|e| impl_bug!("conversion error {:?}", e))?,
+                .map_err(|e| impl_bug!("conversion error {e:?}"))?,
         );
         self.pc += 4;
         Ok(result)
@@ -167,7 +167,7 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
         match byte {
             0x70 => Ok(RefType::Func),
             0x6F => Ok(RefType::Extern),
-            _ => Err(impl_bug!("{} does not encode a ref type", byte).into()),
+            _ => Err(impl_bug!("{byte} does not encode a ref type").into()),
         }
     }
 
@@ -175,33 +175,33 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
         let result = u64::from_le_bytes(
             self.body[self.pc..self.pc + 8]
                 .try_into()
-                .map_err(|e| impl_bug!("conversion error {:?}", e))?,
+                .map_err(|e| impl_bug!("conversion error {e:?}"))?,
         );
         self.pc += 8;
         Ok(result)
     }
 
-    fn get_local(&mut self, idx: u32) -> Result<Value> {
-        let val = self.runtime.stack.get_local(idx);
-        self.log(Tag::Local, || format!("GET {} {:?}", idx, val));
+    fn get_local(&mut self, locidx: u32) -> Result<Value> {
+        let val = self.runtime.stack.get_local(locidx);
+        self.log(Tag::Local, || format!("GET {locidx} {val:?}"));
         val
     }
 
-    fn set_local(&mut self, idx: u32, val: Value) -> Result<()> {
-        self.log(Tag::Local, || format!("SET {} {:?}", idx, val));
-        self.runtime.stack.set_local(idx, val)
+    fn set_local(&mut self, locidx: u32, val: Value) -> Result<()> {
+        self.log(Tag::Local, || format!("SET {locidx} {val:?}"));
+        self.runtime.stack.set_local(locidx, val)
     }
 
-    fn get_table_elem(&mut self, tidx: u32, elemidx: u32) -> Result<Ref> {
-        let tableaddr = self.runtime.stack.get_table_addr(tidx)?;
-        let table = self.runtime.store.table(tableaddr)?;
+    fn get_table_elem(&mut self, tidx: u32, eidx: u32) -> Result<Ref> {
+        let taddr = self.runtime.stack.active_module()?.table(tidx);
+        let table = self.runtime.store.table(taddr)?;
         let elem =
             table
                 .elem
-                .get(elemidx as usize)
+                .get(eidx as usize)
                 .copied()
                 .ok_or(TrapKind::OutOfBoundsTableAccess(
-                    elemidx as usize,
+                    eidx as usize,
                     table.elem.len(),
                 ))?;
         Ok(elem)
@@ -210,55 +210,55 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
     fn set_table_elem(
         &mut self,
         tidx: u32,
-        elemidx: u32,
+        eidx: u32,
         val: impl TryInto<Ref, Error = RuntimeError>,
     ) -> Result<()> {
-        let tableaddr = &self.runtime.stack.get_table_addr(tidx)?;
-        let table = self.runtime.store.table_mut(*tableaddr)?;
-        match table.elem.get_mut(elemidx as usize) {
+        let taddr = self.runtime.stack.active_module()?.table(tidx);
+        let table = self.runtime.store.table_mut(taddr)?;
+        match table.elem.get_mut(eidx as usize) {
             Some(e) => val.try_into().map(|v| *e = v),
-            _ => Err(TrapKind::OutOfBoundsTableAccess(elemidx as usize, table.elem.len()).into()),
+            _ => Err(TrapKind::OutOfBoundsTableAccess(eidx as usize, table.elem.len()).into()),
         }
     }
 
-    fn get_func_table(&mut self, tidx: u32, elemidx: u32) -> Result<u32> {
-        match self.get_table_elem(tidx, elemidx)? {
+    fn get_func_table(&mut self, tidx: u32, eidx: u32) -> Result<u32> {
+        match self.get_table_elem(tidx, eidx)? {
             Ref::Func(a) => Ok(a.0),
             Ref::Null(RefType::Func) => Err(TrapKind::UninitializedElement.into()),
-            e => Err(impl_bug!("not a func {:?} FOR {} {}", e, tidx, elemidx))?,
+            e => Err(impl_bug!("not a func {e:?} FOR {tidx} {eidx}"))?,
         }
     }
 
-    fn mem(&mut self, idx: u32) -> Result<&mut MemInstance> {
-        let memaddr = self.runtime.stack.get_mem_addr(idx)?;
-        self.log(Tag::Mem, || format!("USING MEM {:?}", memaddr));
-        self.runtime.store.mem_mut(memaddr)
+    fn mem(&mut self, midx: u32) -> Result<&mut MemInstance> {
+        let maddr = self.runtime.stack.active_module()?.mem(midx);
+        self.log(Tag::Mem, || format!("USING MEM {maddr:?}"));
+        self.runtime.store.mem_mut(maddr)
     }
 
     fn mem_init(&mut self) -> Result<()> {
-        let dataidx = self.op_u32()?;
+        let didx = self.op_u32()?;
         let n = self.pop::<u32>()? as usize;
         let src = self.pop::<u32>()? as usize;
         let dst = self.pop::<u32>()? as usize;
         // TODO if s + n or d + n > sie of table 0, trap
-        let memaddr = self.runtime.stack.get_mem_addr(0)?;
-        let dataaddr = self.runtime.stack.get_data_addr(dataidx)?;
+        let maddr = self.runtime.stack.active_module()?.mem(0);
+        let daddr = self.runtime.stack.active_module()?.data(didx);
         self.runtime
             .store
-            .copy_data_to_mem(memaddr, dataaddr, src, dst, n)
+            .copy_data_to_mem(maddr, daddr, src, dst, n)
     }
 
     fn mem_size(&mut self) -> Result<()> {
-        let memaddr = self.runtime.stack.get_mem_addr(0)?;
-        let size = self.runtime.store.mem(memaddr)?.size() as u32;
+        let maddr = self.runtime.stack.active_module()?.mem(0);
+        let size = self.runtime.store.mem(maddr)?.size() as u32;
         self.runtime.stack.push_value(size.into());
         Ok(())
     }
 
     fn mem_grow(&mut self) -> Result<()> {
         let pgs = self.pop::<u32>()?;
-        let memaddr = self.runtime.stack.get_mem_addr(0)?;
-        let result = self.runtime.store.grow_mem(memaddr, pgs)?;
+        let maddr = self.runtime.stack.active_module()?.mem(0);
+        let result = self.runtime.store.grow_mem(maddr, pgs)?;
         match result {
             None => self.push_value((-1i32).into()),
             Some(s) => self.push_value(s.into()),
@@ -269,26 +269,26 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
         let n = self.pop::<usize>()?;
         let val = self.pop::<u8>()?;
         let d = self.pop::<usize>()?;
-        let memaddr = self.runtime.stack.get_mem_addr(0)?;
+        let maddr = self.runtime.stack.active_module()?.mem(0);
         // Note: the spec describes table fill as a recursive set of calls to table set
         // + table fill, we use a function here to emulate the same behavior with
         // less overhead.
-        self.runtime.store.fill_mem(memaddr, n, val, d)
+        self.runtime.store.fill_mem(maddr, n, val, d)
     }
 
     fn mem_copy(&mut self) -> Result<()> {
         let n = self.pop::<usize>()?;
         let s = self.pop::<usize>()?;
         let d = self.pop::<usize>()?;
-        let memaddr = self.runtime.stack.get_mem_addr(0)?;
+        let maddr = self.runtime.stack.active_module()?.mem(0);
         // Note: the spec describes table fill as a recursive set of calls to table set
         // + table fill, we use a function here to emulate the same behavior with
         // less overhead.
-        self.runtime.store.copy_mem_to_mem(memaddr, s, d, n)
+        self.runtime.store.copy_mem_to_mem(maddr, s, d, n)
     }
 
-    fn br(&mut self, labelidx: u32) -> Result<()> {
-        let label = self.runtime.stack.break_to_label(labelidx)?;
+    fn br(&mut self, labidx: u32) -> Result<()> {
+        let label = self.runtime.stack.break_to_label(labidx)?;
         self.pc = label.continuation as usize;
         Ok(())
     }
@@ -299,17 +299,17 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
     }
 
     fn table_init(&mut self) -> Result<()> {
-        let tableidx = self.op_u32()?;
-        let elemidx = self.op_u32()?;
+        let tidx = self.op_u32()?;
+        let eidx = self.op_u32()?;
         let n = self.pop::<u32>()? as usize;
         let src = self.pop::<u32>()? as usize;
         let dst = self.pop::<u32>()? as usize;
         // TODO if s + n or d + n > sie of table 0, trap
-        let tableaddr = self.runtime.stack.get_table_addr(tableidx)?;
-        let elemaddr = self.runtime.stack.get_elem_addr(elemidx)?;
+        let taddr = self.runtime.stack.active_module()?.table(tidx);
+        let eaddr = self.runtime.stack.active_module()?.elem(eidx);
         self.runtime
             .store
-            .copy_elems_to_table(tableaddr, elemaddr, src, dst, n)
+            .copy_elems_to_table(taddr, eaddr, src, dst, n)
     }
 
     fn table_copy(&mut self) -> Result<()> {
@@ -319,27 +319,27 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
         let src = self.pop::<u32>()? as usize;
         let dst = self.pop::<u32>()? as usize;
         // TODO if s + n or d + n > sie of table 0, trap
-        let dstaddr = self.runtime.stack.get_table_addr(dstidx)?;
-        let srcaddr = self.runtime.stack.get_table_addr(srcidx)?;
+        let dstaddr = self.runtime.stack.active_module()?.table(dstidx);
+        let srcaddr = self.runtime.stack.active_module()?.table(srcidx);
         self.runtime
             .store
             .copy_table_to_table(dstaddr, srcaddr, dst, src, n)
     }
 
     fn table_size(&mut self) -> Result<()> {
-        let tabidx = self.op_u32()?;
-        let tabaddr = self.runtime.stack.get_table_addr(tabidx)?;
-        let size = self.runtime.store.table(tabaddr)?.elem.len() as u32;
+        let tidx = self.op_u32()?;
+        let taddr = self.runtime.stack.active_module()?.table(tidx);
+        let size = self.runtime.store.table(taddr)?.elem.len() as u32;
         self.runtime.stack.push_value(size.into());
         Ok(())
     }
 
     fn table_grow(&mut self) -> Result<()> {
-        let tabidx = self.op_u32()?;
+        let tidx = self.op_u32()?;
         let amt = self.pop::<u32>()?;
         let val = self.pop::<Ref>()?;
-        let tabaddr = self.runtime.stack.get_table_addr(tabidx)?;
-        let result = self.runtime.store.grow_table(tabaddr, amt, val)?;
+        let taddr = self.runtime.stack.active_module()?.table(tidx);
+        let result = self.runtime.store.grow_table(taddr, amt, val)?;
         let result = match result {
             Some(result) => result as i32,
             None => -1,
@@ -349,54 +349,54 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
     }
 
     fn table_fill(&mut self) -> Result<()> {
-        let tabidx = self.op_u32()?;
+        let tidx = self.op_u32()?;
         let n = self.pop::<usize>()?;
         let val = self.pop::<Ref>()?;
         let i = self.pop::<usize>()?;
         // TODO if i + n > sie of table 0, trap
-        let tabaddr = self.runtime.stack.get_table_addr(tabidx)?;
+        let taddr = self.runtime.stack.active_module()?.table(tidx);
         // Note: the spec describes table fill as a recursive set of calls to table set
         // + table fill, we use a function here to emulate the same behavior with
         // less overhead.
-        self.runtime.store.fill_table(tabaddr, n, val, i)?;
+        self.runtime.store.fill_table(taddr, n, val, i)?;
         Ok(())
     }
 
     fn elem_drop(&mut self) -> Result<()> {
-        let elemidx = self.op_u32()?;
-        let elemaddr = self.runtime.stack.get_elem_addr(elemidx)?;
-        self.runtime.store.elem_drop(elemaddr)
+        let eidx = self.op_u32()?;
+        let eaddr = self.runtime.stack.active_module()?.elem(eidx);
+        self.runtime.store.elem_drop(eaddr)
     }
 
     fn data_drop(&mut self) -> Result<()> {
-        let dataidx = self.op_u32()?;
-        let dataaddr = self.runtime.stack.get_data_addr(dataidx)?;
-        self.runtime.store.data_drop(dataaddr)
+        let didx = self.op_u32()?;
+        let daddr = self.runtime.stack.active_module()?.data(didx);
+        self.runtime.store.data_drop(daddr)
     }
 
     fn continuation(&mut self, cnt: u32) -> Result<()> {
         self.pc = cnt as usize;
-        self.log(Tag::Flow, || format!("CONTINUE AT {:x}", cnt));
+        self.log(Tag::Flow, || format!("CONTINUE AT {cnt:x}"));
         if self.pc >= self.body.len() {
             panic!(
-                "invalid continuation {} for body size {}",
-                self.pc,
-                self.body.len()
+                "invalid continuation {pc} for body size {size}",
+                pc = self.pc,
+                size = self.body.len()
             )
         }
         Ok(())
     }
 
-    fn get_global(&mut self, idx: u32) -> Result<Value> {
+    fn get_global(&mut self, gidx: u32) -> Result<Value> {
         self.runtime
             .store
-            .global(self.runtime.stack.get_global_addr(idx)?)
+            .global(self.runtime.stack.active_module()?.global(gidx))
     }
 
-    fn set_global(&mut self, idx: u32, val: Value) -> Result<()> {
+    fn set_global(&mut self, gidx: u32, val: Value) -> Result<()> {
         self.runtime
             .store
-            .set_global(self.runtime.stack.get_global_addr(idx)?, val)
+            .set_global(self.runtime.stack.active_module()?.global(gidx), val)
     }
 
     fn push_value(&mut self, val: Value) -> Result<()> {
@@ -404,18 +404,18 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
         Ok(())
     }
 
-    fn push_func_ref(&mut self, idx: u32) -> Result<()> {
-        let fa = self.runtime.stack.get_function_addr(idx)?;
-        self.runtime.stack.push_value(Ref::Func(fa).into());
+    fn push_func_ref(&mut self, fidx: u32) -> Result<()> {
+        let faddr = self.runtime.stack.active_module()?.func(fidx);
+        self.runtime.stack.push_value(Ref::Func(faddr).into());
         Ok(())
     }
 
     fn push_label_start(&mut self) -> Result<()> {
-        let typeidx = self.op_u32()?;
+        let tyidx = self.op_u32()?;
         let continuation = self.op_u32()?;
         let (param_arity, result_arity) = {
-            let functype = self.runtime.stack.get_func_type(typeidx)?;
-            (functype.params.len() as u32, functype.params.len() as u32)
+            let ftype = self.runtime.stack.active_module()?.func_type(tyidx);
+            (ftype.params.len() as u32, ftype.params.len() as u32)
         };
         self.runtime
             .stack
@@ -424,11 +424,11 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
     }
 
     fn push_label_end(&mut self) -> Result<()> {
-        let typeidx = self.op_u32()?;
+        let tyidx = self.op_u32()?;
         let continuation = self.op_u32()?;
         let (param_arity, result_arity) = {
-            let functype = self.runtime.stack.get_func_type(typeidx)?;
-            (functype.params.len() as u32, functype.result.len() as u32)
+            let ftype = self.runtime.stack.active_module()?.func_type(tyidx);
+            (ftype.params.len() as u32, ftype.result.len() as u32)
         };
         self.runtime
             .stack
@@ -453,14 +453,14 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
         val.try_into()
     }
 
-    fn call(&mut self, idx: u32) -> Result<()> {
+    fn call(&mut self, fidx: u32) -> Result<()> {
         self.runtime
-            .invoke_addr(self.runtime.stack.get_function_addr(idx)?)
+            .invoke_addr(self.runtime.stack.active_module()?.func(fidx))
     }
 
-    fn call_addr(&mut self, addr: Address<addr::Function>, typeidx: u32) -> Result<()> {
+    fn call_addr(&mut self, addr: Address<addr::Function>, tyidx: u32) -> Result<()> {
         let funcinst = self.runtime.store.func(addr)?;
-        let expected_type = self.runtime.stack.get_func_type(typeidx)?;
+        let expected_type = self.runtime.stack.active_module()?.func_type(tyidx);
         (&funcinst.functype == expected_type)
             .true_or_else(|| TrapKind::CallIndirectTypeMismatch)?;
         self.runtime.invoke(funcinst)
@@ -482,10 +482,10 @@ impl<'l> ExecutionContext<'l> {
                 }
                 _ => Opcode::Normal(op),
             };
-            self.log(Tag::Op, || format!("BEGIN 0x{:x?}", opcode));
+            self.log(Tag::Op, || format!("BEGIN 0x{opcode:x?}"));
             self.pc += 1;
             exec_method(opcode, self)?;
-            self.log(Tag::Op, || format!("FINISHED 0x{:x?}", opcode));
+            self.log(Tag::Op, || format!("FINISHED 0x{opcode:x?}"));
         }
         Ok(())
     }
@@ -512,7 +512,9 @@ impl Runtime {
     }
 
     pub fn enter(&mut self, body: &[u8]) -> Result<()> {
-        self.log(Tag::Enter, || format!("ENTER EXPR {}", Body(body)));
+        self.log(Tag::Enter, || {
+            format!("ENTER EXPR {expr}", expr = Body(body))
+        });
         let mut ic = ExecutionContext {
             runtime: self,
             body,
@@ -520,7 +522,7 @@ impl Runtime {
         };
         let result = ic.run();
         if let Err(ref e) = result {
-            println!("UNWINDING FOR ERROR {:?}", e);
+            println!("UNWINDING FOR ERROR {e:?}");
             self.stack.unwind();
         }
         result
