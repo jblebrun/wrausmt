@@ -5,6 +5,13 @@ members = [
     "tests-spec",
     "tests-integration",
     "wrausmt-bin",
+    "wrausmt-common",
     "wrausmt-format",
     "wrausmt-runtime",
 ]
+
+[workspace.dependencies]
+codegen = { path = "codegen" }
+wrausmt-common = { path = "wrausmt-common" }
+wrausmt-format = { path = "wrausmt-format" }
+wrausmt-runtime = { path = "wrausmt-runtime" }

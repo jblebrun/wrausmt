@@ -31,9 +31,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "wrausmt-common"
+version = "0.1.0"
+
+[[package]]
 name = "wrausmt-format"
 version = "0.1.0"
 dependencies = [
+ "wrausmt-common",
  "wrausmt-runtime",
 ]
 

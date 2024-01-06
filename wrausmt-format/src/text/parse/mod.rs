@@ -5,8 +5,8 @@ use {
         string::WasmString,
         token::{FileToken, Token},
     },
-    crate::tracer::{TraceDropper, Tracer},
     std::io::Read,
+    wrausmt_common::tracer::{TraceDropper, Tracer},
     wrausmt_runtime::syntax::Id,
 };
 
