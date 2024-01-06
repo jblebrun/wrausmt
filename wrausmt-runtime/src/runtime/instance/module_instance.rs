@@ -1,6 +1,6 @@
 use {
-    super::*,
-    crate::{runtime::store::addr, syntax::types::FunctionType},
+    super::{addr::Address, *},
+    crate::syntax::types::FunctionType,
 };
 
 /// A module instance is the runtime representation of a module. [Spec][Spec]
@@ -23,12 +23,12 @@ use {
 pub struct ModuleInstance {
     types:   Box<[FunctionType]>,
     exports: Box<[ExportInstance]>,
-    funcs:   Box<[addr::FuncAddr]>,
-    tables:  Box<[addr::TableAddr]>,
-    mems:    Box<[addr::MemoryAddr]>,
-    globals: Box<[addr::GlobalAddr]>,
-    elems:   Box<[addr::ElemAddr]>,
-    data:    Box<[addr::DataAddr]>,
+    funcs:   Box<[Address<addr::Function>]>,
+    tables:  Box<[Address<addr::Table>]>,
+    mems:    Box<[Address<addr::Memory>]>,
+    globals: Box<[Address<addr::Global>]>,
+    elems:   Box<[Address<addr::Elem>]>,
+    data:    Box<[Address<addr::Data>]>,
 }
 
 impl ModuleInstance {
@@ -36,27 +36,27 @@ impl ModuleInstance {
         &self.types[idx as usize]
     }
 
-    pub fn func(&self, idx: u32) -> addr::FuncAddr {
+    pub fn func(&self, idx: u32) -> Address<addr::Function> {
         self.funcs[idx as usize]
     }
 
-    pub fn table(&self, idx: u32) -> addr::TableAddr {
+    pub fn table(&self, idx: u32) -> Address<addr::Table> {
         self.tables[idx as usize]
     }
 
-    pub fn mem(&self, idx: u32) -> addr::MemoryAddr {
+    pub fn mem(&self, idx: u32) -> Address<addr::Memory> {
         self.mems[idx as usize]
     }
 
-    pub fn global(&self, idx: u32) -> addr::GlobalAddr {
+    pub fn global(&self, idx: u32) -> Address<addr::Global> {
         self.globals[idx as usize]
     }
 
-    pub fn elem(&self, idx: u32) -> addr::ElemAddr {
+    pub fn elem(&self, idx: u32) -> Address<addr::Elem> {
         self.elems[idx as usize]
     }
 
-    pub fn data(&self, idx: u32) -> addr::DataAddr {
+    pub fn data(&self, idx: u32) -> Address<addr::Data> {
         self.data[idx as usize]
     }
 
@@ -69,12 +69,12 @@ impl ModuleInstance {
 pub struct ModuleInstanceBuilder {
     pub types:   Vec<FunctionType>,
     pub exports: Vec<ExportInstance>,
-    pub funcs:   Vec<addr::FuncAddr>,
-    pub tables:  Vec<addr::TableAddr>,
-    pub mems:    Vec<addr::MemoryAddr>,
-    pub globals: Vec<addr::GlobalAddr>,
-    pub elems:   Vec<addr::ElemAddr>,
-    pub data:    Vec<addr::DataAddr>,
+    pub funcs:   Vec<Address<addr::Function>>,
+    pub tables:  Vec<Address<addr::Table>>,
+    pub mems:    Vec<Address<addr::Memory>>,
+    pub globals: Vec<Address<addr::Global>>,
+    pub elems:   Vec<Address<addr::Elem>>,
+    pub data:    Vec<Address<addr::Data>>,
 }
 
 impl ModuleInstanceBuilder {

@@ -1,9 +1,9 @@
 use {
+    super::module_instance::ModuleInstance,
     crate::{
         instructions::Expr,
         runtime::{
             error::{Result, RuntimeErrorKind},
-            instance::ModuleInstance,
             Value,
         },
         syntax::types::{FunctionType, ValueType},

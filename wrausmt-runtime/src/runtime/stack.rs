@@ -1,8 +1,7 @@
 use {
     super::{
         error::{Result, RuntimeErrorKind},
-        instance::FunctionInstance,
-        store::addr,
+        instance::{addr, addr::Address, FunctionInstance},
         values::Value,
         ModuleInstance,
     },
@@ -261,32 +260,32 @@ impl Stack {
     }
 
     // Get the function address for the provided index in the current activation.
-    pub fn get_function_addr(&self, idx: u32) -> Result<addr::FuncAddr> {
+    pub fn get_function_addr(&self, idx: u32) -> Result<Address<addr::Function>> {
         Ok(self.peek_activation()?.module.func(idx))
     }
 
     // Get the function address for the provided index in the current activation.
-    pub fn get_mem_addr(&self, idx: u32) -> Result<addr::FuncAddr> {
+    pub fn get_mem_addr(&self, idx: u32) -> Result<Address<addr::Memory>> {
         Ok(self.peek_activation()?.module.mem(idx))
     }
 
     // Get the global address for the provided index in the current activation.
-    pub fn get_global_addr(&self, idx: u32) -> Result<addr::GlobalAddr> {
+    pub fn get_global_addr(&self, idx: u32) -> Result<Address<addr::Global>> {
         Ok(self.peek_activation()?.module.global(idx))
     }
 
     // Get the function address for the provided index in the current activation.
-    pub fn get_table_addr(&self, idx: u32) -> Result<addr::TableAddr> {
+    pub fn get_table_addr(&self, idx: u32) -> Result<Address<addr::Table>> {
         Ok(self.peek_activation()?.module.table(idx))
     }
 
     // Get the function address for the provided index in the current activation.
-    pub fn get_elem_addr(&self, idx: u32) -> Result<addr::ElemAddr> {
+    pub fn get_elem_addr(&self, idx: u32) -> Result<Address<addr::Elem>> {
         Ok(self.peek_activation()?.module.elem(idx))
     }
 
     // Get the function address for the provided index in the current activation.
-    pub fn get_data_addr(&self, idx: u32) -> Result<addr::DataAddr> {
+    pub fn get_data_addr(&self, idx: u32) -> Result<Address<addr::Data>> {
         Ok(self.peek_activation()?.module.data(idx))
     }
 

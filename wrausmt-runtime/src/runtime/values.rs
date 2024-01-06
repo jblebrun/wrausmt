@@ -18,7 +18,7 @@
 //! [Spec]: https://webassembly.github.io/spec/core/syntax/values.html#values
 
 use {
-    super::store::addr,
+    super::instance::{addr, addr::Address},
     crate::{
         impl_bug,
         runtime::error::RuntimeError,
@@ -104,7 +104,7 @@ impl std::fmt::Debug for Num {
 /// [Spec]: https://webassembly.github.io/spec/core/syntax/values.html#values
 #[derive(PartialEq, Debug, Clone, Copy)]
 pub enum Ref {
-    Func(addr::FuncAddr),
+    Func(Address<addr::Function>),
     Extern(u32),
     Null(RefType),
 }

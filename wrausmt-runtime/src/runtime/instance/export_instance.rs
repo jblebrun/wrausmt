@@ -1,4 +1,4 @@
-use crate::runtime::store::addr;
+use super::addr::{self, Address};
 
 /// An external value is the runtime representation of an entity that can be
 /// imported or exported. [Spec][Spec]
@@ -9,10 +9,10 @@ use crate::runtime::store::addr;
 /// [Spec]: https://webassembly.github.io/spec/core/exec/runtime.html#external-values
 #[derive(Debug, Clone, Copy)]
 pub enum ExternalVal {
-    Func(addr::FuncAddr),
-    Table(addr::TableAddr),
-    Memory(addr::MemoryAddr),
-    Global(addr::GlobalAddr),
+    Func(Address<addr::Function>),
+    Table(Address<addr::Table>),
+    Memory(Address<addr::Memory>),
+    Global(Address<addr::Global>),
 }
 
 /// An export instance is the runtime representation of an export. [Spec][Spec]
