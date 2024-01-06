@@ -47,4 +47,5 @@ name = "wrausmt-runtime"
 version = "0.1.0"
 dependencies = [
  "codegen",
+ "wrausmt-common",
 ]

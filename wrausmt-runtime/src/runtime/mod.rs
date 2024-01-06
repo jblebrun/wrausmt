@@ -103,7 +103,7 @@ impl Runtime {
                 name: _,
                 addr: ExternalVal::Func(idx),
             }) => Ok(*idx),
-            _ => Err(RuntimeErrorKind::MethodNotFound(name.to_owned()).error()),
+            _ => Err(RuntimeErrorKind::MethodNotFound(name.to_owned())),
         }?;
 
         self.logger
@@ -146,15 +146,15 @@ impl Runtime {
         // Since we don't do validation yet, do some checking here to make sure things
         // seem ok.
         if let Ok(v) = self.stack.pop_value() {
-            return Err(impl_bug!("values still on stack {:?}", v));
+            Err(impl_bug!("values still on stack {:?}", v))?;
         }
 
         if let Ok(l) = self.stack.peek_label() {
-            return Err(impl_bug!("labels still on stack {:?}", l));
+            Err(impl_bug!("labels still on stack {:?}", l))?;
         }
 
         if self.stack.activation_depth() != 0 {
-            return Err(impl_bug!("frames still on stack"));
+            Err(impl_bug!("frames still on stack"))?;
         }
         Ok(results)
     }
@@ -164,9 +164,9 @@ impl Runtime {
             Some(ExportInstance {
                 name: _,
                 addr: ExternalVal::Global(idx),
-            }) => Ok(*idx),
-            _ => Err(RuntimeErrorKind::MethodNotFound(name.to_owned()).error()),
-        }?;
+            }) => *idx,
+            _ => Err(RuntimeErrorKind::MethodNotFound(name.to_owned()))?,
+        };
 
         self.logger
             .log(Tag::Host, || format!("calling {} at {}", name, globaladdr));

@@ -4,12 +4,14 @@ use {
     std::fmt,
 };
 
+/// An impl_bug is a place where we're doing a runtime check for something
+/// that should have been handled by module validation.
 #[macro_export]
 macro_rules! impl_bug {
     ( $fmt:literal $(, $( $arg:expr ),*)? ) => {
         $crate::runtime::error::RuntimeErrorKind::ValidationError(
             format!($fmt$(, $($arg,)*)?)
-        ).error()
+        )
     }
 }
 
@@ -61,14 +63,14 @@ pub enum TrapKind {
 
 impl From<TrapKind> for RuntimeError {
     fn from(tk: TrapKind) -> RuntimeError {
-        RuntimeErrorKind::Trap(tk).error()
+        RuntimeErrorKind::Trap(tk).into()
     }
 }
 
-impl RuntimeErrorKind {
-    pub fn error(self) -> RuntimeError {
+impl From<RuntimeErrorKind> for RuntimeError {
+    fn from(value: RuntimeErrorKind) -> Self {
         RuntimeError {
-            kind:    self,
+            kind:    value,
             context: vec![],
         }
     }
@@ -83,22 +85,3 @@ impl fmt::Display for RuntimeError {
 impl std::error::Error for RuntimeError {}
 
 pub type Result<T> = std::result::Result<T, RuntimeError>;
-
-pub trait WithContext<T> {
-    fn ctx<S: Into<String>>(self, msg: impl Fn() -> S) -> T;
-}
-
-impl<T> WithContext<Result<T>> for Result<T> {
-    fn ctx<S: Into<String>>(self, msg: impl Fn() -> S) -> Result<T> {
-        self.map_err(|e| e.with_context(msg()))
-    }
-}
-
-impl From<RuntimeErrorKind> for RuntimeError {
-    fn from(kind: RuntimeErrorKind) -> Self {
-        RuntimeError {
-            kind,
-            context: Vec::new(),
-        }
-    }
-}

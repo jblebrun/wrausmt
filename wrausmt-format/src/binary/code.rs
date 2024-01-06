@@ -6,6 +6,7 @@ use {
     },
     crate::{binary::error::ParseResult, pctx},
     std::io::Read,
+    wrausmt_common::true_or::TrueOr,
     wrausmt_runtime::{
         instructions::{instruction_data, op_consts, Operands, BAD_INSTRUCTION},
         syntax::{
@@ -77,7 +78,6 @@ impl<R: ParserReader> BinaryParser<R> {
             })
         })?;
 
-        // It's safe here: the counter holds a pointer to this parser.
         match amount_read {
             cnt if cnt < code_size_expected => Err(self.err(BinaryParseErrorKind::CodeTooShort)),
             cnt if cnt > code_size_expected => Err(self.err(BinaryParseErrorKind::CodeTooLong)),
@@ -101,9 +101,8 @@ impl<R: ParserReader> BinaryParser<R> {
 
         let total: usize = local_records.iter().map(|(cnt, _)| *cnt as usize).sum();
 
-        if total > MAX_LOCALS_PER_FUNC {
-            return Err(self.err(BinaryParseErrorKind::TooManyLocals));
-        }
+        (total <= MAX_LOCALS_PER_FUNC)
+            .true_or_else(|| self.err(BinaryParseErrorKind::TooManyLocals))?;
 
         let result: Vec<Local> = local_records
             .into_iter()
@@ -139,8 +138,7 @@ impl<R: ParserReader> BinaryParser<R> {
 
         secondary
             .try_into()
-            .map_err(|_| BinaryParseErrorKind::InvalidSecondaryOpcode(secondary))
-            .result(self)
+            .map_err(|_| self.err(BinaryParseErrorKind::InvalidSecondaryOpcode(secondary)))
     }
 
     /// Returns -1 if EOF or end instruction was reached while parsing an
@@ -165,9 +163,8 @@ impl<R: ParserReader> BinaryParser<R> {
             _ => instruction_data(&opcode),
         };
 
-        if instruction_data == &BAD_INSTRUCTION {
-            return Err(self.err(BinaryParseErrorKind::InvalidOpcode(opcode)));
-        }
+        (instruction_data != &BAD_INSTRUCTION)
+            .true_or_else(|| self.err(BinaryParseErrorKind::InvalidOpcode(opcode)))?;
 
         // Handle any additional behavior
         let operands = match instruction_data.operands {

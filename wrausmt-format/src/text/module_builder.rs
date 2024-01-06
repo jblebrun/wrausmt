@@ -1,6 +1,7 @@
 use {
     super::resolve::{ResolveError, ResolveModule, Result},
     std::collections::HashMap,
+    wrausmt_common::true_or::TrueOr,
     wrausmt_runtime::syntax::{
         DataField, ElemField, ExportDesc, ExportField, FuncField, GlobalField, Id, ImportDesc,
         ImportField, Index, MemoryField, Module, Resolved, StartField, TableField, TypeField,
@@ -133,15 +134,11 @@ impl ModuleBuilder {
     }
 
     pub fn add_importfield(&mut self, f: ImportField<Unresolved>) -> Result<()> {
-        if !self.module.funcs.is_empty() {
-            return Err(ResolveError::ImportAfterFunction);
-        } else if !self.module.globals.is_empty() {
-            return Err(ResolveError::ImportAfterGlobal);
-        } else if !self.module.memories.is_empty() {
-            return Err(ResolveError::ImportAfterMemory);
-        } else if !self.module.tables.is_empty() {
-            return Err(ResolveError::ImportAfterTable);
-        }
+        (self.module.funcs.is_empty()).true_or(ResolveError::ImportAfterFunction)?;
+        (self.module.globals.is_empty()).true_or(ResolveError::ImportAfterGlobal)?;
+        (self.module.memories.is_empty()).true_or(ResolveError::ImportAfterMemory)?;
+        (self.module.tables.is_empty()).true_or(ResolveError::ImportAfterTable)?;
+
         // Imports contribute to index counts in their corresponding
         // space, and must appear before any declarations of that type
         // in the module, so we track their counts of each type in order

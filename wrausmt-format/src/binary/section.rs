@@ -21,14 +21,14 @@ impl<R: ParserReader> BinaryParser<R> {
         pctx!(self, "read section");
         let section_num = match (&mut self.reader).bytes().next() {
             Some(Ok(v)) => v,
-            Some(Err(e)) => return Err(e).result(self)?,
+            Some(Err(e)) => Err(e).result(self)?,
             None => return Ok(Section::Eof),
         };
 
-        let section_size_expected = self.read_u32_leb_128().result(self)? as usize;
+        let expected_size = self.read_u32_leb_128().result(self)? as usize;
         let (section, amount_read) = self.count_reads(|s| {
             Ok(match section_num {
-                0 => Section::Custom(s.read_custom_section(section_size_expected)?),
+                0 => Section::Custom(s.read_custom_section(expected_size)?),
                 1 => Section::Types(s.read_types_section()?),
                 2 => Section::Imports(s.read_imports_section()?),
                 3 => Section::Funcs(s.read_funcs_section()?),
@@ -41,22 +41,14 @@ impl<R: ParserReader> BinaryParser<R> {
                 10 => Section::Code(s.read_code_section()?),
                 11 => Section::Data(s.read_data_section()?),
                 12 => Section::DataCount(s.read_data_count_section()?),
-                _ => {
-                    return Err(s.err(
-                        crate::binary::error::BinaryParseErrorKind::MalformedSectionId(section_num),
-                    ))
-                }
+                _ => Err(s.err(BinaryParseErrorKind::MalformedSectionId(section_num)))?,
             })
         })?;
 
         // It's safe here.
         match amount_read {
-            cnt if cnt < section_size_expected => {
-                Err(self.err(BinaryParseErrorKind::SectionTooShort))
-            }
-            cnt if cnt > section_size_expected => {
-                Err(self.err(BinaryParseErrorKind::SectionTooLong))
-            }
+            cnt if cnt < expected_size => Err(self.err(BinaryParseErrorKind::SectionTooShort)),
+            cnt if cnt > expected_size => Err(self.err(BinaryParseErrorKind::SectionTooLong)),
             _ => Ok(section),
         }
     }

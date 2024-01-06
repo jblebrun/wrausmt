@@ -4,6 +4,7 @@ use {
         binary::error::{BinaryParseErrorKind, ParseResult},
         pctx,
     },
+    wrausmt_common::true_or::TrueOr,
     wrausmt_runtime::syntax::{
         self, types::RefType, ElemField, ElemList, Expr, FuncIndex, Id, Index, Instruction,
         ModeEntry, Opcode, Resolved, TablePosition, TableUse,
@@ -58,9 +59,8 @@ impl<R: ParserReader> BinaryParser<R> {
         pctx!(self, "read elem kind");
         // read elemkind type, always 0
         let elemkind = self.read_byte()?;
-        if elemkind != 0 {
-            return Err(self.err(BinaryParseErrorKind::InvalidElemKind(elemkind)));
-        }
+        (elemkind == 0)
+            .true_or_else(|| self.err(BinaryParseErrorKind::InvalidElemKind(elemkind)))?;
         Ok(RefType::Func)
     }
 

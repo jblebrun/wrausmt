@@ -222,7 +222,5 @@ pub fn compile_function_body(func: &syntax::FuncField<Resolved>) -> Box<[u8]> {
     out.emit_expr(&func.body);
     out.emit_opcode(END_OPCODE);
 
-    // ???
-    // profit!
     out.into_boxed_slice()
 }

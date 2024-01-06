@@ -69,18 +69,6 @@ impl std::fmt::Display for ParseErrorKind {
 pub type Result<T> = std::result::Result<T, ParseError>;
 pub type KindResult<T> = std::result::Result<T, ParseErrorKind>;
 
-pub trait WithMsg {
-    fn msg(self, msg: impl Into<String>) -> Self;
-}
-impl<T> WithMsg for Result<T> {
-    fn msg(mut self, msg: impl Into<String>) -> Self {
-        if let Err(e) = &mut self {
-            e.msgs.push(msg.into())
-        }
-        self
-    }
-}
-
 impl From<ResolveError> for ParseErrorKind {
     fn from(re: ResolveError) -> Self {
         ParseErrorKind::ResolveError(re)

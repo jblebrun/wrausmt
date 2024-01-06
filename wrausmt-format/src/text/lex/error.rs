@@ -26,27 +26,6 @@ impl std::fmt::Display for LexError {
 
 impl std::error::Error for LexError {}
 
-impl WithContext<LexError> for LexError {
-    fn ctx(self, ctx: &str) -> Self {
-        match self {
-            LexError::WithContext(mut ctxs, e) => {
-                ctxs.push(ctx.to_owned());
-                LexError::WithContext(ctxs, e)
-            }
-            e => LexError::WithContext(vec![ctx.to_owned()], Box::new(e)),
-        }
-    }
-}
-
-impl<T, E: Into<LexError>> WithContext<Result<T>> for std::result::Result<T, E> {
-    fn ctx(self, ctx: &str) -> Result<T> {
-        match self {
-            Ok(v) => Ok(v),
-            Err(e) => Err(e.into().ctx(ctx)),
-        }
-    }
-}
-
 impl From<std::io::Error> for LexError {
     fn from(e: std::io::Error) -> Self {
         LexError::IoError(e)

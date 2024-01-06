@@ -5,6 +5,7 @@ use {
         ParseResult, Parser,
     },
     std::io::Read,
+    wrausmt_common::true_or::TrueOr,
     wrausmt_runtime::syntax::types::Limits,
 };
 
@@ -51,9 +52,8 @@ impl<R: Read> Parser<R> {
 
 fn nanx_f64(sign: Sign, payload: &str) -> KindResult<f64> {
     let payload_num = u64::from_str_radix(payload, 16)?;
-    if payload_num > 0x000F_FFFF_FFFF_FFFF {
-        return Err(ParseErrorKind::InvalidNaN(payload_num));
-    }
+    (payload_num <= 0x000F_FFFF_FFFF_FFFF).true_or(ParseErrorKind::InvalidNaN(payload_num))?;
+
     let base: u64 = match sign {
         Sign::Negative => 0xFFF0000000000000,
         _ => 0x7FF0000000000000,
@@ -63,9 +63,8 @@ fn nanx_f64(sign: Sign, payload: &str) -> KindResult<f64> {
 
 fn nanx_f32(sign: Sign, payload: &str) -> KindResult<f32> {
     let payload_num = u32::from_str_radix(payload, 16)?;
-    if payload_num > 0x007F_FFFF {
-        return Err(ParseErrorKind::InvalidNaN(payload_num as u64));
-    }
+    (payload_num <= 0x007F_FFFF).true_or(ParseErrorKind::InvalidNaN(payload_num as u64))?;
+
     let base: u32 = match sign {
         Sign::Negative => 0xFF800000,
         _ => 0x7F800000,
@@ -260,9 +259,8 @@ impl FloatBuilder {
             return Ok(0);
         }
 
-        if self.exp > expmax as i16 {
-            return Err(ParseErrorKind::UnexpectedToken("floatrange".into()));
-        }
+        (self.exp <= expmax as i16)
+            .true_or_else(|| ParseErrorKind::UnexpectedToken("floatrange".into()))?;
 
         let mask = u64::MAX >> (64 - mantissa_size + 1);
         self.bits &= mask;

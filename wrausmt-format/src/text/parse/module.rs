@@ -1,6 +1,6 @@
 use {
     super::{
-        error::{ParseErrorKind, Result, WithMsg},
+        error::{ParseErrorKind, Result},
         pctx, ParseResult, Parser,
     },
     crate::text::{module_builder::ModuleBuilder, token::Token},
@@ -348,8 +348,8 @@ impl<R: Read> Parser<R> {
             return Ok(None);
         }
 
-        let modname = self.expect_string().msg("import modname")?;
-        let name = self.expect_string().msg("import name")?;
+        let modname = self.expect_string()?;
+        let name = self.expect_string()?;
 
         let (id, desc) = self.expect_importdesc()?;
 
@@ -417,7 +417,7 @@ impl<R: Read> Parser<R> {
             return Ok(None);
         }
 
-        let name = self.expect_string().msg("expected name")?;
+        let name = self.expect_string()?;
 
         let exportdesc = self.expect_exportdesc()?;
 
@@ -595,7 +595,7 @@ impl<R: Read> Parser<R> {
             return Ok(None);
         }
 
-        let data = self.expect_string().msg("data")?;
+        let data = self.expect_string()?;
 
         self.expect_close()?;
 
@@ -610,8 +610,8 @@ impl<R: Read> Parser<R> {
             return Ok(None);
         }
 
-        let modname = self.expect_string().msg("modname")?;
-        let name = self.expect_string().msg("name")?;
+        let modname = self.expect_string()?;
+        let name = self.expect_string()?;
 
         self.expect_close()?;
 

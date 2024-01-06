@@ -61,9 +61,7 @@ impl ModuleInstance {
     }
 
     pub fn resolve(&self, name: &str) -> Option<&ExportInstance> {
-        let found = self.exports.iter().find(|e| e.name == name);
-
-        found
+        self.exports.iter().find(|e| e.name == name)
     }
 }
 

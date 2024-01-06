@@ -13,6 +13,7 @@ use {
         syntax::{types::RefType, Opcode},
     },
     std::convert::{TryFrom, TryInto},
+    wrausmt_common::true_or::TrueOr,
 };
 
 pub struct ExecutionContext<'l> {
@@ -84,10 +85,11 @@ pub trait ExecutionContextActions {
         let _a = self.op_u32()?;
         let o = self.op_u32()?;
         let b = self.pop::<usize>()?;
-        self.mem(0)?
+        Ok(self
+            .mem(0)?
             .read(o as usize, b, S)?
             .try_into()
-            .map_err(|e| impl_bug!("conversion error {:?}", e))
+            .map_err(|e| impl_bug!("conversion error {:?}", e))?)
     }
 
     fn put_mem<const S: usize>(&mut self, bytes: [u8; S]) -> Result<()> {
@@ -165,7 +167,7 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
         match byte {
             0x70 => Ok(RefType::Func),
             0x6F => Ok(RefType::Extern),
-            _ => Err(impl_bug!("{} does not encode a ref type", byte)),
+            _ => Err(impl_bug!("{} does not encode a ref type", byte).into()),
         }
     }
 
@@ -223,7 +225,7 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
         match self.get_table_elem(tidx, elemidx)? {
             Ref::Func(a) => Ok(a),
             Ref::Null(RefType::Func) => Err(TrapKind::UninitializedElement.into()),
-            e => Err(impl_bug!("not a func {:?} FOR {} {}", e, tidx, elemidx)),
+            e => Err(impl_bug!("not a func {:?} FOR {} {}", e, tidx, elemidx))?,
         }
     }
 
@@ -459,9 +461,8 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
     fn call_addr(&mut self, addr: addr::FuncAddr, typeidx: u32) -> Result<()> {
         let funcinst = self.runtime.store.func(addr)?;
         let expected_type = self.runtime.stack.get_func_type(typeidx)?;
-        if &funcinst.functype != expected_type {
-            return Err(TrapKind::CallIndirectTypeMismatch.into());
-        }
+        (&funcinst.functype == expected_type)
+            .true_or_else(|| TrapKind::CallIndirectTypeMismatch)?;
         self.runtime.invoke(funcinst)
     }
 }
@@ -537,7 +538,7 @@ impl Runtime {
     pub fn eval_ref_expr(&mut self, body: &[u8]) -> Result<Ref> {
         match self.eval_expr(body)? {
             Value::Ref(r) => Ok(r),
-            _ => Err(impl_bug!("non-ref result for expression")),
+            _ => Err(impl_bug!("non-ref result for expression"))?,
         }
     }
 }

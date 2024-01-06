@@ -12,6 +12,7 @@ use {
         syntax::types::FunctionType,
     },
     std::rc::Rc,
+    wrausmt_common::true_or::TrueOr,
 };
 
 /// Besides the store, most instructions interact with an implicit stack.
@@ -110,9 +111,7 @@ impl Stack {
     }
 
     pub fn push_activation(&mut self, funcinst: &FunctionInstance) -> Result<()> {
-        if self.activation_stack.len() > 256 {
-            return Err(RuntimeErrorKind::CallStackExhaustion.error());
-        }
+        (self.activation_stack.len() < 256).true_or(RuntimeErrorKind::CallStackExhaustion)?;
 
         let frame_start = self.value_stack.len() - funcinst.functype.params.len();
         // 8. Let val0* be the list of zero values (other locals).
@@ -150,9 +149,10 @@ impl Stack {
     }
 
     pub fn pop_value(&mut self) -> Result<Value> {
-        self.value_stack
+        Ok(self
+            .value_stack
             .pop()
-            .ok_or_else(|| impl_bug!("value stack underflow"))
+            .ok_or_else(|| impl_bug!("value stack underflow"))?)
     }
 
     pub fn pop_label(&mut self) -> Result<Label> {
@@ -216,8 +216,7 @@ impl Stack {
             .pop()
             .ok_or_else(|| impl_bug!("activation stack underflow"))?;
 
-        self.move_return_values(frame.arity, frame.local_start)?;
-        Ok(())
+        self.move_return_values(frame.arity, frame.local_start)
     }
 
     pub fn activation_depth(&self) -> usize {
@@ -225,21 +224,24 @@ impl Stack {
     }
 
     pub fn peek_label(&self) -> Result<&Label> {
-        self.label_stack()?
+        Ok(self
+            .label_stack()?
             .last()
-            .ok_or_else(|| impl_bug!("label stack underflow"))
+            .ok_or_else(|| impl_bug!("label stack underflow"))?)
     }
 
     fn peek_activation(&self) -> Result<&ActivationFrame> {
-        self.activation_stack
+        Ok(self
+            .activation_stack
             .last()
-            .ok_or_else(|| impl_bug!("activation stack underflow"))
+            .ok_or_else(|| impl_bug!("activation stack underflow"))?)
     }
 
     fn peek_activation_mut(&mut self) -> Result<&mut ActivationFrame> {
-        self.activation_stack
+        Ok(self
+            .activation_stack
             .last_mut()
-            .ok_or_else(|| impl_bug!("activation stack underflow"))
+            .ok_or_else(|| impl_bug!("activation stack underflow"))?)
     }
 
     // Get the local at the provided index for the current activation frame.

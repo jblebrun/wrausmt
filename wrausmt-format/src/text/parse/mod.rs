@@ -55,6 +55,7 @@ macro_rules! pctx {
     };
 }
 pub use pctx;
+use wrausmt_common::true_or::TrueOr;
 
 // Implementation for the basic token-handling methods.
 impl<R: Read> Parser<R> {
@@ -101,14 +102,12 @@ impl<R: Read> Parser<R> {
     // Updates the lookahead token to the next value
     // provided by the tokenizer.
     fn next(&mut self) -> Result<()> {
-        if self.next.token == Token::Eof {
-            return Err(self.err(ParseErrorKind::Eof));
-        }
+        (self.next.token != Token::Eof).true_or_else(|| self.err(ParseErrorKind::Eof))?;
 
         match self.tokenizer.next() {
             None => self.next.token = Token::Eof,
             Some(Ok(t)) => self.next = t,
-            Some(Err(e)) => return Err(self.err(ParseErrorKind::LexError(e))),
+            Some(Err(e)) => Err(self.err(ParseErrorKind::LexError(e)))?,
         }
         Ok(())
     }
@@ -125,7 +124,7 @@ impl<R: Read> Parser<R> {
         }
 
         if let Token::Reserved(s) = &self.next.token {
-            return Err(self.err(ParseErrorKind::UnrecognizedInstruction(s.to_owned())));
+            Err(self.err(ParseErrorKind::UnrecognizedInstruction(s.to_owned())))?;
         }
 
         Ok(out)

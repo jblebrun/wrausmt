@@ -6,6 +6,7 @@ use {
     },
     crate::{binary::error::ParseResult, pctx},
     std::io::Read,
+    wrausmt_common::true_or::TrueOr,
     wrausmt_runtime::syntax::{
         types::{NumType, RefType, ValueType},
         Index, IndexSpace, Resolved,
@@ -17,9 +18,7 @@ impl<R: ParserReader> BinaryParser<R> {
         pctx!(self, "read magic");
         let mut buf = [0u8; 4];
         self.read_exact(&mut buf).result(self)?;
-        (&buf == b"\0asm")
-            .then_some(())
-            .ok_or(self.err(BinaryParseErrorKind::IncorrectMagic(buf)))
+        (&buf == b"\0asm").true_or_else(|| self.err(BinaryParseErrorKind::IncorrectMagic(buf)))
     }
 
     pub(in crate::binary) fn read_version(&mut self) -> Result<()> {
@@ -27,8 +26,7 @@ impl<R: ParserReader> BinaryParser<R> {
         let mut buf = [0u8; 4];
         self.read_exact(&mut buf).result(self)?;
         (&buf == b"\x01\0\0\0")
-            .then_some(())
-            .ok_or(self.err(BinaryParseErrorKind::IncorrectVersion(buf)))
+            .true_or_else(|| self.err(BinaryParseErrorKind::IncorrectVersion(buf)))
     }
 
     /// Read a single byte, returning an errror for EOF.
@@ -44,8 +42,7 @@ impl<R: ParserReader> BinaryParser<R> {
     pub(in crate::binary) fn read_name(&mut self) -> Result<String> {
         pctx!(self, "read name");
         let bs = self.read_bytes()?;
-        let r = String::from_utf8(bs.to_vec()).result(self)?;
-        Ok(r)
+        String::from_utf8(bs.to_vec()).result(self)
     }
 
     pub(in crate::binary) fn read_bytes(&mut self) -> Result<Box<[u8]>> {

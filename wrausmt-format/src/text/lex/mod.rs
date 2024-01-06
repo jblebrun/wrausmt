@@ -6,8 +6,9 @@ use {
         token::{FileToken, Token},
     },
     chars::CharChecks,
-    error::{Result, WithContext},
+    error::Result,
     std::{io::Read, iter::Iterator},
+    wrausmt_common::true_or::TrueOr,
     wrausmt_runtime::syntax::Id,
 };
 mod chars;
@@ -95,12 +96,12 @@ impl<R: Read> Tokenizer<R> {
     /// been reached, panic occurs; this should not be a reachable state.
     fn advance(&mut self) -> Result<()> {
         let mut buf = [0u8; 1];
-        let amount_read = self.inner.read(&mut buf).ctx("reading")?;
+        let amount_read = self.inner.read(&mut buf)?;
         self.current = self.next;
         self.next = buf[0];
         if amount_read == 0 {
             if self.eof && self.finished {
-                return Err(LexError::UnexpectedEof);
+                Err(LexError::UnexpectedEof)?;
             } else if self.eof && !self.finished {
                 self.finished = true;
             } else {
@@ -140,7 +141,7 @@ impl<R: Read> Tokenizer<R> {
             }
         }
 
-        return Ok(Token::Reserved(String::from_utf8_lossy(&bytes).to_string()));
+        Ok(Token::Reserved(String::from_utf8_lossy(&bytes).to_string()))
     }
 
     /// Consume whitespace and return [Token::Whitespace]. Leaves the character
@@ -155,9 +156,7 @@ impl<R: Read> Tokenizer<R> {
     /// Consume a line comment and return [Token::LineComment]. Leaves the
     /// character position at the start of the next line.
     fn consume_line_comment(&mut self) -> Result<()> {
-        if self.current != b';' {
-            return Err(LexError::UnexpectedChar(self.current as char));
-        }
+        (self.current == b';').true_or(LexError::UnexpectedChar(self.current as char))?;
         while !matches!(self.current, b'\n' | b'\r') {
             self.advance()?;
         }

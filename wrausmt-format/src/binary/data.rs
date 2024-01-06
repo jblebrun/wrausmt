@@ -16,8 +16,7 @@ impl<R: ParserReader> BinaryParser<R> {
 
     pub(in crate::binary) fn read_data_count_section(&mut self) -> Result<u32> {
         pctx!(self, "read data count section");
-        let r = self.read_u32_leb_128().result(self)?;
-        Ok(r)
+        self.read_u32_leb_128().result(self)
     }
 
     fn read_data_field(&mut self) -> Result<DataField<Resolved>> {

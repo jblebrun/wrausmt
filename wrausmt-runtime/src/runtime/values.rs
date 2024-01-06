@@ -80,10 +80,6 @@ impl Value {
         }
     }
 
-    pub fn is(&self, vt: ValueType) -> bool {
-        self.valtype() == vt
-    }
-
     pub fn as_num(&self) -> Option<Num> {
         match self {
             Value::Num(n) => Some(*n),
@@ -178,7 +174,7 @@ macro_rules! froms {
                         "couldn't convert {:?} {}",
                         val,
                         stringify!($name)
-                    )),
+                    ))?,
                 }
             }
         }
@@ -212,7 +208,7 @@ impl TryFrom<Value> for Ref {
     fn try_from(v: Value) -> Result<Ref, Self::Error> {
         match v {
             Value::Ref(r) => Ok(r),
-            _ => Err(impl_bug!("{:?} is not a ref", v)),
+            _ => Err(impl_bug!("{:?} is not a ref", v))?,
         }
     }
 }
