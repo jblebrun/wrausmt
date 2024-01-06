@@ -3,8 +3,8 @@ use {
         error::{BinaryParseError, EofAsKind},
         read_with_location::{Location, ReadWithLocation},
     },
-    crate::tracer::{TraceDropper, Tracer},
     std::{cell::RefCell, rc::Rc},
+    wrausmt_common::tracer::{TraceDropper, Tracer},
     wrausmt_runtime::syntax::TypeUse,
 };
 
