@@ -1,3 +1,4 @@
+#![feature(get_many_mut)]
 pub mod instructions;
 pub mod logger;
 pub mod runtime;
