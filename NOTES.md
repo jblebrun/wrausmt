@@ -1,19 +1,4 @@
-### Code flatmap pattern for parsing NTNTNT locals defs
 
-pattern that's not quite working:
-```
-(0..n).flatmap(|_| {
-  self.read()?
-  // return iter here
-}).collect()
-})
-```
-
-### Type sharing / Abstract Syntax
-
-`To what extent do I want to keep typing separate between the parsers and runtime? Many of the types are pretty similar, so it makes sense to share them. Currently, the text parser uses a number of definitions from the common "types" module. 
-
-It might be nice to eventually define unqiue types for the parser, so that it could be put into its own crate.
 
 ### Id management
 
@@ -23,46 +8,27 @@ The text format supports named IDs as a convenience. These don't appear in the a
 
 In the binary parser, I created a [`read_vec` helper](src/format/binary/values.rs#74) to wrap the pattern of reading a vector encoded in the binary format. I pass the method a closure which reads the items of the vector inside of a mapping created by read_vec. Calling read_vec results in a mutable borrow of self, but since we often want to call another self method inside of the closure, this doesn't work; the closure has already borrowed `self`, so we can't call `read_vec`.
 
-I managed to make this work by passing `self` through the closure as a second
-argument. Is there a better way?
+I managed to make this work by passing `self` through the closure as a second argument. 
 
-### Clean, consistent way of representing variable length immutable arrays.
+This seems to be a reasonable way to do this, and it telegraphs the intent nicelyl
 
-Right now, for many structure fields that store some array of things where the array may be of any size (but won't change once it's stored), I'm using a `Box<[T]>`. 
+### Marker Traits for Type Safety
 
-* Would it be more idiomatic to use a `Vec<T>`? I avoided this because `Vec<T>`
-  implies potential mutability to me. 
+Marker traits are used to provide 0-overhead (as far as data overhead goes) type safety for a few things:
 
-* Would it be nice to define typealias or newtypes for the various array types?
-  This may lead to code that's more self-documenting, and perhaps make it
-  easier to change the strategy in the future.
+## Index Resolution
 
-### Instruction storage at runtime
-
-Investigate idea of creating structs for instructions + operands, and storing
-them as raw bytes in function instantiations. This would require some usage of `unsafe`, but might be a pretty cool strategy, basically sliding a window over the array of bytes that changes shape as it goes.
+Indexes are loaded during parse time, but because they can refer to items ahead and behind, they aren't resolved until the full module is read in. So for a while, the `Index` data type lives in an unresolved state, but carries the same data that it will if it's validated. To handle this, indices are generic against a `ResolvedState`. So when first read in, they are `Index<Unresolved>`. Later, after being validated, they are returned as `Index<Resolved>`. The only way to get an `Index<Resolved>` (safelyt) is to pass an `Index<Unresolved>` through the proper validator method. And functions that need to accept a valid index only accept `Index<Resolved>`. So this is a cool way to determine, at compile time, that only resolved indices make it to runtime code. (Of course, with unsafe code, anything can happen....).
 
 
-### Branching conditionals
+## Index Address Spaces
+Indices and Addresses have "spaces" in WASM. For example, the Index may refer to a function, a memory, a table, etc, and similarly for addresses. However the underlying address type is the same. To differentiate the types at compile time, they're generic over type that specifies the index or address space. Using `PhantomData` items inside the strucutres, we can ensure that functions accept only the proper address type, reducing the likelihood of typos or copy-pasting resulting in allowing the wrong address type to be passed through when working with address and index types.
 
-Is it preferable stylewise to use match, or if-else trees? For example:
 
-```
-match x  {
-  x if x > 20 => ...,
-  x if x > 10 => ...,
-  x if x > 5 => ...,
-  _ => ...
-}
-```
 
-vs
 
-```
-if x > 20 { ...  }
-else if x > 10 { ... }
-else if x > 5 { ... }
-else { ... }
-```
 
-The former feels nicer to me, but I've heard indication that it's considered an anti-pattern.
+
+
+
+
