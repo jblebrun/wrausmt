@@ -4,8 +4,9 @@ use crate::{
     syntax::{
         self,
         types::{FunctionType, RefType, ValueType},
-        Expr, Opcode, Resolved, TypeUse,
+        Expr, Instruction, Opcode, Resolved, TypeUse,
     },
+    validation::{Validation, ValidationContext},
 };
 
 const END_OPCODE: Opcode = Opcode::Normal(0xb);
@@ -46,6 +47,7 @@ pub fn compile_export(
 }
 
 pub trait Emitter {
+    fn validate_instr(&mut self, instr: &Instruction<Resolved>) -> crate::validation::Result<()>;
     fn emit8(&mut self, v: u8);
     fn emit32(&mut self, v: u32);
     fn emit64(&mut self, v: u64);
@@ -178,52 +180,76 @@ pub trait Emitter {
     }
 }
 
-impl Emitter for Vec<u8> {
+pub struct Compiler<'a> {
+    output:     Vec<u8>,
+    validation: Validation<'a>,
+}
+impl<'a> Compiler<'a> {
+    pub fn new(validation_context: &ValidationContext) -> Compiler {
+        Compiler {
+            output:     Vec::new(),
+            validation: Validation::new(validation_context),
+        }
+    }
+
+    pub fn take(self) -> Vec<u8> {
+        self.output
+    }
+}
+
+impl<'a> Emitter for Compiler<'a> {
+    fn validate_instr(&mut self, instr: &Instruction<Resolved>) -> crate::validation::Result<()> {
+        self.validation.handle_instr(instr)
+    }
+
     fn emit8(&mut self, v: u8) {
-        self.push(v);
+        self.output.push(v);
     }
 
     fn emit32(&mut self, v: u32) {
         let bytes = &v.to_le_bytes()[..];
-        self.extend(bytes);
+        self.output.extend(bytes);
     }
 
     fn splice32(&mut self, idx: usize, v: u32) {
         let bytes = &v.to_le_bytes();
-        self.splice(idx..idx + 4, bytes.iter().cloned());
+        self.output.splice(idx..idx + 4, bytes.iter().cloned());
     }
 
     fn splice8(&mut self, idx: usize, v: u8) {
-        self[idx] = v;
+        self.output[idx] = v;
     }
 
     fn emit64(&mut self, v: u64) {
         let bytes = &v.to_le_bytes()[..];
-        self.extend(bytes);
+        self.output.extend(bytes);
     }
 
     fn emit_opcode(&mut self, opcode: Opcode) {
         match opcode {
-            Opcode::Normal(o) => self.push(o),
-            Opcode::Extended(o) => self.extend(&[op_consts::EXTENDED_PREFIX, o]),
-            Opcode::Simd(o) => self.extend(&[op_consts::SIMD_PREFIX, o]),
+            Opcode::Normal(o) => self.output.push(o),
+            Opcode::Extended(o) => self.output.extend(&[op_consts::EXTENDED_PREFIX, o]),
+            Opcode::Simd(o) => self.output.extend(&[op_consts::SIMD_PREFIX, o]),
         }
     }
 
     fn len(&self) -> usize {
-        self.len()
+        self.output.len()
     }
 
     fn is_empty(&self) -> bool {
-        self.is_empty()
+        self.output.is_empty()
     }
 }
 
-pub fn compile_function_body(func: &syntax::FuncField<Resolved>) -> Box<[u8]> {
-    let mut out: Vec<u8> = Vec::new();
+pub fn compile_function_body(
+    func: &syntax::FuncField<Resolved>,
+    validation_context: &ValidationContext,
+) -> Box<[u8]> {
+    let mut out = Compiler::new(validation_context);
 
     out.emit_expr(&func.body);
     out.emit_opcode(END_OPCODE);
 
-    out.into_boxed_slice()
+    out.output.into_boxed_slice()
 }

@@ -1,6 +1,6 @@
 use {
     super::{
-        compile::compile_function_body,
+        compile::{compile_function_body, Compiler},
         error::{Result, RuntimeErrorKind},
         instance::{FunctionInstance, ModuleInstance},
         Runtime,
@@ -21,6 +21,7 @@ use {
             DataInit, ElemList, Expr, FuncField, ImportDesc, Instruction, ModeEntry, Resolved,
             TablePosition,
         },
+        validation::{ValidationContext, ValidationMode},
     },
     std::rc::Rc,
     wrausmt_common::{logger::Logger, true_or::TrueOr},
@@ -29,8 +30,12 @@ use {
 impl Runtime {
     /// The load method allocates and instantiates the provided
     /// [syntax::Module].
-    pub fn load(&mut self, module: syntax::Module<Resolved>) -> Result<Rc<ModuleInstance>> {
-        self.instantiate(module)
+    pub fn load(
+        &mut self,
+        module: syntax::Module<Resolved>,
+        validation_mode: ValidationMode,
+    ) -> Result<Rc<ModuleInstance>> {
+        self.instantiate(module, validation_mode)
     }
 
     fn validate_import(
@@ -88,13 +93,14 @@ impl Runtime {
         f: FuncField<Resolved>,
         types: &[FunctionType],
         modinst: Rc<ModuleInstance>,
+        validation_context: &ValidationContext,
     ) -> Result<FunctionInstance> {
         let functype = types
             .get(f.typeuse.index().value() as usize)
             .ok_or(RuntimeErrorKind::TypeNotFound(f.typeuse.index().value()))?
             .clone();
         let locals: Box<[ValueType]> = f.locals.iter().map(|l| l.valtype).collect();
-        let body = compile_function_body(&f);
+        let body = compile_function_body(&f, validation_context);
         Ok(FunctionInstance {
             functype,
             module_instance: modinst,
@@ -108,6 +114,7 @@ impl Runtime {
         tp: &TablePosition<Resolved>,
         elemlist: &ElemList<Resolved>,
         ei: u32,
+        validation_context: &ValidationContext,
     ) -> Result<()> {
         let n = elemlist.items.len() as u32;
         let ti = tp.tableuse.tableidx.value();
@@ -117,30 +124,40 @@ impl Runtime {
             Instruction::tableinit(ti, ei),
             Instruction::elemdrop(ei),
         ];
-        let mut init_code: Vec<u8> = vec![];
+        let mut init_code = Compiler::new(validation_context);
         init_code.emit_expr(&tp.offset);
-        self.exec_expr(&init_code)?;
-        init_code.clear();
+        self.exec_expr(&init_code.take())?;
+        let mut init_code = Compiler::new(validation_context);
         init_code.emit_expr(&Expr { instr: initexpr });
-        self.exec_expr(&init_code)
+        self.exec_expr(&init_code.take())
     }
 
-    fn init_mem(&mut self, datainit: &DataInit<Resolved>, n: u32, di: u32) -> Result<()> {
+    fn init_mem(
+        &mut self,
+        datainit: &DataInit<Resolved>,
+        n: u32,
+        di: u32,
+        validation_context: &ValidationContext,
+    ) -> Result<()> {
         let initexpr: Vec<Instruction<Resolved>> = vec![
             Instruction::i32const(0),
             Instruction::i32const(n),
             Instruction::meminit(di),
             Instruction::datadrop(di),
         ];
-        let mut init_code: Vec<u8> = vec![];
+        let mut init_code = Compiler::new(validation_context);
         init_code.emit_expr(&datainit.offset);
-        self.exec_expr(&init_code)?;
-        init_code.clear();
+        self.exec_expr(&init_code.take())?;
+        let mut init_code = Compiler::new(validation_context);
         init_code.emit_expr(&Expr { instr: initexpr });
-        self.exec_expr(&init_code)
+        self.exec_expr(&init_code.take())
     }
 
-    fn instantiate(&mut self, module: syntax::Module<Resolved>) -> Result<Rc<ModuleInstance>> {
+    fn instantiate(
+        &mut self,
+        module: syntax::Module<Resolved>,
+        validation_mode: ValidationMode,
+    ) -> Result<Rc<ModuleInstance>> {
         let mut modinst_builder = ModuleInstanceBuilder {
             types: module
                 .types
@@ -155,6 +172,8 @@ impl Runtime {
             modinst_builder.add_external_val(found);
         }
 
+        let validation_context = ValidationContext::new(validation_mode);
+
         let rcinst = Rc::new(modinst_builder.clone().build());
 
         // During init, we will reset this a few times.
@@ -167,7 +186,14 @@ impl Runtime {
         let func_insts: Vec<FunctionInstance> = module
             .funcs
             .into_iter()
-            .map(|f| Self::instantiate_function(f, &modinst_builder.types, rcinst.clone()))
+            .map(|f| {
+                Self::instantiate_function(
+                    f,
+                    &modinst_builder.types,
+                    rcinst.clone(),
+                    &validation_context,
+                )
+            })
             .collect::<Result<Vec<FunctionInstance>>>()?;
 
         let range = self.store.alloc_funcs(func_insts);
@@ -217,9 +243,9 @@ impl Runtime {
                         .items
                         .iter()
                         .map(|ei| {
-                            let mut initexpr: Vec<u8> = Vec::new();
+                            let mut initexpr = Compiler::new(&validation_context);
                             initexpr.emit_expr(ei);
-                            self.eval_ref_expr(&initexpr)
+                            self.eval_ref_expr(&initexpr.take())
                         })
                         .collect::<Result<_>>()?,
                 };
@@ -252,9 +278,9 @@ impl Runtime {
                 self.logger.log(Tag::Load, || {
                     format!("COMPILE GLOBAL INIT EXPR {:x?}", g.init)
                 });
-                let mut initexpr: Vec<u8> = Vec::new();
+                let mut initexpr = Compiler::new(&validation_context);
                 initexpr.emit_expr(&g.init);
-                let val = self.eval_expr(&initexpr)?;
+                let val = self.eval_expr(&initexpr.take())?;
                 Ok(GlobalInstance {
                     typ: g.globaltype.valtype,
                     mutable: g.globaltype.mutable,
@@ -285,7 +311,7 @@ impl Runtime {
             if let ModeEntry::Active(tp) = &elem.mode {
                 self.logger
                     .log(Tag::Load, || format!("INIT ELEMS!i {:?}", elem));
-                self.init_table(tp, &elem.elemlist, i as u32)?
+                self.init_table(tp, &elem.elemlist, i as u32, &validation_context)?
             }
         }
 
@@ -294,7 +320,7 @@ impl Runtime {
             if let Some(init) = &initrec.0 {
                 self.logger
                     .log(Tag::Load, || format!("INIT MEMORY !i {:?}", init));
-                self.init_mem(init, initrec.1 as u32, i as u32)?
+                self.init_mem(init, initrec.1 as u32, i as u32, &validation_context)?
             }
         }
 

@@ -9,20 +9,40 @@ use {
     wrausmt_common::true_or::TrueOr,
 };
 
+mod ops;
+
 #[derive(Debug)]
 pub enum ValidationError {
     ValStackUnderflow,
     CtrlStackUnderflow,
     TypeMismatch(ValidationType, ValidationType),
     UnusedValues,
+    UnknownOpcode,
 }
 
-type Result<T> = std::result::Result<T, ValidationError>;
+/// How to treat Validator issues.
+#[derive(Debug, Default, Clone, Copy)]
+pub enum ValidationMode {
+    // Ignore completely (the program will possibly crash in undefined ways based on the warnings
+    // you see.)
+    Warn,
+    // The instantiation will fail by returning an error to the compile call.
+    #[default]
+    Fail,
+    // Use panic to abort the entire process if validation fails.
+    Panic,
+}
+pub type Result<T> = std::result::Result<T, ValidationError>;
 
 type FuncIndex = u32;
 
+/// The validation context for opcodes using indices, as described in [^Spec].
+///
+/// [Spec]: https://webassembly.github.io/spec/core/appendix/algorithm.html
 #[derive(Debug, Default)]
 pub struct ValidationContext {
+    mode: ValidationMode,
+
     // Module
     pub types:   Vec<FunctionType>,
     pub funcs:   Vec<FunctionType>,
@@ -36,18 +56,31 @@ pub struct ValidationContext {
     // Function
     pub locals: Vec<ValueType>,
 
-    // These may change throughout the sequence.
+    // These may change throughout the sequence via control ops.
     pub labels:  Vec<Box<ResultType>>,
     pub returns: Vec<Box<ResultType>>,
 }
 
-#[derive(Debug, PartialEq)]
+impl ValidationContext {
+    pub fn new(mode: ValidationMode) -> ValidationContext {
+        ValidationContext {
+            mode,
+            ..Default::default()
+        }
+    }
+}
+
+/// Type representations during validation.
+///
+/// [Spec]: https://webassembly.github.io/spec/core/appendix/algorithm.html#data-structures
+#[derive(Debug, Default, PartialEq)]
 pub enum ValidationType {
+    #[default]
     Unknown,
     Value(ValueType),
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Default, PartialEq)]
 pub struct CtrlFrame {
     opcode:      u8,
     start_types: Box<ParamsType>,
@@ -56,17 +89,29 @@ pub struct CtrlFrame {
     unreachable: bool,
 }
 
-pub struct Validation {
+pub struct Validation<'a> {
+    #[allow(dead_code)]
+    context:    &'a ValidationContext,
     val_stack:  Vec<ValueType>,
     ctrl_stack: Vec<CtrlFrame>,
 }
 
-impl Validation {
-    pub fn push_val(&mut self, v: ValueType) {
+impl<'a> Validation<'a> {
+    pub fn new(context: &'a ValidationContext) -> Validation<'a> {
+        Validation {
+            context,
+            val_stack: Vec::default(),
+            ctrl_stack: Vec::default(),
+        }
+    }
+
+    #[allow(dead_code)]
+    fn push_val(&mut self, v: ValueType) {
         self.val_stack.push(v);
     }
 
-    pub fn push_vals(&mut self, vals: &[ValueType]) {
+    #[allow(dead_code)]
+    fn push_vals(&mut self, vals: &[ValueType]) {
         for v in vals.iter().rev() {
             self.val_stack.push(*v);
         }
@@ -80,7 +125,8 @@ impl Validation {
     /// returned.
     ///
     /// [See Spec](https://webassembly.github.io/spec/core/appendix/algorithm.html#data-structures)
-    pub fn pop_val(&mut self) -> Result<ValidationType> {
+    #[allow(dead_code)]
+    fn pop_val(&mut self) -> Result<ValidationType> {
         let ctrl = self
             .ctrl_stack
             .last()
@@ -99,7 +145,8 @@ impl Validation {
         Ok(ValidationType::Value(val))
     }
 
-    pub fn pop_expect(&mut self, expect: ValueType) -> Result<ValidationType> {
+    #[allow(dead_code)]
+    fn pop_expect(&mut self, expect: ValueType) -> Result<ValidationType> {
         let actual = self.pop_val()?;
         let expect = ValidationType::Value(expect);
         match (actual, expect) {
@@ -115,7 +162,8 @@ impl Validation {
         }
     }
 
-    pub fn pop_vals(&mut self, expects: &[ValueType]) -> Result<Vec<ValidationType>> {
+    #[allow(dead_code)]
+    fn pop_vals(&mut self, expects: &[ValueType]) -> Result<Vec<ValidationType>> {
         let mut result: Vec<ValidationType> = vec![];
         for e in expects.iter().rev() {
             result.push(self.pop_expect(*e)?);
@@ -123,7 +171,8 @@ impl Validation {
         Ok(result)
     }
 
-    pub fn push_ctrl(&mut self, opcode: u8, start_types: &ParamsType, end_types: &ResultType) {
+    #[allow(dead_code)]
+    fn push_ctrl(&mut self, opcode: u8, start_types: &ParamsType, end_types: &ResultType) {
         let frame = CtrlFrame {
             opcode,
             start_types: start_types.to_owned().into_boxed_slice(),
@@ -135,7 +184,8 @@ impl Validation {
         self.ctrl_stack.push(frame)
     }
 
-    pub fn pop_ctrl(&mut self) -> Result<CtrlFrame> {
+    #[allow(dead_code)]
+    fn pop_ctrl(&mut self) -> Result<CtrlFrame> {
         let frame = self
             .ctrl_stack
             .pop()
@@ -145,7 +195,8 @@ impl Validation {
         Ok(frame)
     }
 
-    pub fn unreachable(&mut self) -> Result<()> {
+    #[allow(dead_code)]
+    fn unreachable(&mut self) -> Result<()> {
         let frame = self
             .ctrl_stack
             .last_mut()
