@@ -20,6 +20,7 @@ use {
             Runtime,
         },
         syntax::{types::RefType, Id},
+        validation::ValidationMode,
     },
 };
 
@@ -139,7 +140,9 @@ fn module_data(strings: Vec<WasmString>) -> Box<[u8]> {
 impl SpecTestRunner {
     pub fn new() -> Self {
         let mut runtime = Runtime::new();
-        let spectest_module = runtime.load(make_spectest_module().unwrap()).unwrap();
+        let spectest_module = runtime
+            .load(make_spectest_module().unwrap(), ValidationMode::Warn)
+            .unwrap();
         runtime.register("spectest", spectest_module);
         SpecTestRunner {
             runtime,
@@ -225,14 +228,22 @@ impl SpecTestRunner {
 
     fn handle_module(&mut self, m: Module) -> CmdResult<(Option<Id>, Rc<ModuleInstance>)> {
         match m {
-            Module::Module(m) => Ok((m.id.clone(), self.runtime.load(m)?)),
+            Module::Module(m) => Ok((m.id.clone(), self.runtime.load(m, ValidationMode::Warn)?)),
             Module::Binary(n, b) => {
                 let data = module_data(b);
-                Ok((n, self.runtime.load_wasm_data(&mut data.as_ref())?))
+                Ok((
+                    n,
+                    self.runtime
+                        .load_wasm_data(&mut data.as_ref(), ValidationMode::Warn)?,
+                ))
             }
             Module::Quote(n, b) => {
                 let data = module_data(b);
-                Ok((n, self.runtime.load_wast_data(&mut data.as_ref())?))
+                Ok((
+                    n,
+                    self.runtime
+                        .load_wast_data(&mut data.as_ref(), ValidationMode::Warn)?,
+                ))
             }
         }
     }

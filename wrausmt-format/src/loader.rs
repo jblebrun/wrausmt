@@ -7,7 +7,10 @@ use crate::{
 };
 use {
     std::{fs::File, io::Read, rc::Rc},
-    wrausmt_runtime::runtime::{error::RuntimeError, instance::ModuleInstance, Runtime},
+    wrausmt_runtime::{
+        runtime::{error::RuntimeError, instance::ModuleInstance, Runtime},
+        validation::ValidationMode,
+    },
 };
 
 #[derive(Debug)]
@@ -60,28 +63,46 @@ pub type Result<T> = std::result::Result<T, LoaderError>;
 
 pub trait Loader {
     fn load_wast(&mut self, filename: &str) -> Result<Rc<ModuleInstance>> {
-        self.load_wast_data(&mut File::open(filename)?)
+        self.load_wast_data(&mut File::open(filename)?, ValidationMode::Warn)
     }
 
     fn load_wasm(&mut self, filename: &str) -> Result<Rc<ModuleInstance>> {
-        self.load_wasm_data(&mut File::open(filename)?)
+        self.load_wasm_data(&mut File::open(filename)?, ValidationMode::Warn)
     }
 
-    fn load_wasm_data(&mut self, read: &mut impl Read) -> Result<Rc<ModuleInstance>>;
+    fn load_wasm_data(
+        &mut self,
+        read: &mut impl Read,
+        validation_mode: ValidationMode,
+    ) -> Result<Rc<ModuleInstance>>;
 
-    fn load_wast_data(&mut self, read: &mut impl Read) -> Result<Rc<ModuleInstance>>;
+    fn load_wast_data(
+        &mut self,
+        read: &mut impl Read,
+        validation_mode: ValidationMode,
+    ) -> Result<Rc<ModuleInstance>>;
 }
 
 impl Loader for Runtime {
-    fn load_wasm_data(&mut self, reader: &mut impl Read) -> Result<Rc<ModuleInstance>> {
+    fn load_wasm_data(
+        &mut self,
+        reader: &mut impl Read,
+        validation_mode: ValidationMode,
+    ) -> Result<Rc<ModuleInstance>> {
         let module = parse_wasm_data(reader)?;
-        let mod_inst = self.load(module)?;
+        // TODO Switch to fail when validation is complete.
+        let mod_inst = self.load(module, validation_mode)?;
         Ok(mod_inst)
     }
 
-    fn load_wast_data(&mut self, reader: &mut impl Read) -> Result<Rc<ModuleInstance>> {
+    fn load_wast_data(
+        &mut self,
+        reader: &mut impl Read,
+        validation_mode: ValidationMode,
+    ) -> Result<Rc<ModuleInstance>> {
         let module = parse_wast_data(reader)?;
-        let mod_inst = self.load(module)?;
+        // TODO Switch to fail when validation is complete.
+        let mod_inst = self.load(module, validation_mode)?;
         Ok(mod_inst)
     }
 }
