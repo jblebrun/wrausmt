@@ -234,7 +234,10 @@ impl Resolve<Operands<Resolved>> for Operands<Unresolved> {
             Operands::TableCopy(tidx, t2idx) => {
                 Operands::TableCopy(tidx.resolve(ic, types)?, t2idx.resolve(ic, types)?)
             }
-            Operands::Memargs(a, o) => Operands::Memargs(a, o),
+            Operands::Memargs1(a, o) => Operands::Memargs1(a, o),
+            Operands::Memargs2(a, o) => Operands::Memargs2(a, o),
+            Operands::Memargs4(a, o) => Operands::Memargs4(a, o),
+            Operands::Memargs8(a, o) => Operands::Memargs8(a, o),
             Operands::HeapType(r) => Operands::HeapType(r),
             Operands::I32(v) => Operands::I32(v),
             Operands::I64(v) => Operands::I64(v),

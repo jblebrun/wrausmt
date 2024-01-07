@@ -67,10 +67,25 @@ impl<R: Read> Parser<R> {
                     Operands::I64 => syntax::Operands::I64(self.expect_i64()? as u64),
                     Operands::F32 => syntax::Operands::F32(self.expect_f32()?),
                     Operands::F64 => syntax::Operands::F64(self.expect_f64()?),
-                    Operands::Memargs => {
+                    Operands::Memargs1 => {
                         let offset = self.try_offset()?.unwrap_or(0);
                         let align = self.try_align()?.unwrap_or(0);
-                        syntax::Operands::Memargs(align, offset)
+                        syntax::Operands::Memargs1(align, offset)
+                    }
+                    Operands::Memargs2 => {
+                        let offset = self.try_offset()?.unwrap_or(0);
+                        let align = self.try_align()?.unwrap_or(0);
+                        syntax::Operands::Memargs2(align, offset)
+                    }
+                    Operands::Memargs4 => {
+                        let offset = self.try_offset()?.unwrap_or(0);
+                        let align = self.try_align()?.unwrap_or(0);
+                        syntax::Operands::Memargs4(align, offset)
+                    }
+                    Operands::Memargs8 => {
+                        let offset = self.try_offset()?.unwrap_or(0);
+                        let align = self.try_align()?.unwrap_or(0);
+                        syntax::Operands::Memargs8(align, offset)
                     }
                     Operands::TableInit => {
                         let tabidx = self.try_index()?;
