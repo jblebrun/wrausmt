@@ -1,16 +1,14 @@
 use {
-    wrausmt_format::loader::Loader,
+    tests::TestLoader,
     wrausmt_runtime::runtime::{values::Value, Runtime},
 };
-
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
 #[test]
 fn simplefunc() -> Result<()> {
     let mut runtime = Runtime::new();
-    let env_mod = runtime.load_wast("data/env.wat")?;
-    runtime.register("env", env_mod);
-    let mod_inst = runtime.load_wast("data/simplefunc.wat")?;
+    runtime.load_env()?;
+    let mod_inst = runtime.load_test_file("data/simplefunc.wat")?;
 
     let res1 = runtime.call(&mod_inst, "test", &[100u32.into()])?;
     let v1: &Value = res1.first().unwrap();
@@ -22,9 +20,8 @@ fn simplefunc() -> Result<()> {
 #[test]
 fn locals() -> Result<()> {
     let mut runtime = Runtime::new();
-    let env_mod = runtime.load_wast("data/env.wat")?;
-    runtime.register("env", env_mod);
-    let mod_inst = runtime.load_wast("data/locals.wat")?;
+    runtime.load_env()?;
+    let mod_inst = runtime.load_test_file("data/locals.wat")?;
 
     let res1 = runtime.call(&mod_inst, "test", &[105u32.into()])?;
     let v1: &Value = res1.first().unwrap();
@@ -36,11 +33,9 @@ fn locals() -> Result<()> {
 #[test]
 fn multi_module() -> Result<()> {
     let mut runtime = Runtime::new();
-    let env_mod = runtime.load_wast("data/env.wat")?;
-    runtime.register("env", env_mod);
-    let _ = runtime.load_wast("data/simplefunc.wat")?;
-
-    let mod_inst = runtime.load_wast("data/locals.wat")?;
+    runtime.load_env()?;
+    let _ = runtime.load_test_file("data/simplefunc.wat")?;
+    let mod_inst = runtime.load_test_file("data/locals.wat")?;
 
     let res1 = runtime.call(&mod_inst, "test", &[105u32.into()])?;
     let v1: &Value = res1.first().unwrap();
@@ -52,9 +47,8 @@ fn multi_module() -> Result<()> {
 #[test]
 fn blockbr() -> Result<()> {
     let mut runtime = Runtime::new();
-    let env_mod = runtime.load_wast("data/env.wat")?;
-    runtime.register("env", env_mod);
-    let mod_inst = runtime.load_wast("data/blockbr.wat")?;
+    runtime.load_env()?;
+    let mod_inst = runtime.load_test_file("data/blockbr.wat")?;
 
     let res1 = runtime.call(&mod_inst, "simpleblock", &[])?;
     let v1: &Value = res1.first().unwrap();
@@ -85,9 +79,8 @@ fn blockbr() -> Result<()> {
 #[test]
 fn ifs() -> Result<()> {
     let mut runtime = Runtime::new();
-    let env_mod = runtime.load_wast("data/env.wat")?;
-    runtime.register("env", env_mod);
-    let mod_inst = runtime.load_wast("data/if.wat")?;
+    runtime.load_env()?;
+    let mod_inst = runtime.load_test_file("data/if.wat")?;
 
     let res1 = runtime.call(&mod_inst, "simpleif", &[0.into()])?;
     let v1: &Value = res1.first().unwrap();
@@ -134,9 +127,8 @@ fn ifs() -> Result<()> {
 #[test]
 fn table() -> Result<()> {
     let mut runtime = Runtime::new();
-    let env_mod = runtime.load_wast("data/env.wat")?;
-    runtime.register("env", env_mod);
-    let mod_inst = runtime.load_wast("data/table.wat")?;
+    runtime.load_env()?;
+    let mod_inst = runtime.load_test_file("data/table.wat")?;
 
     let res1 = runtime.call(&mod_inst, "test", &[0.into()])?;
     let v1: &Value = res1.first().unwrap();
@@ -155,9 +147,8 @@ fn table() -> Result<()> {
 #[test]
 fn multiresult() -> Result<()> {
     let mut runtime = Runtime::new();
-    let env_mod = runtime.load_wast("data/env.wat")?;
-    runtime.register("env", env_mod);
-    let mod_inst = runtime.load_wast("data/multiresult.wat")?;
+    runtime.load_env()?;
+    let mod_inst = runtime.load_test_file("data/multiresult.wat")?;
 
     let res1 = runtime.call(&mod_inst, "test", &[])?;
     let v1: &Value = res1.first().unwrap();

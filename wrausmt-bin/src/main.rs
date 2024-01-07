@@ -1,8 +1,18 @@
-use {wrausmt_format::loader::Loader, wrausmt_runtime::runtime::Runtime};
+use {
+    wrausmt_format::file_loader::FileLoader,
+    wrausmt_runtime::{runtime::Runtime, validation::ValidationMode},
+};
 
+#[derive(Debug)]
 struct FlagsAndArgs {
     pub flags: Vec<(String, Option<String>)>,
     pub args:  Vec<String>,
+}
+
+impl FlagsAndArgs {
+    fn has_flag(&self, name: &str) -> bool {
+        self.flags.iter().any(|(f, _)| f == name)
+    }
 }
 
 impl FlagsAndArgs {
@@ -27,22 +37,24 @@ fn main() {
     let flags_and_args = FlagsAndArgs::new();
     if let Some(filename) = flags_and_args.args.get(1) {
         let mut runtime = Runtime::new();
-        let module = if flags_and_args.flags.iter().any(|(f, _)| f == "--text") {
-            runtime.load_wast(filename)
+        let validation_mode = if flags_and_args.has_flag("no-validation") {
+            ValidationMode::Warn
         } else {
-            runtime.load_wasm(filename)
+            ValidationMode::Fail
         };
+        let module = runtime.load_file(filename, validation_mode);
         match module {
             Ok(_) => {}
             Err(e) => println!("Load failed: {}", e),
         }
     } else {
         println!(
-            r#"Wrausmt Runner:
+            r"Wrausmt Runner:
 
 Provide a single filename.
-By default it will be loaded as a binary wasm module if possible.
-Provide the --text flag to parse as a text format module."#
+
+It will be loaded as a binary file if it starts with the magic header, otherwise
+it will be loaded as a text file."
         );
     }
 }
