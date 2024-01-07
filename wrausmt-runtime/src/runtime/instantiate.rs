@@ -6,7 +6,7 @@ use {
         Runtime,
     },
     crate::{
-        logger::{Logger, Tag},
+        log_tag::Tag,
         runtime::{
             compile::{compile_export, Emitter},
             instance::{
@@ -23,7 +23,7 @@ use {
         },
     },
     std::rc::Rc,
-    wrausmt_common::true_or::TrueOr,
+    wrausmt_common::{logger::Logger, true_or::TrueOr},
 };
 
 impl Runtime {

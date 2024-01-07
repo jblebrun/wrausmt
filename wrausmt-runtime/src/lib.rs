@@ -1,6 +1,6 @@
 #![feature(get_many_mut)]
 pub mod instructions;
-pub mod logger;
+mod log_tag;
 pub mod runtime;
 pub mod syntax;
 pub mod validation;

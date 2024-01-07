@@ -1,11 +1,14 @@
 use {
     crate::{
-        logger::{Logger, PrintLogger, Tag},
+        log_tag::Tag,
         runtime::error::{Result, RuntimeErrorKind, TrapKind},
         syntax::{types::MemType, MemoryField},
     },
     std::ops::Range,
-    wrausmt_common::true_or::TrueOr,
+    wrausmt_common::{
+        logger::{Logger, PrintLogger},
+        true_or::TrueOr,
+    },
 };
 
 /// A memory instance is the runtime representation of a linear memory.

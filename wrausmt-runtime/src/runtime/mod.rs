@@ -1,4 +1,8 @@
-use self::instance::addr::{self, Address};
+use {
+    self::instance::addr::{self, Address},
+    crate::log_tag::Tag,
+    wrausmt_common::logger::{Logger, PrintLogger},
+};
 
 mod compile;
 pub mod error;
@@ -11,11 +15,7 @@ pub mod values;
 
 use {
     self::instance::FunctionInstance,
-    crate::{
-        impl_bug,
-        logger::{Logger, PrintLogger, Tag},
-        runtime::error::RuntimeErrorKind,
-    },
+    crate::{impl_bug, runtime::error::RuntimeErrorKind},
     error::Result,
     instance::{ExportInstance, ExternalVal, ModuleInstance},
     stack::Stack,

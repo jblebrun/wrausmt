@@ -8,12 +8,12 @@ use {
     crate::{
         impl_bug,
         instructions::{exec_method, op_consts},
-        logger::{Logger, Tag},
+        log_tag::Tag,
         runtime::{instance::MemInstance, stack::Label},
         syntax::{types::RefType, Opcode},
     },
     std::convert::{TryFrom, TryInto},
-    wrausmt_common::true_or::TrueOr,
+    wrausmt_common::{logger::Logger, true_or::TrueOr},
 };
 
 pub struct ExecutionContext<'l> {

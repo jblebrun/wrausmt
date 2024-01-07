@@ -6,5 +6,6 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+wrausmt-common = { path = "../wrausmt-common" }
 wrausmt-runtime = { path = "../wrausmt-runtime" }
 wrausmt-format = { path = "../wrausmt-format" }
