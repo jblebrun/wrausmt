@@ -6,7 +6,7 @@ use crate::{
     text::parse_wast_data,
 };
 use {
-    std::{fs::File, io::Read, rc::Rc},
+    std::{io::Read, rc::Rc},
     wrausmt_runtime::{
         runtime::{error::RuntimeError, instance::ModuleInstance, Runtime},
         validation::ValidationMode,
@@ -62,14 +62,6 @@ impl From<BinaryParseError> for LoaderError {
 pub type Result<T> = std::result::Result<T, LoaderError>;
 
 pub trait Loader {
-    fn load_wast(&mut self, filename: &str) -> Result<Rc<ModuleInstance>> {
-        self.load_wast_data(&mut File::open(filename)?, ValidationMode::Warn)
-    }
-
-    fn load_wasm(&mut self, filename: &str) -> Result<Rc<ModuleInstance>> {
-        self.load_wasm_data(&mut File::open(filename)?, ValidationMode::Warn)
-    }
-
     fn load_wasm_data(
         &mut self,
         read: &mut impl Read,
