@@ -131,117 +131,117 @@
 | let i = _ec.pop::<u32>()?;
 | _ec.set_table_elem(t, i, v)
 
-0x28      ,i32.load                      ,(Memargs)
+0x28      ,i32.load                      ,(Memargs4)
 | let bs = _ec.get_mem::<4>()?;
 | let v = u32::from_le_bytes(bs);
 | _ec.push(v)
 
-0x29      ,i64.load                      ,(Memargs)
+0x29      ,i64.load                      ,(Memargs8)
 | let bs = _ec.get_mem::<8>()?;
 | let v = u64::from_le_bytes(bs);
 | _ec.push(v)
 
-0x2a      ,f32.load                      ,(Memargs)
+0x2a      ,f32.load                      ,(Memargs4)
 | let bs = _ec.get_mem::<4>()?;
 | let v = f32::from_le_bytes(bs);
 | _ec.push(v)
 
-0x2b      ,f64.load                      ,(Memargs)
+0x2b      ,f64.load                      ,(Memargs8)
 | let bs = _ec.get_mem::<8>()?;
 | let v = f64::from_le_bytes(bs);
 | _ec.push(v)
 
-0x2c      ,i32.load8_s                   ,(Memargs)
+0x2c      ,i32.load8_s                   ,(Memargs1)
 | let bs = _ec.get_mem::<1>()?;
 | let v = i8::from_le_bytes(bs);
 | _ec.push(v as i32)
 
-0x2d      ,i32.load8_u                   ,(Memargs)
+0x2d      ,i32.load8_u                   ,(Memargs1)
 | let bs = _ec.get_mem::<1>()?;
 | let v = u8::from_le_bytes(bs);
 | _ec.push(v as u32)
 
-0x2e      ,i32.load16_s                  ,(Memargs)
+0x2e      ,i32.load16_s                  ,(Memargs2)
 | let bs = _ec.get_mem::<2>()?;
 | let v = i16::from_le_bytes(bs);
 | _ec.push(v as i32)
 
-0x2f      ,i32.load16_u                  ,(Memargs)
+0x2f      ,i32.load16_u                  ,(Memargs2)
 | let bs = _ec.get_mem::<2>()?;
 | let v = u16::from_le_bytes(bs);
 | _ec.push(v as u32)
 
-0x30      ,i64.load8_s                   ,(Memargs)
+0x30      ,i64.load8_s                   ,(Memargs1)
 | let bs = _ec.get_mem::<1>()?;
 | let v = i8::from_le_bytes(bs);
 | _ec.push(v as i64)
 
-0x31      ,i64.load8_u                   ,(Memargs)
+0x31      ,i64.load8_u                   ,(Memargs1)
 | let bs = _ec.get_mem::<1>()?;
 | let v = u8::from_le_bytes(bs);
 | _ec.push(v as i64)
 
-0x32      ,i64.load16_s                  ,(Memargs)
+0x32      ,i64.load16_s                  ,(Memargs2)
 | let bs = _ec.get_mem::<2>()?;
 | let v = i16::from_le_bytes(bs);
 | _ec.push(v as i64)
 
-0x33      ,i64.load16_u                  ,(Memargs)
+0x33      ,i64.load16_u                  ,(Memargs2)
 | let bs = _ec.get_mem::<2>()?;
 | let v = u16::from_le_bytes(bs);
 | _ec.push(v as u64)
 
-0x34      ,i64.load32_s                  ,(Memargs)
+0x34      ,i64.load32_s                  ,(Memargs4)
 | let bs = _ec.get_mem::<4>()?;
 | let v = i32::from_le_bytes(bs);
 | _ec.push(v as i64)
 
-0x35      ,i64.load32_u                  ,(Memargs)
+0x35      ,i64.load32_u                  ,(Memargs4)
 | let bs = _ec.get_mem::<4>()?;
 | let v = u32::from_le_bytes(bs);
 | _ec.push(v as u64)
 
-0x36      ,i32.store                     ,(Memargs)
+0x36      ,i32.store                     ,(Memargs4)
 | let v = _ec.pop::<u32>()?;
 | let bs = v.to_le_bytes();
 | _ec.put_mem::<4>(bs)
 
-0x37      ,i64.store                     ,(Memargs)
+0x37      ,i64.store                     ,(Memargs8)
 | let v = _ec.pop::<u64>()?;
 | let bs = v.to_le_bytes();
 | _ec.put_mem::<8>(bs)
 
-0x38      ,f32.store                     ,(Memargs)
+0x38      ,f32.store                     ,(Memargs4)
 | let v = _ec.pop::<f32>()?;
 | let bs = v.to_le_bytes();
 | _ec.put_mem::<4>(bs)
 
-0x39      ,f64.store                     ,(Memargs)
+0x39      ,f64.store                     ,(Memargs8)
 | let v = _ec.pop::<f64>()?;
 | let bs = v.to_le_bytes();
 | _ec.put_mem::<8>(bs)
 
-0x3a      ,i32.store8                    ,(Memargs)
+0x3a      ,i32.store8                    ,(Memargs1)
 | let v = _ec.pop::<u32>()? as u8;
 | let bs = v.to_le_bytes();
 | _ec.put_mem::<1>(bs)
 
-0x3b      ,i32.store16                   ,(Memargs)
+0x3b      ,i32.store16                   ,(Memargs2)
 | let v = _ec.pop::<u32>()? as u16;
 | let bs = v.to_le_bytes();
 | _ec.put_mem::<2>(bs)
 
-0x3c      ,i64.store8                    ,(Memargs)
+0x3c      ,i64.store8                    ,(Memargs1)
 | let v = _ec.pop::<u64>()? as u8;
 | let bs = v.to_le_bytes();
 | _ec.put_mem::<1>(bs)
 
-0x3D      ,i64.store16                   ,(Memargs)
+0x3D      ,i64.store16                   ,(Memargs2)
 | let v = _ec.pop::<u64>()? as u16;
 | let bs = v.to_le_bytes();
 | _ec.put_mem::<2>(bs)
 
-0x3E      ,i64.store32                   ,(Memargs)
+0x3E      ,i64.store32                   ,(Memargs4)
 | let v = _ec.pop::<u64>()? as u32;
 | let bs = v.to_le_bytes();
 | _ec.put_mem::<4>(bs)
