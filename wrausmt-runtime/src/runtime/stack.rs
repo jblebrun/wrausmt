@@ -5,12 +5,12 @@ use {
         values::Value,
         ModuleInstance,
     },
-    crate::{
-        impl_bug,
-        logger::{Logger, PrintLogger, Tag},
-    },
+    crate::{impl_bug, log_tag::Tag},
     std::rc::Rc,
-    wrausmt_common::true_or::TrueOr,
+    wrausmt_common::{
+        logger::{Logger, PrintLogger},
+        true_or::TrueOr,
+    },
 };
 
 /// Besides the store, most instructions interact with an implicit stack.

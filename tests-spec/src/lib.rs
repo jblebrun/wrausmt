@@ -5,4 +5,5 @@ pub mod runner;
 pub mod error;
 mod error_mappings;
 pub mod loader;
+mod log_tag;
 mod spectest_module;

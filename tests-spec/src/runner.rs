@@ -3,6 +3,7 @@ use {
         error::{CmdError, Failure, Result, SpecTestError, TestFailureError},
         error_mappings::verify_failure,
         format::{Action, ActionResult, Assertion, Cmd, CmdEntry, Module, NumPat, SpecTestScript},
+        log_tag::Tag,
         spectest_module::make_spectest_module,
     },
     std::{
@@ -10,9 +11,9 @@ use {
         panic::{catch_unwind, PanicInfo},
         rc::Rc,
     },
+    wrausmt_common::logger::{Logger, PrintLogger},
     wrausmt_format::{loader::Loader, text::string::WasmString},
     wrausmt_runtime::{
-        logger::{Logger, PrintLogger, Tag},
         runtime::{
             instance::ModuleInstance,
             values::{Num, Ref, Value},
