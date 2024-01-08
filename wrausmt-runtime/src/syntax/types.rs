@@ -19,7 +19,7 @@
 /// observed. Values of number type can be stored in memories.
 ///
 /// [Spec]: https://webassembly.github.io/spec/core/syntax/types.html#number-types
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum NumType {
     I32,
     I64,
@@ -41,7 +41,7 @@ pub enum NumType {
 /// pattern can be observed. Values of reference type can be stored in tables.
 ///
 /// [Spec]: https://webassembly.github.io/spec/core/syntax/types.html#reference-types
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum RefType {
     Func,
     Extern,
@@ -53,7 +53,7 @@ pub enum RefType {
 /// They are either [number types][NumType] or [reference types][RefType].
 ///
 /// [Spec]: https://webassembly.github.io/spec/core/syntax/types.html#value-types
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum ValueType {
     Num(NumType),
     Ref(RefType),

@@ -3,6 +3,7 @@ use {
         log_tag::Tag,
         runtime::error::{Result, RuntimeErrorKind, TrapKind},
         syntax::{types::MemType, MemoryField},
+        validation::ValidationError,
     },
     std::ops::Range,
     wrausmt_common::{
@@ -53,7 +54,7 @@ impl MemInstance {
     pub fn new_ast(memfield: MemoryField) -> Result<MemInstance> {
         let memtype = memfield.memtype;
         if memtype.limits.lower > 65536 {
-            Err(RuntimeErrorKind::ValidationError("Memory too large".to_string()).into())
+            Err(RuntimeErrorKind::ValidationError(ValidationError::MemoryTooLarge).into())
         } else {
             let data = vec![0u8; memtype.limits.lower as usize * PAGE_SIZE];
             Ok(MemInstance {

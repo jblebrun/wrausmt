@@ -1,6 +1,9 @@
 use {
     super::instance::ExternalVal,
-    crate::syntax::{ImportDesc, Resolved},
+    crate::{
+        syntax::{ImportDesc, Resolved},
+        validation::ValidationError,
+    },
     std::fmt,
 };
 
@@ -9,7 +12,7 @@ use {
 #[macro_export]
 macro_rules! impl_bug {
     ( $fmt:literal $(, $( $arg:expr ),*)? ) => {
-        $crate::runtime::error::RuntimeErrorKind::ValidationError(
+        $crate::runtime::error::RuntimeErrorKind::ImplementationBug(
             format!($fmt$(, $($arg,)*)?)
         )
     }
@@ -42,7 +45,8 @@ pub enum RuntimeErrorKind {
     TypeNotFound(u32),
     ImportNotFound(String, String),
     ImportMismatch(ImportDesc<Resolved>, ExternalVal),
-    ValidationError(String),
+    ImplementationBug(String),
+    ValidationError(ValidationError),
     ArgumentCountError { expected: usize, got: usize },
     CallStackExhaustion,
     Trap(TrapKind),
@@ -71,6 +75,14 @@ impl From<RuntimeErrorKind> for RuntimeError {
     fn from(value: RuntimeErrorKind) -> Self {
         RuntimeError {
             kind:    value,
+            context: vec![],
+        }
+    }
+}
+impl From<ValidationError> for RuntimeError {
+    fn from(value: ValidationError) -> Self {
+        RuntimeError {
+            kind:    RuntimeErrorKind::ValidationError(value),
             context: vec![],
         }
     }

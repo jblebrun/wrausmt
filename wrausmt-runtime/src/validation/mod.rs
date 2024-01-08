@@ -15,7 +15,12 @@ mod ops;
 pub enum ValidationError {
     ValStackUnderflow,
     CtrlStackUnderflow,
-    TypeMismatch(ValidationType, ValidationType),
+    MemoryTooLarge,
+    TableTooLarge,
+    TypeMismatch {
+        actual: ValidationType,
+        expect: ValidationType,
+    },
     UnusedValues,
     UnknownOpcode,
 }
@@ -80,13 +85,25 @@ pub enum ValidationType {
     Value(ValueType),
 }
 
-#[derive(Debug, Default, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub struct CtrlFrame {
     opcode:      u8,
     start_types: Box<ParamsType>,
     end_types:   Box<ResultType>,
     height:      usize,
     unreachable: bool,
+}
+
+impl Default for CtrlFrame {
+    fn default() -> Self {
+        CtrlFrame {
+            opcode:      0x10,
+            start_types: Box::new([]),
+            end_types:   Box::new([]),
+            height:      0,
+            unreachable: false,
+        }
+    }
 }
 
 pub struct Validation<'a> {
@@ -98,19 +115,18 @@ pub struct Validation<'a> {
 
 impl<'a> Validation<'a> {
     pub fn new(context: &'a ValidationContext) -> Validation<'a> {
+        let ctrl_stack = vec![CtrlFrame::default()];
         Validation {
             context,
             val_stack: Vec::default(),
-            ctrl_stack: Vec::default(),
+            ctrl_stack,
         }
     }
 
-    #[allow(dead_code)]
     fn push_val(&mut self, v: ValueType) {
         self.val_stack.push(v);
     }
 
-    #[allow(dead_code)]
     fn push_vals(&mut self, vals: &[ValueType]) {
         for v in vals.iter().rev() {
             self.val_stack.push(*v);
@@ -125,7 +141,6 @@ impl<'a> Validation<'a> {
     /// returned.
     ///
     /// [See Spec](https://webassembly.github.io/spec/core/appendix/algorithm.html#data-structures)
-    #[allow(dead_code)]
     fn pop_val(&mut self) -> Result<ValidationType> {
         let ctrl = self
             .ctrl_stack
@@ -145,7 +160,6 @@ impl<'a> Validation<'a> {
         Ok(ValidationType::Value(val))
     }
 
-    #[allow(dead_code)]
     fn pop_expect(&mut self, expect: ValueType) -> Result<ValidationType> {
         let actual = self.pop_val()?;
         let expect = ValidationType::Value(expect);
@@ -156,7 +170,7 @@ impl<'a> Validation<'a> {
                 if actual == expect {
                     Ok(actual)
                 } else {
-                    Err(ValidationError::TypeMismatch(actual, expect))
+                    Err(ValidationError::TypeMismatch { actual, expect })
                 }
             }
         }
@@ -195,7 +209,6 @@ impl<'a> Validation<'a> {
         Ok(frame)
     }
 
-    #[allow(dead_code)]
     fn unreachable(&mut self) -> Result<()> {
         let frame = self
             .ctrl_stack

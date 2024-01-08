@@ -2,7 +2,7 @@ use {
     super::{
         error::Result,
         format::{SpecParser, SpecTestScript},
-        runner::{RunSet, SpecTestRunner},
+        runner::{RunConfig, SpecTestRunner},
     },
     std::{fs::File, path::Path},
     wrausmt_format::{loader::Result as LoaderResult, text::parse::Parser},
@@ -14,9 +14,12 @@ pub fn parse(f: &mut File) -> LoaderResult<SpecTestScript> {
     Ok(result)
 }
 
-pub fn parse_and_run<S: std::fmt::Debug + AsRef<Path>>(path: S, runset: RunSet) -> Result<()> {
+pub fn parse_and_run<S: std::fmt::Debug + AsRef<Path>>(
+    path: S,
+    runconfig: RunConfig,
+) -> Result<()> {
     let mut f = std::fs::File::open(&path)?;
     let spectest = parse(&mut f)?;
     let runner = SpecTestRunner::new();
-    runner.run_spec_test(spectest, runset)
+    runner.run_spec_test(spectest, runconfig)
 }

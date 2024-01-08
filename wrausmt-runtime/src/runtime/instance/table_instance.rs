@@ -4,6 +4,7 @@ use crate::{
         values::Ref,
     },
     syntax::types::TableType,
+    validation::ValidationError,
 };
 
 /// A table instance is the runtime representation of a table. [Spec][Spec]
@@ -28,7 +29,9 @@ pub struct TableInstance {
 impl TableInstance {
     pub fn new(tabletype: TableType) -> Result<TableInstance> {
         if tabletype.limits.lower > 0xFFFF {
-            return Err(RuntimeErrorKind::ValidationError("Memory too big".to_string()).into());
+            Err(RuntimeErrorKind::ValidationError(
+                ValidationError::TableTooLarge,
+            ))?;
         }
         let elem: Vec<Ref> = std::iter::repeat(tabletype.reftype.default())
             .take(tabletype.limits.lower as usize)
