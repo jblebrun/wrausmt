@@ -1,4 +1,4 @@
-use spec::{error::Result, loader::parse_and_run, runner::RunSet};
+use tests::spec::{error::Result, loader::parse_and_run, runner::RunSet};
 
 // To regenerate the spectest! lines below using the transform this macro
 // expects: "".join(["spectest!(r#{});
@@ -9,7 +9,7 @@ macro_rules! spectest {
         #[test]
         fn $name() -> Result<()> {
             parse_and_run(
-                format!("tests/data/{}.wast", stringify!($name)[2..].replace("_x_", "-")),
+                format!("tests/spec/data/{}.wast", stringify!($name)[2..].replace("_x_", "-")),
                 $runset,
             )
         }

@@ -15,7 +15,7 @@ pub trait FileLoader: Loader {
     /// Load a WASM or WAST file. The loader will look for the magic binary
     /// bytes at the start. If those are not found, it will try loading the file
     /// as a text-format file.
-    fn load_file(
+    fn load_file_with_validation_mode(
         &mut self,
         filename: &str,
         validation_mode: ValidationMode,
@@ -31,6 +31,10 @@ pub trait FileLoader: Loader {
             println!("Magic header doesn't exist... Attempting load as WASM text format.");
             self.load_wast_data(&mut file, validation_mode)
         }
+    }
+
+    fn load_file(&mut self, filename: &str) -> Result<Rc<ModuleInstance>> {
+        self.load_file_with_validation_mode(filename, ValidationMode::Warn)
     }
 }
 

@@ -1,5 +1,5 @@
 use {
-    crate::format::ActionResult,
+    super::format::ActionResult,
     wrausmt_format::{loader::LoaderError, text::location::Location},
     wrausmt_runtime::{
         runtime::{error::RuntimeError, values::Value},
