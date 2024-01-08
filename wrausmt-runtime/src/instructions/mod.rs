@@ -17,6 +17,8 @@ use {
 
 mod generated;
 
+pub use generated::instructions::opcodes;
+
 /// Function bodies, initialization values for globals, and offsets of element
 /// or data segments are given as expressions, which are sequences of
 /// instructions terminated by an end marker.
