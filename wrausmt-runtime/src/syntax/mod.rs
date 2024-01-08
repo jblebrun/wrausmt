@@ -563,7 +563,7 @@ impl<R: ResolvedState> fmt::Debug for Expr<R> {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Opcode {
     Normal(u8),
     // 0xFC-prefixed instructions

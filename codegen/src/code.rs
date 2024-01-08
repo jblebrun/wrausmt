@@ -1,6 +1,6 @@
 use {
     super::Instruction,
-    crate::InstructionsForVariant,
+    crate::{InstructionsForVariant, Variant},
     std::io::{Result, Write},
 };
 
@@ -18,6 +18,26 @@ pub trait EmitCode: Write + std::fmt::Debug {
                 }
             }
         }
+
+        self.write_all(b"#[allow(dead_code)]\n")?;
+        self.write_all(b"pub mod opcodes {\n")?;
+        self.write_all(b"    use crate::syntax::Opcode;\n")?;
+        for insts in inst_groups {
+            for inst in insts.instructions.iter().flatten() {
+                let name = inst.typename.to_ascii_uppercase();
+                let opcode = inst.opcode;
+                let variant = match insts.variant {
+                    Variant::Normal => "Normal",
+                    Variant::Extended => "Extended",
+                    Variant::Simd => "Simd",
+                };
+                self.write_all(
+                    format!("    pub const {name}: Opcode = Opcode::{variant}(0x{opcode:0x});\n")
+                        .as_bytes(),
+                )?;
+            }
+        }
+        self.write_all(b"}\n")?;
 
         Ok(())
     }
