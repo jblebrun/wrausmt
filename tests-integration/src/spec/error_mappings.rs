@@ -1,5 +1,5 @@
 use {
-    crate::{
+    super::{
         error::{CmdError, TestFailureError},
         runner::{CmdResult, TestResult},
     },

@@ -2,8 +2,8 @@ use {
     super::{
         error::Result,
         format::{SpecParser, SpecTestScript},
+        runner::{RunSet, SpecTestRunner},
     },
-    crate::runner::{RunSet, SpecTestRunner},
     std::{fs::File, path::Path},
     wrausmt_format::{loader::Result as LoaderResult, text::parse::Parser},
 };

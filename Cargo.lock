@@ -7,18 +7,10 @@ name = "codegen"
 version = "0.1.0"
 
 [[package]]
-name = "spec"
-version = "0.1.0"
-dependencies = [
- "wrausmt-common",
- "wrausmt-format",
- "wrausmt-runtime",
-]
-
-[[package]]
 name = "tests"
 version = "0.1.0"
 dependencies = [
+ "wrausmt-common",
  "wrausmt-format",
  "wrausmt-runtime",
 ]

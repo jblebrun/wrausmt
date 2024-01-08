@@ -1,5 +1,5 @@
 use {
-    crate::{
+    super::{
         error::{CmdError, Failure, Result, SpecTestError, TestFailureError},
         error_mappings::verify_failure,
         format::{Action, ActionResult, Assertion, Cmd, CmdEntry, Module, NumPat, SpecTestScript},

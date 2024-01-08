@@ -42,7 +42,7 @@ fn main() {
         } else {
             ValidationMode::Fail
         };
-        let module = runtime.load_file(filename, validation_mode);
+        let module = runtime.load_file_with_validation_mode(filename, validation_mode);
         match module {
             Ok(_) => {}
             Err(e) => println!("Load failed: {}", e),
