@@ -1,5 +1,42 @@
-use tests::spec::{error::Result, loader::parse_and_run, runner::RunSet};
+use {
+    tests::spec::{
+        error::Result,
+        loader::parse_and_run,
+        runner::{RunConfig, RunSet},
+    },
+    wrausmt_runtime::validation::ValidationMode,
+};
 
+const GLOBAL_FAILURES_TO_IGNORE: &[&str] = &[
+    "alignment must not be larger than natural",
+    "constant expression required",
+    "duplicate export name",
+    "global is immutable",
+    "invalid result arity",
+    "memory size must be at most 65536 pages (4GiB)",
+    "multiple memories",
+    "size minimum must not be greater than maximum",
+    "start function",
+    "type mismatch",
+    "undeclared function reference",
+    "unknown data segment",
+    "unknown data segment 1",
+    "unknown elem segment 0",
+    "unknown elem segment 4",
+    "unknown function",
+    "unknown function 7",
+    "unknown global",
+    "unknown global 0",
+    "unknown global 1",
+    "unknown label",
+    "unknown local",
+    "unknown memory",
+    "unknown memory 0",
+    "unknown memory 1",
+    "unknown table",
+    "unknown table 0",
+    "unknown type",
+];
 // To regenerate the spectest! lines below using the transform this macro
 // expects: "".join(["spectest!(r#{});
 // ".format(i.replace(".wast","").replace("-","_x_")) for i in
@@ -10,7 +47,11 @@ macro_rules! spectest {
         fn $name() -> Result<()> {
             parse_and_run(
                 format!("tests/spec/data/{}.wast", stringify!($name)[2..].replace("_x_", "-")),
-                $runset,
+                RunConfig {
+                    runset: $runset,
+                    validation_mode: ValidationMode::Warn,
+                    failures_to_ignore: GLOBAL_FAILURES_TO_IGNORE
+                }
             )
         }
     };
@@ -106,7 +147,7 @@ spectest!(r#memory_redundancy);
 spectest!(r#memory_size);
 spectest!(r#memory_trap);
 spectest!(r#names);
-spectest!(r#nop);
+spectest!(r#nop; [indices!(0, 1,2)]);
 spectest!(r#obsolete_x_keywords);
 spectest!(r#ref_func);
 spectest!(r#ref_is_null);

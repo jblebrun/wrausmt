@@ -49,37 +49,6 @@ macro_rules! runset_exclude {
     }
 }
 
-static GLOBAL_FAILURES_TO_IGNORE: &[&str] = &[
-    "alignment must not be larger than natural",
-    "constant expression required",
-    "duplicate export name",
-    "global is immutable",
-    "invalid result arity",
-    "memory size must be at most 65536 pages (4GiB)",
-    "multiple memories",
-    "size minimum must not be greater than maximum",
-    "start function",
-    "type mismatch",
-    "undeclared function reference",
-    "unknown data segment",
-    "unknown data segment 1",
-    "unknown elem segment 0",
-    "unknown elem segment 4",
-    "unknown function",
-    "unknown function 7",
-    "unknown global",
-    "unknown global 0",
-    "unknown global 1",
-    "unknown label",
-    "unknown local",
-    "unknown memory",
-    "unknown memory 0",
-    "unknown memory 1",
-    "unknown table",
-    "unknown table 0",
-    "unknown type",
-];
-
 pub enum RunSet {
     All,
     Specific(Vec<String>),
@@ -88,6 +57,12 @@ pub enum RunSet {
     ExcludeIndexed(Vec<usize>),
     ExcludeFailure(Vec<String>),
     First(usize),
+}
+
+pub struct RunConfig<'a> {
+    pub runset:             RunSet,
+    pub validation_mode:    ValidationMode,
+    pub failures_to_ignore: &'a [&'a str],
 }
 
 impl RunSet {
@@ -226,15 +201,19 @@ impl SpecTestRunner {
         Ok(())
     }
 
-    fn handle_module(&mut self, m: Module) -> CmdResult<(Option<Id>, Rc<ModuleInstance>)> {
+    fn handle_module(
+        &mut self,
+        m: Module,
+        validation_mode: ValidationMode,
+    ) -> CmdResult<(Option<Id>, Rc<ModuleInstance>)> {
         match m {
-            Module::Module(m) => Ok((m.id.clone(), self.runtime.load(m, ValidationMode::Warn)?)),
+            Module::Module(m) => Ok((m.id.clone(), self.runtime.load(m, validation_mode)?)),
             Module::Binary(n, b) => {
                 let data = module_data(b);
                 Ok((
                     n,
                     self.runtime
-                        .load_wasm_data(&mut data.as_ref(), ValidationMode::Warn)?,
+                        .load_wasm_data(&mut data.as_ref(), validation_mode)?,
                 ))
             }
             Module::Quote(n, b) => {
@@ -242,18 +221,18 @@ impl SpecTestRunner {
                 Ok((
                     n,
                     self.runtime
-                        .load_wast_data(&mut data.as_ref(), ValidationMode::Warn)?,
+                        .load_wast_data(&mut data.as_ref(), validation_mode)?,
                 ))
             }
         }
     }
 
-    fn run_cmd_entry(&mut self, cmd: Cmd, runset: &RunSet) -> CmdResult<()> {
+    fn run_cmd_entry(&mut self, cmd: Cmd, runconfig: &RunConfig) -> CmdResult<()> {
         self.logger
             .log(Tag::Spec, || format!("EXECUTE CMD {:?}", cmd));
         match cmd {
             Cmd::Module(m) => {
-                let (name, modinst) = self.handle_module(m)?;
+                let (name, modinst) = self.handle_module(m, runconfig.validation_mode)?;
                 if let Some(name) = name {
                     self.named_modules.insert(name, modinst.clone());
                 }
@@ -279,25 +258,25 @@ impl SpecTestRunner {
                 self.logger.log(Tag::Spec, || format!("ACTION {:?}", a));
                 match a {
                     Assertion::Return { action, results } => {
-                        if !runset.should_run_name(action.name()) {
+                        if !runconfig.runset.should_run_name(action.name()) {
                             return Ok(());
                         }
                         let result = self.handle_action(action)?;
                         Self::verify_result(result, results).map_err(|e| e.into())
                     }
                     Assertion::ActionTrap { action, failure } => {
-                        if !runset.should_run_name(action.name()) {
+                        if !runconfig.runset.should_run_name(action.name()) {
                             return Ok(());
                         }
                         let result = self.handle_action(action);
                         verify_failure(result, &failure).map_err(|e| e.into())
                     }
                     Assertion::ModuleTrap { module, failure } => {
-                        let result = self.handle_module(module);
+                        let result = self.handle_module(module, runconfig.validation_mode);
                         verify_failure(result, &failure).map_err(|e| e.into())
                     }
                     Assertion::Malformed { module, failure } => {
-                        let result = self.handle_module(module);
+                        let result = self.handle_module(module, runconfig.validation_mode);
                         verify_failure(result, &failure).map_err(|e| e.into())
                     }
                     Assertion::Exhaustion { action, failure } => {
@@ -305,16 +284,18 @@ impl SpecTestRunner {
                         verify_failure(result, &failure).map_err(|e| e.into())
                     }
                     Assertion::Unlinkable { module, failure } => {
-                        let result = self.handle_module(module);
+                        let result = self.handle_module(module, runconfig.validation_mode);
                         verify_failure(result, &failure).map_err(|e| e.into())
                     }
                     Assertion::Invalid { module, failure } => {
-                        if GLOBAL_FAILURES_TO_IGNORE.contains(&failure.as_str()) {
+                        if runconfig.failures_to_ignore.contains(&failure.as_str()) {
                             return Ok(());
                         }
                         let result = unsafe {
                             let pself = self as *mut Self;
-                            catch_unwind(|| (*pself).handle_module(module))
+                            catch_unwind(|| {
+                                (*pself).handle_module(module, runconfig.validation_mode)
+                            })
                         };
                         match result {
                             Ok(result) => verify_failure(result, &failure).map_err(|e| e.into()),
@@ -344,7 +325,7 @@ impl SpecTestRunner {
         &mut self,
         test_index: usize,
         cmd_entry: CmdEntry,
-        runset: &RunSet,
+        runconfig: &RunConfig,
     ) -> Option<Failure> {
         self.logger.log(Tag::Spec, || {
             format!(
@@ -353,7 +334,7 @@ impl SpecTestRunner {
             )
         });
         let now = std::time::Instant::now();
-        let result = self.run_cmd_entry(cmd_entry.cmd, runset);
+        let result = self.run_cmd_entry(cmd_entry.cmd, runconfig);
         self.logger.log(Tag::Spec, || {
             format!(
                 "*****END TEST #{}****** ({}ms)\n",
@@ -370,15 +351,16 @@ impl SpecTestRunner {
             .err()
     }
 
-    pub fn run_spec_test(mut self, script: SpecTestScript, runset: RunSet) -> Result<()> {
+    pub fn run_spec_test(mut self, script: SpecTestScript, runconfig: RunConfig) -> Result<()> {
         let failures: Vec<Failure> = script
             .cmds
             .into_iter()
             .enumerate()
             .filter(|(idx, cmd_entry)| {
-                runset.should_run_index(idx) && runset.should_run_cmd(&cmd_entry.cmd)
+                runconfig.runset.should_run_index(idx)
+                    && runconfig.runset.should_run_cmd(&cmd_entry.cmd)
             })
-            .filter_map(|(idx, cmd_entry)| self.log_and_run_command(idx, cmd_entry, &runset))
+            .filter_map(|(idx, cmd_entry)| self.log_and_run_command(idx, cmd_entry, &runconfig))
             .collect();
 
         if !failures.is_empty() {

@@ -100,7 +100,7 @@ impl Runtime {
             .ok_or(RuntimeErrorKind::TypeNotFound(f.typeuse.index().value()))?
             .clone();
         let locals: Box<[ValueType]> = f.locals.iter().map(|l| l.valtype).collect();
-        let body = compile_function_body(&f, validation_context);
+        let body = compile_function_body(&f, validation_context)?;
         Ok(FunctionInstance {
             functype,
             module_instance: modinst,
@@ -125,10 +125,10 @@ impl Runtime {
             Instruction::elemdrop(ei),
         ];
         let mut init_code = Compiler::new(validation_context);
-        init_code.emit_expr(&tp.offset);
+        init_code.emit_expr(&tp.offset)?;
         self.exec_expr(&init_code.take())?;
         let mut init_code = Compiler::new(validation_context);
-        init_code.emit_expr(&Expr { instr: initexpr });
+        init_code.emit_expr(&Expr { instr: initexpr })?;
         self.exec_expr(&init_code.take())
     }
 
@@ -146,10 +146,10 @@ impl Runtime {
             Instruction::datadrop(di),
         ];
         let mut init_code = Compiler::new(validation_context);
-        init_code.emit_expr(&datainit.offset);
+        init_code.emit_expr(&datainit.offset)?;
         self.exec_expr(&init_code.take())?;
         let mut init_code = Compiler::new(validation_context);
-        init_code.emit_expr(&Expr { instr: initexpr });
+        init_code.emit_expr(&Expr { instr: initexpr })?;
         self.exec_expr(&init_code.take())
     }
 
@@ -244,7 +244,7 @@ impl Runtime {
                         .iter()
                         .map(|ei| {
                             let mut initexpr = Compiler::new(&validation_context);
-                            initexpr.emit_expr(ei);
+                            initexpr.emit_expr(ei)?;
                             self.eval_ref_expr(&initexpr.take())
                         })
                         .collect::<Result<_>>()?,
@@ -279,7 +279,7 @@ impl Runtime {
                     format!("COMPILE GLOBAL INIT EXPR {:x?}", g.init)
                 });
                 let mut initexpr = Compiler::new(&validation_context);
-                initexpr.emit_expr(&g.init);
+                initexpr.emit_expr(&g.init)?;
                 let val = self.eval_expr(&initexpr.take())?;
                 Ok(GlobalInstance {
                     typ: g.globaltype.valtype,

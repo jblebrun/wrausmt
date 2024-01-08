@@ -6,7 +6,7 @@ use crate::{
         types::{FunctionType, RefType, ValueType},
         Expr, Instruction, Opcode, Resolved, TypeUse,
     },
-    validation::{Validation, ValidationContext},
+    validation::{Result, Validation, ValidationContext},
 };
 
 const END_OPCODE: Opcode = Opcode::Normal(0xb);
@@ -63,7 +63,7 @@ pub trait Emitter {
         typeuse: &syntax::TypeUse<Resolved>,
         expr: &syntax::Expr<Resolved>,
         cnt: &syntax::Continuation,
-    ) {
+    ) -> Result<()> {
         let startcnt = self.len() as u32 - 1;
 
         self.emit32(typeuse.index().value());
@@ -79,7 +79,7 @@ pub trait Emitter {
             self.emit32(0x00);
         }
 
-        self.emit_expr(expr);
+        self.emit_expr(expr)?;
         self.emit_opcode(END_OPCODE);
 
         // If the continuation is at the end of the block, we go back to the space
@@ -89,6 +89,7 @@ pub trait Emitter {
         if matches!(cnt, syntax::Continuation::End) {
             self.splice32(continuation_location, self.len() as u32);
         }
+        Ok(())
     }
 
     fn emit_br_table(&mut self, indices: &[syntax::Index<Resolved, syntax::LabelIndex>]) {
@@ -98,7 +99,12 @@ pub trait Emitter {
         }
     }
 
-    fn emit_if(&mut self, typeuse: &TypeUse<Resolved>, th: &Expr<Resolved>, el: &Expr<Resolved>) {
+    fn emit_if(
+        &mut self,
+        typeuse: &TypeUse<Resolved>,
+        th: &Expr<Resolved>,
+        el: &Expr<Resolved>,
+    ) -> Result<()> {
         self.emit32(typeuse.index().value());
 
         // Store the space for end continuation
@@ -109,37 +115,40 @@ pub trait Emitter {
         let else_location = self.len();
         self.emit32(0x00);
 
-        self.emit_expr(th);
+        self.emit_expr(th)?;
 
         if !el.instr.is_empty() {
             self.splice32(else_location, self.len() as u32 + 1);
             // Replace the `end` for the then expression with the else opcode.
             self.emit_opcode(ELSE_OPCODE);
-            self.emit_expr(el);
+            self.emit_expr(el)?;
         } else {
             self.splice32(else_location, self.len() as u32);
         }
 
         self.emit_opcode(END_OPCODE);
         self.splice32(end_location, self.len() as u32);
+        Ok(())
     }
 
-    fn emit_expr(&mut self, expr: &syntax::Expr<Resolved>) {
+    fn emit_expr(&mut self, expr: &syntax::Expr<Resolved>) -> Result<()> {
         for instr in &expr.instr {
+            self.validate_instr(instr)?;
+
             // Emit opcode
             self.emit_opcode(instr.opcode);
 
             // Emit operands
             match &instr.operands {
                 syntax::Operands::None => (),
-                syntax::Operands::Block(_, typeuse, e, cnt) => self.emit_block(typeuse, e, cnt),
+                syntax::Operands::Block(_, typeuse, e, cnt) => self.emit_block(typeuse, e, cnt)?,
                 syntax::Operands::BrTable(indices) => self.emit_br_table(indices),
                 syntax::Operands::CallIndirect(idx, typeuse) => {
                     self.emit32(idx.value());
                     self.emit32(typeuse.index().value());
                 }
                 syntax::Operands::Select(_) => (),
-                syntax::Operands::If(_, typeuse, th, el) => self.emit_if(typeuse, th, el),
+                syntax::Operands::If(_, typeuse, th, el) => self.emit_if(typeuse, th, el)?,
                 syntax::Operands::I32(n) => self.emit32(*n),
                 syntax::Operands::I64(n) => self.emit64(*n),
                 syntax::Operands::F32(n) => self.emit32(n.to_bits()),
@@ -177,6 +186,7 @@ pub trait Emitter {
                 }
             }
         }
+        Ok(())
     }
 }
 
@@ -245,11 +255,11 @@ impl<'a> Emitter for Compiler<'a> {
 pub fn compile_function_body(
     func: &syntax::FuncField<Resolved>,
     validation_context: &ValidationContext,
-) -> Box<[u8]> {
+) -> Result<Box<[u8]>> {
     let mut out = Compiler::new(validation_context);
 
-    out.emit_expr(&func.body);
+    out.emit_expr(&func.body)?;
     out.emit_opcode(END_OPCODE);
 
-    out.output.into_boxed_slice()
+    Ok(out.output.into_boxed_slice())
 }

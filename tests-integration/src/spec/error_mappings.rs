@@ -14,7 +14,10 @@ use {
             resolve::ResolveError,
         },
     },
-    wrausmt_runtime::runtime::error::{RuntimeErrorKind, TrapKind},
+    wrausmt_runtime::{
+        runtime::error::{RuntimeError, RuntimeErrorKind, TrapKind},
+        validation::ValidationError,
+    },
 };
 
 pub fn verify_failure<T>(result: CmdResult<T>, failure: &str) -> TestResult<()> {
@@ -29,6 +32,10 @@ pub fn verify_failure<T>(result: CmdResult<T>, failure: &str) -> TestResult<()> 
             kind,
             ..
         }))) if matches_bin_parse_error(failure, &kind) => Ok(()),
+        Err(CmdError::InvocationError(RuntimeError {
+            kind: RuntimeErrorKind::ValidationError(ve),
+            ..
+        })) if matches_validation_error(failure, &ve) => Ok(()),
         Err(e) => Err(TestFailureError::failure_mismatch(failure, e)),
         _ => Err(TestFailureError::failure_missing(failure)),
     }
@@ -153,6 +160,14 @@ fn matches_parse_error(failure: &str, parse_err: &ParseErrorKind) -> bool {
             ParseErrorKind::ResolveError(ResolveError::ImportAfterMemory)
         ),
         "constant out of range" => matches!(parse_err, ParseErrorKind::InvalidNaN(_)),
+        _ => false,
+    }
+}
+
+fn matches_validation_error(failure: &str, err: &ValidationError) -> bool {
+    match err {
+        ValidationError::ValStackUnderflow => ["type mismatch"].contains(&failure),
+        ValidationError::TypeMismatch { .. } => ["type mismatch"].contains(&failure),
         _ => false,
     }
 }
