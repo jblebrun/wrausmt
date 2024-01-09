@@ -141,6 +141,11 @@ impl<R: ParserReader> BinaryParser<R> {
             .map_err(|_| self.err(BinaryParseErrorKind::InvalidSecondaryOpcode(secondary)))
     }
 
+    fn read_zero_byte(&mut self) -> Result<()> {
+        let byte = self.read_byte()?;
+        (byte == 0).true_or_else(|| self.err(BinaryParseErrorKind::ZeroByteExpected))
+    }
+
     /// Returns -1 if EOF or end instruction was reached while parsing an
     /// opcode. Returns 1 if a new block was started
     /// Returns 0 if a normal instruction was parsed.
@@ -216,12 +221,12 @@ impl<R: ParserReader> BinaryParser<R> {
             | Operands::MemoryGrow
             | Operands::MemoryInit
             | Operands::MemoryFill => {
-                self.read_byte()?;
+                self.read_zero_byte()?;
                 syntax::Operands::None
             }
             Operands::MemoryCopy => {
-                self.read_byte()?;
-                self.read_byte()?;
+                self.read_zero_byte()?;
+                self.read_zero_byte()?;
                 syntax::Operands::None
             }
             Operands::Block => {
