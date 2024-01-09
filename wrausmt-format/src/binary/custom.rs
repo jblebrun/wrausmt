@@ -3,6 +3,7 @@ use {
     crate::{
         binary::{
             error::{BinaryParseErrorKind, ParseResult},
+            leb128::ReadLeb128,
             read_with_location::Location,
         },
         pctx,
@@ -13,18 +14,17 @@ use {
 
 /// Read a custom section, which is interpreted as a simple vec(bytes)
 impl<R: ParserReader> BinaryParser<R> {
-    pub(in crate::binary) fn read_custom_section(
-        &mut self,
-        expected_section_size: usize,
-    ) -> Result<syntax::CustomField> {
+    pub(in crate::binary) fn read_custom_section(&mut self) -> Result<syntax::CustomField> {
         pctx!(self, "read custom section");
-        if expected_section_size == 0 {
+        let expected_size = self.read_u32_leb_128().result(self)? as usize;
+
+        if expected_size == 0 {
             return Err(self.err(BinaryParseErrorKind::UnexpectedEnd));
         }
         let name_start = self.location();
         let name = self.read_name()?;
         let name_size = self.location() - name_start;
-        let expected_content_size = expected_section_size - name_size;
+        let expected_content_size = expected_size - name_size;
         let mut content: Vec<u8> = vec![0; expected_content_size];
         self.read_exact(&mut content).result(self)?;
         Ok(syntax::CustomField {

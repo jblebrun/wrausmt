@@ -31,6 +31,7 @@ pub enum BinaryParseErrorKind {
     MalformedSectionId(u8),
     MalformedImportKind(u8),
     UnxpectedEndOfSectionOrFunction,
+    UnexpectedContentAfterEnd,
     UnexpectedEnd,
     TooManyLocals,
 }

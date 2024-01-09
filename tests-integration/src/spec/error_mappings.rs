@@ -115,6 +115,7 @@ fn matches_bin_parse_error(failure: &str, bin_parse_err: &BinaryParseErrorKind) 
         "unexpected end of section or function" | "length out of bounds" => matches!(
             bin_parse_err,
             BinaryParseErrorKind::UnxpectedEndOfSectionOrFunction
+                | BinaryParseErrorKind::UnexpectedEnd
         ),
         "too many locals" => matches!(bin_parse_err, BinaryParseErrorKind::TooManyLocals),
         "END opcode expected" => matches!(bin_parse_err, BinaryParseErrorKind::CodeTooLong),
@@ -129,6 +130,12 @@ fn matches_bin_parse_error(failure: &str, bin_parse_err: &BinaryParseErrorKind) 
             matches!(bin_parse_err, BinaryParseErrorKind::DataCountMissing)
         }
         "zero byte expected" => matches!(bin_parse_err, BinaryParseErrorKind::ZeroByteExpected),
+        "unexpected content after last section" => {
+            matches!(
+                bin_parse_err,
+                BinaryParseErrorKind::UnexpectedContentAfterEnd
+            )
+        }
         _ => false,
     }
 }

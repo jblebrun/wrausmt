@@ -20,7 +20,7 @@ impl<R: ParserReader> BinaryParser<R> {
             id:         None,
             exports:    vec![],
             globaltype: self.read_global_type()?,
-            init:       self.read_expr()?,
+            init:       self.read_expr(false)?,
         })
     }
 }

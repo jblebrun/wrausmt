@@ -3,6 +3,7 @@ use {
         error::{BinaryParseError, EofAsKind},
         read_with_location::{Location, ReadWithLocation},
     },
+    crate::pctx,
     std::{cell::RefCell, rc::Rc},
     wrausmt_common::{
         tracer::{TraceDropper, Tracer},
@@ -40,7 +41,7 @@ mod types;
 mod values;
 
 use {
-    crate::binary::{error::BinaryParseErrorKind, section::Section},
+    crate::binary::error::BinaryParseErrorKind,
     error::Result,
     std::io::Read,
     wrausmt_runtime::syntax::{FuncField, Index, Module, Resolved, TypeIndex},
@@ -60,33 +61,81 @@ impl<R: ParserReader> BinaryParser<R> {
             .eof_as_kind(BinaryParseErrorKind::UnexpectedEnd)?;
 
         let mut functypes: Vec<Index<Resolved, TypeIndex>> = vec![];
+        let mut datacount: Option<u32> = None;
 
-        loop {
-            let section = self
-                .read_section()
-                .eof_as_kind(BinaryParseErrorKind::UnxpectedEndOfSectionOrFunction)?;
-            match section {
-                Section::Eof => break,
-                Section::Custom(_) => (),
-                Section::Types(t) => module.types = t,
-                Section::Imports(i) => module.imports = i,
-                Section::Funcs(f) => functypes = f,
-                Section::Tables(t) => module.tables = t,
-                Section::Mems(m) => module.memories = m,
-                Section::Globals(g) => module.globals = g,
-                Section::Exports(e) => module.exports = e,
-                Section::Start(s) => module.start = Some(s),
-                Section::Elems(e) => module.elems = e,
-                Section::Code(c) => module.funcs = c,
-                Section::Data(d) => module.data = d,
-                Section::DataCount(c) => {
-                    (module.data.len() == c as usize)
-                        .true_or_else(|| self.err(BinaryParseErrorKind::DataCountMismatch))?;
-                }
-            }
+        let mut id = self.read_next_section_id(&mut module.customs)?;
+        if id == Some(1) {
+            pctx!(self, "types section");
+            module.types = self.read_section(Self::read_types_section)?;
+            id = self.read_next_section_id(&mut module.customs)?;
+        }
+        if id == Some(2) {
+            pctx!(self, "imports section");
+            module.imports = self.read_section(Self::read_imports_section)?;
+            id = self.read_next_section_id(&mut module.customs)?;
+        }
+        if id == Some(3) {
+            pctx!(self, "funcs section");
+            functypes = self.read_section(Self::read_funcs_section)?;
+            id = self.read_next_section_id(&mut module.customs)?;
+        }
+        if id == Some(4) {
+            pctx!(self, "tables section");
+            module.tables = self.read_section(Self::read_tables_section)?;
+            id = self.read_next_section_id(&mut module.customs)?;
+        }
+        if id == Some(5) {
+            pctx!(self, "mems section");
+            module.memories = self.read_section(Self::read_mems_section)?;
+            id = self.read_next_section_id(&mut module.customs)?;
+        }
+        if id == Some(6) {
+            pctx!(self, "globals section");
+            module.globals = self.read_section(Self::read_globals_section)?;
+            id = self.read_next_section_id(&mut module.customs)?;
+        }
+        if id == Some(7) {
+            pctx!(self, "globals section");
+            module.exports = self.read_section(Self::read_exports_section)?;
+            id = self.read_next_section_id(&mut module.customs)?;
+        }
+        if id == Some(8) {
+            pctx!(self, "start section");
+            module.start = Some(self.read_section(Self::read_start_section)?);
+            id = self.read_next_section_id(&mut module.customs)?;
+        }
+        if id == Some(9) {
+            pctx!(self, "elems section");
+            module.elems = self.read_section(Self::read_elems_section)?;
+            id = self.read_next_section_id(&mut module.customs)?;
+        }
+        if id == Some(12) {
+            pctx!(self, "data count section");
+            datacount = Some(self.read_section(Self::read_data_count_section)?);
+            id = self.read_next_section_id(&mut module.customs)?;
+        }
+        if id == Some(10) {
+            pctx!(self, "code section");
+            let data_indices_allowed = datacount.is_some();
+            module.funcs = self.read_section(|s| s.read_code_section(data_indices_allowed))?;
+            id = self.read_next_section_id(&mut module.customs)?;
+        }
+        if id == Some(11) {
+            pctx!(self, "data section");
+            module.data = self.read_section(Self::read_data_section)?;
+            id = self.read_next_section_id(&mut module.customs)?;
         }
 
-        self.resolve_functypes(module.funcs.as_mut(), &functypes)?;
+        (id.is_none())
+            .true_or_else(|| self.err(BinaryParseErrorKind::UnexpectedContentAfterEnd))?;
+
+        if let Some(datacount) = datacount {
+            (datacount as usize == module.data.len())
+                .true_or_else(|| self.err(BinaryParseErrorKind::DataCountMismatch))?;
+        }
+
+        self.resolve_functypes(&mut module.funcs, &functypes)?;
+
         Ok(module)
     }
 

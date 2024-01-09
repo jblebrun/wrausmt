@@ -92,7 +92,7 @@ impl<R: ParserReader> BinaryParser<R> {
 
         let offset_expr = if variants.active() {
             // read offset expr
-            self.read_expr()?
+            self.read_expr(false)?
         } else {
             Expr::default()
         };
@@ -104,7 +104,7 @@ impl<R: ParserReader> BinaryParser<R> {
             } else {
                 RefType::Func
             };
-            (reftype, self.read_vec_exprs()?)
+            (reftype, self.read_vec_exprs(false)?)
         } else {
             let elemkind = if variants.read_eltypekind() {
                 self.read_elem_kind()?
