@@ -23,7 +23,7 @@ use {
         },
         validation::{ValidationContext, ValidationMode},
     },
-    std::rc::Rc,
+    std::{convert::identity, rc::Rc},
     wrausmt_common::{logger::Logger, true_or::TrueOr},
 };
 
@@ -183,20 +183,16 @@ impl Runtime {
         // (Alloc 2.) Allocate functions
         // https://webassembly.github.io/spec/core/exec/modules.html#functions
         // We hold onto these so we can update the module instance at the end.
-        let func_insts: Vec<FunctionInstance> = module
-            .funcs
-            .into_iter()
-            .map(|f| {
-                Self::instantiate_function(
-                    f,
-                    &modinst_builder.types,
-                    rcinst.clone(),
-                    &validation_context,
-                )
-            })
-            .collect::<Result<Vec<FunctionInstance>>>()?;
+        let func_insts = module.funcs.into_iter().map(|f| {
+            Self::instantiate_function(
+                f,
+                &modinst_builder.types,
+                rcinst.clone(),
+                &validation_context,
+            )
+        });
 
-        let range = self.store.alloc_funcs(func_insts);
+        let range = self.store.alloc(|s| &mut s.funcs, func_insts, Rc::new)?;
         modinst_builder.funcs.extend(range);
 
         self.logger.log(Tag::Load, || {
@@ -208,7 +204,7 @@ impl Runtime {
             .into_iter()
             .map(|t| TableInstance::new(t.tabletype));
 
-        let range = self.store.alloc_tables(table_insts)?;
+        let range = self.store.alloc(|s| &mut s.tables, table_insts, identity)?;
         modinst_builder.tables.extend(range);
         self.logger.log(Tag::Load, || {
             format!("LOADED TABLES {:?}", modinst_builder.tables)
@@ -216,7 +212,7 @@ impl Runtime {
 
         let mem_insts = module.memories.into_iter().map(MemInstance::new_ast);
 
-        let range = self.store.alloc_mems(mem_insts)?;
+        let range = self.store.alloc(|s| &mut s.mems, mem_insts, identity)?;
         modinst_builder.mems.extend(range);
         self.logger.log(Tag::Load, || {
             format!("LOADED MEMS {:?}", modinst_builder.mems)
@@ -232,12 +228,12 @@ impl Runtime {
         self.stack.push_dummy_activation(rcinst.clone())?;
 
         // (Instantiation 9.) Elems
-        let elem_insts: Vec<ElemInstance> = module
+        let elem_insts = module
             .elems
             .iter()
             .map(|e| {
-                let refs: Vec<Ref> = match e.mode {
-                    ModeEntry::Declarative => vec![],
+                let refs: Box<[Ref]> = match e.mode {
+                    ModeEntry::Declarative => Box::new([]),
                     _ => e
                         .elemlist
                         .items
@@ -249,10 +245,14 @@ impl Runtime {
                         })
                         .collect::<Result<_>>()?,
                 };
-                Ok(ElemInstance::new(refs.into_boxed_slice()))
+                Ok(ElemInstance::new(refs))
             })
-            .collect::<Result<_>>()?;
-        let range = self.store.alloc_elems(elem_insts.into_iter());
+            // Since the iterator maps with a closure over self, we need to collect it
+            // before we can pass to alloc via self.
+            .collect::<Vec<Result<_>>>();
+        let range = self
+            .store
+            .alloc(|s| &mut s.elems, elem_insts.into_iter(), identity)?;
         modinst_builder.elems.extend(range);
         self.logger.log(Tag::Load, || {
             format!("LOADED ELEMS {:?}", modinst_builder.elems)
@@ -261,17 +261,19 @@ impl Runtime {
         let (data_inits, data_insts): (Vec<_>, Vec<_>) = module
             .data
             .into_iter()
-            .map(|d| ((d.init, d.data.len()), DataInstance { bytes: d.data }))
+            .map(|d| ((d.init, d.data.len()), Ok(DataInstance { bytes: d.data })))
             .unzip();
 
-        let range = self.store.alloc_data(data_insts.into_iter());
+        let range = self
+            .store
+            .alloc(|s| &mut s.datas, data_insts.into_iter(), identity)?;
         modinst_builder.data.extend(range);
         self.logger.log(Tag::Load, || {
             format!("LOADED DATA {:?}", modinst_builder.data)
         });
 
         // (Instantiation 8.) Get global init vals and allocate globals.
-        let global_insts: Vec<GlobalInstance> = module
+        let global_insts: Vec<Result<_>> = module
             .globals
             .iter()
             .map(|g| {
@@ -287,8 +289,11 @@ impl Runtime {
                     val,
                 })
             })
-            .collect::<Result<_>>()?;
-        let range = self.store.alloc_globals(global_insts.into_iter());
+            .collect();
+        let range = self
+            .store
+            .alloc(|s| &mut s.globals, global_insts.into_iter(), identity)?;
+
         modinst_builder.globals.extend(range);
         self.logger.log(Tag::Load, || {
             format!("LOADED GLOBALS {:?}", modinst_builder.globals)

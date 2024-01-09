@@ -3,7 +3,7 @@ use {
         error::{Result, TrapKind},
         instance::{
             addr,
-            addr::{Address, AddressRange},
+            addr::{Address, AddressRange, Addressable},
             DataInstance, ElemInstance, FunctionInstance, GlobalInstance, MemInstance,
             TableInstance,
         },
@@ -272,77 +272,23 @@ impl Store {
         Ok(())
     }
 
-    // Allocate a collection of functions.
-    // Functions will be allocated in a contiguous block.
-    // Returns the value of the first allocated fuction.
-    pub fn alloc_funcs(
+    pub fn alloc<
+        T: Addressable,
+        StoredT,
+        F: Fn(&mut Self) -> &mut Vec<StoredT>,
+        OF: Fn(T) -> StoredT,
+    >(
         &mut self,
-        funcs: impl IntoIterator<Item = FunctionInstance>,
-    ) -> AddressRange<addr::Function> {
-        let base_addr = self.funcs.len() as u32;
-        self.funcs.extend(funcs.into_iter().map(Rc::new));
-        let count = self.funcs.len() as u32 - base_addr;
-        AddressRange::new(base_addr, base_addr + count)
-    }
-
-    // Allocate a collection of tables.
-    // Tables will be allocated in a contiguous block.
-    // Returns the value of the first allocated tables.
-    pub fn alloc_tables(
-        &mut self,
-        tables: impl Iterator<Item = Result<TableInstance>>,
-    ) -> Result<AddressRange<addr::Table>> {
-        let base_addr = self.tables.len() as u32;
-        for table in tables {
-            self.tables.push(table?);
+        dest: F,
+        items: impl Iterator<Item = Result<T>>,
+        xform: OF,
+    ) -> Result<AddressRange<T::AddressType>> {
+        let dest = dest(self);
+        let base_addr = dest.len() as u32;
+        for item in items {
+            dest.push(xform(item?));
         }
-        let count = self.tables.len() as u32 - base_addr;
+        let count = dest.len() as u32 - base_addr;
         Ok(AddressRange::new(base_addr, base_addr + count))
-    }
-
-    // Allocate a collection of mems.
-    // Mems will be allocated in a contiguous block.
-    // Returns the value of the first allocated mems.
-    pub fn alloc_mems(
-        &mut self,
-        mems: impl Iterator<Item = Result<MemInstance>>,
-    ) -> Result<AddressRange<addr::Memory>> {
-        let base_addr = self.mems.len() as u32;
-        for mem in mems {
-            self.mems.push(mem?);
-        }
-        let count = self.mems.len() as u32 - base_addr;
-        Ok(AddressRange::new(base_addr, base_addr + count))
-    }
-
-    pub fn alloc_globals(
-        &mut self,
-        globals: impl Iterator<Item = GlobalInstance>,
-    ) -> AddressRange<addr::Global>
-where {
-        let base_addr = self.globals.len() as u32;
-        self.globals.extend(globals);
-        let count = self.globals.len() as u32 - base_addr;
-        AddressRange::new(base_addr, base_addr + count)
-    }
-
-    pub fn alloc_elems(
-        &mut self,
-        elems: impl Iterator<Item = ElemInstance>,
-    ) -> AddressRange<addr::Elem> {
-        let base_addr = self.elems.len() as u32;
-        self.elems.extend(elems);
-        let count = self.elems.len() as u32 - base_addr;
-        AddressRange::new(base_addr, base_addr + count)
-    }
-
-    pub fn alloc_data(
-        &mut self,
-        datas: impl Iterator<Item = DataInstance>,
-    ) -> AddressRange<addr::Data> {
-        let base_addr = self.datas.len() as u32;
-        self.datas.extend(datas);
-        let count = self.datas.len() as u32 - base_addr;
-        AddressRange::new(base_addr, base_addr + count)
     }
 }
