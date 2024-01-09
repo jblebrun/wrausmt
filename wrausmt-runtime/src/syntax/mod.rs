@@ -297,7 +297,7 @@ pub enum TypeUse<R: ResolvedState> {
 
 impl<R: ResolvedState> Default for TypeUse<R> {
     fn default() -> Self {
-        TypeUse::AnonymousInline(FunctionType::default())
+        TypeUse::ById(Index::unnamed(0))
     }
 }
 
@@ -310,6 +310,13 @@ impl TypeUse<Resolved> {
                 panic!("improperly resolved typeuse (compiler error) {:?}", self)
             }
         }
+    }
+
+    pub fn single_result(valuetype: ValueType) -> Self {
+        Self::AnonymousInline(FunctionType {
+            results: vec![FResult { valuetype }],
+            params:  vec![],
+        })
     }
 }
 

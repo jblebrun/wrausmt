@@ -135,7 +135,7 @@ pub trait ReadLeb128: Read + Sized {
     /// indices.
     ///
     /// [Spec]: https://webassembly.github.io/spec/core/binary/types.html#value-types
-    fn read_byte_as_i7_leb_128(&mut self) -> Result<i8> {
+    fn read_i7_leb_128(&mut self) -> Result<i8> {
         let bytes = read_leb_128_bytes(self, 7, true)?;
         let parsed = parse_leb_128(&bytes);
         Ok(parsed as i8)

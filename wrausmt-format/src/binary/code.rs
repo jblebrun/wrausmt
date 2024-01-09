@@ -235,7 +235,7 @@ impl<R: ParserReader> BinaryParser<R> {
                 syntax::Operands::Block(None, bt, expr, Continuation::Start)
             }
             Operands::If => {
-                let bt = self.read_type_use()?;
+                let bt = self.read_blocktype()?;
                 let th = self.read_expr_with_end()?;
                 let el = if matches!(th.end, ExpressionEnd::Else) {
                     self.read_expr()?

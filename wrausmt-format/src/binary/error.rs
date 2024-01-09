@@ -20,6 +20,7 @@ pub enum BinaryParseErrorKind {
     InvalidValueType(u8),
     InvalidExportType(u8),
     InvalidFuncType(u8),
+    InvalidBlockType(i64),
     CodeTooShort,
     CodeTooLong,
     SectionTooShort,

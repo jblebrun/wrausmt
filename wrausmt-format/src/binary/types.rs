@@ -5,8 +5,8 @@ use {
         pctx,
     },
     wrausmt_runtime::syntax::{
-        types::{GlobalType, Limits, MemType, TableType, ValueType},
-        FParam, FResult, FunctionType, Resolved, TypeField, TypeUse,
+        types::{GlobalType, Limits, MemType, NumType, RefType, TableType, ValueType},
+        FParam, FResult, FunctionType, Index, Resolved, TypeField, TypeUse,
     },
 };
 
@@ -14,7 +14,7 @@ impl<R: ParserReader> BinaryParser<R> {
     pub fn read_types_section(&mut self) -> Result<Vec<TypeField>> {
         pctx!(self, "read types section");
         self.read_vec(|_, s| {
-            let binary_type = s.read_byte_as_i7_leb_128().result(s)?;
+            let binary_type = s.read_i7_leb_128().result(s)?;
             match binary_type {
                 -0x20 => Ok(TypeField {
                     id:           None,
@@ -92,6 +92,23 @@ impl<R: ParserReader> BinaryParser<R> {
             } else {
                 None
             },
+        })
+    }
+
+    pub(in crate::binary) fn read_blocktype(&mut self) -> Result<TypeUse<Resolved>> {
+        pctx!(self, "read block type");
+        let idx = self.read_i64_leb_128().result(self)?;
+        Ok(match idx {
+            -0x01 => TypeUse::single_result(NumType::I32.into()),
+            -0x02 => TypeUse::single_result(NumType::I64.into()),
+            -0x03 => TypeUse::single_result(NumType::F32.into()),
+            -0x04 => TypeUse::single_result(NumType::F64.into()),
+            -0x10 => TypeUse::single_result(RefType::Func.into()),
+            -0x11 => TypeUse::single_result(RefType::Func.into()),
+            -0x40 => TypeUse::default(),
+            x if x > 0 && x <= u32::MAX as i64 => TypeUse::ById(Index::unnamed(x as u32)),
+            // TODO: This is not the right error.
+            _ => Err(self.err(BinaryParseErrorKind::InvalidBlockType(idx)))?,
         })
     }
 }
