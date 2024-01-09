@@ -45,25 +45,31 @@ type LocalCount = u32;
 /// locals := n:u32 t:type
 /// expr := (instr)*
 impl<R: ParserReader> BinaryParser<R> {
-    pub(in crate::binary) fn read_code_section(&mut self) -> Result<Vec<FuncField<Resolved>>> {
+    pub(in crate::binary) fn read_code_section(
+        &mut self,
+        data_indices_ok: bool,
+    ) -> Result<Vec<FuncField<Resolved>>> {
         pctx!(self, "read code section");
-        self.read_vec(|_, s| s.read_func())
+        self.read_vec(|_, s| s.read_func(data_indices_ok))
     }
 
-    pub(in crate::binary) fn read_vec_exprs(&mut self) -> Result<Vec<Expr<Resolved>>> {
+    pub(in crate::binary) fn read_vec_exprs(
+        &mut self,
+        data_indices_ok: bool,
+    ) -> Result<Vec<Expr<Resolved>>> {
         pctx!(self, "read vec exprs");
-        self.read_vec(|_, s| s.read_expr())
+        self.read_vec(|_, s| s.read_expr(data_indices_ok))
     }
 
-    pub(in crate::binary) fn read_expr(&mut self) -> Result<Expr<Resolved>> {
+    pub(in crate::binary) fn read_expr(&mut self, data_indices_ok: bool) -> Result<Expr<Resolved>> {
         pctx!(self, "read expr");
-        self.read_expr_with_end().map(|ee| ee.expr)
+        self.read_expr_with_end(data_indices_ok).map(|ee| ee.expr)
     }
 
     /// code := size:u32 code:func
     /// func := (t*)*:vec(locals) e:expr
     /// The size is the size in bytes of the entire section, locals + exprs
-    fn read_func(&mut self) -> Result<FuncField<Resolved>> {
+    fn read_func(&mut self, data_indices_ok: bool) -> Result<FuncField<Resolved>> {
         pctx!(self, "read func");
         let code_size_expected = self.read_u32_leb_128().result(self)? as usize;
 
@@ -74,7 +80,7 @@ impl<R: ParserReader> BinaryParser<R> {
                 // The types are parsed earlier and will be set on the returned values.
                 typeuse: TypeUse::default(),
                 locals:  s.read_locals()?,
-                body:    s.read_expr()?,
+                body:    s.read_expr(data_indices_ok)?,
             })
         })?;
 
@@ -119,11 +125,11 @@ impl<R: ParserReader> BinaryParser<R> {
     /// same structure that it has in the binary module ,but with LEB128 numbers
     /// converted to little-endian format.
     /// expr := (instr)* 0x0B
-    fn read_expr_with_end(&mut self) -> Result<ExpressionWithEnd> {
+    fn read_expr_with_end(&mut self, data_indices_ok: bool) -> Result<ExpressionWithEnd> {
         pctx!(self, "read expr with end");
         let mut expr = Expr::default();
         let end = loop {
-            let inst = self.read_inst();
+            let inst = self.read_inst(data_indices_ok);
             match inst? {
                 InstructionOrEnd::Instruction(inst) => expr.instr.push(inst),
                 InstructionOrEnd::End(end) => break end,
@@ -150,7 +156,7 @@ impl<R: ParserReader> BinaryParser<R> {
     /// opcode. Returns 1 if a new block was started
     /// Returns 0 if a normal instruction was parsed.
     /// Returns Err result otherwise.
-    fn read_inst(&mut self) -> Result<InstructionOrEnd> {
+    fn read_inst(&mut self, data_indices_ok: bool) -> Result<InstructionOrEnd> {
         pctx!(self, "read inst");
         let mut opcode_buf = [0u8; 1];
         self.read_exact(&mut opcode_buf).result(self)?;
@@ -178,7 +184,11 @@ impl<R: ParserReader> BinaryParser<R> {
             Operands::LocalIndex => syntax::Operands::LocalIndex(self.read_index_use()?),
             Operands::GlobalIndex => syntax::Operands::GlobalIndex(self.read_index_use()?),
             Operands::TableIndex => syntax::Operands::TableIndex(self.read_index_use()?),
-            Operands::DataIndex => syntax::Operands::DataIndex(self.read_index_use()?),
+            Operands::DataIndex => {
+                data_indices_ok
+                    .true_or_else(|| self.err(BinaryParseErrorKind::DataCountMissing))?;
+                syntax::Operands::DataIndex(self.read_index_use()?)
+            }
             Operands::MemoryIndex => syntax::Operands::MemoryIndex(self.read_index_use()?),
             Operands::Br => syntax::Operands::LabelIndex(self.read_index_use()?),
             Operands::BrTable => {
@@ -217,10 +227,13 @@ impl<R: ParserReader> BinaryParser<R> {
                 self.read_u32_leb_128().result(self)?,
                 self.read_u32_leb_128().result(self)?,
             ),
-            Operands::MemorySize
-            | Operands::MemoryGrow
-            | Operands::MemoryInit
-            | Operands::MemoryFill => {
+            Operands::MemoryInit => {
+                data_indices_ok
+                    .true_or_else(|| self.err(BinaryParseErrorKind::DataCountMissing))?;
+                self.read_zero_byte()?;
+                syntax::Operands::None
+            }
+            Operands::MemorySize | Operands::MemoryGrow | Operands::MemoryFill => {
                 self.read_zero_byte()?;
                 syntax::Operands::None
             }
@@ -231,19 +244,19 @@ impl<R: ParserReader> BinaryParser<R> {
             }
             Operands::Block => {
                 let bt = self.read_type_use()?;
-                let expr = self.read_expr()?;
+                let expr = self.read_expr(data_indices_ok)?;
                 syntax::Operands::Block(None, bt, expr, Continuation::End)
             }
             Operands::Loop => {
                 let bt = self.read_type_use()?;
-                let expr = self.read_expr()?;
+                let expr = self.read_expr(data_indices_ok)?;
                 syntax::Operands::Block(None, bt, expr, Continuation::Start)
             }
             Operands::If => {
                 let bt = self.read_blocktype()?;
-                let th = self.read_expr_with_end()?;
+                let th = self.read_expr_with_end(data_indices_ok)?;
                 let el = if matches!(th.end, ExpressionEnd::Else) {
-                    self.read_expr()?
+                    self.read_expr(data_indices_ok)?
                 } else {
                     Expr::default()
                 };

@@ -74,10 +74,7 @@ macro_rules! indices {
 spectest!(r#address);
 spectest!(r#align);
 spectest!(r#binary_x_leb128);
-spectest!(r#binary; [nomalformed!(
-    "data count section required",
-    "unexpected content after last section"
-)]);
+spectest!(r#binary);
 spectest!(r#block; [nomalformed!("mismatching label")]);
 spectest!(r#br);
 spectest!(r#br_if);

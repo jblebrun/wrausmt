@@ -33,7 +33,7 @@ impl<R: ParserReader> BinaryParser<R> {
             };
             Some(DataInit {
                 memidx,
-                offset: self.read_expr()?,
+                offset: self.read_expr(false)?,
             })
         } else {
             None
