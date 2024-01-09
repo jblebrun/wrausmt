@@ -77,10 +77,7 @@ impl<R: ParserReader> BinaryParser<R> {
                 Section::Exports(e) => module.exports = e,
                 Section::Start(s) => module.start = Some(s),
                 Section::Elems(e) => module.elems = e,
-                Section::Code(c) => {
-                    module.funcs = c;
-                    self.resolve_functypes(module.funcs.as_mut(), &functypes)?
-                }
+                Section::Code(c) => module.funcs = c,
                 Section::Data(d) => module.data = d,
                 Section::DataCount(c) => {
                     (module.data.len() == c as usize)
@@ -88,6 +85,8 @@ impl<R: ParserReader> BinaryParser<R> {
                 }
             }
         }
+
+        self.resolve_functypes(module.funcs.as_mut(), &functypes)?;
         Ok(module)
     }
 

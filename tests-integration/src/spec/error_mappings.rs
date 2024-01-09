@@ -71,10 +71,12 @@ fn matches_trap(failure: &str, trap: &TrapKind) -> bool {
 
 fn matches_bin_parse_error(failure: &str, bin_parse_err: &BinaryParseErrorKind) -> bool {
     match failure {
-        "integer too large" => matches!(
-            bin_parse_err,
-            BinaryParseErrorKind::LEB128Error(LEB128Error::Overflow(_))
-        ),
+        "integer too large" => {
+            matches!(
+                bin_parse_err,
+                BinaryParseErrorKind::LEB128Error(LEB128Error::Overflow(_))
+            ) || matches!(bin_parse_err, BinaryParseErrorKind::InvalidBoolValue(_))
+        }
         // TODO - remove the need for InvalidFuncType
         "integer representation too long" => matches!(
             bin_parse_err,
@@ -110,11 +112,23 @@ fn matches_bin_parse_error(failure: &str, bin_parse_err: &BinaryParseErrorKind) 
                 | BinaryParseErrorKind::UnxpectedEndOfSectionOrFunction
         ),
 
-        "unexpected end of section or function" => matches!(
+        "unexpected end of section or function" | "length out of bounds" => matches!(
             bin_parse_err,
             BinaryParseErrorKind::UnxpectedEndOfSectionOrFunction
         ),
         "too many locals" => matches!(bin_parse_err, BinaryParseErrorKind::TooManyLocals),
+        "END opcode expected" => matches!(bin_parse_err, BinaryParseErrorKind::CodeTooLong),
+        "illegal opcode" => matches!(bin_parse_err, BinaryParseErrorKind::InvalidOpcode(_)),
+        "function and code section have inconsistent lengths" => {
+            matches!(bin_parse_err, BinaryParseErrorKind::FuncSizeMismatch)
+        }
+        "data count and data section have inconsistent lengths" => {
+            matches!(bin_parse_err, BinaryParseErrorKind::DataCountMismatch)
+        }
+        "data count section required" => {
+            matches!(bin_parse_err, BinaryParseErrorKind::DataCountMissing)
+        }
+        "zero byte expected" => matches!(bin_parse_err, BinaryParseErrorKind::ZeroByteExpected),
         _ => false,
     }
 }
