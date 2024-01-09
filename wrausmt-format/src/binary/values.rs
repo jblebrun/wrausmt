@@ -58,7 +58,7 @@ impl<R: ParserReader> BinaryParser<R> {
     /// false).
     pub(in crate::binary) fn read_bool(&mut self) -> Result<bool> {
         pctx!(self, "read bool");
-        match self.read_byte_as_i7_leb_128().result(self)? {
+        match self.read_i7_leb_128().result(self)? {
             0 => Ok(false),
             1 => Ok(true),
             b => Err(self.err(BinaryParseErrorKind::InvalidBoolValue(b as u8))),
@@ -67,7 +67,7 @@ impl<R: ParserReader> BinaryParser<R> {
 
     pub(in crate::binary) fn read_value_type(&mut self) -> Result<ValueType> {
         pctx!(self, "read value type");
-        match self.read_byte_as_i7_leb_128().result(self)? {
+        match self.read_i64_leb_128().result(self)? {
             -0x01 => Ok(NumType::I32.into()),
             -0x02 => Ok(NumType::I64.into()),
             -0x03 => Ok(NumType::F32.into()),
@@ -80,7 +80,7 @@ impl<R: ParserReader> BinaryParser<R> {
 
     pub(in crate::binary) fn read_ref_type(&mut self) -> Result<RefType> {
         pctx!(self, "read ref type");
-        match self.read_byte_as_i7_leb_128().result(self)? {
+        match self.read_i64_leb_128().result(self)? {
             -0x10 => Ok(RefType::Func),
             -0x11 => Ok(RefType::Extern),
             b => Err(self.err(BinaryParseErrorKind::MalformedRefType(b as u8))),

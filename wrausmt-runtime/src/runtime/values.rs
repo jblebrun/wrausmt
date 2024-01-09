@@ -34,6 +34,7 @@ use {
 pub enum Value {
     Num(Num),
     Ref(Ref),
+    Void,
 }
 
 /// A numeric value that a WebAssembly program can manipulate. [Spec][Spec]
@@ -77,6 +78,7 @@ impl Value {
         match self {
             Value::Num(n) => ValueType::Num(n.numtype()),
             Value::Ref(r) => ValueType::Ref(r.reftype()),
+            Value::Void => ValueType::Void,
         }
     }
 
@@ -141,6 +143,7 @@ impl ValueType {
         match &self {
             ValueType::Num(n) => Value::Num(n.default()),
             ValueType::Ref(r) => Value::Ref(r.default()),
+            ValueType::Void => Value::Void,
         }
     }
 }

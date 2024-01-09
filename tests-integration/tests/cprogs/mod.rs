@@ -16,6 +16,19 @@ impl LoadEnv for Runtime {
 }
 
 #[test]
+fn fibcwasm() -> Result<()> {
+    let mut runtime = Runtime::new();
+    runtime.load_env()?;
+    let mod_inst = runtime.load_file("tests/cprogs/data/fib.c.wasm")?;
+
+    let res = runtime.call(&mod_inst, "fib", &[7u32.into()])?;
+    println!("RES: {res:?}");
+    let v: Value = *res.first().unwrap();
+    assert_eq!(v, 13.into());
+    Ok(())
+}
+
+#[test]
 fn callandglobal_wat() -> Result<()> {
     let mut runtime = Runtime::new();
     runtime.load_env()?;
