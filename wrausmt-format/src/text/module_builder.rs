@@ -75,8 +75,7 @@ impl ModuleBuilder {
     }
 
     pub fn build(self) -> Result<Module<Resolved>> {
-        let mod_idents = self.module_identifiers;
-        self.module.resolve(mod_idents)
+        self.module.resolve(&self.module_identifiers)
     }
 
     pub fn tables(&self) -> u32 {
