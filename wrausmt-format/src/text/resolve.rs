@@ -484,7 +484,7 @@ impl Resolve<TypeUse<Resolved>> for TypeUse<Unresolved> {
     ) -> Result<TypeUse<Resolved>> {
         validate_inline_typeuse(&self, types, ic)?;
         match self {
-            TypeUse::ById(idx) => Ok(TypeUse::ById(idx.resolve(ic, types)?)),
+            TypeUse::ByIndex(idx) => Ok(TypeUse::ByIndex(idx.resolve(ic, types)?)),
             // TODO: validate that the functiontype matches any existing one
             TypeUse::NamedInline {
                 index,
@@ -590,7 +590,7 @@ impl Resolve<FuncField<Resolved>> for FuncField<Unresolved> {
         Ok(FuncField {
             id: self.id,
             exports: self.exports,
-            typeuse: TypeUse::ById(typeuse.index().clone()),
+            typeuse: TypeUse::ByIndex(typeuse.index().clone()),
             locals: self.locals,
             body,
         })

@@ -285,7 +285,7 @@ impl std::fmt::Debug for FunctionType {
 #[derive(PartialEq, Clone)]
 pub enum TypeUse<R: ResolvedState> {
     /// Represents a type use that was only `(type $n)`
-    ById(Index<R, TypeIndex>),
+    ByIndex(Index<R, TypeIndex>),
     // Represents a type use that was only `(param _)* (result _)*`
     AnonymousInline(FunctionType),
     // Represents a type use with everything: `type ($n) (param _)* (result _)*`
@@ -297,14 +297,14 @@ pub enum TypeUse<R: ResolvedState> {
 
 impl<R: ResolvedState> Default for TypeUse<R> {
     fn default() -> Self {
-        TypeUse::ById(Index::unnamed(0))
+        TypeUse::ByIndex(Index::unnamed(0))
     }
 }
 
 impl TypeUse<Resolved> {
     pub fn index(&self) -> &Index<Resolved, TypeIndex> {
         match self {
-            TypeUse::ById(i) => i,
+            TypeUse::ByIndex(i) => i,
             TypeUse::NamedInline { index, .. } => index,
             TypeUse::AnonymousInline(_) => {
                 panic!("improperly resolved typeuse (compiler error) {:?}", self)
@@ -316,7 +316,7 @@ impl TypeUse<Resolved> {
 impl TypeUse<Unresolved> {
     pub fn index(&self) -> Option<&Index<Unresolved, TypeIndex>> {
         match self {
-            TypeUse::ById(i) => Some(i),
+            TypeUse::ByIndex(i) => Some(i),
             TypeUse::NamedInline { index, .. } => Some(index),
             TypeUse::AnonymousInline(_) => None,
         }
@@ -333,7 +333,7 @@ impl<R: ResolvedState> TypeUse<R> {
 
     pub fn function_type(&self) -> Option<&FunctionType> {
         match self {
-            TypeUse::ById(_) => None,
+            TypeUse::ByIndex(_) => None,
             TypeUse::NamedInline { functiontype, .. } => Some(functiontype),
             TypeUse::AnonymousInline(ft) => Some(ft),
         }
@@ -343,7 +343,7 @@ impl<R: ResolvedState> TypeUse<R> {
 impl<R: ResolvedState> std::fmt::Debug for TypeUse<R> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            TypeUse::ById(idx) => write!(f, "(type {idx:?}"),
+            TypeUse::ByIndex(idx) => write!(f, "(type {idx:?}"),
             TypeUse::NamedInline {
                 functiontype,
                 index,
@@ -432,7 +432,7 @@ impl FuncField<Resolved> {
         FuncField {
             id: None,
             exports: Vec::new(),
-            typeuse: TypeUse::ById(Index::unnamed(0)),
+            typeuse: TypeUse::ByIndex(Index::unnamed(0)),
             locals: Vec::new(),
             body,
         }
