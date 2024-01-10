@@ -102,10 +102,7 @@ spectest!(r#float_literals);
 spectest!(r#float_memory);
 spectest!(r#float_misc);
 spectest!(r#forward);
-spectest!(r#func; [nomalformed!(
-    "unknown type",
-    "duplicate local"
-)]);
+spectest!(r#func);
 spectest!(r#func_ptrs);
 spectest!(r#global; [nomalformed!("malformed mutability")]);
 spectest!(r#i32);
