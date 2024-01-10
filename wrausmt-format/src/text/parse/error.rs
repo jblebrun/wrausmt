@@ -4,6 +4,7 @@ use {
         num::{ParseFloatError, ParseIntError},
         string::FromUtf8Error,
     },
+    wrausmt_runtime::syntax::Id,
 };
 
 #[derive(Debug, Default)]
@@ -29,6 +30,7 @@ pub enum ParseErrorKind {
     InvalidNaN(u64),
     TooManyLocals,
     Incomplete,
+    LabelMismatch(Option<Id>, Option<Id>),
 }
 
 #[derive(Debug, Default)]

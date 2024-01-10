@@ -181,6 +181,7 @@ fn matches_parse_error(failure: &str, parse_err: &ParseErrorKind) -> bool {
             ParseErrorKind::ResolveError(ResolveError::ImportAfterMemory)
         ),
         "constant out of range" => matches!(parse_err, ParseErrorKind::InvalidNaN(_)),
+        "mismatching label" => matches!(parse_err, ParseErrorKind::LabelMismatch(_, _)),
         _ => false,
     }
 }
