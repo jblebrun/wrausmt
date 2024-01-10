@@ -56,7 +56,7 @@ impl<R: ParserReader> BinaryParser<R> {
 
     pub(in crate::binary) fn read_type_use(&mut self) -> Result<TypeUse<Resolved>> {
         pctx!(self, "read type use");
-        Ok(TypeUse::ById(self.read_index_use()?))
+        Ok(TypeUse::ByIndex(self.read_index_use()?))
     }
 
     pub(in crate::binary) fn read_memory_type(&mut self) -> Result<MemType> {
@@ -106,7 +106,7 @@ impl<R: ParserReader> BinaryParser<R> {
             -0x10 => TypeUse::single_result(RefType::Func.into()),
             -0x11 => TypeUse::single_result(RefType::Func.into()),
             -0x40 => TypeUse::default(),
-            x if x > 0 && x <= u32::MAX as i64 => TypeUse::ById(Index::unnamed(x as u32)),
+            x if x > 0 && x <= u32::MAX as i64 => TypeUse::ByIndex(Index::unnamed(x as u32)),
             // TODO: This is not the right error.
             _ => Err(self.err(BinaryParseErrorKind::InvalidBlockType(idx)))?,
         })

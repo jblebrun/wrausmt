@@ -155,7 +155,7 @@ impl<R: ParserReader> BinaryParser<R> {
 
         // Add the functype type to the returned function structs.
         for (i, func) in funcs.iter_mut().enumerate() {
-            func.typeuse = TypeUse::ById(functypes[i].clone());
+            func.typeuse = TypeUse::ByIndex(functypes[i].clone());
         }
         Ok(())
     }

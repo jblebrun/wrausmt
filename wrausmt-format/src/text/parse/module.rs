@@ -581,7 +581,7 @@ impl<R: Read> Parser<R> {
 
         match (functiontype, typeidx) {
             (ft, None) => Ok(TypeUse::AnonymousInline(ft)),
-            (ft, Some(ti)) if ft.is_void() => Ok(TypeUse::ById(ti)),
+            (ft, Some(ti)) if ft.is_void() => Ok(TypeUse::ByIndex(ti)),
             (functiontype, Some(index)) => Ok(TypeUse::NamedInline {
                 functiontype,
                 index,
