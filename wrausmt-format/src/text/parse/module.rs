@@ -90,38 +90,40 @@ impl<R: Read> Parser<R> {
         // multiple fields due to inline type defs or imports/exports.
         while let Some(field) = self.try_field().transpose() {
             match field? {
-                Field::Type(f) => module_builder.add_typefield(f),
+                Field::Type(f) => module_builder.add_typefield(f).result(self)?,
                 Field::Func(f) => module_builder.add_funcfield(f).result(self)?,
                 Field::Table(t, e) => {
                     let tableidx = module_builder.tables();
-                    module_builder.add_tablefield(t);
+                    module_builder.add_tablefield(t).result(self)?;
                     if let Some(mut e) = e {
                         Self::fix_elem_table_id(&mut e, tableidx);
-                        module_builder.add_elemfield(e);
+                        module_builder.add_elemfield(e).result(self)?;
                     }
                 }
                 Field::Memory(f, d) => {
                     let memidx = module_builder.memories();
-                    module_builder.add_memoryfield(f);
+                    module_builder.add_memoryfield(f).result(self)?;
                     if let Some(d) = d {
-                        module_builder.add_datafield(DataField {
-                            id:   None,
-                            data: d,
-                            init: Some(DataInit {
-                                memidx: Index::unnamed(memidx),
-                                offset: Expr {
-                                    instr: vec![Instruction::i32const(0)],
-                                },
-                            }),
-                        });
+                        module_builder
+                            .add_datafield(DataField {
+                                id:   None,
+                                data: d,
+                                init: Some(DataInit {
+                                    memidx: Index::unnamed(memidx),
+                                    offset: Expr {
+                                        instr: vec![Instruction::i32const(0)],
+                                    },
+                                }),
+                            })
+                            .result(self)?;
                     }
                 }
                 Field::Import(f) => module_builder.add_importfield(f).result(self)?,
                 Field::Export(f) => module_builder.add_exportfield(f),
-                Field::Global(f) => module_builder.add_globalfield(f),
-                Field::Start(f) => module_builder.add_startfield(f),
-                Field::Elem(f) => module_builder.add_elemfield(f),
-                Field::Data(f) => module_builder.add_datafield(f),
+                Field::Global(f) => module_builder.add_globalfield(f).result(self)?,
+                Field::Start(f) => module_builder.add_startfield(f).result(self)?,
+                Field::Elem(f) => module_builder.add_elemfield(f).result(self)?,
+                Field::Data(f) => module_builder.add_datafield(f).result(self)?,
             }
         }
 

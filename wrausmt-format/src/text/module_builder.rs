@@ -20,6 +20,8 @@ pub struct ModuleIdentifiers {
     pub dataindices:   HashMap<Id, u32>,
 }
 
+impl ModuleIdentifiers {}
+
 /// A [ModuleBuilder] accepts the various items coming from the parse, and
 /// organizes them by sections into a [Module]. This [Module] is still just an
 /// abstract representation. ID declarations  are collected into maps, but ID
@@ -36,12 +38,14 @@ pub struct ModuleBuilder {
 }
 
 macro_rules! add_ident {
-    ( $self:ident, $field:ident, $dst:ident, $src:ident, $offset:expr) => {
+    ( $self:ident, $field:ident, $dst:ident, $src:ident, $offset:expr; $err:ident) => {
         if let Some(id) = &$field.id {
             $self
                 .module_identifiers
                 .$dst
-                .insert(id.clone(), $self.module.$src.len() as u32 + $offset);
+                .insert(id.clone(), $self.module.$src.len() as u32 + $offset)
+                .is_none()
+                .true_or_else(|| ResolveError::$err(id.clone()))?
         }
     };
 }
@@ -83,13 +87,14 @@ impl ModuleBuilder {
         self.module.memories.len() as u32
     }
 
-    pub fn add_typefield(&mut self, typefield: TypeField) {
-        add_ident!(self, typefield, typeindices, types, 0);
+    pub fn add_typefield(&mut self, typefield: TypeField) -> Result<()> {
+        add_ident!(self, typefield, typeindices, types, 0; DuplicateType);
         self.module.types.push(typefield);
+        Ok(())
     }
 
     pub fn add_funcfield(&mut self, f: FuncField<Unresolved>) -> Result<()> {
-        add_ident!(self, f, funcindices, funcs, self.funcidx_offset);
+        add_ident!(self, f, funcindices, funcs, self.funcidx_offset; DuplicateFunc);
         // self.validate_inline_typeuse(&f.typeuse)?;
 
         // export field may define new exports.
@@ -104,8 +109,8 @@ impl ModuleBuilder {
         Ok(())
     }
 
-    pub fn add_tablefield(&mut self, f: TableField) {
-        add_ident!(self, f, tableindices, tables, self.tableidx_offset);
+    pub fn add_tablefield(&mut self, f: TableField) -> Result<()> {
+        add_ident!(self, f, tableindices, tables, self.tableidx_offset; DuplicateTable);
 
         // export field may define new exports.
         let tableidx = self.module.tables.len() as u32 + self.tableidx_offset;
@@ -116,10 +121,11 @@ impl ModuleBuilder {
             })
         }
         self.module.tables.push(f);
+        Ok(())
     }
 
-    pub fn add_memoryfield(&mut self, f: MemoryField) {
-        add_ident!(self, f, memindices, memories, self.memidx_offset);
+    pub fn add_memoryfield(&mut self, f: MemoryField) -> Result<()> {
+        add_ident!(self, f, memindices, memories, self.memidx_offset; DuplicateMem);
 
         // export field may define new exports.
         let memidx = self.module.memories.len() as u32 + self.memidx_offset;
@@ -131,6 +137,7 @@ impl ModuleBuilder {
         }
         self.module.memories.push(f);
         // data contents may define new data
+        Ok(())
     }
 
     pub fn add_importfield(&mut self, f: ImportField<Unresolved>) -> Result<()> {
@@ -145,7 +152,7 @@ impl ModuleBuilder {
         // to adjust indices.
         match f.desc {
             ImportDesc::Func(_) => {
-                add_ident!(self, f, funcindices, funcs, self.funcidx_offset);
+                add_ident!(self, f, funcindices, funcs, self.funcidx_offset; DuplicateFunc);
                 for export_name in &f.exports {
                     self.module.exports.push(ExportField {
                         name:       export_name.clone(),
@@ -155,7 +162,7 @@ impl ModuleBuilder {
                 self.funcidx_offset += 1;
             }
             ImportDesc::Mem(_) => {
-                add_ident!(self, f, memindices, memories, self.memidx_offset);
+                add_ident!(self, f, memindices, memories, self.memidx_offset; DuplicateMem);
                 for export_name in &f.exports {
                     self.module.exports.push(ExportField {
                         name:       export_name.clone(),
@@ -165,7 +172,7 @@ impl ModuleBuilder {
                 self.memidx_offset += 1;
             }
             ImportDesc::Table(_) => {
-                add_ident!(self, f, tableindices, tables, self.tableidx_offset);
+                add_ident!(self, f, tableindices, tables, self.tableidx_offset; DuplicateTable);
                 for export_name in &f.exports {
                     self.module.exports.push(ExportField {
                         name:       export_name.clone(),
@@ -175,7 +182,7 @@ impl ModuleBuilder {
                 self.tableidx_offset += 1;
             }
             ImportDesc::Global(_) => {
-                add_ident!(self, f, globalindices, globals, self.globalidx_offset);
+                add_ident!(self, f, globalindices, globals, self.globalidx_offset; DuplicateGlobal);
                 for export_name in &f.exports {
                     self.module.exports.push(ExportField {
                         name:       export_name.clone(),
@@ -193,8 +200,8 @@ impl ModuleBuilder {
         self.module.exports.push(f)
     }
 
-    pub fn add_globalfield(&mut self, f: GlobalField<Unresolved>) {
-        add_ident!(self, f, globalindices, globals, self.globalidx_offset);
+    pub fn add_globalfield(&mut self, f: GlobalField<Unresolved>) -> Result<()> {
+        add_ident!(self, f, globalindices, globals, self.globalidx_offset; DuplicateGlobal);
 
         let globalidx = self.module.globals.len() as u32 + self.globalidx_offset;
         for export_name in &f.exports {
@@ -205,21 +212,29 @@ impl ModuleBuilder {
         }
         // export field may define new exports.
         self.module.globals.push(f);
+        Ok(())
     }
 
-    pub fn add_startfield(&mut self, f: StartField<Unresolved>) {
-        self.module.start = Some(f)
+    pub fn add_startfield(&mut self, f: StartField<Unresolved>) -> Result<()> {
+        if self.module.start.is_some() {
+            Err(ResolveError::MultipleStartSections)
+        } else {
+            self.module.start = Some(f);
+            Ok(())
+        }
     }
 
-    pub fn add_elemfield(&mut self, f: ElemField<Unresolved>) {
-        add_ident!(self, f, elemindices, elems, 0);
+    pub fn add_elemfield(&mut self, f: ElemField<Unresolved>) -> Result<()> {
+        add_ident!(self, f, elemindices, elems, 0; DuplicateElem);
 
-        self.module.elems.push(f)
+        self.module.elems.push(f);
+        Ok(())
     }
 
-    pub fn add_datafield(&mut self, f: DataField<Unresolved>) {
-        add_ident!(self, f, dataindices, data, 0);
+    pub fn add_datafield(&mut self, f: DataField<Unresolved>) -> Result<()> {
+        add_ident!(self, f, dataindices, data, 0; DuplicateData);
 
-        self.module.data.push(f)
+        self.module.data.push(f);
+        Ok(())
     }
 }

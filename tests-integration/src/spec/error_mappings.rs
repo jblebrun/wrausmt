@@ -141,6 +141,10 @@ fn matches_bin_parse_error(failure: &str, bin_parse_err: &BinaryParseErrorKind) 
 }
 
 fn matches_parse_error(failure: &str, parse_err: &ParseErrorKind) -> bool {
+    if let ParseErrorKind::ResolveError(re) = parse_err {
+        return matches_resolve_error(failure, re);
+    }
+
     match failure {
         "alignment" => matches!(parse_err, ParseErrorKind::InvalidAlignment(_)),
         "i32 constant" => matches!(parse_err, ParseErrorKind::ParseIntError(_)),
@@ -157,31 +161,29 @@ fn matches_parse_error(failure: &str, parse_err: &ParseErrorKind) -> bool {
             // TODO - remove the need for UnexpectedToken
             ParseErrorKind::UnexpectedToken(_) | ParseErrorKind::UnrecognizedInstruction(_)
         ),
-        "inline function type" => matches!(
-            parse_err,
-            ParseErrorKind::ResolveError(ResolveError::DuplicateTypeIndex(_))
-        ),
-        "malformed UTF-8 encoding" => {
-            matches!(parse_err, ParseErrorKind::Utf8Error(_))
-        }
-        "import after function" => matches!(
-            parse_err,
-            ParseErrorKind::ResolveError(ResolveError::ImportAfterFunction)
-        ),
-        "import after global" => matches!(
-            parse_err,
-            ParseErrorKind::ResolveError(ResolveError::ImportAfterGlobal)
-        ),
-        "import after table" => matches!(
-            parse_err,
-            ParseErrorKind::ResolveError(ResolveError::ImportAfterTable)
-        ),
-        "import after memory" => matches!(
-            parse_err,
-            ParseErrorKind::ResolveError(ResolveError::ImportAfterMemory)
-        ),
+        "malformed UTF-8 encoding" => matches!(parse_err, ParseErrorKind::Utf8Error(_)),
         "constant out of range" => matches!(parse_err, ParseErrorKind::InvalidNaN(_)),
+
         "mismatching label" => matches!(parse_err, ParseErrorKind::LabelMismatch(_, _)),
+        _ => false,
+    }
+}
+
+fn matches_resolve_error(failure: &str, err: &ResolveError) -> bool {
+    match failure {
+        "inline function type" => matches!(err, ResolveError::DuplicateTypeIndex(_)),
+        "import after function" => matches!(err, ResolveError::ImportAfterFunction),
+        "import after global" => matches!(err, ResolveError::ImportAfterGlobal),
+        "import after table" => matches!(err, ResolveError::ImportAfterTable),
+        "import after memory" => matches!(err, ResolveError::ImportAfterMemory),
+        "duplicate func" => matches!(err, ResolveError::DuplicateFunc(_)),
+        "duplicate table" => matches!(err, ResolveError::DuplicateTable(_)),
+        "duplicate memory" => matches!(err, ResolveError::DuplicateMem(_)),
+        "duplicate global" => matches!(err, ResolveError::DuplicateGlobal(_)),
+        "duplicate elem" => matches!(err, ResolveError::DuplicateElem(_)),
+        "duplicate data" => matches!(err, ResolveError::DuplicateData(_)),
+        "multiple start sections" => matches!(err, ResolveError::MultipleStartSections),
+        "unknown label" => matches!(err, ResolveError::UnresolvedLabel(_)),
         _ => false,
     }
 }
