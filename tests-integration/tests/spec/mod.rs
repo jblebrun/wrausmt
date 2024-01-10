@@ -103,12 +103,11 @@ spectest!(r#float_memory);
 spectest!(r#float_misc);
 spectest!(r#forward);
 spectest!(r#func; [nomalformed!(
-    "duplicate func",
-    "duplicate local",
-    "unknown type"
+    "unknown type",
+    "duplicate local"
 )]);
 spectest!(r#func_ptrs);
-spectest!(r#global; [nomalformed!("malformed mutability", "duplicate global")]);
+spectest!(r#global; [nomalformed!("malformed mutability")]);
 spectest!(r#i32);
 spectest!(r#i64);
 spectest!(r#if);
@@ -124,7 +123,7 @@ spectest!(r#local_get);
 spectest!(r#local_set);
 spectest!(r#local_tee);
 spectest!(r#loop);
-spectest!(r#memory; [nomalformed!("i32 constant out of range", "duplicate memory")]);
+spectest!(r#memory; [nomalformed!("i32 constant out of range")]);
 spectest!(r#memory_copy);
 spectest!(r#memory_fill);
 spectest!(r#memory_grow);
@@ -142,11 +141,11 @@ spectest!(r#return);
 spectest!(r#select);
 spectest!(r#skip_x_stack_x_guard_x_page);
 spectest!(r#stack);
-spectest!(r#start; [nomalformed!("multiple start sections")]);
+spectest!(r#start);
 spectest!(r#store);
 spectest!(r#switch);
 spectest!(r#table_x_sub);
-spectest!(r#table; [nomalformed!("i32 constant out of range", "duplicate table")]);
+spectest!(r#table; [nomalformed!("i32 constant out of range")]);
 spectest!(r#table_copy);
 spectest!(r#table_fill);
 spectest!(r#table_get);

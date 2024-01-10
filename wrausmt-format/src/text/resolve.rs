@@ -1,4 +1,5 @@
 //! Methods implementing index usage resolution.
+
 use {
     super::module_builder::ModuleIdentifiers,
     wrausmt_runtime::syntax::{
@@ -12,13 +13,23 @@ use {
 
 #[derive(Debug)]
 pub enum ResolveError {
-    UnresolvedIndex(Id),
+    UnresolvedId(Id),
+    UnresolvedLabel(Id),
     UnresolvedType(Index<Resolved, TypeIndex>),
     DuplicateTypeIndex(Id),
+    DuplicateType(Id),
+    DuplicateFunc(Id),
+    DuplicateGlobal(Id),
+    DuplicateMem(Id),
+    DuplicateData(Id),
+    DuplicateElem(Id),
+    DuplicateTable(Id),
+    DuplicateLocal(Id),
     ImportAfterFunction,
     ImportAfterGlobal,
     ImportAfterTable,
     ImportAfterMemory,
+    MultipleStartSections,
 }
 
 pub type Result<T> = std::result::Result<T, ResolveError>;
@@ -139,7 +150,7 @@ macro_rules! resolve_option {
 /// This generates each of the [Resolve] impls for the [Index] in each
 /// [IndexSpace].
 macro_rules! index_resolver {
-    ( $it:ty, $ic:ident, $src:ident ) => {
+    ( $it:ty, $ic:ident, $src:ident, $err:ident ) => {
         impl Resolve<Index<Resolved, $it>> for Index<Unresolved, $it> {
             fn resolve(
                 self,
@@ -152,12 +163,15 @@ macro_rules! index_resolver {
                     // TODO - how to handle the different index types?
                     let value = $ic
                         .$src(self.name())
-                        .ok_or_else(|| ResolveError::UnresolvedIndex(self.name().to_owned()))?;
+                        .ok_or_else(|| ResolveError::$err(self.name().to_owned()))?;
                     value
                 };
                 Ok(self.resolved(value))
             }
         }
+    };
+    ( $it:ty, $ic:ident, $src:ident ) => {
+        index_resolver! { $it, $ic, $src, UnresolvedId }
     };
 }
 
@@ -169,7 +183,7 @@ index_resolver! {MemoryIndex, ic, memindex}
 index_resolver! {ElemIndex, ic, elemindex}
 index_resolver! {DataIndex, ic, dataindex}
 index_resolver! {LocalIndex, ic, localindex}
-index_resolver! {LabelIndex, ic, labelindex}
+index_resolver! {LabelIndex, ic, labelindex, UnresolvedLabel }
 
 impl Resolve<Expr<Resolved>> for Expr<Unresolved> {
     fn resolve(self, ic: &ResolutionContext, types: &mut Vec<TypeField>) -> Result<Expr<Resolved>> {

@@ -39,7 +39,7 @@ pub fn make_spectest_module() -> Result<syntax::Module<Resolved>> {
         init:       syntax::Expr {
             instr: vec![Instruction::i32const(666)],
         },
-    });
+    })?;
 
     builder.add_globalfield(GlobalField {
         id:         None,
@@ -51,7 +51,7 @@ pub fn make_spectest_module() -> Result<syntax::Module<Resolved>> {
         init:       syntax::Expr {
             instr: vec![Instruction::i64const(666u64)],
         },
-    });
+    })?;
     builder.add_globalfield(GlobalField {
         id:         None,
         exports:    vec!["global_f32".into()],
@@ -62,7 +62,7 @@ pub fn make_spectest_module() -> Result<syntax::Module<Resolved>> {
         init:       syntax::Expr {
             instr: vec![Instruction::f32const(666f32)],
         },
-    });
+    })?;
 
     builder.add_globalfield(GlobalField {
         id:         None,
@@ -74,7 +74,7 @@ pub fn make_spectest_module() -> Result<syntax::Module<Resolved>> {
         init:       syntax::Expr {
             instr: vec![Instruction::f64const(666f64)],
         },
-    });
+    })?;
 
     builder.add_tablefield(TableField {
         id:        None,
@@ -86,7 +86,7 @@ pub fn make_spectest_module() -> Result<syntax::Module<Resolved>> {
             },
             reftype: wrausmt_runtime::syntax::types::RefType::Func,
         },
-    });
+    })?;
     builder.add_memoryfield(MemoryField {
         id:      None,
         exports: vec!["memory".into()],
@@ -96,7 +96,7 @@ pub fn make_spectest_module() -> Result<syntax::Module<Resolved>> {
                 upper: Some(2),
             },
         },
-    });
+    })?;
 
     builder.add_funcfield(mkfunc("print", vec![]))?;
 
