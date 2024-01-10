@@ -2,6 +2,7 @@ use {
     super::{error::ParseErrorKind, pctx, Parser, Result},
     crate::text::{num, token::Token},
     std::io::Read,
+    wrausmt_common::true_or::TrueOr,
     wrausmt_runtime::{
         instructions::{instruction_by_name, Operands},
         syntax::{self, Continuation, Expr, Id, Index, Instruction, Opcode, Unresolved},
@@ -121,14 +122,10 @@ impl<R: Read> Parser<R> {
         }
     }
 
-    fn expect_plain_end(&mut self) -> Result<()> {
+    fn expect_plain_end(&mut self, label: &Option<Id>) -> Result<()> {
         pctx!(self, "expect plain end");
         match self.take_keyword_if(|kw| kw == "end")? {
-            Some(_) => {
-                // Could have an ID that should match if. We don't check for now.
-                self.try_id()?;
-                Ok(())
-            }
+            Some(_) => self.try_id_for_label(label),
             None => Err(self.unexpected_token("end")),
         }
     }
@@ -138,7 +135,7 @@ impl<R: Read> Parser<R> {
         let label = self.try_id()?;
         let typeuse = self.parse_type_use(super::module::FParamId::Forbidden)?;
         let instr = self.parse_instructions()?;
-        self.expect_plain_end()?;
+        self.expect_plain_end(&label)?;
 
         Ok(syntax::Operands::Block(label, typeuse, Expr { instr }, cnt))
     }
@@ -153,14 +150,13 @@ impl<R: Read> Parser<R> {
 
         let elsegroup = match self.take_keyword_if(|kw| kw == "else")? {
             Some(_) => {
-                // Could have an ID that should match if. We don't check for now.
-                self.try_id()?;
+                self.try_id_for_label(&label)?;
                 self.parse_instructions()?
             }
             _ => vec![],
         };
 
-        self.expect_plain_end()?;
+        self.expect_plain_end(&label)?;
 
         Ok(syntax::Operands::If(
             label,
@@ -210,6 +206,12 @@ impl<R: Read> Parser<R> {
             Self::try_folded_instruction,
             Self::try_plain_instruction_as_single,
         ])
+    }
+
+    fn try_id_for_label(&mut self, label: &Option<Id>) -> Result<()> {
+        let id = self.try_id()?;
+        (id.is_none() || id == *label)
+            .true_or_else(|| self.err(ParseErrorKind::LabelMismatch(label.clone(), id.clone())))
     }
 
     fn parse_folded_block(
