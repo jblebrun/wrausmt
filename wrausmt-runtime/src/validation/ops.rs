@@ -4,7 +4,7 @@ use {
         instructions::opcodes,
         syntax::{
             types::{NumType, ValueType},
-            Instruction, Resolved,
+            Instruction, Operands, Resolved,
         },
     },
 };
@@ -16,21 +16,36 @@ const F32: ValueType = ValueType::Num(NumType::F32);
 const F64: ValueType = ValueType::Num(NumType::F64);
 
 impl<'a> Validation<'a> {
+    /// Validate one instruction. The returned error will respect the
+    /// [`ValidationMode`] provided at creation.
     pub fn handle_instr(&mut self, instr: &Instruction<Resolved>) -> Result<()> {
-        let result = self.validation_result(instr);
-        match self.context.mode {
-            ValidationMode::Warn => {
-                if result.is_err() {
-                    println!("WARNING: Validation Failed: {result:?}");
-                }
+        self.error_for_mode(|s| s.validation_result(instr))
+    }
+
+    /// Finalize usage of this [`Validation`]. The final result stack is
+    /// verified. The returned error will response the [`ValidationMode`]
+    /// provided at creation.
+    pub fn finish(mut self) -> Result<()> {
+        self.error_for_mode(Self::validate_results)
+    }
+
+    fn validate_results(&mut self) -> Result<()> {
+        for r in self.validation_context.resulttypes {
+            self.pop_expect(*r)?;
+        }
+        Ok(())
+    }
+
+    fn error_for_mode(&mut self, op: impl Fn(&mut Self) -> Result<()>) -> Result<()> {
+        match (self.validation_context.mode, op(self)) {
+            (_, Ok(())) => Ok(()),
+            (ValidationMode::Warn, Err(e)) => {
+                println!("WARNING: Validation Failed: {e:?}");
                 Ok(())
             }
-            ValidationMode::Fail => result,
-            ValidationMode::Panic => {
-                if result.is_err() {
-                    panic!("Validation failed: {result:?}");
-                }
-                Ok(())
+            (ValidationMode::Fail, r) => r,
+            (ValidationMode::Panic, Err(e)) => {
+                panic!("Validation failed: {e:?}")
             }
         }
     }
@@ -53,10 +68,39 @@ impl<'a> Validation<'a> {
         Ok(())
     }
 
+    fn local_type(&mut self, operands: &Operands<Resolved>) -> Result<ValueType> {
+        match operands {
+            Operands::LocalIndex(li) => Ok(*self
+                .validation_context
+                .localtypes
+                .get(li.value() as usize)
+                .ok_or(ValidationError::UnknownLocal(li.clone()))?),
+            _ => panic!("Wrong operands for local, impl error."),
+        }
+    }
+
     fn validation_result(&mut self, instr: &Instruction<Resolved>) -> Result<()> {
         match instr.opcode {
             opcodes::UNREACHABLE => self.unreachable(),
 
+            // 0x20
+            opcodes::LOCAL_GET => {
+                let ty = self.local_type(&instr.operands)?;
+                self.push_val(ty);
+                Ok(())
+            }
+            opcodes::LOCAL_SET => {
+                let ty = self.local_type(&instr.operands)?;
+                self.pop_expect(ty)?;
+                Ok(())
+            }
+            opcodes::LOCAL_TEE => {
+                let ty = self.local_type(&instr.operands)?;
+                self.pop_expect(ty)?;
+                self.push_val(ty);
+                self.push_val(ty);
+                Ok(())
+            }
             // 0x41
             opcodes::I32_CONST => self.noargs(I32),
             opcodes::I64_CONST => self.noargs(I64),
@@ -232,7 +276,7 @@ impl<'a> Validation<'a> {
             opcodes::I64_TRUNC_SAT_F32_U => self.unop(F32, I64),
             opcodes::I64_TRUNC_SAT_F64_S => self.unop(F64, I64),
             opcodes::I64_TRUNC_SAT_F64_U => self.unop(F64, I64),
-            _ => Err(ValidationError::UnknownOpcode),
+            _ => Err(ValidationError::UnknownOpcode(instr.opcode)),
         }
     }
 }

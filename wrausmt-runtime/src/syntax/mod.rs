@@ -311,13 +311,6 @@ impl TypeUse<Resolved> {
             }
         }
     }
-
-    pub fn single_result(valuetype: ValueType) -> Self {
-        Self::AnonymousInline(FunctionType {
-            results: vec![FResult { valuetype }],
-            params:  vec![],
-        })
-    }
 }
 
 impl TypeUse<Unresolved> {
@@ -327,6 +320,15 @@ impl TypeUse<Unresolved> {
             TypeUse::NamedInline { index, .. } => Some(index),
             TypeUse::AnonymousInline(_) => None,
         }
+    }
+}
+
+impl<R: ResolvedState> TypeUse<R> {
+    pub fn single_result(valuetype: ValueType) -> Self {
+        Self::AnonymousInline(FunctionType {
+            results: vec![FResult { valuetype }],
+            params:  vec![],
+        })
     }
 
     pub fn function_type(&self) -> Option<&FunctionType> {
@@ -425,6 +427,17 @@ pub struct FuncField<R: ResolvedState> {
     pub body:    Expr<R>,
 }
 
+impl FuncField<Resolved> {
+    pub fn simple(body: Expr<Resolved>) -> FuncField<Resolved> {
+        FuncField {
+            id: None,
+            exports: Vec::new(),
+            typeuse: TypeUse::ById(Index::unnamed(0)),
+            locals: Vec::new(),
+            body,
+        }
+    }
+}
 impl<R: ResolvedState> std::fmt::Debug for FuncField<R> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "(func")?;

@@ -4,9 +4,9 @@ use crate::{
     syntax::{
         self,
         types::{FunctionType, RefType, ValueType},
-        Expr, Instruction, Opcode, Resolved, TypeUse,
+        Expr, FuncField, Instruction, Opcode, Resolved, TypeUse,
     },
-    validation::{Result, Validation, ValidationContext},
+    validation::{Result, Validation, ValidationContext, ValidationMode},
 };
 
 const END_OPCODE: Opcode = Opcode::Normal(0xb);
@@ -190,20 +190,31 @@ pub trait Emitter {
     }
 }
 
-pub struct Compiler<'a> {
+struct Compiler<'a> {
     output:     Vec<u8>,
     validation: Validation<'a>,
 }
 impl<'a> Compiler<'a> {
-    pub fn new(validation_context: &ValidationContext) -> Compiler {
+    pub fn new(
+        validation_mode: ValidationMode,
+        modinst: &'a ModuleInstance,
+        localtypes: &'a [ValueType],
+        resulttypes: &'a [ValueType],
+    ) -> Compiler<'a> {
         Compiler {
             output:     Vec::new(),
-            validation: Validation::new(validation_context),
+            validation: Validation::new(ValidationContext::new(
+                validation_mode,
+                modinst,
+                localtypes,
+                resulttypes,
+            )),
         }
     }
 
-    pub fn take(self) -> Vec<u8> {
-        self.output
+    pub fn finish(self) -> Result<Box<[u8]>> {
+        self.validation.finish()?;
+        Ok(self.output.into_boxed_slice())
     }
 }
 
@@ -252,14 +263,38 @@ impl<'a> Emitter for Compiler<'a> {
     }
 }
 
+/// Compile the body of the provided [`FuncField`] as if it were the provided
+/// type. Instructions will be validated using the provided [`ValidationMode`].
+/// Validation uses the provided [`ModuleInstance`] to resolve module-wide
+/// indices.
 pub fn compile_function_body(
-    func: &syntax::FuncField<Resolved>,
-    validation_context: &ValidationContext,
+    validation_mode: ValidationMode,
+    func: &FuncField<Resolved>,
+    functype: &FunctionType,
+    modinst: &ModuleInstance,
 ) -> Result<Box<[u8]>> {
-    let mut out = Compiler::new(validation_context);
+    let mut localtypes = functype.params.to_vec();
+    localtypes.extend(func.locals.iter().map(|l| l.valtype));
+
+    let mut out = Compiler::new(validation_mode, modinst, &localtypes, &functype.result);
 
     out.emit_expr(&func.body)?;
     out.emit_opcode(END_OPCODE);
 
-    Ok(out.output.into_boxed_slice())
+    out.finish()
+}
+
+/// Compile the body of the provided [`FuncField`] as if it were the provided
+/// type. Instructions will be validated using the provided [`ValidationMode`].
+/// Validation uses the provided [`ModuleInstance`] to resolve module-wide
+/// indices. A final `END` opcode will not be emitted.
+pub fn compile_simple_expression(
+    validation_mode: ValidationMode,
+    expr: &Expr<Resolved>,
+    modinst: &ModuleInstance,
+) -> Result<Box<[u8]>> {
+    let mut out = Compiler::new(validation_mode, modinst, &[], &[]);
+    out.emit_expr(expr)?;
+
+    out.finish()
 }

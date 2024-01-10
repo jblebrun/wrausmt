@@ -3,8 +3,12 @@
 //! [Spec]: https://webassembly.github.io/spec/core/appendix/algorithm.html
 
 use {
-    crate::syntax::types::{
-        FunctionType, GlobalType, MemType, ParamsType, RefType, ResultType, TableType, ValueType,
+    crate::{
+        runtime::instance::ModuleInstance,
+        syntax::{
+            types::{ParamsType, ResultType, ValueType},
+            Index, LocalIndex, Opcode, Resolved,
+        },
     },
     wrausmt_common::true_or::TrueOr,
 };
@@ -22,7 +26,8 @@ pub enum ValidationError {
         expect: ValidationType,
     },
     UnusedValues,
-    UnknownOpcode,
+    UnknownLocal(Index<Resolved, LocalIndex>),
+    UnknownOpcode(Opcode),
 }
 
 /// How to treat Validator issues.
@@ -39,38 +44,40 @@ pub enum ValidationMode {
 }
 pub type Result<T> = std::result::Result<T, ValidationError>;
 
-type FuncIndex = u32;
-
 /// The validation context for opcodes using indices, as described in [^Spec].
 ///
 /// [Spec]: https://webassembly.github.io/spec/core/appendix/algorithm.html
-#[derive(Debug, Default)]
-pub struct ValidationContext {
-    mode: ValidationMode,
+#[derive(Debug)]
+pub struct ValidationContext<'a> {
+    pub mode: ValidationMode,
 
     // Module
-    pub types:   Vec<FunctionType>,
-    pub funcs:   Vec<FunctionType>,
-    pub tables:  Vec<TableType>,
-    pub mems:    Vec<MemType>,
-    pub globals: Vec<GlobalType>,
-    pub elems:   Vec<RefType>,
-    pub datas:   Vec<()>,
-    pub refs:    Vec<FuncIndex>,
+    pub modinst: &'a ModuleInstance,
 
-    // Function
-    pub locals: Vec<ValueType>,
+    // Func
+    pub localtypes:  &'a [ValueType],
+    // Func, or empty for expression-only.
+    pub resulttypes: &'a [ValueType],
 
     // These may change throughout the sequence via control ops.
     pub labels:  Vec<Box<ResultType>>,
     pub returns: Vec<Box<ResultType>>,
 }
 
-impl ValidationContext {
-    pub fn new(mode: ValidationMode) -> ValidationContext {
+impl<'a> ValidationContext<'a> {
+    pub fn new(
+        mode: ValidationMode,
+        modinst: &'a ModuleInstance,
+        localtypes: &'a [ValueType],
+        resulttypes: &'a [ValueType],
+    ) -> ValidationContext<'a> {
         ValidationContext {
             mode,
-            ..Default::default()
+            modinst,
+            localtypes,
+            resulttypes,
+            labels: Vec::new(),
+            returns: Vec::new(),
         }
     }
 }
@@ -107,17 +114,17 @@ impl Default for CtrlFrame {
 }
 
 pub struct Validation<'a> {
+    validation_context: ValidationContext<'a>,
     #[allow(dead_code)]
-    context:    &'a ValidationContext,
-    val_stack:  Vec<ValueType>,
-    ctrl_stack: Vec<CtrlFrame>,
+    val_stack:          Vec<ValueType>,
+    ctrl_stack:         Vec<CtrlFrame>,
 }
 
 impl<'a> Validation<'a> {
-    pub fn new(context: &'a ValidationContext) -> Validation<'a> {
+    pub fn new(validation_context: ValidationContext<'a>) -> Validation<'a> {
         let ctrl_stack = vec![CtrlFrame::default()];
         Validation {
-            context,
+            validation_context,
             val_stack: Vec::default(),
             ctrl_stack,
         }
