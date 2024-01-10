@@ -1,6 +1,6 @@
 use {
     super::{
-        compile::{compile_function_body, Compiler},
+        compile::{compile_function_body, compile_simple_expression},
         error::{Result, RuntimeErrorKind},
         instance::{FunctionInstance, ModuleInstance},
         Runtime,
@@ -8,7 +8,7 @@ use {
     crate::{
         log_tag::Tag,
         runtime::{
-            compile::{compile_export, Emitter},
+            compile::compile_export,
             instance::{
                 module_instance::ModuleInstanceBuilder, DataInstance, ElemInstance, ExternalVal,
                 GlobalInstance, MemInstance, TableInstance,
@@ -21,7 +21,7 @@ use {
             DataInit, ElemList, Expr, FuncField, ImportDesc, Instruction, ModeEntry, Resolved,
             TablePosition,
         },
-        validation::{ValidationContext, ValidationMode},
+        validation::ValidationMode,
     },
     std::{convert::identity, rc::Rc},
     wrausmt_common::{logger::Logger, true_or::TrueOr},
@@ -93,14 +93,15 @@ impl Runtime {
         f: FuncField<Resolved>,
         types: &[FunctionType],
         modinst: Rc<ModuleInstance>,
-        validation_context: &ValidationContext,
+        validation_mode: ValidationMode,
     ) -> Result<FunctionInstance> {
         let functype = types
             .get(f.typeuse.index().value() as usize)
             .ok_or(RuntimeErrorKind::TypeNotFound(f.typeuse.index().value()))?
             .clone();
+        let body = compile_function_body(validation_mode, &f, &functype, &modinst)?;
+        // when do params get added?
         let locals: Box<[ValueType]> = f.locals.iter().map(|l| l.valtype).collect();
-        let body = compile_function_body(&f, validation_context)?;
         Ok(FunctionInstance {
             functype,
             module_instance: modinst,
@@ -114,43 +115,47 @@ impl Runtime {
         tp: &TablePosition<Resolved>,
         elemlist: &ElemList<Resolved>,
         ei: u32,
-        validation_context: &ValidationContext,
+        validation_mode: ValidationMode,
+        modinst: &ModuleInstance,
     ) -> Result<()> {
         let n = elemlist.items.len() as u32;
         let ti = tp.tableuse.tableidx.value();
-        let initexpr: Vec<Instruction<Resolved>> = vec![
-            Instruction::i32const(0),
-            Instruction::i32const(n),
-            Instruction::tableinit(ti, ei),
-            Instruction::elemdrop(ei),
-        ];
-        let mut init_code = Compiler::new(validation_context);
-        init_code.emit_expr(&tp.offset)?;
-        self.exec_expr(&init_code.take())?;
-        let mut init_code = Compiler::new(validation_context);
-        init_code.emit_expr(&Expr { instr: initexpr })?;
-        self.exec_expr(&init_code.take())
+        let initexpr = Expr {
+            instr: vec![
+                Instruction::i32const(0),
+                Instruction::i32const(n),
+                Instruction::tableinit(ti, ei),
+                Instruction::elemdrop(ei),
+            ],
+        };
+        // TODO can these be combined?
+        let init_code = compile_simple_expression(validation_mode, &tp.offset, modinst)?;
+        self.exec_expr(&init_code)?;
+        let init_code = compile_simple_expression(validation_mode, &initexpr, modinst)?;
+        self.exec_expr(&init_code)
     }
 
     fn init_mem(
         &mut self,
-        datainit: &DataInit<Resolved>,
+        datainit: DataInit<Resolved>,
         n: u32,
         di: u32,
-        validation_context: &ValidationContext,
+        validation_mode: ValidationMode,
+        modinst: &ModuleInstance,
     ) -> Result<()> {
-        let initexpr: Vec<Instruction<Resolved>> = vec![
-            Instruction::i32const(0),
-            Instruction::i32const(n),
-            Instruction::meminit(di),
-            Instruction::datadrop(di),
-        ];
-        let mut init_code = Compiler::new(validation_context);
-        init_code.emit_expr(&datainit.offset)?;
-        self.exec_expr(&init_code.take())?;
-        let mut init_code = Compiler::new(validation_context);
-        init_code.emit_expr(&Expr { instr: initexpr })?;
-        self.exec_expr(&init_code.take())
+        let initexpr = Expr {
+            instr: vec![
+                Instruction::i32const(0),
+                Instruction::i32const(n),
+                Instruction::meminit(di),
+                Instruction::datadrop(di),
+            ],
+        };
+        // TODO can these be combined?
+        let init_code = compile_simple_expression(validation_mode, &datainit.offset, modinst)?;
+        self.exec_expr(&init_code)?;
+        let init_code = compile_simple_expression(validation_mode, &initexpr, modinst)?;
+        self.exec_expr(&init_code)
     }
 
     fn instantiate(
@@ -172,8 +177,6 @@ impl Runtime {
             modinst_builder.add_external_val(found);
         }
 
-        let validation_context = ValidationContext::new(validation_mode);
-
         let rcinst = Rc::new(modinst_builder.clone().build());
 
         // During init, we will reset this a few times.
@@ -184,12 +187,7 @@ impl Runtime {
         // https://webassembly.github.io/spec/core/exec/modules.html#functions
         // We hold onto these so we can update the module instance at the end.
         let func_insts = module.funcs.into_iter().map(|f| {
-            Self::instantiate_function(
-                f,
-                &modinst_builder.types,
-                rcinst.clone(),
-                &validation_context,
-            )
+            Self::instantiate_function(f, &modinst_builder.types, rcinst.clone(), validation_mode)
         });
 
         let range = self.store.alloc(|s| &mut s.funcs, func_insts, Rc::new)?;
@@ -232,16 +230,15 @@ impl Runtime {
             .elems
             .iter()
             .map(|e| {
-                let refs: Box<[Ref]> = match e.mode {
+                let refs: Box<[Ref]> = match &e.mode {
                     ModeEntry::Declarative => Box::new([]),
                     _ => e
                         .elemlist
                         .items
                         .iter()
                         .map(|ei| {
-                            let mut initexpr = Compiler::new(&validation_context);
-                            initexpr.emit_expr(ei)?;
-                            self.eval_ref_expr(&initexpr.take())
+                            let initexpr = compile_simple_expression(validation_mode, ei, &rcinst)?;
+                            self.eval_ref_expr(&initexpr)
                         })
                         .collect::<Result<_>>()?,
                 };
@@ -280,9 +277,8 @@ impl Runtime {
                 self.logger.log(Tag::Load, || {
                     format!("COMPILE GLOBAL INIT EXPR {:x?}", g.init)
                 });
-                let mut initexpr = Compiler::new(&validation_context);
-                initexpr.emit_expr(&g.init)?;
-                let val = self.eval_expr(&initexpr.take())?;
+                let initexpr = compile_simple_expression(validation_mode, &g.init, &rcinst)?;
+                let val = self.eval_expr(&initexpr)?;
                 Ok(GlobalInstance {
                     typ: g.globaltype.valtype,
                     mutable: g.globaltype.mutable,
@@ -315,17 +311,17 @@ impl Runtime {
         for (i, elem) in module.elems.iter().enumerate() {
             if let ModeEntry::Active(tp) = &elem.mode {
                 self.logger
-                    .log(Tag::Load, || format!("INIT ELEMS!i {:?}", elem));
-                self.init_table(tp, &elem.elemlist, i as u32, &validation_context)?
+                    .log(Tag::Load, || format!("INIT ELEMS!i {:?}", &elem));
+                self.init_table(tp, &elem.elemlist, i as u32, validation_mode, &rcinst)?
             }
         }
 
         // (Instantiation 15.) Active mem inits.
-        for (i, initrec) in data_inits.iter().enumerate() {
-            if let Some(init) = &initrec.0 {
+        for (i, initrec) in data_inits.into_iter().enumerate() {
+            if let Some(init) = initrec.0 {
                 self.logger
                     .log(Tag::Load, || format!("INIT MEMORY !i {:?}", init));
-                self.init_mem(init, initrec.1 as u32, i as u32, &validation_context)?
+                self.init_mem(init, initrec.1 as u32, i as u32, validation_mode, &rcinst)?
             }
         }
 
