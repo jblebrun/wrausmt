@@ -182,8 +182,10 @@ fn matches_resolve_error(failure: &str, err: &ResolveError) -> bool {
         "duplicate global" => matches!(err, ResolveError::DuplicateGlobal(_)),
         "duplicate elem" => matches!(err, ResolveError::DuplicateElem(_)),
         "duplicate data" => matches!(err, ResolveError::DuplicateData(_)),
+        "duplicate local" => matches!(err, ResolveError::DuplicateLocal(_)),
         "multiple start sections" => matches!(err, ResolveError::MultipleStartSections),
         "unknown label" => matches!(err, ResolveError::UnresolvedLabel(_)),
+        "unknown type" => matches!(err, ResolveError::UnresolvedType(_)),
         _ => false,
     }
 }

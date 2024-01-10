@@ -2,6 +2,8 @@
 
 use {
     super::module_builder::ModuleIdentifiers,
+    std::collections::HashSet,
+    wrausmt_common::true_or::TrueOr,
     wrausmt_runtime::syntax::{
         DataField, DataIndex, DataInit, ElemField, ElemIndex, ElemList, ExportDesc, ExportField,
         Expr, FParam, FuncField, FuncIndex, GlobalField, GlobalIndex, Id, ImportDesc, ImportField,
@@ -86,6 +88,14 @@ impl<'a> ResolutionContext<'a> {
             .map(|s| s as u32)
     }
 
+    pub fn verify_typeindex_exists(&self, tyindex: &Index<Resolved, TypeIndex>) -> Result<()> {
+        if (tyindex.value() as usize) < self.types.len() {
+            Ok(())
+        } else {
+            Err(ResolveError::UnresolvedType(tyindex.clone()))
+        }
+    }
+
     pub fn new(modulescope: &'a ModuleIdentifiers, types: &'a mut Vec<TypeField>) -> Self {
         ResolutionContext {
             types,
@@ -154,7 +164,7 @@ macro_rules! resolve_option {
 /// This generates each of the [Resolve] impls for the [Index] in each
 /// [IndexSpace].
 macro_rules! index_resolver {
-    ( $it:ty, $ic:ident, $src:ident, $err:ident ) => {
+    ( $it:ty, $ic:ident, $src:ident [$err:ident] ) => {
         impl Resolve<Index<Resolved, $it>> for Index<Unresolved, $it> {
             fn resolve(self, $ic: &mut ResolutionContext) -> Result<Index<Resolved, $it>> {
                 let value = if self.name().as_str().is_empty() {
@@ -171,7 +181,7 @@ macro_rules! index_resolver {
         }
     };
     ( $it:ty, $ic:ident, $src:ident ) => {
-        index_resolver! { $it, $ic, $src, UnresolvedId }
+        index_resolver! { $it, $ic, $src [UnresolvedId] }
     };
 }
 
@@ -183,7 +193,7 @@ index_resolver! {MemoryIndex, ic, memindex}
 index_resolver! {ElemIndex, ic, elemindex}
 index_resolver! {DataIndex, ic, dataindex}
 index_resolver! {LocalIndex, ic, localindex}
-index_resolver! {LabelIndex, ic, labelindex, UnresolvedLabel }
+index_resolver! {LabelIndex, ic, labelindex [UnresolvedLabel] }
 
 impl Resolve<Expr<Resolved>> for Expr<Unresolved> {
     fn resolve(self, ic: &mut ResolutionContext) -> Result<Expr<Resolved>> {
@@ -419,15 +429,24 @@ impl Resolve<TypeUse<Resolved>> for TypeUse<Unresolved> {
     fn resolve(self, ic: &mut ResolutionContext) -> Result<TypeUse<Resolved>> {
         validate_inline_typeuse(&self, ic)?;
         match self {
-            TypeUse::ByIndex(idx) => Ok(TypeUse::ByIndex(idx.resolve(ic)?)),
-            // TODO: validate that the functiontype matches any existing one
+            TypeUse::ByIndex(idx) => {
+                let idx = idx.resolve(ic)?;
+                // We don't verify type index exists here because it causes parse error when we
+                // want invalid error. func.wast line 435.
+                // TODO - figure out if this can be clearer.
+                Ok(TypeUse::ByIndex(idx))
+            }
             TypeUse::NamedInline {
                 index,
                 functiontype,
-            } => Ok(TypeUse::NamedInline {
-                functiontype,
-                index: index.resolve(ic)?,
-            }),
+            } => {
+                let index = index.resolve(ic)?;
+                ic.verify_typeindex_exists(&index)?;
+                Ok(TypeUse::NamedInline {
+                    functiontype,
+                    index,
+                })
+            }
             TypeUse::AnonymousInline(functiontype) => {
                 // Creating a new inline use if a matching type doesn't exist.
                 let existing = ic
@@ -510,6 +529,13 @@ impl Resolve<FuncField<Resolved>> for FuncField<Unresolved> {
             .map(|fp| fp.id.or_empty())
             .chain(self.locals.iter().map(|l| l.id.or_empty()))
             .collect();
+
+        let mut idset: HashSet<&Id> = HashSet::new();
+        for id in localindices.iter().filter(|id| !id.as_str().is_empty()) {
+            idset
+                .insert(id)
+                .true_or_else(|| ResolveError::DuplicateLocal(id.clone()))?;
+        }
 
         let body = {
             let mut fic = ic.for_func(localindices);

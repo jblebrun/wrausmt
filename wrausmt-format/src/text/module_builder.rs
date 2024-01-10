@@ -94,7 +94,6 @@ impl ModuleBuilder {
 
     pub fn add_funcfield(&mut self, f: FuncField<Unresolved>) -> Result<()> {
         add_ident!(self, f, funcindices, funcs, self.funcidx_offset; DuplicateFunc);
-        // self.validate_inline_typeuse(&f.typeuse)?;
 
         // export field may define new exports.
         let funcidx = self.module.funcs.len() as u32 + self.funcidx_offset;
