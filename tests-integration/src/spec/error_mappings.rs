@@ -71,6 +71,7 @@ fn matches_trap(failure: &str, trap: &TrapKind) -> bool {
 
 fn matches_bin_parse_error(failure: &str, bin_parse_err: &BinaryParseErrorKind) -> bool {
     match failure {
+        // TODO - clean up code to simplify to 1:1 mapping.
         "integer too large" => {
             matches!(
                 bin_parse_err,
@@ -80,9 +81,13 @@ fn matches_bin_parse_error(failure: &str, bin_parse_err: &BinaryParseErrorKind) 
         // TODO - remove the need for InvalidFuncType
         "integer representation too long" => matches!(
             bin_parse_err,
-            BinaryParseErrorKind::LEB128Error(LEB128Error::Unterminated(_))
+            BinaryParseErrorKind::InvalidBoolValue(_)
+                | BinaryParseErrorKind::LEB128Error(LEB128Error::Unterminated(_))
                 | BinaryParseErrorKind::InvalidFuncType(_)
         ),
+        "malformed mutability" => {
+            matches!(bin_parse_err, BinaryParseErrorKind::InvalidBoolValue(_))
+        }
         "magic header not detected" => {
             matches!(bin_parse_err, BinaryParseErrorKind::IncorrectMagic(_))
         }
@@ -147,7 +152,9 @@ fn matches_parse_error(failure: &str, parse_err: &ParseErrorKind) -> bool {
 
     match failure {
         "alignment" => matches!(parse_err, ParseErrorKind::InvalidAlignment(_)),
-        "i32 constant" => matches!(parse_err, ParseErrorKind::ParseIntError(_)),
+        "i32 constant" => matches!(parse_err, ParseErrorKind::ConstantOutOfRange),
+        "i32 constant out of range" => matches!(parse_err, ParseErrorKind::ConstantOutOfRange),
+        "constant out of range" => matches!(parse_err, ParseErrorKind::ConstantOutOfRange),
         "unknown label" => matches!(parse_err, ParseErrorKind::ResolveError(_)),
         "unexpected token" => matches!(
             parse_err,
@@ -162,7 +169,6 @@ fn matches_parse_error(failure: &str, parse_err: &ParseErrorKind) -> bool {
             ParseErrorKind::UnexpectedToken(_) | ParseErrorKind::UnrecognizedInstruction(_)
         ),
         "malformed UTF-8 encoding" => matches!(parse_err, ParseErrorKind::Utf8Error(_)),
-        "constant out of range" => matches!(parse_err, ParseErrorKind::InvalidNaN(_)),
 
         "mismatching label" => matches!(parse_err, ParseErrorKind::LabelMismatch(_, _)),
         _ => false,

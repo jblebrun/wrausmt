@@ -58,12 +58,6 @@ macro_rules! spectest {
     ($name:ident) => { spectest!($name; [RunSet::All]); };
 }
 
-macro_rules! nomalformed {
-    ($($failure:literal),*) => {
-        RunSet::ExcludeFailure(vec![$($failure.into()),*])
-    };
-}
-
 #[allow(unused_macros)]
 macro_rules! indices {
     ($($idx:literal),*) => {
@@ -83,7 +77,7 @@ spectest!(r#bulk);
 spectest!(r#call);
 spectest!(r#call_indirect);
 spectest!(r#comments);
-spectest!(r#const; [nomalformed!("unknown operator", "constant out of range")]);
+spectest!(r#const);
 spectest!(r#conversions);
 spectest!(r#custom);
 spectest!(r#data);
@@ -104,7 +98,7 @@ spectest!(r#float_misc);
 spectest!(r#forward);
 spectest!(r#func);
 spectest!(r#func_ptrs);
-spectest!(r#global; [nomalformed!("malformed mutability")]);
+spectest!(r#global);
 spectest!(r#i32);
 spectest!(r#i64);
 spectest!(r#if);
@@ -120,7 +114,7 @@ spectest!(r#local_get);
 spectest!(r#local_set);
 spectest!(r#local_tee);
 spectest!(r#loop);
-spectest!(r#memory; [nomalformed!("i32 constant out of range")]);
+spectest!(r#memory);
 spectest!(r#memory_copy);
 spectest!(r#memory_fill);
 spectest!(r#memory_grow);
@@ -129,7 +123,7 @@ spectest!(r#memory_redundancy);
 spectest!(r#memory_size);
 spectest!(r#memory_trap);
 spectest!(r#names);
-spectest!(r#nop; [indices!(0, 1,2)]);
+spectest!(r#nop);
 spectest!(r#obsolete_x_keywords);
 spectest!(r#ref_func);
 spectest!(r#ref_is_null);
@@ -142,7 +136,7 @@ spectest!(r#start);
 spectest!(r#store);
 spectest!(r#switch);
 spectest!(r#table_x_sub);
-spectest!(r#table; [nomalformed!("i32 constant out of range")]);
+spectest!(r#table);
 spectest!(r#table_copy);
 spectest!(r#table_fill);
 spectest!(r#table_get);
