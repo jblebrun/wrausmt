@@ -122,22 +122,26 @@ pub fn maybe_number(idchars: &str) -> Option<NumToken> {
         cursor.advance_by(1);
     }
 
-    let mut exp = match cursor.cur() {
+    let exp_sign = match cursor.cur() {
         Some('+') => "+".to_string(),
         Some('-') => "-".to_string(),
         _ => String::new(),
     };
 
-    cursor.advance_by(exp.len());
+    cursor.advance_by(exp_sign.len());
 
-    exp += &cursor.consume_digit_group(Base::Dec);
+    let exp = &cursor.consume_digit_group(Base::Dec);
+
+    if have_exp && exp.is_empty() {
+        return None;
+    }
 
     if !cursor.is_empty() {
         return None;
     }
 
     if have_point || have_exp {
-        Some(NumToken::Float(sign, base, whole, frac, exp))
+        Some(NumToken::Float(sign, base, whole, frac, exp_sign + exp))
     } else {
         Some(NumToken::Integer(sign, base, whole))
     }

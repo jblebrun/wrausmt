@@ -52,7 +52,8 @@ impl<R: Read> Parser<R> {
 
 fn nanx_f64(sign: Sign, payload: &str) -> KindResult<f64> {
     let payload_num = u64::from_str_radix(payload, 16)?;
-    (payload_num <= 0x000F_FFFF_FFFF_FFFF).true_or(ParseErrorKind::InvalidNaN(payload_num))?;
+    (payload_num > 0 && payload_num <= 0x000F_FFFF_FFFF_FFFF)
+        .true_or(ParseErrorKind::ConstantOutOfRange)?;
 
     let base: u64 = match sign {
         Sign::Negative => 0xFFF0000000000000,
@@ -63,7 +64,7 @@ fn nanx_f64(sign: Sign, payload: &str) -> KindResult<f64> {
 
 fn nanx_f32(sign: Sign, payload: &str) -> KindResult<f32> {
     let payload_num = u32::from_str_radix(payload, 16)?;
-    (payload_num <= 0x007F_FFFF).true_or(ParseErrorKind::InvalidNaN(payload_num as u64))?;
+    (payload_num > 0 && payload_num <= 0x007F_FFFF).true_or(ParseErrorKind::ConstantOutOfRange)?;
 
     let base: u32 = match sign {
         Sign::Negative => 0xFF800000,
@@ -90,7 +91,12 @@ macro_rules! parse_float {
                     match base {
                         Base::Dec => {
                             let to_parse = format!("{}{}.{}e{}", sign.char(), whole, frac, exp);
-                            Ok(to_parse.parse::<$ty>()?)
+                            let res = to_parse.parse::<$ty>()?;
+                            if res.is_infinite() {
+                                Err(ParseErrorKind::ConstantOutOfRange)
+                            } else {
+                                Ok(res)
+                            }
                         }
                         Base::Hex => $hex(*sign, whole, frac, exp),
                     }
@@ -98,7 +104,12 @@ macro_rules! parse_float {
                 NumToken::Integer(sign, base, digits) => match base {
                     Base::Dec => {
                         let to_parse = format!("{}{}", sign.char(), digits);
-                        Ok(to_parse.parse::<$ty>()?)
+                        let res = to_parse.parse::<$ty>()?;
+                        if res.is_infinite() {
+                            Err(ParseErrorKind::ConstantOutOfRange)
+                        } else {
+                            Ok(res)
+                        }
                     }
                     Base::Hex => $hex(*sign, digits, "", "0"),
                 },
@@ -219,7 +230,7 @@ impl FloatBuilder {
     /// Handle round-to-nearest, ties-to-even for a mantissa of the provided
     /// size. Round up when the out-of-range digits are more than half LSB,
     /// Round down when out-of-range digits are less than half LSB,
-    /// When out-of-range digits are exactly half, LSB, round to nearest even,
+    /// When out-of-range digits are exactly half LSB, round to nearest even,
     /// i.e.:   round up when MSB 1, down when MSB 0.
     fn round(&mut self, size: u32) {
         let roundmask = u64::MAX >> size;
@@ -228,10 +239,17 @@ impl FloatBuilder {
         let mantissa_lsb = self.bits & even << 1;
         let round = roundpart > even || roundpart == even && mantissa_lsb != 0;
 
+        // Now that we've calculated rounding, we can shift the manitissa down.
+        // We couldn't before because the dropped bits can still influence
+        // rounding.
         self.bits >>= 64 - size;
 
         if round {
             self.bits += 1;
+            // If add overflowed the mantissa, adjust exp
+            if self.bits == (1 << size) {
+                self.exp += 1;
+            }
         }
     }
 
@@ -248,6 +266,7 @@ impl FloatBuilder {
                 self.exp += 1;
             }
         }
+        // Account for the topmost 1.
         self.exp -= 1;
     }
 
@@ -259,8 +278,7 @@ impl FloatBuilder {
             return Ok(0);
         }
 
-        (self.exp <= expmax as i16)
-            .true_or_else(|| ParseErrorKind::UnexpectedToken("floatrange".into()))?;
+        (self.exp <= expmax as i16).true_or_else(|| ParseErrorKind::ConstantOutOfRange)?;
 
         let mask = u64::MAX >> (64 - mantissa_size + 1);
         self.bits &= mask;

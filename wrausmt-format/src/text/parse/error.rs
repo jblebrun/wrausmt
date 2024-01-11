@@ -1,7 +1,7 @@
 use {
     crate::text::{lex::error::LexError, resolve::ResolveError, token::FileToken},
     std::{
-        num::{ParseFloatError, ParseIntError},
+        num::{IntErrorKind, ParseFloatError, ParseIntError},
         string::FromUtf8Error,
     },
     wrausmt_runtime::syntax::Id,
@@ -28,6 +28,7 @@ pub enum ParseErrorKind {
     ParseFloatError(ParseFloatError),
     InvalidAlignment(u32),
     InvalidNaN(u64),
+    ConstantOutOfRange,
     TooManyLocals,
     Incomplete,
     LabelMismatch(Option<Id>, Option<Id>),
@@ -91,7 +92,14 @@ impl From<ParseFloatError> for ParseErrorKind {
 
 impl From<ParseIntError> for ParseErrorKind {
     fn from(e: ParseIntError) -> Self {
-        ParseErrorKind::ParseIntError(e)
+        if matches!(
+            e.kind(),
+            IntErrorKind::NegOverflow | IntErrorKind::PosOverflow
+        ) {
+            ParseErrorKind::ConstantOutOfRange
+        } else {
+            ParseErrorKind::ParseIntError(e)
+        }
     }
 }
 

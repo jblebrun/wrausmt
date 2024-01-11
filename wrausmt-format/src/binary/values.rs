@@ -58,10 +58,11 @@ impl<R: ParserReader> BinaryParser<R> {
     /// false).
     pub(in crate::binary) fn read_bool(&mut self) -> Result<bool> {
         pctx!(self, "read bool");
-        match self.read_i7_leb_128().result(self)? {
-            0 => Ok(false),
-            1 => Ok(true),
-            b => Err(self.err(BinaryParseErrorKind::InvalidBoolValue(b as u8))),
+        match self.read_byte() {
+            Ok(0) => Ok(false),
+            Ok(1) => Ok(true),
+            Ok(b) => Err(self.err(BinaryParseErrorKind::InvalidBoolValue(b))),
+            Err(e) => Err(e),
         }
     }
 
