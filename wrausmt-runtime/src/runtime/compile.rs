@@ -4,7 +4,7 @@ use crate::{
     syntax::{
         self,
         types::{FunctionType, RefType, ValueType},
-        Expr, FuncField, Instruction, Opcode, Resolved, TypeUse,
+        FuncField, Instruction, Opcode, Resolved, TypeUse, UncompiledExpr,
     },
     validation::{Result, Validation, ValidationContext, ValidationMode},
 };
@@ -61,7 +61,7 @@ pub trait Emitter {
     fn emit_block(
         &mut self,
         typeuse: &syntax::TypeUse<Resolved>,
-        expr: &syntax::Expr<Resolved>,
+        expr: &syntax::UncompiledExpr<Resolved>,
         cnt: &syntax::Continuation,
     ) -> Result<()> {
         let startcnt = self.len() as u32 - 1;
@@ -102,8 +102,8 @@ pub trait Emitter {
     fn emit_if(
         &mut self,
         typeuse: &TypeUse<Resolved>,
-        th: &Expr<Resolved>,
-        el: &Expr<Resolved>,
+        th: &UncompiledExpr<Resolved>,
+        el: &UncompiledExpr<Resolved>,
     ) -> Result<()> {
         self.emit32(typeuse.index().value());
 
@@ -131,7 +131,7 @@ pub trait Emitter {
         Ok(())
     }
 
-    fn emit_expr(&mut self, expr: &syntax::Expr<Resolved>) -> Result<()> {
+    fn emit_expr(&mut self, expr: &syntax::UncompiledExpr<Resolved>) -> Result<()> {
         for instr in &expr.instr {
             self.validate_instr(instr)?;
 
@@ -269,7 +269,7 @@ impl<'a> Emitter for Compiler<'a> {
 /// indices.
 pub fn compile_function_body(
     validation_mode: ValidationMode,
-    func: &FuncField<Resolved>,
+    func: &FuncField<Resolved, UncompiledExpr<Resolved>>,
     functype: &FunctionType,
     modinst: &ModuleInstance,
 ) -> Result<Box<[u8]>> {
@@ -290,7 +290,7 @@ pub fn compile_function_body(
 /// indices. A final `END` opcode will not be emitted.
 pub fn compile_simple_expression(
     validation_mode: ValidationMode,
-    expr: &Expr<Resolved>,
+    expr: &UncompiledExpr<Resolved>,
     modinst: &ModuleInstance,
 ) -> Result<Box<[u8]>> {
     let mut out = Compiler::new(validation_mode, modinst, &[], &[]);

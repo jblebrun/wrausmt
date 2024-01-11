@@ -4,7 +4,7 @@ use {
         self,
         types::{GlobalType, Limits, MemType, NumType, TableType, ValueType},
         FParam, FuncField, FunctionType, GlobalField, Instruction, MemoryField, Resolved,
-        TableField, TypeUse, Unresolved,
+        TableField, TypeUse, UncompiledExpr, Unresolved,
     },
 };
 
@@ -26,7 +26,7 @@ use {
 ///  (func (export "print_i32_f32") (param i32 f32))
 ///  (func (export "print_f64_f64") (param f64 f64))
 /// )
-pub fn make_spectest_module() -> Result<syntax::Module<Resolved>> {
+pub fn make_spectest_module() -> Result<syntax::Module<Resolved, UncompiledExpr<Resolved>>> {
     let mut builder = ModuleBuilder::default();
 
     builder.add_globalfield(GlobalField {
@@ -36,7 +36,7 @@ pub fn make_spectest_module() -> Result<syntax::Module<Resolved>> {
             mutable: false,
             valtype: ValueType::Num(NumType::I32),
         },
-        init:       syntax::Expr {
+        init:       syntax::UncompiledExpr {
             instr: vec![Instruction::i32const(666)],
         },
     })?;
@@ -48,7 +48,7 @@ pub fn make_spectest_module() -> Result<syntax::Module<Resolved>> {
             mutable: false,
             valtype: ValueType::Num(NumType::I64),
         },
-        init:       syntax::Expr {
+        init:       syntax::UncompiledExpr {
             instr: vec![Instruction::i64const(666u64)],
         },
     })?;
@@ -59,7 +59,7 @@ pub fn make_spectest_module() -> Result<syntax::Module<Resolved>> {
             mutable: false,
             valtype: ValueType::Num(NumType::F32),
         },
-        init:       syntax::Expr {
+        init:       syntax::UncompiledExpr {
             instr: vec![Instruction::f32const(666f32)],
         },
     })?;
@@ -71,7 +71,7 @@ pub fn make_spectest_module() -> Result<syntax::Module<Resolved>> {
             mutable: false,
             valtype: ValueType::Num(NumType::F64),
         },
-        init:       syntax::Expr {
+        init:       syntax::UncompiledExpr {
             instr: vec![Instruction::f64const(666f64)],
         },
     })?;
@@ -145,7 +145,10 @@ pub fn make_spectest_module() -> Result<syntax::Module<Resolved>> {
     builder.build()
 }
 
-fn mkfunc(name: impl Into<String>, params: Vec<FParam>) -> FuncField<Unresolved> {
+fn mkfunc(
+    name: impl Into<String>,
+    params: Vec<FParam>,
+) -> FuncField<Unresolved, UncompiledExpr<Unresolved>> {
     FuncField {
         exports: vec![name.into()],
         typeuse: TypeUse::AnonymousInline(FunctionType {

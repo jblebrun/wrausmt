@@ -7,25 +7,25 @@ use {
     std::io::Read,
     wrausmt_runtime::syntax::{
         types::{GlobalType, Limits, MemType, TableType},
-        DataField, DataInit, ElemField, ExportDesc, ExportField, Expr, FParam, FResult, FuncField,
+        DataField, DataInit, ElemField, ExportDesc, ExportField, FParam, FResult, FuncField,
         FunctionType, GlobalField, Id, ImportDesc, ImportField, Index, IndexSpace, Instruction,
         Local, MemoryField, MemoryIndex, ModeEntry, Module, Resolved, ResolvedState, StartField,
-        TableField, TypeField, TypeUse, Unresolved,
+        TableField, TypeField, TypeUse, UncompiledExpr, Unresolved,
     },
 };
 
 #[derive(Debug, PartialEq)]
 pub enum Field<R: ResolvedState> {
     Type(TypeField),
-    Func(FuncField<R>),
-    Table(TableField, Option<ElemField<R>>),
+    Func(FuncField<R, UncompiledExpr<R>>),
+    Table(TableField, Option<ElemField<R, UncompiledExpr<R>>>),
     Memory(MemoryField, Option<Box<[u8]>>),
     Import(ImportField<R>),
     Export(ExportField<R>),
-    Global(GlobalField<R>),
+    Global(GlobalField<UncompiledExpr<R>>),
     Start(StartField<R>),
-    Elem(ElemField<R>),
-    Data(DataField<R>),
+    Elem(ElemField<R, UncompiledExpr<R>>),
+    Data(DataField<R, UncompiledExpr<R>>),
 }
 
 pub enum FParamId {
@@ -40,7 +40,7 @@ impl<R: Read> Parser<R> {
     /// Attempt to parse the current token stream as a WebAssembly module.
     /// On success, a vector of sections is returned. They can be organized into
     /// a module object.
-    pub fn try_module(&mut self) -> Result<Option<Module<Resolved>>> {
+    pub fn try_module(&mut self) -> Result<Option<Module<Resolved, UncompiledExpr<Resolved>>>> {
         pctx!(self, "try module");
         let (expect_close, id) = if self.try_expr_start("module")? {
             (true, self.try_id()?)
@@ -51,7 +51,7 @@ impl<R: Read> Parser<R> {
         self.try_module_rest(id, expect_close)
     }
 
-    pub fn parse_full_module(&mut self) -> Result<Module<Resolved>> {
+    pub fn parse_full_module(&mut self) -> Result<Module<Resolved, UncompiledExpr<Resolved>>> {
         pctx!(self, "parse full module");
         self.assure_started()?;
 
@@ -67,7 +67,7 @@ impl<R: Read> Parser<R> {
         }
     }
 
-    fn fix_elem_table_id(ef: &mut ElemField<Unresolved>, idx: u32) {
+    fn fix_elem_table_id(ef: &mut ElemField<Unresolved, UncompiledExpr<Unresolved>>, idx: u32) {
         if let ModeEntry::Active(ref mut tp) = ef.mode {
             tp.tableuse.tableidx = Index::unnamed(idx)
         }
@@ -80,7 +80,7 @@ impl<R: Read> Parser<R> {
         &mut self,
         id: Option<Id>,
         expect_close: bool,
-    ) -> Result<Option<Module<Resolved>>> {
+    ) -> Result<Option<Module<Resolved, UncompiledExpr<Resolved>>>> {
         pctx!(self, "try module rest");
         let mut module_builder = ModuleBuilder::new(id);
 
@@ -110,7 +110,7 @@ impl<R: Read> Parser<R> {
                                 data: d,
                                 init: Some(DataInit {
                                     memidx: Index::unnamed(memidx),
-                                    offset: Expr {
+                                    offset: UncompiledExpr {
                                         instr: vec![Instruction::i32const(0)],
                                     },
                                 }),
@@ -229,7 +229,7 @@ impl<R: Read> Parser<R> {
             exports,
             typeuse,
             locals,
-            body: Expr { instr },
+            body: UncompiledExpr { instr },
         })))
     }
 
@@ -483,7 +483,7 @@ impl<R: Read> Parser<R> {
             id,
             exports,
             globaltype,
-            init: Expr { instr: init },
+            init: UncompiledExpr { instr: init },
         })))
     }
 
@@ -539,29 +539,31 @@ impl<R: Read> Parser<R> {
         Ok(memidx)
     }
 
-    pub fn try_offset_expression(&mut self) -> Result<Option<Expr<Unresolved>>> {
+    pub fn try_offset_expression(&mut self) -> Result<Option<UncompiledExpr<Unresolved>>> {
         self.try_item_or_offset_expression("offset")
     }
 
-    pub fn try_item_expression(&mut self) -> Result<Option<Expr<Unresolved>>> {
+    pub fn try_item_expression(&mut self) -> Result<Option<UncompiledExpr<Unresolved>>> {
         self.try_item_or_offset_expression("item")
     }
 
     pub fn try_item_or_offset_expression(
         &mut self,
         which: &str,
-    ) -> Result<Option<Expr<Unresolved>>> {
+    ) -> Result<Option<UncompiledExpr<Unresolved>>> {
         // (offset <instr>*)
         pctx!(self, "try offset expression");
         if self.try_expr_start(which)? {
             let instr = self.parse_instructions()?;
             self.expect_close()?;
-            return Ok(Some(Expr { instr }));
+            return Ok(Some(UncompiledExpr { instr }));
         }
         // The `(instr)` form used as a special shortcut form for `item` and `offset`.
         // It's expected that if we see an open paren, there should be a valid
         // instruction and then one close parent.
-        Ok(self.try_folded_instruction()?.map(|instr| Expr { instr }))
+        Ok(self
+            .try_folded_instruction()?
+            .map(|instr| UncompiledExpr { instr }))
     }
 
     // Try to parse one "type use" section, in an import or function.

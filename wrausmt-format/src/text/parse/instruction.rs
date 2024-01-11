@@ -5,7 +5,7 @@ use {
     wrausmt_common::true_or::TrueOr,
     wrausmt_runtime::{
         instructions::{instruction_by_name, Operands},
-        syntax::{self, Continuation, Expr, Id, Index, Instruction, Opcode, Unresolved},
+        syntax::{self, Continuation, Id, Index, Instruction, Opcode, UncompiledExpr, Unresolved},
     },
 };
 
@@ -137,7 +137,12 @@ impl<R: Read> Parser<R> {
         let instr = self.parse_instructions()?;
         self.expect_plain_end(&label)?;
 
-        Ok(syntax::Operands::Block(label, typeuse, Expr { instr }, cnt))
+        Ok(syntax::Operands::Block(
+            label,
+            typeuse,
+            UncompiledExpr { instr },
+            cnt,
+        ))
     }
 
     fn parse_plain_if_operands(&mut self) -> Result<syntax::Operands<Unresolved>> {
@@ -161,8 +166,8 @@ impl<R: Read> Parser<R> {
         Ok(syntax::Operands::If(
             label,
             typeuse,
-            Expr { instr: thengroup },
-            Expr { instr: elsegroup },
+            UncompiledExpr { instr: thengroup },
+            UncompiledExpr { instr: elsegroup },
         ))
     }
 
@@ -225,7 +230,7 @@ impl<R: Read> Parser<R> {
         let typeuse = self.parse_type_use(super::module::FParamId::Forbidden)?;
         let instr = self.parse_instructions()?;
         self.expect_close()?;
-        let operands = syntax::Operands::Block(label, typeuse, Expr { instr }, cnt);
+        let operands = syntax::Operands::Block(label, typeuse, UncompiledExpr { instr }, cnt);
         Ok(Instruction {
             name,
             opcode,
@@ -242,16 +247,16 @@ impl<R: Read> Parser<R> {
         let thexpr = if self.try_expr_start("then")? {
             let instr = self.zero_or_more_groups(Self::try_instruction)?;
             self.expect_close()?;
-            Expr { instr }
+            UncompiledExpr { instr }
         } else {
             Err(self.unexpected_token("then"))?
         };
         let elexpr = if self.try_expr_start("else")? {
             let instr = self.zero_or_more_groups(Self::try_instruction)?;
             self.expect_close()?;
-            Expr { instr }
+            UncompiledExpr { instr }
         } else {
-            Expr::default()
+            UncompiledExpr { instr: vec![] }
         };
 
         self.expect_close()?;

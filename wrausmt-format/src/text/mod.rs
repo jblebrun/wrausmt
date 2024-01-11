@@ -2,7 +2,7 @@ use {
     self::parse::Parser,
     super::text::parse::error::Result,
     std::io::Read,
-    wrausmt_runtime::syntax::{Module, Resolved},
+    wrausmt_runtime::syntax::{Module, Resolved, UncompiledExpr},
 };
 
 pub mod lex;
@@ -16,7 +16,9 @@ pub mod parse;
 pub mod resolve;
 pub mod string;
 
-pub fn parse_wast_data(reader: &mut impl Read) -> Result<Module<Resolved>> {
+pub fn parse_wast_data(
+    reader: &mut impl Read,
+) -> Result<Module<Resolved, UncompiledExpr<Resolved>>> {
     let mut parser = Parser::new(reader);
     parser.parse_full_module()
 }

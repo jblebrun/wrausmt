@@ -6,10 +6,10 @@ use {
     wrausmt_common::true_or::TrueOr,
     wrausmt_runtime::syntax::{
         DataField, DataIndex, DataInit, ElemField, ElemIndex, ElemList, ExportDesc, ExportField,
-        Expr, FParam, FuncField, FuncIndex, GlobalField, GlobalIndex, Id, ImportDesc, ImportField,
-        Index, Instruction, LabelIndex, LocalIndex, MemoryIndex, ModeEntry, Module, Operands,
-        Resolved, StartField, TableIndex, TablePosition, TableUse, TypeField, TypeIndex, TypeUse,
-        Unresolved,
+        FParam, FuncField, FuncIndex, GlobalField, GlobalIndex, Id, ImportDesc, ImportField, Index,
+        Instruction, LabelIndex, LocalIndex, MemoryIndex, ModeEntry, Module, Operands, Resolved,
+        StartField, TableIndex, TablePosition, TableUse, TypeField, TypeIndex, TypeUse,
+        UncompiledExpr, Unresolved,
     },
 };
 
@@ -195,10 +195,10 @@ index_resolver! {DataIndex, ic, dataindex}
 index_resolver! {LocalIndex, ic, localindex}
 index_resolver! {LabelIndex, ic, labelindex [UnresolvedLabel] }
 
-impl Resolve<Expr<Resolved>> for Expr<Unresolved> {
-    fn resolve(self, ic: &mut ResolutionContext) -> Result<Expr<Resolved>> {
+impl Resolve<UncompiledExpr<Resolved>> for UncompiledExpr<Unresolved> {
+    fn resolve(self, ic: &mut ResolutionContext) -> Result<UncompiledExpr<Resolved>> {
         let instr = resolve_all!(self.instr, ic)?;
-        Ok(Expr { instr })
+        Ok(UncompiledExpr { instr })
     }
 }
 
@@ -263,8 +263,8 @@ impl Resolve<Operands<Resolved>> for Operands<Unresolved> {
     }
 }
 
-impl Resolve<ElemList<Resolved>> for ElemList<Unresolved> {
-    fn resolve(self, ic: &mut ResolutionContext) -> Result<ElemList<Resolved>> {
+impl Resolve<ElemList<UncompiledExpr<Resolved>>> for ElemList<UncompiledExpr<Unresolved>> {
+    fn resolve(self, ic: &mut ResolutionContext) -> Result<ElemList<UncompiledExpr<Resolved>>> {
         let items = resolve_all!(self.items, ic)?;
         Ok(ElemList {
             reftype: self.reftype,
@@ -316,8 +316,8 @@ impl Resolve<ExportDesc<Resolved>> for ExportDesc<Unresolved> {
     }
 }
 
-impl Resolve<GlobalField<Resolved>> for GlobalField<Unresolved> {
-    fn resolve(self, ic: &mut ResolutionContext) -> Result<GlobalField<Resolved>> {
+impl Resolve<GlobalField<UncompiledExpr<Resolved>>> for GlobalField<UncompiledExpr<Unresolved>> {
+    fn resolve(self, ic: &mut ResolutionContext) -> Result<GlobalField<UncompiledExpr<Resolved>>> {
         Ok(GlobalField {
             id:         self.id,
             exports:    self.exports,
@@ -335,8 +335,13 @@ impl Resolve<StartField<Resolved>> for StartField<Unresolved> {
     }
 }
 
-impl Resolve<ElemField<Resolved>> for ElemField<Unresolved> {
-    fn resolve(self, ic: &mut ResolutionContext) -> Result<ElemField<Resolved>> {
+impl Resolve<ElemField<Resolved, UncompiledExpr<Resolved>>>
+    for ElemField<Unresolved, UncompiledExpr<Unresolved>>
+{
+    fn resolve(
+        self,
+        ic: &mut ResolutionContext,
+    ) -> Result<ElemField<Resolved, UncompiledExpr<Resolved>>> {
         Ok(ElemField {
             id:       self.id,
             mode:     self.mode.resolve(ic)?,
@@ -345,8 +350,13 @@ impl Resolve<ElemField<Resolved>> for ElemField<Unresolved> {
     }
 }
 
-impl Resolve<ModeEntry<Resolved>> for ModeEntry<Unresolved> {
-    fn resolve(self, ic: &mut ResolutionContext) -> Result<ModeEntry<Resolved>> {
+impl Resolve<ModeEntry<Resolved, UncompiledExpr<Resolved>>>
+    for ModeEntry<Unresolved, UncompiledExpr<Unresolved>>
+{
+    fn resolve(
+        self,
+        ic: &mut ResolutionContext,
+    ) -> Result<ModeEntry<Resolved, UncompiledExpr<Resolved>>> {
         Ok(match self {
             ModeEntry::Passive => ModeEntry::Passive,
             ModeEntry::Active(tp) => ModeEntry::Active(tp.resolve(ic)?),
@@ -355,8 +365,13 @@ impl Resolve<ModeEntry<Resolved>> for ModeEntry<Unresolved> {
     }
 }
 
-impl Resolve<TablePosition<Resolved>> for TablePosition<Unresolved> {
-    fn resolve(self, ic: &mut ResolutionContext) -> Result<TablePosition<Resolved>> {
+impl Resolve<TablePosition<Resolved, UncompiledExpr<Resolved>>>
+    for TablePosition<Unresolved, UncompiledExpr<Unresolved>>
+{
+    fn resolve(
+        self,
+        ic: &mut ResolutionContext,
+    ) -> Result<TablePosition<Resolved, UncompiledExpr<Resolved>>> {
         Ok(TablePosition {
             tableuse: self.tableuse.resolve(ic)?,
             offset:   self.offset.resolve(ic)?,
@@ -372,8 +387,13 @@ impl Resolve<TableUse<Resolved>> for TableUse<Unresolved> {
     }
 }
 
-impl Resolve<DataField<Resolved>> for DataField<Unresolved> {
-    fn resolve(self, ic: &mut ResolutionContext) -> Result<DataField<Resolved>> {
+impl Resolve<DataField<Resolved, UncompiledExpr<Resolved>>>
+    for DataField<Unresolved, UncompiledExpr<Unresolved>>
+{
+    fn resolve(
+        self,
+        ic: &mut ResolutionContext,
+    ) -> Result<DataField<Resolved, UncompiledExpr<Resolved>>> {
         let init = resolve_option!(self.init, ic);
         Ok(DataField {
             id: self.id,
@@ -383,8 +403,13 @@ impl Resolve<DataField<Resolved>> for DataField<Unresolved> {
     }
 }
 
-impl Resolve<DataInit<Resolved>> for DataInit<Unresolved> {
-    fn resolve(self, ic: &mut ResolutionContext) -> Result<DataInit<Resolved>> {
+impl Resolve<DataInit<Resolved, UncompiledExpr<Resolved>>>
+    for DataInit<Unresolved, UncompiledExpr<Unresolved>>
+{
+    fn resolve(
+        self,
+        ic: &mut ResolutionContext,
+    ) -> Result<DataInit<Resolved, UncompiledExpr<Resolved>>> {
         Ok(DataInit {
             memidx: self.memidx.resolve(ic)?,
             offset: self.offset.resolve(ic)?,
@@ -393,11 +418,17 @@ impl Resolve<DataInit<Resolved>> for DataInit<Unresolved> {
 }
 
 pub trait ResolveModule {
-    fn resolve(self, idents: &ModuleIdentifiers) -> Result<Module<Resolved>>;
+    fn resolve(
+        self,
+        idents: &ModuleIdentifiers,
+    ) -> Result<Module<Resolved, UncompiledExpr<Resolved>>>;
 }
 
-impl ResolveModule for Module<Unresolved> {
-    fn resolve(mut self, mi: &ModuleIdentifiers) -> Result<Module<Resolved>> {
+impl ResolveModule for Module<Unresolved, UncompiledExpr<Unresolved>> {
+    fn resolve(
+        mut self,
+        mi: &ModuleIdentifiers,
+    ) -> Result<Module<Resolved, UncompiledExpr<Resolved>>> {
         let mut rc = ResolutionContext::new(mi, &mut self.types);
         let customs = self.customs;
         let funcs = resolve_all!(self.funcs, &mut rc)?;
@@ -517,8 +548,13 @@ fn validate_inline_typeuse(typeuse: &TypeUse<Unresolved>, ic: &ResolutionContext
     }
 }
 
-impl Resolve<FuncField<Resolved>> for FuncField<Unresolved> {
-    fn resolve(self, ic: &mut ResolutionContext) -> Result<FuncField<Resolved>> {
+impl Resolve<FuncField<Resolved, UncompiledExpr<Resolved>>>
+    for FuncField<Unresolved, UncompiledExpr<Unresolved>>
+{
+    fn resolve(
+        self,
+        ic: &mut ResolutionContext,
+    ) -> Result<FuncField<Resolved, UncompiledExpr<Resolved>>> {
         validate_inline_typeuse(&self.typeuse, ic)?;
 
         let typeuse = self.typeuse.resolve(ic)?;

@@ -18,8 +18,8 @@ use {
         syntax::{
             self,
             types::{FunctionType, ValueType},
-            DataInit, ElemList, Expr, FuncField, ImportDesc, Instruction, ModeEntry, Resolved,
-            TablePosition,
+            DataInit, ElemList, FuncField, ImportDesc, Instruction, ModeEntry, Resolved,
+            TablePosition, UncompiledExpr,
         },
         validation::ValidationMode,
     },
@@ -32,7 +32,7 @@ impl Runtime {
     /// [syntax::Module].
     pub fn load(
         &mut self,
-        module: syntax::Module<Resolved>,
+        module: syntax::Module<Resolved, UncompiledExpr<Resolved>>,
         validation_mode: ValidationMode,
     ) -> Result<Rc<ModuleInstance>> {
         self.instantiate(module, validation_mode)
@@ -90,7 +90,7 @@ impl Runtime {
 
     /// Instantiate a function from the provided FuncField and module instance.
     fn instantiate_function(
-        f: FuncField<Resolved>,
+        f: FuncField<Resolved, UncompiledExpr<Resolved>>,
         types: &[FunctionType],
         modinst: Rc<ModuleInstance>,
         validation_mode: ValidationMode,
@@ -112,15 +112,15 @@ impl Runtime {
 
     fn init_table(
         &mut self,
-        tp: &TablePosition<Resolved>,
-        elemlist: &ElemList<Resolved>,
+        tp: &TablePosition<Resolved, UncompiledExpr<Resolved>>,
+        elemlist: &ElemList<UncompiledExpr<Resolved>>,
         ei: u32,
         validation_mode: ValidationMode,
         modinst: &ModuleInstance,
     ) -> Result<()> {
         let n = elemlist.items.len() as u32;
         let ti = tp.tableuse.tableidx.value();
-        let initexpr = Expr {
+        let initexpr = UncompiledExpr {
             instr: vec![
                 Instruction::i32const(0),
                 Instruction::i32const(n),
@@ -137,13 +137,13 @@ impl Runtime {
 
     fn init_mem(
         &mut self,
-        datainit: DataInit<Resolved>,
+        datainit: DataInit<Resolved, UncompiledExpr<Resolved>>,
         n: u32,
         di: u32,
         validation_mode: ValidationMode,
         modinst: &ModuleInstance,
     ) -> Result<()> {
-        let initexpr = Expr {
+        let initexpr = UncompiledExpr {
             instr: vec![
                 Instruction::i32const(0),
                 Instruction::i32const(n),
@@ -160,7 +160,7 @@ impl Runtime {
 
     fn instantiate(
         &mut self,
-        module: syntax::Module<Resolved>,
+        module: syntax::Module<Resolved, UncompiledExpr<Resolved>>,
         validation_mode: ValidationMode,
     ) -> Result<Rc<ModuleInstance>> {
         let mut modinst_builder = ModuleInstanceBuilder {

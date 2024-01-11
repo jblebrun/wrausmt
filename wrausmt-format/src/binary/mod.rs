@@ -9,7 +9,7 @@ use {
         tracer::{TraceDropper, Tracer},
         true_or::TrueOr,
     },
-    wrausmt_runtime::syntax::TypeUse,
+    wrausmt_runtime::syntax::{TypeUse, UncompiledExpr},
 };
 
 pub mod error;
@@ -52,7 +52,7 @@ pub trait ParserReader: Read + Location {}
 impl<R: ParserReader> BinaryParser<R> {
     /// Inner parse method accepts a mutable module, so that the outer parse
     /// method can return partial module results (useful for debugging).
-    fn parse(&mut self) -> Result<Module<Resolved>> {
+    fn parse(&mut self) -> Result<Module<Resolved, UncompiledExpr<Resolved>>> {
         let mut module = Module::default();
 
         self.read_magic()
@@ -145,7 +145,7 @@ impl<R: ParserReader> BinaryParser<R> {
 
     fn resolve_functypes(
         &mut self,
-        funcs: &mut [FuncField<Resolved>],
+        funcs: &mut [FuncField<Resolved, UncompiledExpr<Resolved>>],
         functypes: &[Index<Resolved, TypeIndex>],
     ) -> Result<()> {
         // In a valid module, we will have parsed the func types section already, so
@@ -209,7 +209,7 @@ impl<T: ParserReader> ParserReader for BinaryParser<T> {}
 /// Attempt to interpret the data in the provided std::io:Read as a WASM binary
 /// module. If an error occurs, a ParseError will be returned containing the
 /// portion of the module that was successfully decoded.
-pub fn parse_wasm_data(src: &mut impl Read) -> Result<Module<Resolved>> {
+pub fn parse_wasm_data(src: &mut impl Read) -> Result<Module<Resolved, UncompiledExpr<Resolved>>> {
     let reader = ReadWithLocation::new(src);
     let mut parser = BinaryParser::new(reader);
     parser.parse()

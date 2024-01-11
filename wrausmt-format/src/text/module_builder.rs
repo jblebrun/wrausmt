@@ -5,7 +5,7 @@ use {
     wrausmt_runtime::syntax::{
         DataField, ElemField, ExportDesc, ExportField, FuncField, GlobalField, Id, ImportDesc,
         ImportField, Index, MemoryField, Module, Resolved, StartField, TableField, TypeField,
-        Unresolved,
+        UncompiledExpr, Unresolved,
     },
 };
 
@@ -29,7 +29,7 @@ impl ModuleIdentifiers {}
 /// happens in a subsequent resolution pass.
 #[derive(Debug, Default)]
 pub struct ModuleBuilder {
-    module:             Module<Unresolved>,
+    module:             Module<Unresolved, UncompiledExpr<Unresolved>>,
     module_identifiers: ModuleIdentifiers,
     funcidx_offset:     u32,
     tableidx_offset:    u32,
@@ -74,7 +74,7 @@ impl ModuleBuilder {
             && self.module.data.is_empty()
     }
 
-    pub fn build(self) -> Result<Module<Resolved>> {
+    pub fn build(self) -> Result<Module<Resolved, UncompiledExpr<Resolved>>> {
         self.module.resolve(&self.module_identifiers)
     }
 
@@ -92,7 +92,10 @@ impl ModuleBuilder {
         Ok(())
     }
 
-    pub fn add_funcfield(&mut self, f: FuncField<Unresolved>) -> Result<()> {
+    pub fn add_funcfield(
+        &mut self,
+        f: FuncField<Unresolved, UncompiledExpr<Unresolved>>,
+    ) -> Result<()> {
         add_ident!(self, f, funcindices, funcs, self.funcidx_offset; DuplicateFunc);
 
         // export field may define new exports.
@@ -198,7 +201,7 @@ impl ModuleBuilder {
         self.module.exports.push(f)
     }
 
-    pub fn add_globalfield(&mut self, f: GlobalField<Unresolved>) -> Result<()> {
+    pub fn add_globalfield(&mut self, f: GlobalField<UncompiledExpr<Unresolved>>) -> Result<()> {
         add_ident!(self, f, globalindices, globals, self.globalidx_offset; DuplicateGlobal);
 
         let globalidx = self.module.globals.len() as u32 + self.globalidx_offset;
@@ -222,14 +225,20 @@ impl ModuleBuilder {
         }
     }
 
-    pub fn add_elemfield(&mut self, f: ElemField<Unresolved>) -> Result<()> {
+    pub fn add_elemfield(
+        &mut self,
+        f: ElemField<Unresolved, UncompiledExpr<Unresolved>>,
+    ) -> Result<()> {
         add_ident!(self, f, elemindices, elems, 0; DuplicateElem);
 
         self.module.elems.push(f);
         Ok(())
     }
 
-    pub fn add_datafield(&mut self, f: DataField<Unresolved>) -> Result<()> {
+    pub fn add_datafield(
+        &mut self,
+        f: DataField<Unresolved, UncompiledExpr<Unresolved>>,
+    ) -> Result<()> {
         add_ident!(self, f, dataindices, data, 0; DuplicateData);
 
         self.module.data.push(f);
