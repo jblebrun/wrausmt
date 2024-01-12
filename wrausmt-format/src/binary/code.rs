@@ -10,8 +10,8 @@ use {
     wrausmt_runtime::{
         instructions::{instruction_data, op_consts, Operands, BAD_INSTRUCTION},
         syntax::{
-            self, types::ValueType, Continuation, Expr, FuncField, Id, Instruction, Local, Opcode,
-            Resolved, TypeUse,
+            self, types::ValueType, Continuation, FuncField, Id, Instruction, Local, Opcode,
+            Resolved, TypeUse, UncompiledExpr,
         },
     },
 };
@@ -30,7 +30,7 @@ enum InstructionOrEnd {
 
 #[derive(Debug)]
 pub struct ExpressionWithEnd {
-    expr: Expr<Resolved>,
+    expr: UncompiledExpr<Resolved>,
     end:  ExpressionEnd,
 }
 
@@ -48,7 +48,7 @@ impl<R: ParserReader> BinaryParser<R> {
     pub(in crate::binary) fn read_code_section(
         &mut self,
         data_indices_ok: bool,
-    ) -> Result<Vec<FuncField<Resolved>>> {
+    ) -> Result<Vec<FuncField<Resolved, UncompiledExpr<Resolved>>>> {
         pctx!(self, "read code section");
         self.read_vec(|_, s| s.read_func(data_indices_ok))
     }
@@ -56,12 +56,15 @@ impl<R: ParserReader> BinaryParser<R> {
     pub(in crate::binary) fn read_vec_exprs(
         &mut self,
         data_indices_ok: bool,
-    ) -> Result<Vec<Expr<Resolved>>> {
+    ) -> Result<Vec<UncompiledExpr<Resolved>>> {
         pctx!(self, "read vec exprs");
         self.read_vec(|_, s| s.read_expr(data_indices_ok))
     }
 
-    pub(in crate::binary) fn read_expr(&mut self, data_indices_ok: bool) -> Result<Expr<Resolved>> {
+    pub(in crate::binary) fn read_expr(
+        &mut self,
+        data_indices_ok: bool,
+    ) -> Result<UncompiledExpr<Resolved>> {
         pctx!(self, "read expr");
         self.read_expr_with_end(data_indices_ok).map(|ee| ee.expr)
     }
@@ -69,7 +72,10 @@ impl<R: ParserReader> BinaryParser<R> {
     /// code := size:u32 code:func
     /// func := (t*)*:vec(locals) e:expr
     /// The size is the size in bytes of the entire section, locals + exprs
-    fn read_func(&mut self, data_indices_ok: bool) -> Result<FuncField<Resolved>> {
+    fn read_func(
+        &mut self,
+        data_indices_ok: bool,
+    ) -> Result<FuncField<Resolved, UncompiledExpr<Resolved>>> {
         pctx!(self, "read func");
         let code_size_expected = self.read_u32_leb_128().result(self)? as usize;
 
@@ -127,15 +133,18 @@ impl<R: ParserReader> BinaryParser<R> {
     /// expr := (instr)* 0x0B
     fn read_expr_with_end(&mut self, data_indices_ok: bool) -> Result<ExpressionWithEnd> {
         pctx!(self, "read expr with end");
-        let mut expr = Expr::default();
+        let mut instr: Vec<Instruction<Resolved>> = Vec::new();
         let end = loop {
             let inst = self.read_inst(data_indices_ok);
             match inst? {
-                InstructionOrEnd::Instruction(inst) => expr.instr.push(inst),
+                InstructionOrEnd::Instruction(inst) => instr.push(inst),
                 InstructionOrEnd::End(end) => break end,
             }
         };
-        Ok(ExpressionWithEnd { expr, end })
+        Ok(ExpressionWithEnd {
+            expr: UncompiledExpr { instr },
+            end,
+        })
     }
 
     fn read_secondary_opcode(&mut self) -> Result<u8> {
@@ -258,7 +267,7 @@ impl<R: ParserReader> BinaryParser<R> {
                 let el = if matches!(th.end, ExpressionEnd::Else) {
                     self.read_expr(data_indices_ok)?
                 } else {
-                    Expr::default()
+                    UncompiledExpr { instr: vec![] }
                 };
                 syntax::Operands::If(None, bt, th.expr, el)
             }

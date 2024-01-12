@@ -1,7 +1,7 @@
 use {
     super::{error::Result, leb128::ReadLeb128, BinaryParser, ParserReader},
     crate::{binary::error::ParseResult, pctx},
-    wrausmt_runtime::syntax::{DataField, DataInit, Index, Resolved},
+    wrausmt_runtime::syntax::{DataField, DataInit, Index, Resolved, UncompiledExpr},
 };
 
 /// Read the tables section of a binary module from a std::io::Read.
@@ -9,7 +9,9 @@ impl<R: ParserReader> BinaryParser<R> {
     /// Read a funcs section. This is just a vec(TypeIndex).
     /// The values here don't correspond to a real module section, instead they
     /// correlate with the rest of the function data in the code section.
-    pub(in crate::binary) fn read_data_section(&mut self) -> Result<Vec<DataField<Resolved>>> {
+    pub(in crate::binary) fn read_data_section(
+        &mut self,
+    ) -> Result<Vec<DataField<Resolved, UncompiledExpr<Resolved>>>> {
         pctx!(self, "read data section");
         self.read_vec(|_, s| s.read_data_field())
     }
@@ -19,7 +21,7 @@ impl<R: ParserReader> BinaryParser<R> {
         self.read_u32_leb_128().result(self)
     }
 
-    fn read_data_field(&mut self) -> Result<DataField<Resolved>> {
+    fn read_data_field(&mut self) -> Result<DataField<Resolved, UncompiledExpr<Resolved>>> {
         pctx!(self, "read data field");
         let variants = self.read_u32_leb_128().result(self)?;
         let active = (variants & 0x01) == 0;

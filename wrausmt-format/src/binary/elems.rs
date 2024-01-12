@@ -6,8 +6,8 @@ use {
     },
     wrausmt_common::true_or::TrueOr,
     wrausmt_runtime::syntax::{
-        self, types::RefType, ElemField, ElemList, Expr, FuncIndex, Id, Index, Instruction,
-        ModeEntry, Opcode, Resolved, TablePosition, TableUse,
+        self, types::RefType, ElemField, ElemList, FuncIndex, Id, Index, Instruction, ModeEntry,
+        Opcode, Resolved, TablePosition, TableUse, UncompiledExpr,
     },
 };
 
@@ -50,7 +50,9 @@ impl ElemVariant {
 
 /// Read the tables section of a binary module from a std::io::Read.
 impl<R: ParserReader> BinaryParser<R> {
-    pub fn read_elems_section(&mut self) -> Result<Vec<ElemField<Resolved>>> {
+    pub fn read_elems_section(
+        &mut self,
+    ) -> Result<Vec<ElemField<Resolved, UncompiledExpr<Resolved>>>> {
         pctx!(self, "read elems section");
         self.read_vec(|_, s| s.read_elem())
     }
@@ -64,12 +66,12 @@ impl<R: ParserReader> BinaryParser<R> {
         Ok(RefType::Func)
     }
 
-    fn read_init_funcs(&mut self) -> Result<Vec<Expr<Resolved>>> {
+    fn read_init_funcs(&mut self) -> Result<Vec<UncompiledExpr<Resolved>>> {
         pctx!(self, "read init funcs");
         Ok(self
             .read_vec_funcidx()?
             .into_iter()
-            .map(|idx| Expr {
+            .map(|idx| UncompiledExpr {
                 instr: vec![Instruction {
                     name:     Id::literal("ref.func"),
                     opcode:   Opcode::Normal(0xD2),
@@ -79,7 +81,7 @@ impl<R: ParserReader> BinaryParser<R> {
             .collect())
     }
 
-    fn read_elem(&mut self) -> Result<ElemField<Resolved>> {
+    fn read_elem(&mut self) -> Result<ElemField<Resolved, UncompiledExpr<Resolved>>> {
         pctx!(self, "read elem");
         let variants = ElemVariant::new(self.read_u32_leb_128().result(self)?);
 
@@ -94,7 +96,7 @@ impl<R: ParserReader> BinaryParser<R> {
             // read offset expr
             self.read_expr(false)?
         } else {
-            Expr::default()
+            UncompiledExpr { instr: vec![] }
         };
 
         let (typekind, init_expr) = if variants.use_initexpr() {

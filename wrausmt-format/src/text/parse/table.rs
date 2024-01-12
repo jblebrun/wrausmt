@@ -3,20 +3,20 @@ use {
     std::io::Read,
     wrausmt_runtime::syntax::{
         types::{RefType, TableType},
-        ElemField, ElemList, Expr, ImportDesc, ImportField, Instruction, ModeEntry, TableField,
-        TablePosition, TableUse, Unresolved,
+        ElemField, ElemList, ImportDesc, ImportField, Instruction, ModeEntry, TableField,
+        TablePosition, TableUse, UncompiledExpr, Unresolved,
     },
 };
 
 impl<R: Read> Parser<R> {
-    fn try_index_as_funcref(&mut self) -> Result<Option<Expr<Unresolved>>> {
+    fn try_index_as_funcref(&mut self) -> Result<Option<UncompiledExpr<Unresolved>>> {
         pctx!(self, "try index as funcref");
-        Ok(self.try_index()?.map(|idx| Expr {
+        Ok(self.try_index()?.map(|idx| UncompiledExpr {
             instr: vec![Instruction::reffunc(idx)],
         }))
     }
 
-    fn read_table_inline_func_elems(&mut self) -> Result<ElemList<Unresolved>> {
+    fn read_table_inline_func_elems(&mut self) -> Result<ElemList<UncompiledExpr<Unresolved>>> {
         pctx!(self, "read table inline func elems");
         // ‘(’ ‘𝚝𝚊𝚋𝚕𝚎’  𝚒𝚍?  𝚛𝚎𝚏𝚝𝚢𝚙𝚎  ‘(’ ‘𝚎𝚕𝚎𝚖’  𝚎𝚕𝚎𝚖𝚕𝚒𝚜𝚝 ‘)’
         // ‘(’ ‘𝚝𝚊𝚋𝚕𝚎’  𝚒𝚍?  𝚛𝚎𝚏𝚝𝚢𝚙𝚎  ‘(’ ‘𝚎𝚕𝚎𝚖’  𝑥𝑛:𝚟𝚎𝚌(𝚎𝚡𝚙𝚛) ‘)’  ‘)’
@@ -96,7 +96,10 @@ impl<R: Read> Parser<R> {
     // elemexpr := ('item' <expr>)
     //           | <instr>
     //           | func <index>*
-    fn try_elemlist(&mut self, allow_bare_funcidx: bool) -> Result<ElemList<Unresolved>> {
+    fn try_elemlist(
+        &mut self,
+        allow_bare_funcidx: bool,
+    ) -> Result<ElemList<UncompiledExpr<Unresolved>>> {
         pctx!(self, "try elemlist");
         let _reftype = self.try_reftype()?;
         let items = self.zero_or_more(Self::try_item_expression)?;
