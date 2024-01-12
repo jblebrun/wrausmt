@@ -11,11 +11,6 @@ marker!(
     Resolved: ResolvedState
 );
 marker!(
-    /// A module parameterized by the [IndicesResolved] type will have undergone
-    /// index resolution, but not type use resolution.
-    IndicesResolved: ResolvedState
-);
-marker!(
     /// A module parameterized by the [Unresolved] type will have undergone index
     /// resolution, and must be compiled before it can be used by the runtime.
     Unresolved: ResolvedState

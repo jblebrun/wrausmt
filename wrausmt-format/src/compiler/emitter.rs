@@ -1,53 +1,21 @@
-use crate::{
-    instructions::op_consts,
-    runtime::instance::{ExportInstance, ExternalVal, ModuleInstance},
-    syntax::{
-        self,
-        types::{FunctionType, RefType, ValueType},
-        FuncField, Instruction, Opcode, Resolved, TypeUse, UncompiledExpr,
+use {
+    super::validation::{Result, Validation, ValidationMode},
+    wrausmt_runtime::{
+        instructions::op_consts,
+        syntax::{
+            self,
+            types::{RefType, ValueType},
+            CompiledExpr, FuncField, Instruction, Module, Opcode, Resolved, TypeUse,
+            UncompiledExpr,
+        },
     },
-    validation::{Result, Validation, ValidationContext, ValidationMode},
 };
 
 const END_OPCODE: Opcode = Opcode::Normal(0xb);
 const ELSE_OPCODE: Opcode = Opcode::Normal(0x5);
 
-impl From<syntax::FunctionType> for FunctionType {
-    fn from(ast: syntax::FunctionType) -> FunctionType {
-        FunctionType {
-            params: ast.params.iter().map(|p| p.valuetype).collect(),
-            result: ast.results.iter().map(|r| r.valuetype).collect(),
-        }
-    }
-}
-
-impl From<syntax::Local> for ValueType {
-    fn from(ast: syntax::Local) -> ValueType {
-        ast.valtype
-    }
-}
-
-fn compile_export_desc(ast: syntax::ExportDesc<Resolved>, modinst: &ModuleInstance) -> ExternalVal {
-    match ast {
-        syntax::ExportDesc::Func(idx) => ExternalVal::Func(modinst.func(idx.value())),
-        syntax::ExportDesc::Table(idx) => ExternalVal::Table(modinst.table(idx.value())),
-        syntax::ExportDesc::Mem(idx) => ExternalVal::Memory(modinst.mem(idx.value())),
-        syntax::ExportDesc::Global(idx) => ExternalVal::Global(modinst.global(idx.value())),
-    }
-}
-
-pub fn compile_export(
-    ast: syntax::ExportField<Resolved>,
-    modinst: &ModuleInstance,
-) -> ExportInstance {
-    ExportInstance {
-        name: ast.name,
-        addr: compile_export_desc(ast.exportdesc, modinst),
-    }
-}
-
 pub trait Emitter {
-    fn validate_instr(&mut self, instr: &Instruction<Resolved>) -> crate::validation::Result<()>;
+    fn validate_instr(&mut self, instr: &Instruction<Resolved>) -> Result<()>;
     fn emit8(&mut self, v: u8);
     fn emit32(&mut self, v: u32);
     fn emit64(&mut self, v: u64);
@@ -131,6 +99,12 @@ pub trait Emitter {
         Ok(())
     }
 
+    fn emit_func(&mut self, expr: &syntax::UncompiledExpr<Resolved>) -> Result<()> {
+        self.emit_expr(expr)?;
+        self.emit_opcode(END_OPCODE);
+        Ok(())
+    }
+
     fn emit_expr(&mut self, expr: &syntax::UncompiledExpr<Resolved>) -> Result<()> {
         for instr in &expr.instr {
             self.validate_instr(instr)?;
@@ -190,36 +164,85 @@ pub trait Emitter {
     }
 }
 
-struct Compiler<'a> {
+pub struct ValidatingEmitter<'a> {
     output:     Vec<u8>,
     validation: Validation<'a>,
 }
-impl<'a> Compiler<'a> {
-    pub fn new(
+impl<'a> ValidatingEmitter<'a> {
+    /// Compile a Function's body. Instructions will be validated using the
+    /// provided [`ValidationMode`]. Validation uses the provided
+    /// [`Module`] to resolve module-wide indices.
+    pub fn function_body(
         validation_mode: ValidationMode,
-        modinst: &'a ModuleInstance,
+        module: &Module<Resolved, UncompiledExpr<Resolved>>,
+        func: &FuncField<Resolved, UncompiledExpr<Resolved>>,
+    ) -> Result<CompiledExpr> {
+        let functype = &module.types[func.typeuse.index().value() as usize].functiontype;
+        let localtypes: Vec<_> = functype
+            .params
+            .iter()
+            .map(|p| p.valuetype)
+            .chain(func.locals.iter().map(|l| l.valtype))
+            .collect();
+
+        let results: Vec<_> = functype.results.iter().map(|r| r.valuetype).collect();
+
+        let mut out = ValidatingEmitter::new(validation_mode, module, &localtypes, &results);
+
+        out.emit_func(&func.body)?;
+
+        Ok(CompiledExpr {
+            instr: out.finish()?,
+        })
+    }
+
+    /// Compile the body of the provided [`FuncField`] as if it were the
+    /// provided type. Instructions will be validated using the provided
+    /// [`ValidationMode`]. Validation uses the provided [`Module`] to
+    /// resolve module-wide indices. A final `END` opcode will not be
+    /// emitted.
+    pub fn simple_expression(
+        validation_mode: ValidationMode,
+        module: &Module<Resolved, UncompiledExpr<Resolved>>,
+        expr: &UncompiledExpr<Resolved>,
+    ) -> Result<CompiledExpr> {
+        Self::simple_expressions(validation_mode, module, &[expr])
+    }
+
+    pub fn simple_expressions(
+        validation_mode: ValidationMode,
+        module: &Module<Resolved, UncompiledExpr<Resolved>>,
+        exprs: &[&UncompiledExpr<Resolved>],
+    ) -> Result<CompiledExpr> {
+        let mut out = ValidatingEmitter::new(validation_mode, module, &[], &[]);
+        for expr in exprs {
+            out.emit_expr(expr)?;
+        }
+        Ok(CompiledExpr {
+            instr: out.finish()?,
+        })
+    }
+
+    fn new(
+        validation_mode: ValidationMode,
+        module: &'a Module<Resolved, UncompiledExpr<Resolved>>,
         localtypes: &'a [ValueType],
         resulttypes: &'a [ValueType],
-    ) -> Compiler<'a> {
-        Compiler {
+    ) -> ValidatingEmitter<'a> {
+        ValidatingEmitter {
             output:     Vec::new(),
-            validation: Validation::new(ValidationContext::new(
-                validation_mode,
-                modinst,
-                localtypes,
-                resulttypes,
-            )),
+            validation: Validation::new(validation_mode, module, localtypes, resulttypes),
         }
     }
 
-    pub fn finish(self) -> Result<Box<[u8]>> {
+    fn finish(self) -> Result<Box<[u8]>> {
         self.validation.finish()?;
         Ok(self.output.into_boxed_slice())
     }
 }
 
-impl<'a> Emitter for Compiler<'a> {
-    fn validate_instr(&mut self, instr: &Instruction<Resolved>) -> crate::validation::Result<()> {
+impl<'a> Emitter for ValidatingEmitter<'a> {
+    fn validate_instr(&mut self, instr: &Instruction<Resolved>) -> Result<()> {
         self.validation.handle_instr(instr)
     }
 
@@ -261,40 +284,4 @@ impl<'a> Emitter for Compiler<'a> {
     fn is_empty(&self) -> bool {
         self.output.is_empty()
     }
-}
-
-/// Compile the body of the provided [`FuncField`] as if it were the provided
-/// type. Instructions will be validated using the provided [`ValidationMode`].
-/// Validation uses the provided [`ModuleInstance`] to resolve module-wide
-/// indices.
-pub fn compile_function_body(
-    validation_mode: ValidationMode,
-    func: &FuncField<Resolved, UncompiledExpr<Resolved>>,
-    functype: &FunctionType,
-    modinst: &ModuleInstance,
-) -> Result<Box<[u8]>> {
-    let mut localtypes = functype.params.to_vec();
-    localtypes.extend(func.locals.iter().map(|l| l.valtype));
-
-    let mut out = Compiler::new(validation_mode, modinst, &localtypes, &functype.result);
-
-    out.emit_expr(&func.body)?;
-    out.emit_opcode(END_OPCODE);
-
-    out.finish()
-}
-
-/// Compile the body of the provided [`FuncField`] as if it were the provided
-/// type. Instructions will be validated using the provided [`ValidationMode`].
-/// Validation uses the provided [`ModuleInstance`] to resolve module-wide
-/// indices. A final `END` opcode will not be emitted.
-pub fn compile_simple_expression(
-    validation_mode: ValidationMode,
-    expr: &UncompiledExpr<Resolved>,
-    modinst: &ModuleInstance,
-) -> Result<Box<[u8]>> {
-    let mut out = Compiler::new(validation_mode, modinst, &[], &[]);
-    out.emit_expr(expr)?;
-
-    out.finish()
 }

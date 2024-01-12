@@ -1,14 +1,14 @@
 use {
-    crate::loader::{Loader, Result},
+    crate::{
+        compiler::ValidationMode,
+        loader::{Loader, Result},
+    },
     std::{
         fs::File,
         io::{Read, Seek, SeekFrom},
         rc::Rc,
     },
-    wrausmt_runtime::{
-        runtime::{instance::ModuleInstance, Runtime},
-        validation::ValidationMode,
-    },
+    wrausmt_runtime::runtime::{instance::ModuleInstance, Runtime},
 };
 
 pub trait FileLoader: Loader {

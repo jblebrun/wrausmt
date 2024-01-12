@@ -1,10 +1,13 @@
 use {
-    wrausmt_format::text::{module_builder::ModuleBuilder, resolve::Result},
+    wrausmt_format::{
+        compiler::compile_module, loader::Result, text::module_builder::ModuleBuilder,
+        ValidationMode,
+    },
     wrausmt_runtime::syntax::{
         self,
         types::{GlobalType, Limits, MemType, NumType, TableType, ValueType},
-        FParam, FuncField, FunctionType, GlobalField, Instruction, MemoryField, Resolved,
-        TableField, TypeUse, UncompiledExpr, Unresolved,
+        CompiledExpr, FParam, FuncField, FunctionType, GlobalField, Instruction, MemoryField,
+        Resolved, TableField, TypeUse, UncompiledExpr, Unresolved,
     },
 };
 
@@ -26,7 +29,7 @@ use {
 ///  (func (export "print_i32_f32") (param i32 f32))
 ///  (func (export "print_f64_f64") (param f64 f64))
 /// )
-pub fn make_spectest_module() -> Result<syntax::Module<Resolved, UncompiledExpr<Resolved>>> {
+pub fn make_spectest_module() -> Result<syntax::Module<Resolved, CompiledExpr>> {
     let mut builder = ModuleBuilder::default();
 
     builder.add_globalfield(GlobalField {
@@ -142,7 +145,8 @@ pub fn make_spectest_module() -> Result<syntax::Module<Resolved, UncompiledExpr<
         },
     ]))?;
 
-    builder.build()
+    let resolved = builder.build()?;
+    Ok(compile_module(ValidationMode::Fail, resolved)?)
 }
 
 fn mkfunc(

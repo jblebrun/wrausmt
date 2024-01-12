@@ -12,7 +12,9 @@ use {
         rc::Rc,
     },
     wrausmt_common::logger::{Logger, PrintLogger},
-    wrausmt_format::{loader::Loader, text::string::WasmString},
+    wrausmt_format::{
+        compiler::compile_module, loader::Loader, text::string::WasmString, ValidationMode,
+    },
     wrausmt_runtime::{
         runtime::{
             instance::ModuleInstance,
@@ -20,7 +22,6 @@ use {
             Runtime,
         },
         syntax::{types::RefType, Id},
-        validation::ValidationMode,
     },
 };
 
@@ -115,9 +116,7 @@ fn module_data(strings: Vec<WasmString>) -> Box<[u8]> {
 impl SpecTestRunner {
     pub fn new() -> Self {
         let mut runtime = Runtime::new();
-        let spectest_module = runtime
-            .load(make_spectest_module().unwrap(), ValidationMode::Warn)
-            .unwrap();
+        let spectest_module = runtime.load(make_spectest_module().unwrap()).unwrap();
         runtime.register("spectest", spectest_module);
         SpecTestRunner {
             runtime,
@@ -207,7 +206,10 @@ impl SpecTestRunner {
         validation_mode: ValidationMode,
     ) -> CmdResult<(Option<Id>, Rc<ModuleInstance>)> {
         match m {
-            Module::Module(m) => Ok((m.id.clone(), self.runtime.load(m, validation_mode)?)),
+            Module::Module(m) => {
+                let compiled = compile_module(validation_mode, m)?;
+                Ok((compiled.id.clone(), self.runtime.load(compiled)?))
+            }
             Module::Binary(n, b) => {
                 let data = module_data(b);
                 Ok((

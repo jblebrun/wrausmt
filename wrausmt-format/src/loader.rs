@@ -2,15 +2,14 @@
 /// runtime, which expects a fully resolved module as input.
 use crate::{
     binary::{error::BinaryParseError, parse_wasm_data},
+    compiler::{compile_module, ValidationMode},
     text::parse::error::ParseError,
-    text::parse_wast_data,
+    text::{parse_wast_data, resolve::ResolveError},
+    ValidationError,
 };
 use {
     std::{io::Read, rc::Rc},
-    wrausmt_runtime::{
-        runtime::{error::RuntimeError, instance::ModuleInstance, Runtime},
-        validation::ValidationMode,
-    },
+    wrausmt_runtime::runtime::{error::RuntimeError, instance::ModuleInstance, Runtime},
 };
 
 #[derive(Debug)]
@@ -19,6 +18,8 @@ pub enum LoaderError {
     ParseError(ParseError),
     BinaryParseError(BinaryParseError),
     RuntimeError(RuntimeError),
+    ValidationError(ValidationError),
+    ResolveError(ResolveError),
 }
 
 impl LoaderError {
@@ -59,6 +60,18 @@ impl From<BinaryParseError> for LoaderError {
     }
 }
 
+impl From<ValidationError> for LoaderError {
+    fn from(e: ValidationError) -> Self {
+        LoaderError::ValidationError(e)
+    }
+}
+
+impl From<ResolveError> for LoaderError {
+    fn from(e: ResolveError) -> Self {
+        LoaderError::ResolveError(e)
+    }
+}
+
 pub type Result<T> = std::result::Result<T, LoaderError>;
 
 pub trait Loader {
@@ -83,7 +96,8 @@ impl Loader for Runtime {
     ) -> Result<Rc<ModuleInstance>> {
         let module = parse_wasm_data(reader)?;
         // TODO Switch to fail when validation is complete.
-        let mod_inst = self.load(module, validation_mode)?;
+        let compiled = compile_module(validation_mode, module)?;
+        let mod_inst = self.load(compiled)?;
         Ok(mod_inst)
     }
 
@@ -94,7 +108,8 @@ impl Loader for Runtime {
     ) -> Result<Rc<ModuleInstance>> {
         let module = parse_wast_data(reader)?;
         // TODO Switch to fail when validation is complete.
-        let mod_inst = self.load(module, validation_mode)?;
+        let compiled = compile_module(validation_mode, module)?;
+        let mod_inst = self.load(compiled)?;
         Ok(mod_inst)
     }
 }

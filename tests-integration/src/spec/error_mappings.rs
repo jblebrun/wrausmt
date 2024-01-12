@@ -13,11 +13,9 @@ use {
             parse::error::{ParseError, ParseErrorKind},
             resolve::ResolveError,
         },
+        ValidationError,
     },
-    wrausmt_runtime::{
-        runtime::error::{RuntimeError, RuntimeErrorKind, TrapKind},
-        validation::ValidationError,
-    },
+    wrausmt_runtime::runtime::error::{RuntimeErrorKind, TrapKind},
 };
 
 pub fn verify_failure<T>(result: CmdResult<T>, failure: &str) -> TestResult<()> {
@@ -32,10 +30,11 @@ pub fn verify_failure<T>(result: CmdResult<T>, failure: &str) -> TestResult<()> 
             kind,
             ..
         }))) if matches_bin_parse_error(failure, &kind) => Ok(()),
-        Err(CmdError::InvocationError(RuntimeError {
-            kind: RuntimeErrorKind::ValidationError(ve),
-            ..
-        })) if matches_validation_error(failure, &ve) => Ok(()),
+        Err(CmdError::LoaderError(LoaderError::ValidationError(ve)))
+            if matches_validation_error(failure, &ve) =>
+        {
+            Ok(())
+        }
         Err(e) => Err(TestFailureError::failure_mismatch(failure, e)),
         _ => Err(TestFailureError::failure_missing(failure)),
     }

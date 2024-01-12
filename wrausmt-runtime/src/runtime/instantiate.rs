@@ -1,14 +1,12 @@
 use {
     super::{
-        compile::{compile_function_body, compile_simple_expression},
         error::{Result, RuntimeErrorKind},
-        instance::{FunctionInstance, ModuleInstance},
+        instance::{ExportInstance, FunctionInstance, ModuleInstance},
         Runtime,
     },
     crate::{
         log_tag::Tag,
         runtime::{
-            compile::compile_export,
             instance::{
                 module_instance::ModuleInstanceBuilder, DataInstance, ElemInstance, ExternalVal,
                 GlobalInstance, MemInstance, TableInstance,
@@ -18,10 +16,8 @@ use {
         syntax::{
             self,
             types::{FunctionType, ValueType},
-            DataInit, ElemList, FuncField, ImportDesc, Instruction, ModeEntry, Resolved,
-            TablePosition, UncompiledExpr,
+            CompiledExpr, DataInit, FuncField, ImportDesc, ModeEntry, Resolved, TablePosition,
         },
-        validation::ValidationMode,
     },
     std::{convert::identity, rc::Rc},
     wrausmt_common::{logger::Logger, true_or::TrueOr},
@@ -32,10 +28,9 @@ impl Runtime {
     /// [syntax::Module].
     pub fn load(
         &mut self,
-        module: syntax::Module<Resolved, UncompiledExpr<Resolved>>,
-        validation_mode: ValidationMode,
+        module: syntax::Module<Resolved, CompiledExpr>,
     ) -> Result<Rc<ModuleInstance>> {
-        self.instantiate(module, validation_mode)
+        self.instantiate(module)
     }
 
     fn validate_import(
@@ -90,78 +85,57 @@ impl Runtime {
 
     /// Instantiate a function from the provided FuncField and module instance.
     fn instantiate_function(
-        f: FuncField<Resolved, UncompiledExpr<Resolved>>,
+        f: FuncField<Resolved, CompiledExpr>,
         types: &[FunctionType],
         modinst: Rc<ModuleInstance>,
-        validation_mode: ValidationMode,
     ) -> Result<FunctionInstance> {
         let functype = types
             .get(f.typeuse.index().value() as usize)
             .ok_or(RuntimeErrorKind::TypeNotFound(f.typeuse.index().value()))?
             .clone();
-        let body = compile_function_body(validation_mode, &f, &functype, &modinst)?;
         // when do params get added?
         let locals: Box<[ValueType]> = f.locals.iter().map(|l| l.valtype).collect();
         Ok(FunctionInstance {
             functype,
             module_instance: modinst,
             locals,
-            body,
+            body: f.body.instr,
         })
     }
 
-    fn init_table(
-        &mut self,
-        tp: &TablePosition<Resolved, UncompiledExpr<Resolved>>,
-        elemlist: &ElemList<UncompiledExpr<Resolved>>,
-        ei: u32,
-        validation_mode: ValidationMode,
-        modinst: &ModuleInstance,
-    ) -> Result<()> {
-        let n = elemlist.items.len() as u32;
-        let ti = tp.tableuse.tableidx.value();
-        let initexpr = UncompiledExpr {
-            instr: vec![
-                Instruction::i32const(0),
-                Instruction::i32const(n),
-                Instruction::tableinit(ti, ei),
-                Instruction::elemdrop(ei),
-            ],
-        };
-        // TODO can these be combined?
-        let init_code = compile_simple_expression(validation_mode, &tp.offset, modinst)?;
-        self.exec_expr(&init_code)?;
-        let init_code = compile_simple_expression(validation_mode, &initexpr, modinst)?;
-        self.exec_expr(&init_code)
+    fn init_table(&mut self, tp: &TablePosition<Resolved, CompiledExpr>) -> Result<()> {
+        self.exec_expr(&tp.offset.instr)
     }
 
-    fn init_mem(
-        &mut self,
-        datainit: DataInit<Resolved, UncompiledExpr<Resolved>>,
-        n: u32,
-        di: u32,
-        validation_mode: ValidationMode,
+    fn init_mem(&mut self, datainit: DataInit<Resolved, CompiledExpr>) -> Result<()> {
+        self.exec_expr(&datainit.offset.instr)
+    }
+
+    fn instantiate_export_desc(
+        ast: syntax::ExportDesc<Resolved>,
         modinst: &ModuleInstance,
-    ) -> Result<()> {
-        let initexpr = UncompiledExpr {
-            instr: vec![
-                Instruction::i32const(0),
-                Instruction::i32const(n),
-                Instruction::meminit(di),
-                Instruction::datadrop(di),
-            ],
-        };
-        // TODO can these be combined?
-        let init_code = compile_simple_expression(validation_mode, &datainit.offset, modinst)?;
-        self.exec_expr(&init_code)?;
-        let init_code = compile_simple_expression(validation_mode, &initexpr, modinst)?;
-        self.exec_expr(&init_code)
+    ) -> ExternalVal {
+        match ast {
+            syntax::ExportDesc::Func(idx) => ExternalVal::Func(modinst.func(idx.value())),
+            syntax::ExportDesc::Table(idx) => ExternalVal::Table(modinst.table(idx.value())),
+            syntax::ExportDesc::Mem(idx) => ExternalVal::Memory(modinst.mem(idx.value())),
+            syntax::ExportDesc::Global(idx) => ExternalVal::Global(modinst.global(idx.value())),
+        }
+    }
+
+    pub fn instantiate_export(
+        ast: syntax::ExportField<Resolved>,
+        modinst: &ModuleInstance,
+    ) -> ExportInstance {
+        ExportInstance {
+            name: ast.name,
+            addr: Self::instantiate_export_desc(ast.exportdesc, modinst),
+        }
     }
 
     fn instantiate(
         &mut self,
-        module: syntax::Module<Resolved, UncompiledExpr<Resolved>>,
-        validation_mode: ValidationMode,
+        module: syntax::Module<Resolved, CompiledExpr>,
     ) -> Result<Rc<ModuleInstance>> {
         let mut modinst_builder = ModuleInstanceBuilder {
             types: module
@@ -186,9 +160,10 @@ impl Runtime {
         // (Alloc 2.) Allocate functions
         // https://webassembly.github.io/spec/core/exec/modules.html#functions
         // We hold onto these so we can update the module instance at the end.
-        let func_insts = module.funcs.into_iter().map(|f| {
-            Self::instantiate_function(f, &modinst_builder.types, rcinst.clone(), validation_mode)
-        });
+        let func_insts = module
+            .funcs
+            .into_iter()
+            .map(|f| Self::instantiate_function(f, &modinst_builder.types, rcinst.clone()));
 
         let range = self.store.alloc(|s| &mut s.funcs, func_insts, Rc::new)?;
         modinst_builder.funcs.extend(range);
@@ -236,10 +211,7 @@ impl Runtime {
                         .elemlist
                         .items
                         .iter()
-                        .map(|ei| {
-                            let initexpr = compile_simple_expression(validation_mode, ei, &rcinst)?;
-                            self.eval_ref_expr(&initexpr)
-                        })
+                        .map(|ei| self.eval_ref_expr(&ei.instr))
                         .collect::<Result<_>>()?,
                 };
                 Ok(ElemInstance::new(refs))
@@ -255,15 +227,16 @@ impl Runtime {
             format!("LOADED ELEMS {:?}", modinst_builder.elems)
         });
 
-        let (data_inits, data_insts): (Vec<_>, Vec<_>) = module
-            .data
-            .into_iter()
-            .map(|d| ((d.init, d.data.len()), Ok(DataInstance { bytes: d.data })))
-            .unzip();
+        let mut data_inits: Vec<DataInit<Resolved, CompiledExpr>> = Vec::new();
+        let data_insts = module.data.into_iter().map(|d| {
+            // Pluck out the data inits now for step 15.
+            if let Some(init) = d.init {
+                data_inits.push(init);
+            }
+            Ok(DataInstance { bytes: d.data })
+        });
 
-        let range = self
-            .store
-            .alloc(|s| &mut s.datas, data_insts.into_iter(), identity)?;
+        let range = self.store.alloc(|s| &mut s.datas, data_insts, identity)?;
         modinst_builder.data.extend(range);
         self.logger.log(Tag::Load, || {
             format!("LOADED DATA {:?}", modinst_builder.data)
@@ -277,15 +250,17 @@ impl Runtime {
                 self.logger.log(Tag::Load, || {
                     format!("COMPILE GLOBAL INIT EXPR {:x?}", g.init)
                 });
-                let initexpr = compile_simple_expression(validation_mode, &g.init, &rcinst)?;
-                let val = self.eval_expr(&initexpr)?;
+                let val = self.eval_expr(&g.init.instr)?;
                 Ok(GlobalInstance {
                     typ: g.globaltype.valtype,
                     mutable: g.globaltype.mutable,
                     val,
                 })
             })
+            // We have to collect immediately, because the iterator holds a read ref to self.
+            // So we can't call self.store.alloc while that's active.
             .collect();
+
         let range = self
             .store
             .alloc(|s| &mut s.globals, global_insts.into_iter(), identity)?;
@@ -308,21 +283,19 @@ impl Runtime {
         self.stack.push_dummy_activation(rcinst.clone())?;
 
         // (Instantiation 14.) Active table inits.
-        for (i, elem) in module.elems.iter().enumerate() {
+        for elem in &module.elems {
             if let ModeEntry::Active(tp) = &elem.mode {
                 self.logger
                     .log(Tag::Load, || format!("INIT ELEMS!i {:?}", &elem));
-                self.init_table(tp, &elem.elemlist, i as u32, validation_mode, &rcinst)?
+                self.init_table(tp)?
             }
         }
 
         // (Instantiation 15.) Active mem inits.
-        for (i, initrec) in data_inits.into_iter().enumerate() {
-            if let Some(init) = initrec.0 {
-                self.logger
-                    .log(Tag::Load, || format!("INIT MEMORY !i {:?}", init));
-                self.init_mem(init, initrec.1 as u32, i as u32, validation_mode, &rcinst)?
-            }
+        for init in data_inits.into_iter() {
+            self.logger
+                .log(Tag::Load, || format!("INIT MEMORY !i {:?}", init));
+            self.init_mem(init)?
         }
 
         // This is OK, nothing should be referencing the old ModuleInstance.
@@ -333,7 +306,7 @@ impl Runtime {
         modinst_builder.exports = module
             .exports
             .into_iter()
-            .map(|e| compile_export(e, &rcinst))
+            .map(|e| Self::instantiate_export(e, &rcinst))
             .collect();
 
         self.logger.log(Tag::Load, || {
@@ -355,5 +328,14 @@ impl Runtime {
         }
 
         Ok(rcinst)
+    }
+}
+
+impl From<syntax::FunctionType> for FunctionType {
+    fn from(ast: syntax::FunctionType) -> FunctionType {
+        FunctionType {
+            params: ast.params.iter().map(|p| p.valuetype).collect(),
+            result: ast.results.iter().map(|r| r.valuetype).collect(),
+        }
     }
 }

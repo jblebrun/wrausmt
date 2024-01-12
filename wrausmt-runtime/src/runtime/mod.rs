@@ -4,7 +4,6 @@ use {
     wrausmt_common::logger::{Logger, PrintLogger},
 };
 
-mod compile;
 pub mod error;
 pub mod exec;
 pub mod instance;
