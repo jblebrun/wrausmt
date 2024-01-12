@@ -1,6 +1,6 @@
 use {
     super::{Result, Validation, ValidationError, ValidationMode},
-    crate::{
+    wrausmt_runtime::{
         instructions::opcodes,
         syntax::{
             types::{NumType, ValueType},
@@ -30,14 +30,14 @@ impl<'a> Validation<'a> {
     }
 
     fn validate_results(&mut self) -> Result<()> {
-        for r in self.validation_context.resulttypes {
+        for r in self.resulttypes {
             self.pop_expect(*r)?;
         }
         Ok(())
     }
 
     fn error_for_mode(&mut self, op: impl Fn(&mut Self) -> Result<()>) -> Result<()> {
-        match (self.validation_context.mode, op(self)) {
+        match (self.mode, op(self)) {
             (_, Ok(())) => Ok(()),
             (ValidationMode::Warn, Err(e)) => {
                 println!("WARNING: Validation Failed: {e:?}");
@@ -71,7 +71,6 @@ impl<'a> Validation<'a> {
     fn local_type(&mut self, operands: &Operands<Resolved>) -> Result<ValueType> {
         match operands {
             Operands::LocalIndex(li) => Ok(*self
-                .validation_context
                 .localtypes
                 .get(li.value() as usize)
                 .ok_or(ValidationError::UnknownLocal(li.clone()))?),

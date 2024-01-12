@@ -1,6 +1,6 @@
 use {
     super::format::ActionResult,
-    wrausmt_format::{loader::LoaderError, text::location::Location},
+    wrausmt_format::{loader::LoaderError, text::location::Location, ValidationError},
     wrausmt_runtime::{
         runtime::{error::RuntimeError, values::Value},
         syntax::Id,
@@ -122,5 +122,11 @@ impl From<LoaderError> for CmdError {
 impl From<TestFailureError> for CmdError {
     fn from(e: TestFailureError) -> Self {
         CmdError::TestFailure(e)
+    }
+}
+
+impl From<ValidationError> for CmdError {
+    fn from(e: ValidationError) -> Self {
+        CmdError::LoaderError(LoaderError::ValidationError(e))
     }
 }

@@ -3,14 +3,11 @@
 //! [Spec]: https://webassembly.github.io/spec/core/appendix/algorithm.html
 
 use {
-    crate::{
-        runtime::instance::ModuleInstance,
-        syntax::{
-            types::{ParamsType, ResultType, ValueType},
-            Index, LocalIndex, Opcode, Resolved,
-        },
-    },
     wrausmt_common::true_or::TrueOr,
+    wrausmt_runtime::syntax::{
+        types::{ParamsType, ResultType, ValueType},
+        Index, LocalIndex, Module, Opcode, Resolved, UncompiledExpr,
+    },
 };
 
 mod ops;
@@ -44,44 +41,6 @@ pub enum ValidationMode {
 }
 pub type Result<T> = std::result::Result<T, ValidationError>;
 
-/// The validation context for opcodes using indices, as described in [^Spec].
-///
-/// [Spec]: https://webassembly.github.io/spec/core/appendix/algorithm.html
-#[derive(Debug)]
-pub struct ValidationContext<'a> {
-    pub mode: ValidationMode,
-
-    // Module
-    pub modinst: &'a ModuleInstance,
-
-    // Func
-    pub localtypes:  &'a [ValueType],
-    // Func, or empty for expression-only.
-    pub resulttypes: &'a [ValueType],
-
-    // These may change throughout the sequence via control ops.
-    pub labels:  Vec<Box<ResultType>>,
-    pub returns: Vec<Box<ResultType>>,
-}
-
-impl<'a> ValidationContext<'a> {
-    pub fn new(
-        mode: ValidationMode,
-        modinst: &'a ModuleInstance,
-        localtypes: &'a [ValueType],
-        resulttypes: &'a [ValueType],
-    ) -> ValidationContext<'a> {
-        ValidationContext {
-            mode,
-            modinst,
-            localtypes,
-            resulttypes,
-            labels: Vec::new(),
-            returns: Vec::new(),
-        }
-    }
-}
-
 /// Type representations during validation.
 ///
 /// [Spec]: https://webassembly.github.io/spec/core/appendix/algorithm.html#data-structures
@@ -113,18 +72,36 @@ impl Default for CtrlFrame {
     }
 }
 
+/// The Validation context and implementation.
+///
+/// [Spec]: https://webassembly.github.io/spec/core/appendix/algorithm.html
 pub struct Validation<'a> {
-    validation_context: ValidationContext<'a>,
+    pub mode: ValidationMode,
+
+    pub module:      &'a Module<Resolved, UncompiledExpr<Resolved>>,
+    // Func
+    pub localtypes:  &'a [ValueType],
+    // Func, or empty for expression-only.
+    pub resulttypes: &'a [ValueType],
+
     #[allow(dead_code)]
-    val_stack:          Vec<ValueType>,
-    ctrl_stack:         Vec<CtrlFrame>,
+    val_stack:  Vec<ValueType>,
+    ctrl_stack: Vec<CtrlFrame>,
 }
 
 impl<'a> Validation<'a> {
-    pub fn new(validation_context: ValidationContext<'a>) -> Validation<'a> {
+    pub fn new(
+        mode: ValidationMode,
+        module: &'a Module<Resolved, UncompiledExpr<Resolved>>,
+        localtypes: &'a [ValueType],
+        resulttypes: &'a [ValueType],
+    ) -> Validation<'a> {
         let ctrl_stack = vec![CtrlFrame::default()];
         Validation {
-            validation_context,
+            mode,
+            module,
+            localtypes,
+            resulttypes,
             val_stack: Vec::default(),
             ctrl_stack,
         }

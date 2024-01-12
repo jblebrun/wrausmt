@@ -4,7 +4,7 @@ use {
         loader::parse_and_run,
         runner::{RunConfig, RunSet},
     },
-    wrausmt_runtime::validation::ValidationMode,
+    wrausmt_format::ValidationMode,
 };
 
 const GLOBAL_FAILURES_TO_IGNORE: &[&str] = &[

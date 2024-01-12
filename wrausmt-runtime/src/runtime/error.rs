@@ -1,9 +1,6 @@
 use {
     super::instance::ExternalVal,
-    crate::{
-        syntax::{ImportDesc, Resolved},
-        validation::ValidationError,
-    },
+    crate::syntax::{ImportDesc, Resolved},
     std::fmt,
 };
 
@@ -46,7 +43,6 @@ pub enum RuntimeErrorKind {
     ImportNotFound(String, String),
     ImportMismatch(ImportDesc<Resolved>, ExternalVal),
     ImplementationBug(String),
-    ValidationError(ValidationError),
     ArgumentCountError { expected: usize, got: usize },
     CallStackExhaustion,
     Trap(TrapKind),
@@ -75,14 +71,6 @@ impl From<RuntimeErrorKind> for RuntimeError {
     fn from(value: RuntimeErrorKind) -> Self {
         RuntimeError {
             kind:    value,
-            context: vec![],
-        }
-    }
-}
-impl From<ValidationError> for RuntimeError {
-    fn from(value: ValidationError) -> Self {
-        RuntimeError {
-            kind:    RuntimeErrorKind::ValidationError(value),
             context: vec![],
         }
     }
