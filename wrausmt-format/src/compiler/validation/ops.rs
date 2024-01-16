@@ -82,6 +82,10 @@ impl<'a> Validation<'a> {
         match instr.opcode {
             opcodes::UNREACHABLE => self.unreachable(),
 
+            opcodes::END => {
+                // TODO
+                Ok(())
+            }
             // 0x20
             opcodes::LOCAL_GET => {
                 let ty = self.local_type(&instr.operands)?;

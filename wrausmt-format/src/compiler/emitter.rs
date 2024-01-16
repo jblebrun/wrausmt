@@ -1,18 +1,15 @@
 use {
     super::validation::{Result, Validation, ValidationMode},
     wrausmt_runtime::{
-        instructions::op_consts,
+        instructions::{op_consts, opcodes},
         syntax::{
             self,
             types::{RefType, ValueType},
-            CompiledExpr, FuncField, Instruction, Module, Opcode, Resolved, TypeUse,
+            CompiledExpr, FuncField, Id, Instruction, Module, Opcode, Operands, Resolved, TypeUse,
             UncompiledExpr,
         },
     },
 };
-
-const END_OPCODE: Opcode = Opcode::Normal(0xb);
-const ELSE_OPCODE: Opcode = Opcode::Normal(0x5);
 
 pub trait Emitter {
     fn validate_instr(&mut self, instr: &Instruction<Resolved>) -> Result<()>;
@@ -48,7 +45,7 @@ pub trait Emitter {
         }
 
         self.emit_expr(expr)?;
-        self.emit_opcode(END_OPCODE);
+        self.emit_end()?;
 
         // If the continuation is at the end of the block, we go back to the space
         // we reserved (just above), and write self the position of the last item
@@ -88,79 +85,100 @@ pub trait Emitter {
         if !el.instr.is_empty() {
             self.splice32(else_location, self.len() as u32 + 1);
             // Replace the `end` for the then expression with the else opcode.
-            self.emit_opcode(ELSE_OPCODE);
+            self.emit_else()?;
             self.emit_expr(el)?;
         } else {
             self.splice32(else_location, self.len() as u32);
         }
 
-        self.emit_opcode(END_OPCODE);
+        self.emit_end()?;
         self.splice32(end_location, self.len() as u32);
         Ok(())
     }
 
     fn emit_func(&mut self, expr: &syntax::UncompiledExpr<Resolved>) -> Result<()> {
         self.emit_expr(expr)?;
-        self.emit_opcode(END_OPCODE);
+        self.emit_end()?;
         Ok(())
     }
 
     fn emit_expr(&mut self, expr: &syntax::UncompiledExpr<Resolved>) -> Result<()> {
         for instr in &expr.instr {
-            self.validate_instr(instr)?;
+            self.emit_instr(instr)?;
+        }
+        Ok(())
+    }
 
-            // Emit opcode
-            self.emit_opcode(instr.opcode);
+    fn emit_instr(&mut self, instr: &syntax::Instruction<Resolved>) -> Result<()> {
+        self.validate_instr(instr)?;
 
-            // Emit operands
-            match &instr.operands {
-                syntax::Operands::None => (),
-                syntax::Operands::Block(_, typeuse, e, cnt) => self.emit_block(typeuse, e, cnt)?,
-                syntax::Operands::BrTable(indices) => self.emit_br_table(indices),
-                syntax::Operands::CallIndirect(idx, typeuse) => {
-                    self.emit32(idx.value());
-                    self.emit32(typeuse.index().value());
-                }
-                syntax::Operands::Select(_) => (),
-                syntax::Operands::If(_, typeuse, th, el) => self.emit_if(typeuse, th, el)?,
-                syntax::Operands::I32(n) => self.emit32(*n),
-                syntax::Operands::I64(n) => self.emit64(*n),
-                syntax::Operands::F32(n) => self.emit32(n.to_bits()),
-                syntax::Operands::F64(n) => self.emit64(n.to_bits()),
-                syntax::Operands::FuncIndex(idx) => self.emit32(idx.value()),
-                syntax::Operands::TableIndex(idx) => self.emit32(idx.value()),
-                syntax::Operands::GlobalIndex(idx) => self.emit32(idx.value()),
-                syntax::Operands::ElemIndex(idx) => self.emit32(idx.value()),
-                syntax::Operands::DataIndex(idx) => self.emit32(idx.value()),
-                syntax::Operands::LocalIndex(idx) => self.emit32(idx.value()),
-                syntax::Operands::LabelIndex(idx) => self.emit32(idx.value()),
-                syntax::Operands::MemoryIndex(idx) => self.emit32(idx.value()),
-                syntax::Operands::Memargs1(o, a)
-                | syntax::Operands::Memargs2(o, a)
-                | syntax::Operands::Memargs4(o, a)
-                | syntax::Operands::Memargs8(o, a) => {
-                    self.emit32(*o);
-                    self.emit32(*a)
-                }
-                syntax::Operands::TableInit(ti, ei) => {
-                    self.emit32(ti.value());
-                    self.emit32(ei.value());
-                }
-                syntax::Operands::TableCopy(ti, t2i) => {
-                    self.emit32(ti.value());
-                    self.emit32(t2i.value());
-                }
-                syntax::Operands::HeapType(ht) => {
-                    // Use the binary format encoding of ref type.
-                    let htbyte = match ht {
-                        RefType::Func => 0x70,
-                        RefType::Extern => 0x6F,
-                    };
-                    self.emit8(htbyte);
-                }
+        // Emit opcode
+        self.emit_opcode(instr.opcode);
+
+        // Emit operands
+        match &instr.operands {
+            syntax::Operands::None => (),
+            syntax::Operands::Block(_, typeuse, e, cnt) => self.emit_block(typeuse, e, cnt)?,
+            syntax::Operands::BrTable(indices) => self.emit_br_table(indices),
+            syntax::Operands::CallIndirect(idx, typeuse) => {
+                self.emit32(idx.value());
+                self.emit32(typeuse.index().value());
+            }
+            syntax::Operands::Select(_) => (),
+            syntax::Operands::If(_, typeuse, th, el) => self.emit_if(typeuse, th, el)?,
+            syntax::Operands::I32(n) => self.emit32(*n),
+            syntax::Operands::I64(n) => self.emit64(*n),
+            syntax::Operands::F32(n) => self.emit32(n.to_bits()),
+            syntax::Operands::F64(n) => self.emit64(n.to_bits()),
+            syntax::Operands::FuncIndex(idx) => self.emit32(idx.value()),
+            syntax::Operands::TableIndex(idx) => self.emit32(idx.value()),
+            syntax::Operands::GlobalIndex(idx) => self.emit32(idx.value()),
+            syntax::Operands::ElemIndex(idx) => self.emit32(idx.value()),
+            syntax::Operands::DataIndex(idx) => self.emit32(idx.value()),
+            syntax::Operands::LocalIndex(idx) => self.emit32(idx.value()),
+            syntax::Operands::LabelIndex(idx) => self.emit32(idx.value()),
+            syntax::Operands::MemoryIndex(idx) => self.emit32(idx.value()),
+            syntax::Operands::Memargs1(o, a)
+            | syntax::Operands::Memargs2(o, a)
+            | syntax::Operands::Memargs4(o, a)
+            | syntax::Operands::Memargs8(o, a) => {
+                self.emit32(*o);
+                self.emit32(*a)
+            }
+            syntax::Operands::TableInit(ti, ei) => {
+                self.emit32(ti.value());
+                self.emit32(ei.value());
+            }
+            syntax::Operands::TableCopy(ti, t2i) => {
+                self.emit32(ti.value());
+                self.emit32(t2i.value());
+            }
+            syntax::Operands::HeapType(ht) => {
+                // Use the binary format encoding of ref type.
+                let htbyte = match ht {
+                    RefType::Func => 0x70,
+                    RefType::Extern => 0x6F,
+                };
+                self.emit8(htbyte);
             }
         }
         Ok(())
+    }
+
+    fn emit_end(&mut self) -> Result<()> {
+        self.emit_instr(&Instruction {
+            name:     Id::literal("end"),
+            opcode:   opcodes::END,
+            operands: Operands::None,
+        })
+    }
+
+    fn emit_else(&mut self) -> Result<()> {
+        self.emit_instr(&Instruction {
+            name:     Id::literal("else"),
+            opcode:   opcodes::ELSE,
+            operands: Operands::None,
+        })
     }
 }
 
