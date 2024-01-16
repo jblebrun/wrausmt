@@ -1,10 +1,11 @@
 use {
     super::{Result, Validation, ValidationError, ValidationMode},
+    crate::compiler::ValueTypes,
     wrausmt_runtime::{
         instructions::opcodes,
         syntax::{
             types::{NumType, ValueType},
-            Instruction, Operands, Resolved,
+            Instruction, Operands, Resolved, TypeUse,
         },
     },
 };
@@ -20,20 +21,6 @@ impl<'a> Validation<'a> {
     /// [`ValidationMode`] provided at creation.
     pub fn handle_instr(&mut self, instr: &Instruction<Resolved>) -> Result<()> {
         self.error_for_mode(|s| s.validation_result(instr))
-    }
-
-    /// Finalize usage of this [`Validation`]. The final result stack is
-    /// verified. The returned error will response the [`ValidationMode`]
-    /// provided at creation.
-    pub fn finish(mut self) -> Result<()> {
-        self.error_for_mode(Self::validate_results)
-    }
-
-    fn validate_results(&mut self) -> Result<()> {
-        for r in self.resulttypes {
-            self.pop_expect(*r)?;
-        }
-        Ok(())
     }
 
     fn error_for_mode(&mut self, op: impl Fn(&mut Self) -> Result<()>) -> Result<()> {
@@ -78,14 +65,67 @@ impl<'a> Validation<'a> {
         }
     }
 
+    fn block_typeuse(&self, instr: &'a Instruction<Resolved>) -> Result<&'a TypeUse<Resolved>> {
+        match &instr.operands {
+            Operands::Block(_, typeuse, ..) => Ok(typeuse),
+            _ => Err(ValidationError::OperandsMismatch),
+        }
+    }
+
+    fn if_typeuse(&self, instr: &'a Instruction<Resolved>) -> Result<&'a TypeUse<Resolved>> {
+        match &instr.operands {
+            Operands::If(_, typeuse, ..) => Ok(typeuse),
+            _ => Err(ValidationError::OperandsMismatch),
+        }
+    }
+
+    fn start_and_end_types_for_typeuse(
+        &self,
+        typeuse: &TypeUse<Resolved>,
+    ) -> (Vec<ValueType>, Vec<ValueType>) {
+        if typeuse.index().value() == 0x040 {
+            (vec![], vec![])
+        } else {
+            let ft = &self.module.types[typeuse.index().value() as usize].functiontype;
+            (ft.params.valuetypes(), ft.results.valuetypes())
+        }
+    }
+
     fn validation_result(&mut self, instr: &Instruction<Resolved>) -> Result<()> {
         match instr.opcode {
             opcodes::UNREACHABLE => self.unreachable(),
 
-            opcodes::END => {
-                // TODO
+            opcodes::BLOCK => {
+                let typeuse = self.block_typeuse(instr)?;
+                let (start_types, end_types) = self.start_and_end_types_for_typeuse(typeuse);
+                self.pop_vals(&start_types)?;
+                self.push_ctrl(opcodes::BLOCK, start_types, end_types);
                 Ok(())
             }
+
+            opcodes::IF => {
+                let typeuse = self.if_typeuse(instr)?;
+                let (start_types, end_types) = self.start_and_end_types_for_typeuse(typeuse);
+                self.pop_expect(I32)?;
+                self.pop_vals(&start_types)?;
+                self.push_ctrl(opcodes::IF, start_types, end_types);
+                Ok(())
+            }
+            opcodes::ELSE => {
+                let frame = self.pop_ctrl()?;
+                if frame.opcode != opcodes::IF {
+                    return Err(ValidationError::OpcodeMismatch);
+                }
+                self.push_ctrl(frame.opcode, frame.start_types, frame.end_types);
+                Ok(())
+            }
+
+            opcodes::END => {
+                let frame = self.pop_ctrl()?;
+                self.push_vals(&frame.end_types);
+                Ok(())
+            }
+
             // 0x20
             opcodes::LOCAL_GET => {
                 let ty = self.local_type(&instr.operands)?;
@@ -100,7 +140,6 @@ impl<'a> Validation<'a> {
             opcodes::LOCAL_TEE => {
                 let ty = self.local_type(&instr.operands)?;
                 self.pop_expect(ty)?;
-                self.push_val(ty);
                 self.push_val(ty);
                 Ok(())
             }

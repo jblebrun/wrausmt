@@ -5,10 +5,27 @@ use {
     self::emitter::ValidatingEmitter,
     validation::Result,
     wrausmt_runtime::syntax::{
-        CompiledExpr, DataField, DataInit, ElemField, ElemList, FuncField, GlobalField,
-        Instruction, ModeEntry, Module, Resolved, TablePosition, UncompiledExpr,
+        types::ValueType, CompiledExpr, DataField, DataInit, ElemField, ElemList, FParam, FResult,
+        FuncField, GlobalField, Instruction, ModeEntry, Module, Resolved, TablePosition,
+        UncompiledExpr,
     },
 };
+
+trait ValueTypes {
+    fn valuetypes(&self) -> Vec<ValueType>;
+}
+
+impl ValueTypes for Vec<FParam> {
+    fn valuetypes(&self) -> Vec<ValueType> {
+        self.iter().map(|fp| fp.valuetype).collect()
+    }
+}
+
+impl ValueTypes for Vec<FResult> {
+    fn valuetypes(&self) -> Vec<ValueType> {
+        self.iter().map(|fr| fr.valuetype).collect()
+    }
+}
 
 // Compiles all functions in the module.
 // It will consume the provided module, so you should clone the module if you
