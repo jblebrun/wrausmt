@@ -1,5 +1,8 @@
 use {
-    super::validation::{Result, Validation, ValidationMode},
+    super::{
+        validation::{Result, Validation, ValidationMode},
+        ValueTypes,
+    },
     wrausmt_runtime::{
         instructions::{op_consts, opcodes},
         syntax::{
@@ -96,20 +99,11 @@ pub trait Emitter {
         Ok(())
     }
 
-    fn emit_func(&mut self, expr: &syntax::UncompiledExpr<Resolved>) -> Result<()> {
-        self.emit_expr(expr)?;
-        self.emit_end()?;
-        Ok(())
-    }
-
     fn emit_expr(&mut self, expr: &syntax::UncompiledExpr<Resolved>) -> Result<()> {
-        for instr in &expr.instr {
-            self.emit_instr(instr)?;
-        }
-        Ok(())
+        expr.instr.iter().try_for_each(|i| self.emit_instr(i))
     }
 
-    fn emit_instr(&mut self, instr: &syntax::Instruction<Resolved>) -> Result<()> {
+    fn emit_instr(&mut self, instr: &Instruction<Resolved>) -> Result<()> {
         self.validate_instr(instr)?;
 
         // Emit opcode
@@ -196,18 +190,16 @@ impl<'a> ValidatingEmitter<'a> {
         func: &FuncField<Resolved, UncompiledExpr<Resolved>>,
     ) -> Result<CompiledExpr> {
         let functype = &module.types[func.typeuse.index().value() as usize].functiontype;
-        let localtypes: Vec<_> = functype
-            .params
-            .iter()
-            .map(|p| p.valuetype)
-            .chain(func.locals.iter().map(|l| l.valtype))
-            .collect();
 
-        let results: Vec<_> = functype.results.iter().map(|r| r.valuetype).collect();
+        let mut localtypes = functype.params.valuetypes();
+        localtypes.extend(func.locals.iter().map(|l| l.valtype));
 
-        let mut out = ValidatingEmitter::new(validation_mode, module, &localtypes, &results);
+        let resulttypes: Vec<_> = functype.results.valuetypes();
 
-        out.emit_func(&func.body)?;
+        let mut out = ValidatingEmitter::new(validation_mode, module, localtypes, resulttypes);
+
+        out.emit_expr(&func.body)?;
+        out.emit_end()?;
 
         Ok(CompiledExpr {
             instr: out.finish()?,
@@ -232,7 +224,7 @@ impl<'a> ValidatingEmitter<'a> {
         module: &Module<Resolved, UncompiledExpr<Resolved>>,
         exprs: &[&UncompiledExpr<Resolved>],
     ) -> Result<CompiledExpr> {
-        let mut out = ValidatingEmitter::new(validation_mode, module, &[], &[]);
+        let mut out = ValidatingEmitter::new(validation_mode, module, vec![], vec![]);
         for expr in exprs {
             out.emit_expr(expr)?;
         }
@@ -244,8 +236,8 @@ impl<'a> ValidatingEmitter<'a> {
     fn new(
         validation_mode: ValidationMode,
         module: &'a Module<Resolved, UncompiledExpr<Resolved>>,
-        localtypes: &'a [ValueType],
-        resulttypes: &'a [ValueType],
+        localtypes: Vec<ValueType>,
+        resulttypes: Vec<ValueType>,
     ) -> ValidatingEmitter<'a> {
         ValidatingEmitter {
             output:     Vec::new(),
@@ -254,7 +246,6 @@ impl<'a> ValidatingEmitter<'a> {
     }
 
     fn finish(self) -> Result<Box<[u8]>> {
-        self.validation.finish()?;
         Ok(self.output.into_boxed_slice())
     }
 }

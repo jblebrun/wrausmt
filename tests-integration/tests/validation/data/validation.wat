@@ -11,3 +11,12 @@
 
 (module (func (export "local-tee") (result i32) (local i32) (i32.const 1) (local.tee 0) (i32.const 42) (i32.add)))
 (assert_return (invoke "local-tee") (i32.const 43))
+
+(module (func (result i32) (block (result i32) (i32.const 42))))
+
+(module 
+ (func (export "simple-if") (param i32) (result i32)
+    (if (result i32) (local.get 0) (then (i32.const 7)) (else (i32.const 8))))
+)
+(assert_return (invoke "simple-if" (i32.const 0)) (i32.const 8))
+(assert_return (invoke "simple-if" (i32.const 1)) (i32.const 7))

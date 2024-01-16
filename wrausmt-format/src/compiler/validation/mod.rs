@@ -4,9 +4,9 @@
 
 use {
     wrausmt_common::true_or::TrueOr,
-    wrausmt_runtime::syntax::{
-        types::{ParamsType, ResultType, ValueType},
-        Index, LocalIndex, Module, Opcode, Resolved, UncompiledExpr,
+    wrausmt_runtime::{
+        instructions::opcodes,
+        syntax::{types::ValueType, Index, LocalIndex, Module, Opcode, Resolved, UncompiledExpr},
     },
 };
 
@@ -25,6 +25,8 @@ pub enum ValidationError {
     UnusedValues,
     UnknownLocal(Index<Resolved, LocalIndex>),
     UnknownOpcode(Opcode),
+    OpcodeMismatch,
+    OperandsMismatch,
 }
 
 /// How to treat Validator issues.
@@ -53,23 +55,11 @@ pub enum ValidationType {
 
 #[derive(Debug, PartialEq)]
 pub struct CtrlFrame {
-    opcode:      u8,
-    start_types: Box<ParamsType>,
-    end_types:   Box<ResultType>,
+    opcode:      Opcode,
+    start_types: Vec<ValueType>,
+    end_types:   Vec<ValueType>,
     height:      usize,
     unreachable: bool,
-}
-
-impl Default for CtrlFrame {
-    fn default() -> Self {
-        CtrlFrame {
-            opcode:      0x10,
-            start_types: Box::new([]),
-            end_types:   Box::new([]),
-            height:      0,
-            unreachable: false,
-        }
-    }
 }
 
 /// The Validation context and implementation.
@@ -78,11 +68,10 @@ impl Default for CtrlFrame {
 pub struct Validation<'a> {
     pub mode: ValidationMode,
 
-    pub module:      &'a Module<Resolved, UncompiledExpr<Resolved>>,
+    pub module: &'a Module<Resolved, UncompiledExpr<Resolved>>,
+
     // Func
-    pub localtypes:  &'a [ValueType],
-    // Func, or empty for expression-only.
-    pub resulttypes: &'a [ValueType],
+    pub localtypes: Vec<ValueType>,
 
     #[allow(dead_code)]
     val_stack:  Vec<ValueType>,
@@ -93,26 +82,27 @@ impl<'a> Validation<'a> {
     pub fn new(
         mode: ValidationMode,
         module: &'a Module<Resolved, UncompiledExpr<Resolved>>,
-        localtypes: &'a [ValueType],
-        resulttypes: &'a [ValueType],
+        localtypes: Vec<ValueType>,
+        resulttypes: Vec<ValueType>,
     ) -> Validation<'a> {
-        let ctrl_stack = vec![CtrlFrame::default()];
-        Validation {
+        let mut val = Validation {
             mode,
             module,
             localtypes,
-            resulttypes,
             val_stack: Vec::default(),
-            ctrl_stack,
-        }
+            ctrl_stack: Vec::default(),
+        };
+
+        val.push_ctrl(opcodes::BLOCK, Vec::new(), resulttypes);
+        val
     }
 
     fn push_val(&mut self, v: ValueType) {
         self.val_stack.push(v);
     }
 
-    fn push_vals(&mut self, vals: &[ValueType]) {
-        for v in vals.iter().rev() {
+    fn push_vals(&mut self, vs: &[ValueType]) {
+        for v in vs.iter().rev() {
             self.val_stack.push(*v);
         }
     }
@@ -160,25 +150,29 @@ impl<'a> Validation<'a> {
         }
     }
 
-    #[allow(dead_code)]
-    fn pop_vals(&mut self, expects: &[ValueType]) -> Result<Vec<ValidationType>> {
+    fn pop_vals(&mut self, vs: &[ValueType]) -> Result<Vec<ValidationType>> {
         let mut result: Vec<ValidationType> = vec![];
-        for e in expects.iter().rev() {
-            result.push(self.pop_expect(*e)?);
+        for v in vs.iter().rev() {
+            result.push(self.pop_expect(*v)?);
         }
         Ok(result)
     }
 
     #[allow(dead_code)]
-    fn push_ctrl(&mut self, opcode: u8, start_types: &ParamsType, end_types: &ResultType) {
+    fn push_ctrl(
+        &mut self,
+        opcode: Opcode,
+        start_types: Vec<ValueType>,
+        end_types: Vec<ValueType>,
+    ) {
+        self.push_vals(&start_types);
         let frame = CtrlFrame {
             opcode,
-            start_types: start_types.to_owned().into_boxed_slice(),
-            end_types: end_types.to_owned().into_boxed_slice(),
+            start_types,
+            end_types,
             height: self.val_stack.len(),
             unreachable: false,
         };
-        self.push_vals(start_types);
         self.ctrl_stack.push(frame)
     }
 
@@ -186,10 +180,13 @@ impl<'a> Validation<'a> {
     fn pop_ctrl(&mut self) -> Result<CtrlFrame> {
         let frame = self
             .ctrl_stack
-            .pop()
+            .last()
             .ok_or(ValidationError::CtrlStackUnderflow)?;
-        let vals = self.pop_vals(&frame.end_types)?;
-        (vals.len() == frame.height).true_or(ValidationError::UnusedValues)?;
+        let end_types = frame.end_types.clone();
+        let cur_height = frame.height;
+        self.pop_vals(&end_types)?;
+        (self.val_stack.len() == cur_height).true_or(ValidationError::UnusedValues)?;
+        let frame = self.ctrl_stack.pop().unwrap();
         Ok(frame)
     }
 
