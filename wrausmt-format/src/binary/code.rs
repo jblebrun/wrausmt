@@ -219,19 +219,7 @@ impl<R: ParserReader> BinaryParser<R> {
                 let val = f64::from_bits(u64::from_le_bytes(buf));
                 syntax::Operands::F64(val)
             }
-            Operands::Memargs1 => syntax::Operands::Memargs1(
-                self.read_u32_leb_128().result(self)?,
-                self.read_u32_leb_128().result(self)?,
-            ),
-            Operands::Memargs2 => syntax::Operands::Memargs1(
-                self.read_u32_leb_128().result(self)?,
-                self.read_u32_leb_128().result(self)?,
-            ),
-            Operands::Memargs4 => syntax::Operands::Memargs1(
-                self.read_u32_leb_128().result(self)?,
-                self.read_u32_leb_128().result(self)?,
-            ),
-            Operands::Memargs8 => syntax::Operands::Memargs8(
+            Operands::Memargs => syntax::Operands::Memargs(
                 self.read_u32_leb_128().result(self)?,
                 self.read_u32_leb_128().result(self)?,
             ),

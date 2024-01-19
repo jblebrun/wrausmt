@@ -42,20 +42,26 @@ const GLOBAL_FAILURES_TO_IGNORE: &[&str] = &[
 // ".format(i.replace(".wast","").replace("-","_x_")) for i in
 // sorted(os.listdir('testdata/spec'))])
 macro_rules! spectest {
-    ($name:ident; [$runset:expr]) => {
+    ($name:ident; val:$vmode:expr; [$runset:expr]) => {
         #[test]
         fn $name() -> Result<()> {
             parse_and_run(
                 format!("tests/spec/data/{}.wast", stringify!($name)[2..].replace("_x_", "-")),
                 RunConfig {
                     runset: $runset,
-                    validation_mode: ValidationMode::Warn,
+                    validation_mode: $vmode,
                     failures_to_ignore: GLOBAL_FAILURES_TO_IGNORE
                 }
             )
         }
     };
-    ($name:ident) => { spectest!($name; [RunSet::All]); };
+    ($name:ident; val:$vmode:expr) => {
+        spectest!($name; val:$vmode; [RunSet::All]);
+    };
+    ($name:ident; [$runset:expr]) => {
+        spectest!($name; val:ValidationMode::Warn; [$runset]);
+    };
+    ($name:ident) => { spectest!($name; val: ValidationMode::Warn; [RunSet::All]); };
 }
 
 #[allow(unused_macros)]
@@ -66,7 +72,7 @@ macro_rules! indices {
 }
 
 spectest!(r#address);
-spectest!(r#align);
+spectest!(r#align; val:ValidationMode::Fail; [indices!(106)]);
 spectest!(r#binary_x_leb128);
 spectest!(r#binary);
 spectest!(r#block);

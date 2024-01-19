@@ -27,6 +27,7 @@ pub enum ValidationError {
     },
     UnusedValues,
     UnknownLocal(Index<Resolved, LocalIndex>),
+    AlignmentTooLarge(u32),
     UnknownOpcode(Opcode),
     OpcodeMismatch,
     OperandsMismatch,

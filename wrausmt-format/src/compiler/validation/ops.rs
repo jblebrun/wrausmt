@@ -33,6 +33,12 @@ macro_rules! instr {
     };
 }
 
+macro_rules! meminstr {
+    ($opcode:pat, align: $a:ident) => {
+        instr!($opcode => Operands::Memargs($a, _))
+    }
+}
+
 impl<'a> Validation<'a> {
     /// Validate one instruction. The returned error will respect the
     /// [`ValidationMode`] provided at creation.
@@ -72,6 +78,32 @@ impl<'a> Validation<'a> {
         Ok(())
     }
 
+    fn loadop(
+        &mut self,
+        i: ValueType,
+        o: ValueType,
+        alignment: u32,
+        natural_alignment: u32,
+    ) -> Result<()> {
+        (alignment <= natural_alignment).true_or(ValidationError::AlignmentTooLarge(alignment))?;
+        self.pop_expect(i)?;
+        self.push_val(o);
+        Ok(())
+    }
+
+    fn storeop(
+        &mut self,
+        v: ValueType,
+        a: ValueType,
+        alignment: u32,
+        natural_alignment: u32,
+    ) -> Result<()> {
+        (alignment <= natural_alignment).true_or(ValidationError::AlignmentTooLarge(alignment))?;
+        self.pop_expect(v)?;
+        self.pop_expect(a)?;
+        Ok(())
+    }
+
     fn start_and_end_types_for_typeuse(
         &self,
         typeuse: &TypeUse<Resolved>,
@@ -92,6 +124,7 @@ impl<'a> Validation<'a> {
     }
 
     fn validation_result(&mut self, instr: &Instruction<Resolved>) -> Result<()> {
+        println!("VALIDATION {instr:?}");
         match instr {
             instr!(opcodes::UNREACHABLE) => self.unreachable(),
 
@@ -127,6 +160,12 @@ impl<'a> Validation<'a> {
             instr!(opcodes::END) => {
                 let frame = self.pop_ctrl()?;
                 self.push_vals(&frame.end_types);
+                Ok(())
+            }
+
+            // 0x1A
+            instr!(opcodes::DROP) => {
+                self.pop_val()?;
                 Ok(())
             }
 
@@ -186,6 +225,33 @@ impl<'a> Validation<'a> {
                 self.push_val(ty);
                 Ok(())
             }
+            // 0x28
+            meminstr!(opcodes::I32_LOAD, align: a) => self.loadop(I32, I32, *a, 4),
+            meminstr!(opcodes::I64_LOAD, align: a) => self.loadop(I32, I64, *a, 8),
+            meminstr!(opcodes::F32_LOAD, align: a) => self.loadop(I32, F32, *a, 4),
+            meminstr!(opcodes::F64_LOAD, align: a) => self.loadop(I32, F64, *a, 8),
+            meminstr!(opcodes::I32_LOAD8_S, align: a) => self.loadop(I32, I32, *a, 1),
+            meminstr!(opcodes::I32_LOAD8_U, align: a) => self.loadop(I32, I32, *a, 1),
+            meminstr!(opcodes::I32_LOAD16_S, align: a) => self.loadop(I32, I32, *a, 2),
+            meminstr!(opcodes::I32_LOAD16_U, align: a) => self.loadop(I32, I32, *a, 2),
+            meminstr!(opcodes::I64_LOAD8_S , align: a) => self.loadop(I32, I64, *a, 1),
+            meminstr!(opcodes::I64_LOAD8_U , align: a) => self.loadop(I32, I64, *a, 1),
+            meminstr!(opcodes::I64_LOAD16_S , align: a) => self.loadop(I32, I64, *a, 2),
+            meminstr!(opcodes::I64_LOAD16_U , align: a) => self.loadop(I32, I64, *a, 2),
+            meminstr!(opcodes::I64_LOAD32_S , align: a) => self.loadop(I32, I64, *a, 4),
+            meminstr!(opcodes::I64_LOAD32_U , align: a) => self.loadop(I32, I64, *a, 4),
+
+            // 0x36
+            meminstr!(opcodes::I32_STORE, align: a) => self.storeop(I32, I32, *a, 4),
+            meminstr!(opcodes::I64_STORE, align: a) => self.storeop(I64, I32, *a, 8),
+            meminstr!(opcodes::F32_STORE, align: a) => self.storeop(F32, I32, *a, 4),
+            meminstr!(opcodes::F64_STORE, align: a) => self.storeop(F64, I32, *a, 8),
+            meminstr!(opcodes::I32_STORE8, align: a) => self.storeop(I32, I32, *a, 1),
+            meminstr!(opcodes::I32_STORE16, align: a) => self.storeop(I32, I32, *a, 2),
+            meminstr!(opcodes::I64_STORE8, align: a) => self.storeop(I64, I32, *a, 1),
+            meminstr!(opcodes::I64_STORE16, align: a) => self.storeop(I64, I32, *a, 2),
+            meminstr!(opcodes::I64_STORE32, align: a) => self.storeop(I64, I32, *a, 4),
+
             // 0x41
             instr!(opcodes::I32_CONST) => self.noargs(I32),
             instr!(opcodes::I64_CONST) => self.noargs(I64),
