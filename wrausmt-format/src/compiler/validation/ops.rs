@@ -1,6 +1,5 @@
 use {
-    super::{Result, Validation, ValidationError, ValidationMode},
-    crate::compiler::ValueTypes,
+    super::{FunctionType, Result, Validation, ValidationError, ValidationMode},
     wrausmt_common::true_or::TrueOr,
     wrausmt_runtime::{
         instructions::opcodes,
@@ -104,15 +103,11 @@ impl<'a> Validation<'a> {
         Ok(())
     }
 
-    fn start_and_end_types_for_typeuse(
-        &self,
-        typeuse: &TypeUse<Resolved>,
-    ) -> (Vec<ValueType>, Vec<ValueType>) {
+    fn function_type_for_typeuse(&self, typeuse: &TypeUse<Resolved>) -> FunctionType {
         if typeuse.index().value() == 0x040 {
-            (vec![], vec![])
+            FunctionType::default()
         } else {
-            let ft = &self.module.types[typeuse.index().value() as usize].functiontype;
-            (ft.params.valuetypes(), ft.results.valuetypes())
+            self.module.types[typeuse.index().value() as usize].clone()
         }
     }
 
@@ -129,24 +124,24 @@ impl<'a> Validation<'a> {
             instr!(opcodes::UNREACHABLE) => self.unreachable(),
 
             instr!(opcodes::BLOCK => Operands::Block(_, typeuse, ..)) => {
-                let (start_types, end_types) = self.start_and_end_types_for_typeuse(typeuse);
-                self.pop_vals(&start_types)?;
-                self.push_ctrl(opcodes::BLOCK, start_types, end_types);
+                let ft = self.function_type_for_typeuse(typeuse);
+                self.pop_vals(&ft.params)?;
+                self.push_ctrl(opcodes::BLOCK, ft.params, ft.results);
                 Ok(())
             }
 
             instr!(opcodes::LOOP => Operands::Block(_, typeuse, ..)) => {
-                let (start_types, end_types) = self.start_and_end_types_for_typeuse(typeuse);
-                self.pop_vals(&start_types)?;
-                self.push_ctrl(opcodes::LOOP, start_types, end_types);
+                let ft = self.function_type_for_typeuse(typeuse);
+                self.pop_vals(&ft.params)?;
+                self.push_ctrl(opcodes::LOOP, ft.params, ft.results);
                 Ok(())
             }
 
             instr!(opcodes::IF => Operands::If(_, typeuse, ..)) => {
-                let (start_types, end_types) = self.start_and_end_types_for_typeuse(typeuse);
+                let ft = self.function_type_for_typeuse(typeuse);
                 self.pop_expect(I32)?;
-                self.pop_vals(&start_types)?;
-                self.push_ctrl(opcodes::IF, start_types, end_types);
+                self.pop_vals(&ft.params)?;
+                self.push_ctrl(opcodes::IF, ft.params, ft.results);
                 Ok(())
             }
 

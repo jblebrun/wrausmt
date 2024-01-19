@@ -2,30 +2,13 @@ mod emitter;
 mod validation;
 pub use validation::{ValidationError, ValidationMode};
 use {
-    self::emitter::ValidatingEmitter,
+    self::{emitter::ValidatingEmitter, validation::ModuleContext},
     validation::Result,
     wrausmt_runtime::syntax::{
-        types::ValueType, CompiledExpr, DataField, DataInit, ElemField, ElemList, FParam, FResult,
-        FuncField, GlobalField, Instruction, ModeEntry, Module, Resolved, TablePosition,
-        UncompiledExpr,
+        CompiledExpr, DataField, DataInit, ElemField, ElemList, FuncField, GlobalField,
+        Instruction, ModeEntry, Module, Resolved, TablePosition, UncompiledExpr,
     },
 };
-
-trait ValueTypes {
-    fn valuetypes(&self) -> Vec<ValueType>;
-}
-
-impl ValueTypes for Vec<FParam> {
-    fn valuetypes(&self) -> Vec<ValueType> {
-        self.iter().map(|fp| fp.valuetype).collect()
-    }
-}
-
-impl ValueTypes for Vec<FResult> {
-    fn valuetypes(&self) -> Vec<ValueType> {
-        self.iter().map(|fr| fr.valuetype).collect()
-    }
-}
 
 // Compiles all functions in the module.
 // It will consume the provided module, so you should clone the module if you
@@ -34,30 +17,35 @@ pub fn compile_module(
     validation_mode: ValidationMode,
     module: Module<Resolved, UncompiledExpr<Resolved>>,
 ) -> Result<Module<Resolved, CompiledExpr>> {
+    // We need to create this now and hold onto it, beacuse the module will
+    // change as we process its elements.
+    let module_context = ModuleContext::new(&module);
+
     let mut module = module;
+
     let funcs: Result<Vec<_>> = std::mem::take(&mut module.funcs)
         .into_iter()
-        .map(|f| compile_func(validation_mode, &module, f))
+        .map(|f| compile_func(validation_mode, &module_context, f))
         .collect();
     let funcs = funcs?;
 
     let globals: Result<Vec<_>> = std::mem::take(&mut module.globals)
         .into_iter()
-        .map(|g| compile_global(validation_mode, &module, g))
+        .map(|g| compile_global(validation_mode, &module_context, g))
         .collect();
     let globals = globals?;
 
     let elems: Result<Vec<_>> = std::mem::take(&mut module.elems)
         .into_iter()
         .enumerate()
-        .map(|(i, e)| compile_elem(validation_mode, &module, e, i))
+        .map(|(i, e)| compile_elem(validation_mode, &module_context, e, i))
         .collect();
     let elems = elems?;
 
     let data: Result<Vec<_>> = std::mem::take(&mut module.data)
         .into_iter()
         .enumerate()
-        .map(|(i, d)| compile_data(validation_mode, &module, d, i))
+        .map(|(i, d)| compile_data(validation_mode, &module_context, d, i))
         .collect();
     let data = data?;
 
@@ -79,7 +67,7 @@ pub fn compile_module(
 
 fn compile_func(
     validation_mode: ValidationMode,
-    module: &Module<Resolved, UncompiledExpr<Resolved>>,
+    module: &ModuleContext,
     func: FuncField<Resolved, UncompiledExpr<Resolved>>,
 ) -> Result<FuncField<Resolved, CompiledExpr>> {
     let body = ValidatingEmitter::function_body(validation_mode, module, &func)?;
@@ -94,7 +82,7 @@ fn compile_func(
 
 fn compile_global(
     validation_mode: ValidationMode,
-    module: &Module<Resolved, UncompiledExpr<Resolved>>,
+    module: &ModuleContext,
     global: GlobalField<UncompiledExpr<Resolved>>,
 ) -> Result<GlobalField<CompiledExpr>> {
     Ok(GlobalField {
@@ -107,7 +95,7 @@ fn compile_global(
 
 fn compile_elem(
     validation_mode: ValidationMode,
-    module: &Module<Resolved, UncompiledExpr<Resolved>>,
+    module: &ModuleContext,
     elem: ElemField<Resolved, UncompiledExpr<Resolved>>,
     ei: usize,
 ) -> Result<ElemField<Resolved, CompiledExpr>> {
@@ -126,7 +114,7 @@ fn compile_elem(
 
 fn compile_data(
     validation_mode: ValidationMode,
-    module: &Module<Resolved, UncompiledExpr<Resolved>>,
+    module: &ModuleContext,
     data: DataField<Resolved, UncompiledExpr<Resolved>>,
     di: usize,
 ) -> Result<DataField<Resolved, CompiledExpr>> {
@@ -149,7 +137,7 @@ fn compile_data(
 
 fn compile_table_position(
     validation_mode: ValidationMode,
-    module: &Module<Resolved, UncompiledExpr<Resolved>>,
+    module: &ModuleContext,
     table_position: TablePosition<Resolved, UncompiledExpr<Resolved>>,
     cnt: usize,
     ei: usize,
@@ -173,7 +161,7 @@ fn compile_table_position(
 }
 fn compile_elem_mode(
     validation_mode: ValidationMode,
-    module: &Module<Resolved, UncompiledExpr<Resolved>>,
+    module: &ModuleContext,
     elem_mode: ModeEntry<Resolved, UncompiledExpr<Resolved>>,
     cnt: usize,
     ei: usize,
@@ -193,7 +181,7 @@ fn compile_elem_mode(
 
 fn compile_elem_list(
     validation_mode: ValidationMode,
-    module: &Module<Resolved, UncompiledExpr<Resolved>>,
+    module: &ModuleContext,
     elem_list: ElemList<UncompiledExpr<Resolved>>,
 ) -> Result<ElemList<CompiledExpr>> {
     Ok(ElemList {
@@ -208,7 +196,7 @@ fn compile_elem_list(
 
 fn compile_data_init(
     validation_mode: ValidationMode,
-    module: &Module<Resolved, UncompiledExpr<Resolved>>,
+    module: &ModuleContext,
     data_init: DataInit<Resolved, UncompiledExpr<Resolved>>,
     cnt: usize,
     di: usize,

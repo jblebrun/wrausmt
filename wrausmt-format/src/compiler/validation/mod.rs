@@ -68,13 +68,52 @@ pub struct CtrlFrame {
     unreachable: bool,
 }
 
+#[derive(Clone, Debug, Default)]
+pub struct FunctionType {
+    pub params:  Vec<ValueType>,
+    pub results: Vec<ValueType>,
+}
+
+/// A simple struct containing the type information needed for validation of the
+/// module. It contains all of the items in the context for the current module.
+///
+/// The other types are represented as follows:
+/// * locals: managed directly in [`Validation`].
+/// * labels: managed implicitly in [`Validation`] via the `ctrl_stack`.
+/// * return: managed implicitly when validating a function via the first frame
+///   that's pushed to the `ctrl_strack`.
+///
+/// [Spec]: https://webassembly.github.io/spec/core/valid/conventions.html#context
+#[derive(Clone, Debug, Default)]
+pub struct ModuleContext {
+    pub types: Vec<FunctionType>,
+}
+
+impl ModuleContext {
+    /// Create a new [`ModuleContext`] for validation, using the type
+    /// information in the provided [`Module`]. The informatin will be copied
+    /// out of the module.
+    pub fn new(module: &Module<Resolved, UncompiledExpr<Resolved>>) -> Self {
+        ModuleContext {
+            types: module
+                .types
+                .iter()
+                .map(|t| FunctionType {
+                    params:  t.functiontype.params.iter().map(|p| p.valuetype).collect(),
+                    results: t.functiontype.results.iter().map(|r| r.valuetype).collect(),
+                })
+                .collect(),
+        }
+    }
+}
 /// The Validation context and implementation.
 ///
 /// [Spec]: https://webassembly.github.io/spec/core/appendix/algorithm.html
 pub struct Validation<'a> {
     pub mode: ValidationMode,
 
-    pub module: &'a Module<Resolved, UncompiledExpr<Resolved>>,
+    // Module
+    pub module: &'a ModuleContext,
 
     // Func
     pub localtypes: Vec<ValueType>,
@@ -87,10 +126,10 @@ pub struct Validation<'a> {
 impl<'a> Validation<'a> {
     pub fn new(
         mode: ValidationMode,
-        module: &'a Module<Resolved, UncompiledExpr<Resolved>>,
+        module: &ModuleContext,
         localtypes: Vec<ValueType>,
         resulttypes: Vec<ValueType>,
-    ) -> Validation<'a> {
+    ) -> Validation {
         let mut val = Validation {
             mode,
             module,
