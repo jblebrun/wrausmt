@@ -5,7 +5,7 @@ use {
         instructions::opcodes,
         syntax::{
             types::{NumType, ValueType},
-            Index, Instruction, LabelIndex, LocalIndex, Operands, Resolved, TypeUse,
+            Index, Instruction, LocalIndex, Operands, Resolved, TypeUse,
         },
     },
 };
@@ -60,20 +60,20 @@ impl<'a> Validation<'a> {
     }
 
     fn noargs(&mut self, o: ValueType) -> Result<()> {
-        self.push_val(o);
+        self.stacks.push_val(o);
         Ok(())
     }
 
     fn unop(&mut self, i: ValueType, o: ValueType) -> Result<()> {
-        self.pop_expect(i)?;
-        self.push_val(o);
+        self.stacks.pop_val(i)?;
+        self.stacks.push_val(o);
         Ok(())
     }
 
     fn binop(&mut self, a: ValueType, b: ValueType, o: ValueType) -> Result<()> {
-        self.pop_expect(a)?;
-        self.pop_expect(b)?;
-        self.push_val(o);
+        self.stacks.pop_val(a)?;
+        self.stacks.pop_val(b)?;
+        self.stacks.push_val(o);
         Ok(())
     }
 
@@ -85,8 +85,8 @@ impl<'a> Validation<'a> {
         natural_alignment: u32,
     ) -> Result<()> {
         (alignment <= natural_alignment).true_or(ValidationError::AlignmentTooLarge(alignment))?;
-        self.pop_expect(i)?;
-        self.push_val(o);
+        self.stacks.pop_val(i)?;
+        self.stacks.push_val(o);
         Ok(())
     }
 
@@ -98,8 +98,8 @@ impl<'a> Validation<'a> {
         natural_alignment: u32,
     ) -> Result<()> {
         (alignment <= natural_alignment).true_or(ValidationError::AlignmentTooLarge(alignment))?;
-        self.pop_expect(v)?;
-        self.pop_expect(a)?;
+        self.stacks.pop_val(v)?;
+        self.stacks.pop_val(a)?;
         Ok(())
     }
 
@@ -121,76 +121,75 @@ impl<'a> Validation<'a> {
     fn validation_result(&mut self, instr: &Instruction<Resolved>) -> Result<()> {
         println!("VALIDATION {instr:?}");
         match instr {
-            instr!(opcodes::UNREACHABLE) => self.unreachable(),
+            instr!(opcodes::UNREACHABLE) => self.stacks.unreachable(),
 
             instr!(opcodes::BLOCK => Operands::Block(_, typeuse, ..)) => {
                 let ft = self.function_type_for_typeuse(typeuse);
-                self.pop_vals(&ft.params)?;
-                self.push_ctrl(opcodes::BLOCK, ft.params, ft.results);
+                self.stacks.pop_vals(&ft.params)?;
+                self.stacks.push_ctrl(opcodes::BLOCK, ft.params, ft.results);
                 Ok(())
             }
 
             instr!(opcodes::LOOP => Operands::Block(_, typeuse, ..)) => {
                 let ft = self.function_type_for_typeuse(typeuse);
-                self.pop_vals(&ft.params)?;
-                self.push_ctrl(opcodes::LOOP, ft.params, ft.results);
+                self.stacks.pop_vals(&ft.params)?;
+                self.stacks.push_ctrl(opcodes::LOOP, ft.params, ft.results);
                 Ok(())
             }
 
             instr!(opcodes::IF => Operands::If(_, typeuse, ..)) => {
                 let ft = self.function_type_for_typeuse(typeuse);
-                self.pop_expect(I32)?;
-                self.pop_vals(&ft.params)?;
-                self.push_ctrl(opcodes::IF, ft.params, ft.results);
+                self.stacks.pop_val(I32)?;
+                self.stacks.pop_vals(&ft.params)?;
+                self.stacks.push_ctrl(opcodes::IF, ft.params, ft.results);
                 Ok(())
             }
 
             instr!(opcodes::ELSE) => {
-                let frame = self.pop_ctrl()?;
+                let frame = self.stacks.pop_ctrl()?;
                 (frame.opcode == opcodes::IF).true_or(ValidationError::OpcodeMismatch)?;
-                self.push_ctrl(frame.opcode, frame.start_types, frame.end_types);
+                self.stacks
+                    .push_ctrl(frame.opcode, frame.start_types, frame.end_types);
                 Ok(())
             }
 
             instr!(opcodes::END) => {
-                let frame = self.pop_ctrl()?;
-                self.push_vals(&frame.end_types);
+                let frame = self.stacks.pop_ctrl()?;
+                self.stacks.push_vals(&frame.end_types);
                 Ok(())
             }
 
             // 0x1A
             instr!(opcodes::DROP) => {
-                self.pop_val()?;
+                self.stacks.drop_val()?;
                 Ok(())
             }
 
             instr!(opcodes::BR => Operands::LabelIndex(idx)) => {
-                self.pop_vals(&self.label_types(idx)?)?;
-                self.unreachable()?;
+                self.stacks.pop_label_types(idx)?;
+                self.stacks.unreachable()?;
                 Ok(())
             }
 
             instr!(opcodes::BR_IF => Operands::LabelIndex(idx)) => {
-                let break_types = self.label_types(idx)?;
-                self.pop_expect(I32)?;
-                self.pop_vals(&break_types)?;
-                self.push_vals(&break_types);
-                self.unreachable()?;
+                self.stacks.pop_val(I32)?;
+                self.stacks.pop_label_types(idx)?;
+                self.stacks.push_label_types(idx)?;
+                self.stacks.unreachable()?;
                 Ok(())
             }
 
             instr!(opcodes::BR_TABLE => Operands::BrTable(idxes, last)) => {
-                self.pop_expect(I32)?;
-                let default_types = self.label_types(last)?;
+                self.stacks.pop_val(I32)?;
+                let default_arity = self.stacks.label_arity(last)?;
                 for idx in idxes {
-                    let break_types = self.label_types(idx)?;
-                    (break_types.len() == default_types.len())
-                        .true_or(ValidationError::BreakTypeMismatch)?;
-                    self.pop_vals(&break_types)?;
-                    self.push_vals(&break_types);
+                    let break_arity = self.stacks.label_arity(idx)?;
+                    (break_arity == default_arity).true_or(ValidationError::BreakTypeMismatch)?;
+                    self.stacks.pop_label_types(idx)?;
+                    self.stacks.push_label_types(idx)?;
                 }
-                self.pop_vals(&default_types)?;
-                self.unreachable()?;
+                self.stacks.pop_label_types(last)?;
+                self.stacks.unreachable()?;
                 Ok(())
             }
 
@@ -198,26 +197,24 @@ impl<'a> Validation<'a> {
             // to the outermost block, which implicitly is the body of the
             // current function.
             instr!(opcodes::RETURN) => {
-                let idx: Index<Resolved, LabelIndex> =
-                    Index::unnamed((self.ctrl_stack.len() - 1) as u32);
-                self.pop_vals(&self.label_types(&idx)?)?;
-                self.unreachable()?;
+                self.stacks.pop_return_types()?;
+                self.stacks.unreachable()?;
                 Ok(())
             }
 
             // 0x20
             instr!(opcodes::LOCAL_GET => Operands::LocalIndex(idx)) => {
-                self.push_val(self.local_type(idx)?);
+                self.stacks.push_val(self.local_type(idx)?);
                 Ok(())
             }
             instr!(opcodes::LOCAL_SET => Operands::LocalIndex(idx)) => {
-                self.pop_expect(self.local_type(idx)?)?;
+                self.stacks.pop_val(self.local_type(idx)?)?;
                 Ok(())
             }
             instr!(opcodes::LOCAL_TEE => Operands::LocalIndex(idx)) => {
                 let ty = self.local_type(idx)?;
-                self.pop_expect(ty)?;
-                self.push_val(ty);
+                self.stacks.pop_val(ty)?;
+                self.stacks.push_val(ty);
                 Ok(())
             }
             // 0x28
