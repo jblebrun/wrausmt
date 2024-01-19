@@ -6,7 +6,10 @@ use {
     wrausmt_common::true_or::TrueOr,
     wrausmt_runtime::{
         instructions::opcodes,
-        syntax::{types::ValueType, Index, LocalIndex, Module, Opcode, Resolved, UncompiledExpr},
+        syntax::{
+            types::ValueType, Index, LabelIndex, LocalIndex, Module, Opcode, Resolved,
+            UncompiledExpr,
+        },
     },
 };
 
@@ -27,6 +30,8 @@ pub enum ValidationError {
     UnknownOpcode(Opcode),
     OpcodeMismatch,
     OperandsMismatch,
+    LabelOutOfRange,
+    BreakTypeMismatch,
 }
 
 /// How to treat Validator issues.
@@ -188,6 +193,18 @@ impl<'a> Validation<'a> {
         (self.val_stack.len() == cur_height).true_or(ValidationError::UnusedValues)?;
         let frame = self.ctrl_stack.pop().unwrap();
         Ok(frame)
+    }
+
+    fn label_types(&self, label: &Index<Resolved, LabelIndex>) -> Result<Vec<ValueType>> {
+        let frame = self
+            .ctrl_stack
+            .get(self.ctrl_stack.len() - 1 - label.value() as usize)
+            .ok_or(ValidationError::LabelOutOfRange)?;
+        Ok(if frame.opcode == opcodes::LOOP {
+            frame.start_types.clone()
+        } else {
+            frame.end_types.clone()
+        })
     }
 
     fn unreachable(&mut self) -> Result<()> {
