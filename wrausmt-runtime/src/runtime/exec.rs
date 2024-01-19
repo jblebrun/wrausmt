@@ -37,6 +37,7 @@ value!(i32, i64, u8, u32, u64, f32, f64, usize, Ref);
 
 pub trait ExecutionContextActions {
     fn log(&self, tag: Tag, msg: impl Fn() -> String);
+    fn skip(&mut self, bytes: usize);
     fn next_byte(&mut self) -> u8;
     fn op_u32(&mut self) -> Result<u32>;
     fn op_u64(&mut self) -> Result<u64>;
@@ -144,6 +145,10 @@ pub trait ExecutionContextActions {
 impl<'l> ExecutionContextActions for ExecutionContext<'l> {
     fn log(&self, tag: Tag, msg: impl Fn() -> String) {
         self.runtime.logger.log(tag, msg);
+    }
+
+    fn skip(&mut self, bytes: usize) {
+        self.pc += bytes;
     }
 
     fn next_byte(&mut self) -> u8 {

@@ -201,10 +201,9 @@ impl<R: ParserReader> BinaryParser<R> {
             Operands::MemoryIndex => syntax::Operands::MemoryIndex(self.read_index_use()?),
             Operands::Br => syntax::Operands::LabelIndex(self.read_index_use()?),
             Operands::BrTable => {
-                let mut idxs = self.read_vec(|_, s| s.read_index_use())?;
+                let idxs = self.read_vec(|_, s| s.read_index_use())?;
                 let last = self.read_index_use()?;
-                idxs.push(last);
-                syntax::Operands::BrTable(idxs)
+                syntax::Operands::BrTable(idxs, last)
             }
             Operands::I32 => syntax::Operands::I32(self.read_i32_leb_128().result(self)? as u32),
             Operands::I64 => syntax::Operands::I64(self.read_i64_leb_128().result(self)? as u64),
