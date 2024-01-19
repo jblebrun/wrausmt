@@ -6,7 +6,7 @@ use {
         instructions::opcodes,
         syntax::{
             types::{NumType, ValueType},
-            Index, Instruction, LocalIndex, Operands, Resolved, TypeUse,
+            Index, Instruction, LabelIndex, LocalIndex, Operands, Resolved, TypeUse,
         },
     },
 };
@@ -102,6 +102,13 @@ impl<'a> Validation<'a> {
                 Ok(())
             }
 
+            instr!(opcodes::LOOP => Operands::Block(_, typeuse, ..)) => {
+                let (start_types, end_types) = self.start_and_end_types_for_typeuse(typeuse);
+                self.pop_vals(&start_types)?;
+                self.push_ctrl(opcodes::LOOP, start_types, end_types);
+                Ok(())
+            }
+
             instr!(opcodes::IF => Operands::If(_, typeuse, ..)) => {
                 let (start_types, end_types) = self.start_and_end_types_for_typeuse(typeuse);
                 self.pop_expect(I32)?;
@@ -120,6 +127,47 @@ impl<'a> Validation<'a> {
             instr!(opcodes::END) => {
                 let frame = self.pop_ctrl()?;
                 self.push_vals(&frame.end_types);
+                Ok(())
+            }
+
+            instr!(opcodes::BR => Operands::LabelIndex(idx)) => {
+                self.pop_vals(&self.label_types(idx)?)?;
+                self.unreachable()?;
+                Ok(())
+            }
+
+            instr!(opcodes::BR_IF => Operands::LabelIndex(idx)) => {
+                let break_types = self.label_types(idx)?;
+                self.pop_expect(I32)?;
+                self.pop_vals(&break_types)?;
+                self.push_vals(&break_types);
+                self.unreachable()?;
+                Ok(())
+            }
+
+            instr!(opcodes::BR_TABLE => Operands::BrTable(idxes, last)) => {
+                self.pop_expect(I32)?;
+                let default_types = self.label_types(last)?;
+                for idx in idxes {
+                    let break_types = self.label_types(idx)?;
+                    (break_types.len() == default_types.len())
+                        .true_or(ValidationError::BreakTypeMismatch)?;
+                    self.pop_vals(&break_types)?;
+                    self.push_vals(&break_types);
+                }
+                self.pop_vals(&default_types)?;
+                self.unreachable()?;
+                Ok(())
+            }
+
+            // The return instruction is a shortcut for an unconditional branch
+            // to the outermost block, which implicitly is the body of the
+            // current function.
+            instr!(opcodes::RETURN) => {
+                let idx: Index<Resolved, LabelIndex> =
+                    Index::unnamed((self.ctrl_stack.len() - 1) as u32);
+                self.pop_vals(&self.label_types(&idx)?)?;
+                self.unreachable()?;
                 Ok(())
             }
 
