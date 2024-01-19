@@ -1,14 +1,11 @@
 use {
-    super::{
-        validation::{Result, Validation, ValidationMode},
-        ValueTypes,
-    },
+    super::validation::{ModuleContext, Result, Validation, ValidationMode},
     wrausmt_runtime::{
         instructions::{op_consts, opcodes},
         syntax::{
             self,
             types::{RefType, ValueType},
-            CompiledExpr, FuncField, Id, Instruction, Module, Opcode, Operands, Resolved, TypeUse,
+            CompiledExpr, FuncField, Id, Instruction, Opcode, Operands, Resolved, TypeUse,
             UncompiledExpr,
         },
     },
@@ -188,15 +185,15 @@ impl<'a> ValidatingEmitter<'a> {
     /// [`Module`] to resolve module-wide indices.
     pub fn function_body(
         validation_mode: ValidationMode,
-        module: &Module<Resolved, UncompiledExpr<Resolved>>,
+        module: &ModuleContext,
         func: &FuncField<Resolved, UncompiledExpr<Resolved>>,
     ) -> Result<CompiledExpr> {
-        let functype = &module.types[func.typeuse.index().value() as usize].functiontype;
+        let functype = &module.types[func.typeuse.index().value() as usize];
 
-        let mut localtypes = functype.params.valuetypes();
+        let mut localtypes = functype.params.clone();
         localtypes.extend(func.locals.iter().map(|l| l.valtype));
 
-        let resulttypes: Vec<_> = functype.results.valuetypes();
+        let resulttypes: Vec<_> = functype.results.clone();
 
         let mut out = ValidatingEmitter::new(validation_mode, module, localtypes, resulttypes);
 
@@ -215,7 +212,7 @@ impl<'a> ValidatingEmitter<'a> {
     /// emitted.
     pub fn simple_expression(
         validation_mode: ValidationMode,
-        module: &Module<Resolved, UncompiledExpr<Resolved>>,
+        module: &ModuleContext,
         expr: &UncompiledExpr<Resolved>,
     ) -> Result<CompiledExpr> {
         Self::simple_expressions(validation_mode, module, &[expr])
@@ -223,7 +220,7 @@ impl<'a> ValidatingEmitter<'a> {
 
     pub fn simple_expressions(
         validation_mode: ValidationMode,
-        module: &Module<Resolved, UncompiledExpr<Resolved>>,
+        module: &ModuleContext,
         exprs: &[&UncompiledExpr<Resolved>],
     ) -> Result<CompiledExpr> {
         let mut out = ValidatingEmitter::new(validation_mode, module, vec![], vec![]);
@@ -237,10 +234,10 @@ impl<'a> ValidatingEmitter<'a> {
 
     fn new(
         validation_mode: ValidationMode,
-        module: &'a Module<Resolved, UncompiledExpr<Resolved>>,
+        module: &ModuleContext,
         localtypes: Vec<ValueType>,
         resulttypes: Vec<ValueType>,
-    ) -> ValidatingEmitter<'a> {
+    ) -> ValidatingEmitter {
         ValidatingEmitter {
             output:     Vec::new(),
             validation: Validation::new(validation_mode, module, localtypes, resulttypes),
