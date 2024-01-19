@@ -223,7 +223,9 @@ impl Resolve<Operands<Resolved>> for Operands<Unresolved> {
                 let el = el.resolve(&mut bic)?;
                 Operands::If(id, tu, th, el)
             }
-            Operands::BrTable(idxs) => Operands::BrTable(resolve_all!(idxs, ic)?),
+            Operands::BrTable(idxs, last) => {
+                Operands::BrTable(resolve_all!(idxs, ic)?, last.resolve(ic)?)
+            }
             Operands::Select(r) => Operands::Select(r),
             Operands::CallIndirect(idx, tu) => {
                 let idx = idx.resolve(ic)?;

@@ -60,11 +60,16 @@ pub trait Emitter {
         Ok(())
     }
 
-    fn emit_br_table(&mut self, indices: &[syntax::Index<Resolved, syntax::LabelIndex>]) {
+    fn emit_br_table(
+        &mut self,
+        indices: &[syntax::Index<Resolved, syntax::LabelIndex>],
+        last: &syntax::Index<Resolved, syntax::LabelIndex>,
+    ) {
         self.emit32(indices.len() as u32);
         for i in indices {
             self.emit32(i.value());
         }
+        self.emit32(last.value())
     }
 
     fn emit_if(
@@ -113,7 +118,7 @@ pub trait Emitter {
         match &instr.operands {
             syntax::Operands::None => (),
             syntax::Operands::Block(_, typeuse, e, cnt) => self.emit_block(typeuse, e, cnt)?,
-            syntax::Operands::BrTable(indices) => self.emit_br_table(indices),
+            syntax::Operands::BrTable(indices, last) => self.emit_br_table(indices, last),
             syntax::Operands::CallIndirect(idx, typeuse) => {
                 self.emit32(idx.value());
                 self.emit32(typeuse.index().value());

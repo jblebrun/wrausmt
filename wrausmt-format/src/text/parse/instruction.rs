@@ -52,8 +52,13 @@ impl<R: Read> Parser<R> {
                     Operands::LocalIndex => syntax::Operands::LocalIndex(self.expect_index()?),
                     Operands::Br => syntax::Operands::LabelIndex(self.expect_index()?),
                     Operands::BrTable => {
-                        let idxs = self.zero_or_more(Self::try_index)?;
-                        syntax::Operands::BrTable(idxs)
+                        let mut idxs = self.zero_or_more(Self::try_index)?;
+                        let last = match idxs.pop() {
+                            Some(idx) => idx,
+                            // Not a valid br_table without at least one index
+                            None => return Ok(None),
+                        };
+                        syntax::Operands::BrTable(idxs, last)
                     }
                     Operands::Select => {
                         let results = self.zero_or_more_groups(Self::try_parse_fresult)?;
