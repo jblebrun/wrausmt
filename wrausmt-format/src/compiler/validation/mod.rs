@@ -6,7 +6,11 @@ use {
     self::stacks::Stacks,
     wrausmt_runtime::{
         instructions::opcodes,
-        syntax::{types::ValueType, Index, LocalIndex, Module, Opcode, Resolved, UncompiledExpr},
+        syntax::{
+            self,
+            types::{GlobalType, MemType, RefType, TableType, ValueType},
+            ImportDesc, Index, LocalIndex, Module, Opcode, Resolved, UncompiledExpr,
+        },
     },
 };
 
@@ -23,6 +27,9 @@ pub enum ValidationError {
         actual: ValidationType,
         expect: ValidationType,
     },
+    ExpectedRef {
+        actual: ValidationType,
+    },
     UnusedValues,
     UnknownLocal(Index<Resolved, LocalIndex>),
     AlignmentTooLarge(u32),
@@ -31,6 +38,12 @@ pub enum ValidationError {
     OperandsMismatch,
     LabelOutOfRange,
     BreakTypeMismatch,
+    UnknownMemory,
+    UnknownData,
+    UnknownTable,
+    UnknownElem,
+    UnknownFunc,
+    UnknownType,
 }
 
 /// How to treat Validator issues.
@@ -63,6 +76,14 @@ pub struct FunctionType {
     pub results: Vec<ValueType>,
 }
 
+impl From<syntax::FunctionType> for FunctionType {
+    fn from(value: syntax::FunctionType) -> Self {
+        FunctionType {
+            params:  value.params.iter().map(|p| p.valuetype).collect(),
+            results: value.results.iter().map(|r| r.valuetype).collect(),
+        }
+    }
+}
 /// A simple struct containing the type information needed for validation of the
 /// module. It contains all of the items in the context for the current module.
 ///
@@ -75,7 +96,13 @@ pub struct FunctionType {
 /// [Spec]: https://webassembly.github.io/spec/core/valid/conventions.html#context
 #[derive(Clone, Debug, Default)]
 pub struct ModuleContext {
-    pub types: Vec<FunctionType>,
+    pub types:   Vec<FunctionType>,
+    pub funcs:   Vec<FunctionType>,
+    pub tables:  Vec<TableType>,
+    pub mems:    Vec<MemType>,
+    pub globals: Vec<GlobalType>,
+    pub elems:   Vec<RefType>,
+    pub datas:   usize,
 }
 
 impl ModuleContext {
@@ -83,6 +110,35 @@ impl ModuleContext {
     /// information in the provided [`Module`]. The informatin will be copied
     /// out of the module.
     pub fn new(module: &Module<Resolved, UncompiledExpr<Resolved>>) -> Self {
+        let mut funcs: Vec<FunctionType> = Vec::new();
+        let mut tables: Vec<TableType> = Vec::new();
+        let mut mems: Vec<MemType> = Vec::new();
+        let mut globals: Vec<GlobalType> = Vec::new();
+
+        for import in module.imports.iter() {
+            match &import.desc {
+                ImportDesc::Func(tu) => funcs.push(
+                    module.types[tu.index().value() as usize]
+                        .functiontype
+                        .clone()
+                        .into(),
+                ),
+                ImportDesc::Table(tt) => tables.push(tt.clone()),
+                ImportDesc::Mem(mt) => mems.push(mt.clone()),
+                ImportDesc::Global(gt) => globals.push(gt.clone()),
+            }
+        }
+        funcs.extend(module.funcs.iter().map(|f| {
+            module.types[f.typeuse.index().value() as usize]
+                .functiontype
+                .clone()
+                .into()
+        }));
+
+        tables.extend(module.tables.iter().map(|t| t.tabletype.clone()));
+        mems.extend(module.memories.iter().map(|m| m.memtype.clone()));
+        globals.extend(module.globals.iter().map(|g| g.globaltype.clone()));
+
         ModuleContext {
             types: module
                 .types
@@ -92,6 +148,12 @@ impl ModuleContext {
                     results: t.functiontype.results.iter().map(|r| r.valuetype).collect(),
                 })
                 .collect(),
+            funcs,
+            tables,
+            mems,
+            globals,
+            elems: module.elems.iter().map(|e| e.elemlist.reftype).collect(),
+            datas: module.data.len(),
         }
     }
 }

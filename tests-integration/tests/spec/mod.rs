@@ -72,7 +72,7 @@ macro_rules! indices {
 }
 
 spectest!(r#address);
-spectest!(r#align; val:ValidationMode::Fail; [indices!(106)]);
+spectest!(r#align);
 spectest!(r#binary_x_leb128);
 spectest!(r#binary);
 spectest!(r#block);
