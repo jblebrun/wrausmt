@@ -79,6 +79,12 @@
 | }
 
 0x1C      ,selectt                       ,(SelectT)
+| // SelectT is not a real instruction in text format.
+| // But it does have a different opcode in binary format.
+| // The difference is only relevant during validation.
+| // Compiled modules always use the 0x1b opcode.
+| unreachable!()
+
 0xD0      ,ref.null                      ,(HeapType)
 | let rt = _ec.op_reftype()?;
 | _ec.push(Ref::Null(rt))

@@ -703,7 +703,7 @@ pub enum Operands<R: ResolvedState> {
     Block(Option<Id>, TypeUse<R>, UncompiledExpr<R>, Continuation),
     If(Option<Id>, TypeUse<R>, UncompiledExpr<R>, UncompiledExpr<R>),
     BrTable(Vec<Index<R, LabelIndex>>, Index<R, LabelIndex>),
-    Select(Vec<FResult>),
+    SelectT(Vec<FResult>),
     FuncIndex(Index<R, FuncIndex>),
     TableIndex(Index<R, TableIndex>),
     GlobalIndex(Index<R, GlobalIndex>),

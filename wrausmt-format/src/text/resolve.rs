@@ -226,7 +226,7 @@ impl Resolve<Operands<Resolved>> for Operands<Unresolved> {
             Operands::BrTable(idxs, last) => {
                 Operands::BrTable(resolve_all!(idxs, ic)?, last.resolve(ic)?)
             }
-            Operands::Select(r) => Operands::Select(r),
+            Operands::SelectT(r) => Operands::SelectT(r),
             Operands::CallIndirect(idx, tu) => {
                 let idx = idx.resolve(ic)?;
                 let tu = tu.resolve(ic)?;
