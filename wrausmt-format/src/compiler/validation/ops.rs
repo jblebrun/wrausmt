@@ -125,6 +125,7 @@ impl<'a> Validation<'a> {
         println!("VALIDATION {instr:?}");
         match instr {
             instr!(opcodes::UNREACHABLE) => self.stacks.unreachable(),
+            instr!(opcodes::NOP) => Ok(()),
 
             instr!(opcodes::BLOCK => Operands::Block(_, typeuse, ..)) => {
                 let ft = self.function_type_for_typeuse(typeuse);
@@ -202,6 +203,35 @@ impl<'a> Validation<'a> {
             instr!(opcodes::RETURN) => {
                 self.stacks.pop_return_types()?;
                 self.stacks.unreachable()?;
+                Ok(())
+            }
+
+            instr!(opcodes::CALL => Operands::FuncIndex(idx)) => {
+                let ft = &self
+                    .module
+                    .funcs
+                    .get(idx.value() as usize)
+                    .ok_or(ValidationError::UnknownFunc)?;
+                self.stacks.pop_vals(&ft.params)?;
+                self.stacks.push_vals(&ft.results);
+                Ok(())
+            }
+
+            instr!(opcodes::CALL_INDIRECT => Operands::CallIndirect(tabidx, typeuse)) => {
+                self.module
+                    .tables
+                    .get(tabidx.value() as usize)
+                    .map(|t| t.reftype == RefType::Func)
+                    .ok_or(ValidationError::UnknownTable)?
+                    .true_or(ValidationError::WrongTableType)?;
+                let ft = self
+                    .module
+                    .types
+                    .get(typeuse.index().value() as usize)
+                    .ok_or(ValidationError::UnknownType)?;
+                self.stacks.pop_val(I32)?;
+                self.stacks.pop_vals(&ft.params)?;
+                self.stacks.push_vals(&ft.results);
                 Ok(())
             }
 

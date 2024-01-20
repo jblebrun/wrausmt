@@ -201,7 +201,11 @@ fn matches_validation_error(failure: &str, err: &ValidationError) -> bool {
         ValidationError::TypeMismatch { .. } => ["type mismatch"].contains(&failure),
         ValidationError::ExpectedRef { .. } => ["type mismatch"].contains(&failure),
         ValidationError::UnknownData => ["unknown data"].contains(&failure),
+        ValidationError::UnknownFunc => ["unknown func"].contains(&failure),
         ValidationError::UnknownMemory => ["unknown memory"].contains(&failure),
+        ValidationError::UnknownTable => ["unknown table"].contains(&failure),
+        ValidationError::UnknownType => ["unknown type"].contains(&failure),
+        ValidationError::WrongTableType => ["wrong table type"].contains(&failure),
         _ => false,
     }
 }
