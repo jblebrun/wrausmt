@@ -199,6 +199,9 @@ fn matches_validation_error(failure: &str, err: &ValidationError) -> bool {
     match err {
         ValidationError::ValStackUnderflow => ["type mismatch"].contains(&failure),
         ValidationError::TypeMismatch { .. } => ["type mismatch"].contains(&failure),
+        ValidationError::ExpectedRef { .. } => ["type mismatch"].contains(&failure),
+        ValidationError::UnknownData => ["unknown data"].contains(&failure),
+        ValidationError::UnknownMemory => ["unknown memory"].contains(&failure),
         _ => false,
     }
 }

@@ -4,7 +4,7 @@ use {
     wrausmt_runtime::{
         instructions::opcodes,
         syntax::{
-            types::{NumType, ValueType},
+            types::{NumType, RefType, ValueType},
             Index, Instruction, LocalIndex, Operands, Resolved, TypeUse,
         },
     },
@@ -15,6 +15,7 @@ const I32: ValueType = ValueType::Num(NumType::I32);
 const I64: ValueType = ValueType::Num(NumType::I64);
 const F32: ValueType = ValueType::Num(NumType::F32);
 const F64: ValueType = ValueType::Num(NumType::F64);
+const FUNC: ValueType = ValueType::Ref(RefType::Func);
 
 macro_rules! instr {
     ($opcode:pat) => {
@@ -244,6 +245,17 @@ impl<'a> Validation<'a> {
             meminstr!(opcodes::I64_STORE16, align: a) => self.storeop(I64, I32, *a, 2),
             meminstr!(opcodes::I64_STORE32, align: a) => self.storeop(I64, I32, *a, 4),
 
+            instr!(opcodes::MEMORY_SIZE) => {
+                (!self.module.mems.is_empty()).true_or(ValidationError::UnknownMemory)?;
+                self.stacks.push_val(I32);
+                Ok(())
+            }
+            instr!(opcodes::MEMORY_GROW) => {
+                (!self.module.mems.is_empty()).true_or(ValidationError::UnknownMemory)?;
+                self.stacks.pop_val(I32)?;
+                self.stacks.push_val(I32);
+                Ok(())
+            }
             // 0x41
             instr!(opcodes::I32_CONST) => self.noargs(I32),
             instr!(opcodes::I64_CONST) => self.noargs(I64),
@@ -410,6 +422,22 @@ impl<'a> Validation<'a> {
             instr!(opcodes::I64_EXTEND16_S) => self.unop(I64, I64),
             instr!(opcodes::I64_EXTEND32_S) => self.unop(I64, I64),
 
+            instr!(opcodes::REF_NULL => Operands::HeapType(ht)) => {
+                let vt = ValueType::Ref(*ht);
+                self.stacks.push_val(vt);
+                Ok(())
+            }
+            instr!(opcodes::REF_IS_NULL) => {
+                self.stacks.pop_ref()?;
+                self.stacks.push_val(I32);
+                Ok(())
+            }
+            instr!(opcodes::REF_FUNC => Operands::FuncIndex(idx)) => {
+                ((idx.value() as usize) < self.module.funcs.len())
+                    .true_or(ValidationError::UnknownFunc)?;
+                self.stacks.push_val(FUNC);
+                Ok(())
+            }
             // 0xFC 0x00
             instr!(opcodes::I32_TRUNC_SAT_F32_S) => self.unop(F32, I32),
             instr!(opcodes::I32_TRUNC_SAT_F32_U) => self.unop(F32, I32),
@@ -419,6 +447,84 @@ impl<'a> Validation<'a> {
             instr!(opcodes::I64_TRUNC_SAT_F32_U) => self.unop(F32, I64),
             instr!(opcodes::I64_TRUNC_SAT_F64_S) => self.unop(F64, I64),
             instr!(opcodes::I64_TRUNC_SAT_F64_U) => self.unop(F64, I64),
+
+            // 0xFC 0x08
+            instr!(opcodes::MEMORY_INIT => Operands::DataIndex(idx)) => {
+                ((idx.value() as usize) < self.module.datas)
+                    .true_or(ValidationError::UnknownData)?;
+                (!self.module.mems.is_empty()).true_or(ValidationError::UnknownMemory)?;
+                self.stacks.pop_val(I32)?;
+                self.stacks.pop_val(I32)?;
+                self.stacks.pop_val(I32)?;
+                Ok(())
+            }
+            instr!(opcodes::DATA_DROP => Operands::DataIndex(idx)) => {
+                ((idx.value() as usize) < self.module.datas)
+                    .true_or(ValidationError::UnknownData)?;
+                Ok(())
+            }
+            instr!(opcodes::MEMORY_COPY) | instr!(opcodes::MEMORY_FILL) => {
+                (0 < self.module.datas).true_or(ValidationError::UnknownMemory)?;
+                self.stacks.pop_val(I32)?;
+                self.stacks.pop_val(I32)?;
+                self.stacks.pop_val(I32)?;
+                Ok(())
+            }
+            instr!(opcodes::TABLE_INIT => Operands::TableInit(tidx, eidx)) => {
+                ((tidx.value() as usize) < self.module.tables.len())
+                    .true_or(ValidationError::UnknownTable)?;
+                ((eidx.value() as usize) < self.module.elems.len())
+                    .true_or(ValidationError::UnknownElem)?;
+                self.stacks.pop_val(I32)?;
+                self.stacks.pop_val(I32)?;
+                self.stacks.pop_val(I32)?;
+                Ok(())
+            }
+            instr!(opcodes::ELEM_DROP => Operands::ElemIndex(idx)) => {
+                ((idx.value() as usize) < self.module.elems.len())
+                    .true_or(ValidationError::UnknownElem)?;
+                Ok(())
+            }
+            instr!(opcodes::TABLE_COPY => Operands::TableCopy(srcidx, dstidx)) => {
+                ((srcidx.value() as usize) < self.module.tables.len())
+                    .true_or(ValidationError::UnknownTable)?;
+                ((dstidx.value() as usize) < self.module.tables.len())
+                    .true_or(ValidationError::UnknownTable)?;
+                self.stacks.pop_val(I32)?;
+                self.stacks.pop_val(I32)?;
+                self.stacks.pop_val(I32)?;
+                Ok(())
+            }
+            instr!(opcodes::TABLE_GROW => Operands::TableIndex(idx)) => {
+                let tabletype = self
+                    .module
+                    .tables
+                    .get(idx.value() as usize)
+                    .ok_or(ValidationError::UnknownTable)?;
+                self.stacks.pop_val(I32)?;
+                self.stacks.pop_val(tabletype.reftype.into())?;
+                self.stacks.push_val(I32);
+                Ok(())
+            }
+            instr!(opcodes::TABLE_SIZE => Operands::TableIndex(idx)) => {
+                ((idx.value() as usize) < self.module.tables.len())
+                    .true_or(ValidationError::UnknownTable)?;
+                self.stacks.push_val(I32);
+                Ok(())
+            }
+            instr!(opcodes::TABLE_FILL => Operands::TableIndex(idx)) => {
+                let tabletype = self
+                    .module
+                    .tables
+                    .get(idx.value() as usize)
+                    .ok_or(ValidationError::UnknownTable)?;
+                println!("TABLEF FILL FOR REFTYPE {:?}", tabletype.reftype);
+                self.stacks.pop_val(I32)?;
+                self.stacks.pop_val(tabletype.reftype.into())?;
+                self.stacks.pop_val(I32)?;
+                Ok(())
+            }
+
             _ => Err(ValidationError::UnknownOpcode(instr.opcode)),
         }
     }

@@ -6,7 +6,10 @@ use {
     super::ValidationType,
     crate::{compiler::validation::Result, ValidationError},
     wrausmt_common::true_or::TrueOr,
-    wrausmt_runtime::syntax::{types::ValueType, Index, LabelIndex, Opcode, Resolved},
+    wrausmt_runtime::syntax::{
+        types::{RefType, ValueType},
+        Index, LabelIndex, Opcode, Resolved,
+    },
 };
 
 pub struct Stacks {
@@ -32,6 +35,7 @@ impl Stacks {
     pub fn pop_val(&mut self, expect: ValueType) -> Result<ValidationType> {
         let actual = self.val.pop_val(self.ctrl.peek()?)?;
         let expect = ValidationType::Value(expect);
+        println!("POP VAL {actual:?} {expect:?}");
         match (actual, expect) {
             (ValidationType::Unknown, expect) => Ok(expect),
             (actual, ValidationType::Unknown) => Ok(actual),
@@ -42,6 +46,14 @@ impl Stacks {
                     Err(ValidationError::TypeMismatch { actual, expect })
                 }
             }
+        }
+    }
+
+    pub fn pop_ref(&mut self) -> Result<RefType> {
+        let actual = self.val.pop_val(self.ctrl.peek()?)?;
+        match actual {
+            ValidationType::Value(ValueType::Ref(rt)) => Ok(rt),
+            x => Err(ValidationError::ExpectedRef { actual: x }),
         }
     }
 
