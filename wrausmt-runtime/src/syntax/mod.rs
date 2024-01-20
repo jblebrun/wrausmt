@@ -581,7 +581,7 @@ impl<R: ResolvedState> fmt::Debug for ExportField<R> {
     }
 }
 
-#[derive(Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct UncompiledExpr<R: ResolvedState> {
     pub instr: Vec<Instruction<R>>,
 }
@@ -599,7 +599,7 @@ pub enum Opcode {
     Simd(u8),
 }
 
-#[derive(PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct Instruction<R: ResolvedState> {
     pub name:     Id,
     pub opcode:   Opcode,
@@ -690,13 +690,13 @@ impl<R: ResolvedState> Instruction<R> {
     }
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub enum Continuation {
     Start,
     End,
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug)]
 pub enum Operands<R: ResolvedState> {
     None,
     CallIndirect(Index<R, TableIndex>, TypeUse<R>),

@@ -9,7 +9,7 @@ use {
         syntax::{
             self,
             types::{GlobalType, MemType, RefType, TableType, ValueType},
-            ImportDesc, Index, LocalIndex, Module, Opcode, Resolved, UncompiledExpr,
+            ImportDesc, Index, Instruction, LocalIndex, Module, Resolved, UncompiledExpr,
         },
     },
 };
@@ -33,7 +33,7 @@ pub enum ValidationError {
     UnusedValues,
     UnknownLocal(Index<Resolved, LocalIndex>),
     AlignmentTooLarge(u32),
-    UnknownOpcode(Opcode),
+    UnhandledInstruction(Instruction<Resolved>),
     OpcodeMismatch,
     OperandsMismatch,
     LabelOutOfRange,

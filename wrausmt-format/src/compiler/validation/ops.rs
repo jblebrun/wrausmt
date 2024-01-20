@@ -21,6 +21,7 @@ macro_rules! instr {
     ($opcode:pat) => {
         Instruction {
             opcode: $opcode,
+            operands: Operands::None,
             ..
         }
     };
@@ -60,7 +61,7 @@ impl<'a> Validation<'a> {
         }
     }
 
-    fn noargs(&mut self, o: ValueType) -> Result<()> {
+    fn constop(&mut self, o: ValueType) -> Result<()> {
         self.stacks.push_val(o);
         Ok(())
     }
@@ -257,10 +258,10 @@ impl<'a> Validation<'a> {
                 Ok(())
             }
             // 0x41
-            instr!(opcodes::I32_CONST) => self.noargs(I32),
-            instr!(opcodes::I64_CONST) => self.noargs(I64),
-            instr!(opcodes::F32_CONST) => self.noargs(F32),
-            instr!(opcodes::F64_CONST) => self.noargs(F64),
+            instr!(opcodes::I32_CONST => Operands::I32(_)) => self.constop(I32),
+            instr!(opcodes::I64_CONST => Operands::I64(_)) => self.constop(I64),
+            instr!(opcodes::F32_CONST => Operands::F32(_)) => self.constop(F32),
+            instr!(opcodes::F64_CONST => Operands::F64(_)) => self.constop(F64),
 
             // 0x45
             instr!(opcodes::I32_EQZ) => self.unop(I32, I32),
@@ -525,7 +526,7 @@ impl<'a> Validation<'a> {
                 Ok(())
             }
 
-            _ => Err(ValidationError::UnknownOpcode(instr.opcode)),
+            _ => Err(ValidationError::UnhandledInstruction(instr.clone())),
         }
     }
 }
