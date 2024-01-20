@@ -1,5 +1,6 @@
 use {
     super::{FunctionType, Result, Validation, ValidationError, ValidationMode},
+    crate::compiler::validation::ValidationType,
     wrausmt_common::true_or::TrueOr,
     wrausmt_runtime::{
         instructions::opcodes,
@@ -201,6 +202,29 @@ impl<'a> Validation<'a> {
             instr!(opcodes::RETURN) => {
                 self.stacks.pop_return_types()?;
                 self.stacks.unreachable()?;
+                Ok(())
+            }
+
+            // Note: the binary 0x1b and 0x1c both turn into SELECT,
+            // with opcode 0x1b, but different operand types.
+            instr!(opcodes::SELECT) => {
+                self.stacks.pop_val(I32)?;
+                let n1 = self.stacks.pop_num()?;
+                let n2 = self.stacks.pop_num()?;
+                (n1 == n2).true_or(ValidationError::TypeMismatch {
+                    actual: ValidationType::Value(n2.into()),
+                    expect: ValidationType::Value(n1.into()),
+                })?;
+                self.stacks.push_val(n1.into());
+                Ok(())
+            }
+            instr!(opcodes::SELECT => Operands::SelectT(t)) => {
+                (t.len() == 1).true_or(ValidationError::UnsupportedSelect)?;
+                let vt = t[0].valuetype;
+                self.stacks.pop_val(I32)?;
+                self.stacks.pop_val(vt)?;
+                self.stacks.pop_val(vt)?;
+                self.stacks.push_val(vt);
                 Ok(())
             }
 

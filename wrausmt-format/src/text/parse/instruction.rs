@@ -50,6 +50,7 @@ impl<R: Read> Parser<R> {
                     Operands::ElemIndex => syntax::Operands::ElemIndex(self.expect_index()?),
                     Operands::DataIndex => syntax::Operands::DataIndex(self.expect_index()?),
                     Operands::LocalIndex => syntax::Operands::LocalIndex(self.expect_index()?),
+                    Operands::MemoryIndex => syntax::Operands::MemoryIndex(self.expect_index()?),
                     Operands::Br => syntax::Operands::LabelIndex(self.expect_index()?),
                     Operands::BrTable => {
                         let mut idxs = self.zero_or_more(Self::try_index)?;
@@ -62,7 +63,14 @@ impl<R: Read> Parser<R> {
                     }
                     Operands::Select => {
                         let results = self.zero_or_more_groups(Self::try_parse_fresult)?;
-                        syntax::Operands::Select(results)
+                        if results.is_empty() {
+                            syntax::Operands::None
+                        } else {
+                            syntax::Operands::SelectT(results)
+                        }
+                    }
+                    Operands::SelectT => {
+                        unreachable!("SelectT doesn't apply to text format")
                     }
                     Operands::CallIndirect => {
                         let idx = self.try_index()?.unwrap_or_else(|| Index::unnamed(0));
@@ -98,7 +106,6 @@ impl<R: Read> Parser<R> {
                     Operands::Loop => self.parse_plain_block(Continuation::Start)?,
                     Operands::If => self.parse_plain_if_operands()?,
                     Operands::HeapType => syntax::Operands::HeapType(self.expect_heaptype()?),
-                    _ => panic!("Unimplemented operands type {:?}", data.operands),
                 };
                 Ok(Some(Instruction {
                     name,

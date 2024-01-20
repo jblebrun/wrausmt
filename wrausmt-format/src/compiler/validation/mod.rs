@@ -30,6 +30,9 @@ pub enum ValidationError {
     ExpectedRef {
         actual: ValidationType,
     },
+    ExpectedNum {
+        actual: ValidationType,
+    },
     UnusedValues,
     UnknownLocal(Index<Resolved, LocalIndex>),
     AlignmentTooLarge(u32),
@@ -44,6 +47,7 @@ pub enum ValidationError {
     UnknownElem,
     UnknownFunc,
     UnknownType,
+    UnsupportedSelect,
 }
 
 /// How to treat Validator issues.

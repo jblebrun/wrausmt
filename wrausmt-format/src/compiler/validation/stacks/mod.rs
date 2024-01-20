@@ -7,7 +7,7 @@ use {
     crate::{compiler::validation::Result, ValidationError},
     wrausmt_common::true_or::TrueOr,
     wrausmt_runtime::syntax::{
-        types::{RefType, ValueType},
+        types::{NumType, RefType, ValueType},
         Index, LabelIndex, Opcode, Resolved,
     },
 };
@@ -54,6 +54,14 @@ impl Stacks {
         match actual {
             ValidationType::Value(ValueType::Ref(rt)) => Ok(rt),
             x => Err(ValidationError::ExpectedRef { actual: x }),
+        }
+    }
+
+    pub fn pop_num(&mut self) -> Result<NumType> {
+        let actual = self.val.pop_val(self.ctrl.peek()?)?;
+        match actual {
+            ValidationType::Value(ValueType::Num(nt)) => Ok(nt),
+            x => Err(ValidationError::ExpectedNum { actual: x }),
         }
     }
 

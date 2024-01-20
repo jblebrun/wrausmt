@@ -95,11 +95,6 @@ pub fn bad(_ec: &mut ExecutionContext) -> Result<()> {
     Err(impl_bug!("unknown opcode"))?
 }
 
-/// This function is used to mark not-yet-implemented instructions in the table.
-pub fn unimpl(_ec: &mut ExecutionContext) -> Result<()> {
-    Err(impl_bug!("not yet implemented"))?
-}
-
 pub const BAD_INSTRUCTION: InstructionData = InstructionData {
     opcode:   Opcode::Normal(0),
     name:     "bad",

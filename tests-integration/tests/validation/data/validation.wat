@@ -137,3 +137,8 @@
     (ref.is_null (local.get $x))
   )
 )
+
+(module
+  (func (result i32) (select (i32.const 1) (i32.const 2) (i32.const 0)))
+  (func (result i32) (select (result i32) (i32.const 1) (i32.const 2) (i32.const 0)))
+)

@@ -120,7 +120,8 @@ pub trait Emitter {
                 self.emit32(idx.value());
                 self.emit32(typeuse.index().value());
             }
-            syntax::Operands::Select(_) => (),
+            // SelectT operands are only used during validation.
+            syntax::Operands::SelectT(_) => (),
             syntax::Operands::If(_, typeuse, th, el) => self.emit_if(typeuse, th, el)?,
             syntax::Operands::I32(n) => self.emit32(*n),
             syntax::Operands::I64(n) => self.emit64(*n),

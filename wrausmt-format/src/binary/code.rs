@@ -10,8 +10,8 @@ use {
     wrausmt_runtime::{
         instructions::{instruction_data, op_consts, Operands, BAD_INSTRUCTION},
         syntax::{
-            self, types::ValueType, Continuation, FuncField, Id, Instruction, Local, Opcode,
-            Resolved, TypeUse, UncompiledExpr,
+            self, types::ValueType, Continuation, FResult, FuncField, Id, Instruction, Local,
+            Opcode, Resolved, TypeUse, UncompiledExpr,
         },
     },
 };
@@ -188,17 +188,28 @@ impl<R: ParserReader> BinaryParser<R> {
 
         // Handle any additional behavior
         let operands = match instruction_data.operands {
-            Operands::None => syntax::Operands::None,
+            Operands::Select | Operands::None => syntax::Operands::None,
             Operands::FuncIndex => syntax::Operands::FuncIndex(self.read_index_use()?),
             Operands::LocalIndex => syntax::Operands::LocalIndex(self.read_index_use()?),
             Operands::GlobalIndex => syntax::Operands::GlobalIndex(self.read_index_use()?),
             Operands::TableIndex => syntax::Operands::TableIndex(self.read_index_use()?),
+            Operands::ElemIndex => syntax::Operands::ElemIndex(self.read_index_use()?),
             Operands::DataIndex => {
                 data_indices_ok
                     .true_or_else(|| self.err(BinaryParseErrorKind::DataCountMissing))?;
                 syntax::Operands::DataIndex(self.read_index_use()?)
             }
             Operands::MemoryIndex => syntax::Operands::MemoryIndex(self.read_index_use()?),
+            Operands::TableCopy => {
+                let dsttabidx = self.read_index_use()?;
+                let srctabidx = self.read_index_use()?;
+                syntax::Operands::TableCopy(dsttabidx, srctabidx)
+            }
+            Operands::TableInit => {
+                let elidx = self.read_index_use()?;
+                let tabidx = self.read_index_use()?;
+                syntax::Operands::TableInit(tabidx, elidx)
+            }
             Operands::Br => syntax::Operands::LabelIndex(self.read_index_use()?),
             Operands::BrTable => {
                 let idxs = self.read_vec(|_, s| s.read_index_use())?;
@@ -262,11 +273,18 @@ impl<R: ParserReader> BinaryParser<R> {
                 let ht = self.read_ref_type()?;
                 syntax::Operands::HeapType(ht)
             }
-            _ => {
-                panic!(
-                    "unsupported operands {:x?} for {}",
-                    instruction_data.operands, opcode
-                )
+            Operands::CallIndirect => {
+                let typeuse = self.read_type_use()?;
+                let tabidx = self.read_index_use()?;
+                syntax::Operands::CallIndirect(tabidx, typeuse)
+            }
+            Operands::SelectT => {
+                let ts = self
+                    .read_vec(|_, s| s.read_value_type())?
+                    .iter()
+                    .map(|t| FResult { valuetype: *t })
+                    .collect();
+                syntax::Operands::SelectT(ts)
             }
         };
 
