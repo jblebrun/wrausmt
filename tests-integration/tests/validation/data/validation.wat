@@ -158,3 +158,11 @@
    (func $const-i32 (result i32) (i32.const 0x132))
    (func (export "type-i32") (result i32) (call $const-i32))
 )
+
+(module
+  (global $a i32 (i32.const 5))
+  (global $b (mut i64) (i64.const 6))
+  (func (result i32) (global.get 0))
+  (func (result i64) (global.get 1))
+  (func (param i64) (local.get 0) (global.set 1))
+)

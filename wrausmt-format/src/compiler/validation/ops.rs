@@ -273,6 +273,25 @@ impl<'a> Validation<'a> {
                 self.stacks.push_val(ty);
                 Ok(())
             }
+            instr!(opcodes::GLOBAL_GET => Operands::GlobalIndex(idx)) => {
+                let global = self
+                    .module
+                    .globals
+                    .get(idx.value() as usize)
+                    .ok_or(ValidationError::UnknownGlobal)?;
+                self.stacks.push_val(global.valtype);
+                Ok(())
+            }
+            instr!(opcodes::GLOBAL_SET => Operands::GlobalIndex(idx)) => {
+                let global = self
+                    .module
+                    .globals
+                    .get(idx.value() as usize)
+                    .ok_or(ValidationError::UnknownGlobal)?;
+                (global.mutable).true_or(ValidationError::ImmutableGlobal)?;
+                self.stacks.pop_val(global.valtype)?;
+                Ok(())
+            }
             // 0x28
             meminstr!(opcodes::I32_LOAD, align: a) => self.loadop(I32, I32, *a, 4),
             meminstr!(opcodes::I64_LOAD, align: a) => self.loadop(I32, I64, *a, 8),

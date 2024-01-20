@@ -85,11 +85,17 @@ fn compile_global(
     module: &ModuleContext,
     global: GlobalField<UncompiledExpr<Resolved>>,
 ) -> Result<GlobalField<CompiledExpr>> {
+    let expect_type = global.globaltype.valtype;
     Ok(GlobalField {
         id:         global.id,
         exports:    global.exports,
         globaltype: global.globaltype,
-        init:       ValidatingEmitter::simple_expression(validation_mode, module, &global.init)?,
+        init:       ValidatingEmitter::simple_expression(
+            validation_mode,
+            module,
+            &global.init,
+            vec![expect_type],
+        )?,
     })
 }
 
@@ -153,10 +159,12 @@ fn compile_table_position(
     };
     Ok(TablePosition {
         tableuse: table_position.tableuse,
-        offset:   ValidatingEmitter::simple_expressions(validation_mode, module, &[
-            &table_position.offset,
-            &init_expr,
-        ])?,
+        offset:   ValidatingEmitter::simple_expressions(
+            validation_mode,
+            module,
+            &[&table_position.offset, &init_expr],
+            vec![],
+        )?,
     })
 }
 fn compile_elem_mode(
@@ -189,7 +197,11 @@ fn compile_elem_list(
         items:   elem_list
             .items
             .iter()
-            .map(|e| ValidatingEmitter::simple_expression(validation_mode, module, e))
+            .map(|e| {
+                ValidatingEmitter::simple_expression(validation_mode, module, e, vec![elem_list
+                    .reftype
+                    .into()])
+            })
             .collect::<Result<Vec<_>>>()?,
     })
 }
@@ -211,9 +223,11 @@ fn compile_data_init(
     };
     Ok(DataInit {
         memidx: data_init.memidx,
-        offset: ValidatingEmitter::simple_expressions(validation_mode, module, &[
-            &data_init.offset,
-            &init_expr,
-        ])?,
+        offset: ValidatingEmitter::simple_expressions(
+            validation_mode,
+            module,
+            &[&data_init.offset, &init_expr],
+            vec![],
+        )?,
     })
 }

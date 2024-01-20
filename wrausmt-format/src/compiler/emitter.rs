@@ -159,6 +159,14 @@ pub trait Emitter {
         Ok(())
     }
 
+    fn validate_end(&mut self) -> Result<()> {
+        self.validate_instr(&Instruction {
+            name:     Id::literal("end"),
+            opcode:   opcodes::END,
+            operands: Operands::None,
+        })
+    }
+
     fn emit_end(&mut self) -> Result<()> {
         self.emit_instr(&Instruction {
             name:     Id::literal("end"),
@@ -180,6 +188,7 @@ pub struct ValidatingEmitter<'a> {
     output:     Vec<u8>,
     validation: Validation<'a>,
 }
+
 impl<'a> ValidatingEmitter<'a> {
     /// Compile a Function's body. Instructions will be validated using the
     /// provided [`ValidationMode`]. Validation uses the provided
@@ -215,19 +224,22 @@ impl<'a> ValidatingEmitter<'a> {
         validation_mode: ValidationMode,
         module: &ModuleContext,
         expr: &UncompiledExpr<Resolved>,
+        resulttypes: Vec<ValueType>,
     ) -> Result<CompiledExpr> {
-        Self::simple_expressions(validation_mode, module, &[expr])
+        Self::simple_expressions(validation_mode, module, &[expr], resulttypes)
     }
 
     pub fn simple_expressions(
         validation_mode: ValidationMode,
         module: &ModuleContext,
         exprs: &[&UncompiledExpr<Resolved>],
+        resulttypes: Vec<ValueType>,
     ) -> Result<CompiledExpr> {
-        let mut out = ValidatingEmitter::new(validation_mode, module, vec![], vec![]);
+        let mut out = ValidatingEmitter::new(validation_mode, module, vec![], resulttypes);
         for expr in exprs {
             out.emit_expr(expr)?;
         }
+        out.validate_end()?;
         Ok(CompiledExpr {
             instr: out.finish()?,
         })
