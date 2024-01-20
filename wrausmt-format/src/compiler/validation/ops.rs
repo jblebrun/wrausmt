@@ -292,6 +292,26 @@ impl<'a> Validation<'a> {
                 self.stacks.pop_val(global.valtype)?;
                 Ok(())
             }
+            instr!(opcodes::TABLE_GET => Operands::TableIndex(idx)) => {
+                let table = self
+                    .module
+                    .tables
+                    .get(idx.value() as usize)
+                    .ok_or(ValidationError::UnknownTable)?;
+                self.stacks.pop_val(I32)?;
+                self.stacks.push_val(table.reftype.into());
+                Ok(())
+            }
+            instr!(opcodes::TABLE_SET => Operands::TableIndex(idx)) => {
+                let table = self
+                    .module
+                    .tables
+                    .get(idx.value() as usize)
+                    .ok_or(ValidationError::UnknownTable)?;
+                self.stacks.pop_val(I32)?;
+                self.stacks.pop_val(table.reftype.into())?;
+                Ok(())
+            }
             // 0x28
             meminstr!(opcodes::I32_LOAD, align: a) => self.loadop(I32, I32, *a, 4),
             meminstr!(opcodes::I64_LOAD, align: a) => self.loadop(I32, I64, *a, 8),

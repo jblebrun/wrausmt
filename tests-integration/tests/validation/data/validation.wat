@@ -166,3 +166,17 @@
   (func (result i64) (global.get 1))
   (func (param i64) (local.get 0) (global.set 1))
 )
+
+(module
+  (table $t2 2 externref)
+  (table $t3 3 funcref)
+  (func (export "get-externref-implicit") (param $i i32) (result externref)
+    (table.get (local.get $i))
+  )
+  (func (export "get-externref") (param $i i32) (result externref)
+    (table.get $t2 (local.get $i))
+  )
+  (func (export "set-funcref") (param $i i32) (param funcref)
+    (table.set $t3 (local.get 1) (local.get $i))
+  )
+)
