@@ -48,6 +48,7 @@ pub enum ValidationError {
     UnknownFunc,
     UnknownType,
     UnsupportedSelect,
+    WrongTableType,
 }
 
 /// How to treat Validator issues.

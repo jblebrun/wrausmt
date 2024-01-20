@@ -142,3 +142,19 @@
   (func (result i32) (select (i32.const 1) (i32.const 2) (i32.const 0)))
   (func (result i32) (select (result i32) (i32.const 1) (i32.const 2) (i32.const 0)))
 )
+
+(module 
+ (type $proc (func))
+ (type $out-i32 (func (result i32)))
+ (table funcref (elem $f-i32))
+ (func $f-i32 (result i32) (i32.const 42))
+ (func (export "type-i32") (result i32)
+    (nop)
+    (call_indirect (type $out-i32) (i32.const 0))
+  )
+)
+
+(module 
+   (func $const-i32 (result i32) (i32.const 0x132))
+   (func (export "type-i32") (result i32) (call $const-i32))
+)

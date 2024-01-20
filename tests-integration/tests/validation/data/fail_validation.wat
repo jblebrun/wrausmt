@@ -84,3 +84,49 @@
     )
 "type mismatch"
 )
+
+(assert_invalid
+    (module 
+        (type $proc (func))
+        (type $out-i32 (func (result i32)))
+        (func $f-i32 (result i32) (i32.const 42))
+        (func (export "type-i32") (result i32)
+            (call_indirect (type $out-i32) (i32.const 0))
+        )
+    )
+    "unknown table"
+)
+
+(assert_invalid
+    (module 
+        (type $proc (func))
+        (type $out-i32 (func (result i32)))
+        (table $t 0 externref)
+        (func $f-i32 (result i32) (i32.const 42))
+        (func (export "type-i32") (result i32)
+            (call_indirect (type $out-i32) (i32.const 0))
+        )
+    )
+    "wrong table type"
+)
+
+(assert_invalid
+    (module 
+        (type $proc (func))
+        (type $out-i32 (func (result i32)))
+        (table funcref (elem $f-i32))
+        (func $f-i32 (result i32) (i32.const 42))
+        (func (export "type-i32") (result i32)
+            (call_indirect (type 8) (i32.const 0))
+        )
+    )
+    "unknown type"
+)
+
+(assert_invalid
+    (module 
+        (func $const-i32 (result i64) (i32.const 0x132))
+        (func (export "type-i32") (result i32) (call $const-i32))
+    )
+    "type mismatch"
+)
