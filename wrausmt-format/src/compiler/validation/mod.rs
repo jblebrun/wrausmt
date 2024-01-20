@@ -33,6 +33,7 @@ pub enum ValidationError {
     ExpectedNum {
         actual: ValidationType,
     },
+    ImmutableGlobal,
     UnusedValues,
     UnknownLocal(Index<Resolved, LocalIndex>),
     AlignmentTooLarge(u32),
@@ -46,6 +47,7 @@ pub enum ValidationError {
     UnknownTable,
     UnknownElem,
     UnknownFunc,
+    UnknownGlobal,
     UnknownType,
     UnsupportedSelect,
     WrongTableType,

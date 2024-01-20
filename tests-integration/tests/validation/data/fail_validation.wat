@@ -130,3 +130,33 @@
     )
     "type mismatch"
 )
+
+(assert_invalid
+    (module
+    (global $a i32 (i32.const 5))
+    (func (param i32) (local.get 0) (global.set 0))
+    )
+    "global is immutable"
+)
+
+(assert_invalid
+    (module
+    (global $a i32 (i32.const 5))
+    (func (result i32) (global.get 1))
+    )
+    "unknown global"
+)
+
+(assert_invalid
+    (module
+    (global $a i64 (i32.const 5)))
+    "type mismatch"
+)
+
+(assert_invalid
+    (module
+    (global $a i64 (i64.const 5))
+    (func (result i32) (global.get 0))
+    )
+    "type mismatch"
+)
