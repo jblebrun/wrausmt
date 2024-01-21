@@ -1,9 +1,10 @@
 use {
     super::{error::Result, module::Field, pctx, Parser},
+    crate::text::parse_text_unresolved_instructions,
     std::io::Read,
     wrausmt_runtime::syntax::{
         types::{RefType, TableType},
-        ElemField, ElemList, ImportDesc, ImportField, Instruction, ModeEntry, TableField,
+        ElemField, ElemList, FuncIndex, ImportDesc, ImportField, ModeEntry, TableField,
         TablePosition, TableUse, UncompiledExpr, Unresolved,
     },
 };
@@ -11,8 +12,8 @@ use {
 impl<R: Read> Parser<R> {
     fn try_index_as_funcref(&mut self) -> Result<Option<UncompiledExpr<Unresolved>>> {
         pctx!(self, "try index as funcref");
-        Ok(self.try_index()?.map(|idx| UncompiledExpr {
-            instr: vec![Instruction::reffunc(idx)],
+        Ok(self.try_index::<FuncIndex>()?.map(|idx| {
+            parse_text_unresolved_instructions(&format!("ref.func {} {}", idx.name(), idx.value()))
         }))
     }
 
@@ -62,7 +63,10 @@ impl<R: Read> Parser<R> {
                 let tabletype = TableType::fixed_size(elemlist.items.len() as u32);
                 let elemfied = Some(ElemField {
                     id: None,
-                    mode: ModeEntry::Active(TablePosition::default()),
+                    mode: ModeEntry::Active(TablePosition {
+                        tableuse: TableUse::default(),
+                        offset:   parse_text_unresolved_instructions("i32.const 0"),
+                    }),
                     elemlist,
                 });
                 (tabletype, elemfied)

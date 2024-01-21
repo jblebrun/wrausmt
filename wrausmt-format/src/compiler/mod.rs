@@ -3,10 +3,11 @@ mod validation;
 pub use validation::{ValidationError, ValidationErrorKind, ValidationMode};
 use {
     self::{emitter::ValidatingEmitter, validation::ModuleContext},
+    crate::text::parse_text_resolved_instructions,
     validation::Result,
     wrausmt_runtime::syntax::{
-        CompiledExpr, DataField, DataInit, ElemField, ElemList, FuncField, GlobalField,
-        Instruction, ModeEntry, Module, Resolved, TablePosition, UncompiledExpr,
+        CompiledExpr, DataField, DataInit, ElemField, ElemList, FuncField, GlobalField, ModeEntry,
+        Module, Resolved, TablePosition, UncompiledExpr,
     },
 };
 
@@ -149,14 +150,9 @@ fn compile_table_position(
     ei: usize,
 ) -> Result<TablePosition<Resolved, CompiledExpr>> {
     let ti = table_position.tableuse.tableidx.value();
-    let init_expr = UncompiledExpr {
-        instr: vec![
-            Instruction::i32const(0),
-            Instruction::i32const(cnt as u32),
-            Instruction::tableinit(ti, ei as u32),
-            Instruction::elemdrop(ei as u32),
-        ],
-    };
+    let init_expr = parse_text_resolved_instructions(&format!(
+        "(i32.const 0) (i32.const {cnt}) (table.init {ti} {ei}) (elem.drop {ei})"
+    ));
     Ok(TablePosition {
         tableuse: table_position.tableuse,
         offset:   ValidatingEmitter::simple_expressions(
@@ -213,14 +209,9 @@ fn compile_data_init(
     cnt: usize,
     di: usize,
 ) -> Result<DataInit<Resolved, CompiledExpr>> {
-    let init_expr = UncompiledExpr {
-        instr: vec![
-            Instruction::i32const(0),
-            Instruction::i32const(cnt as u32),
-            Instruction::meminit(di as u32),
-            Instruction::datadrop(di as u32),
-        ],
-    };
+    let init_expr = parse_text_resolved_instructions(&format!(
+        "(i32.const 0) (i32.const {cnt}) (memory.init {di}) (data.drop {di})"
+    ));
     Ok(DataInit {
         memidx: data_init.memidx,
         offset: ValidatingEmitter::simple_expressions(
