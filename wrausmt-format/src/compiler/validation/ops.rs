@@ -248,7 +248,7 @@ impl<'a> Validation<'a> {
                     actual: ValidationType::Value(n2.into()),
                     expect: ValidationType::Value(n1.into()),
                 })?;
-                self.stacks.push_val(n1.into());
+                self.stacks.push_val(n1);
                 Ok(())
             }
             instr!(opcodes::SELECT => Operands::SelectT(t)) => {
@@ -302,7 +302,7 @@ impl<'a> Validation<'a> {
                     .get(idx.value() as usize)
                     .ok_or(ValidationErrorKind::UnknownTable)?;
                 self.stacks.pop_val(I32)?;
-                self.stacks.push_val(table.reftype.into());
+                self.stacks.push_val(table.reftype);
                 Ok(())
             }
             instr!(opcodes::TABLE_SET => Operands::TableIndex(idx)) => {

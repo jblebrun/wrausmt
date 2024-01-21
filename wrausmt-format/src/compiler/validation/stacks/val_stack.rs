@@ -8,7 +8,7 @@ use {
 /// [`ValueType`] items exposing only well-defined mutation methods.
 #[derive(Debug)]
 pub struct ValueStack {
-    values: Vec<ValueType>,
+    values: Vec<ValidationType>,
 }
 
 impl ValueStack {
@@ -16,13 +16,13 @@ impl ValueStack {
         ValueStack { values: vec![] }
     }
 
-    pub fn push(&mut self, v: ValueType) {
+    pub fn push(&mut self, v: ValidationType) {
         self.values.push(v);
     }
 
     pub fn push_many(&mut self, vs: &[ValueType]) {
         for v in vs.iter() {
-            self.values.push(*v);
+            self.values.push((*v).into());
         }
     }
 
@@ -46,7 +46,7 @@ impl ValueStack {
             .values
             .pop()
             .ok_or(ValidationErrorKind::ValStackUnderflow)?;
-        Ok(ValidationType::Value(val))
+        Ok(val)
     }
 
     pub fn drop(&mut self) -> Result<()> {
