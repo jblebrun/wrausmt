@@ -24,8 +24,8 @@ impl Stacks {
         Stacks { ctrl, val }
     }
 
-    pub fn push_val(&mut self, val: ValueType) {
-        self.val.push(val)
+    pub fn push_val(&mut self, val: impl Into<ValidationType>) {
+        self.val.push(val.into())
     }
 
     pub fn push_vals(&mut self, vals: &[ValueType]) {

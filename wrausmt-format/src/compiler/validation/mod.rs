@@ -104,6 +104,12 @@ pub enum ValidationType {
     Value(ValueType),
 }
 
+impl<I: Into<ValueType>> From<I> for ValidationType {
+    fn from(value: I) -> Self {
+        ValidationType::Value(value.into())
+    }
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct FunctionType {
     pub params:  Vec<ValueType>,
