@@ -617,80 +617,6 @@ impl std::fmt::Display for Opcode {
     }
 }
 
-impl<R: ResolvedState> Instruction<R> {
-    pub fn i32const(val: u32) -> Self {
-        Self {
-            name:     Id::literal("i32.const"),
-            opcode:   Opcode::Normal(0x41),
-            operands: Operands::I32(val),
-        }
-    }
-
-    pub fn i64const(val: u64) -> Self {
-        Self {
-            name:     Id::literal("i64.const"),
-            opcode:   Opcode::Normal(0x42),
-            operands: Operands::I64(val),
-        }
-    }
-
-    pub fn reffunc(idx: Index<R, FuncIndex>) -> Self {
-        Self {
-            name:     Id::literal("ref.func"),
-            opcode:   Opcode::Normal(0xD2),
-            operands: Operands::FuncIndex(idx),
-        }
-    }
-
-    pub fn f32const(val: f32) -> Self {
-        Self {
-            name:     Id::literal("i32.const"),
-            opcode:   Opcode::Normal(0x43),
-            operands: Operands::F32(val),
-        }
-    }
-
-    pub fn f64const(val: f64) -> Self {
-        Self {
-            name:     Id::literal("f64.const"),
-            opcode:   Opcode::Normal(0x44),
-            operands: Operands::F64(val),
-        }
-    }
-
-    pub fn tableinit(tableidx: u32, elemidx: u32) -> Self {
-        Self {
-            name:     Id::literal("table.init"),
-            opcode:   Opcode::Extended(0x0c),
-            operands: Operands::TableInit(Index::unnamed(tableidx), Index::unnamed(elemidx)),
-        }
-    }
-
-    pub fn elemdrop(elemidx: u32) -> Self {
-        Self {
-            name:     Id::literal("elem.drop"),
-            opcode:   Opcode::Extended(0x0d),
-            operands: Operands::ElemIndex(Index::unnamed(elemidx)),
-        }
-    }
-
-    pub fn meminit(dataidx: u32) -> Self {
-        Self {
-            name:     Id::literal("mem.init"),
-            opcode:   Opcode::Extended(0x08),
-            operands: Operands::DataIndex(Index::unnamed(dataidx)),
-        }
-    }
-
-    pub fn datadrop(dataidx: u32) -> Self {
-        Self {
-            name:     Id::literal("data.drop"),
-            opcode:   Opcode::Extended(0x09),
-            operands: Operands::DataIndex(Index::unnamed(dataidx)),
-        }
-    }
-}
-
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum Continuation {
     Start,
@@ -765,16 +691,6 @@ pub struct TablePosition<R: ResolvedState, E> {
     pub offset:   E,
 }
 
-impl Default for TablePosition<Unresolved, UncompiledExpr<Unresolved>> {
-    fn default() -> Self {
-        Self {
-            tableuse: TableUse::default(),
-            offset:   UncompiledExpr {
-                instr: vec![Instruction::i32const(0)],
-            },
-        }
-    }
-}
 // ElemList may be exprs, or func indices (unresolved)
 #[derive(Debug, PartialEq)]
 pub struct ElemList<E> {

@@ -4,7 +4,6 @@ use {
         error_mappings::verify_failure,
         format::{Action, ActionResult, Assertion, Cmd, CmdEntry, Module, NumPat, SpecTestScript},
         log_tag::Tag,
-        spectest_module::make_spectest_module,
     },
     std::{
         collections::HashMap,
@@ -13,7 +12,8 @@ use {
     },
     wrausmt_common::logger::{Logger, PrintLogger},
     wrausmt_format::{
-        compiler::compile_module, loader::Loader, text::string::WasmString, ValidationMode,
+        compiler::compile_module, file_loader::FileLoader, loader::Loader,
+        text::string::WasmString, ValidationMode,
     },
     wrausmt_runtime::{
         runtime::{
@@ -116,8 +116,8 @@ fn module_data(strings: Vec<WasmString>) -> Box<[u8]> {
 impl SpecTestRunner {
     pub fn new() -> Self {
         let mut runtime = Runtime::new();
-        let spectest_module = runtime.load(make_spectest_module().unwrap()).unwrap();
-        runtime.register("spectest", spectest_module);
+        let env_module = runtime.load_file("tests/spec/data/env.wast").unwrap();
+        runtime.register("spectest", env_module);
         SpecTestRunner {
             runtime,
             ..Self::default()

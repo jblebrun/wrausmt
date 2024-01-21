@@ -3,13 +3,15 @@ use {
         error::{ParseErrorKind, Result},
         pctx, ParseResult, Parser,
     },
-    crate::text::{module_builder::ModuleBuilder, token::Token},
+    crate::text::{
+        module_builder::ModuleBuilder, parse_text_unresolved_instructions, token::Token,
+    },
     std::io::Read,
     wrausmt_runtime::syntax::{
         types::{GlobalType, Limits, MemType, TableType},
         DataField, DataInit, ElemField, ExportDesc, ExportField, FParam, FResult, FuncField,
-        FunctionType, GlobalField, Id, ImportDesc, ImportField, Index, IndexSpace, Instruction,
-        Local, MemoryField, MemoryIndex, ModeEntry, Module, Resolved, ResolvedState, StartField,
+        FunctionType, GlobalField, Id, ImportDesc, ImportField, Index, IndexSpace, Local,
+        MemoryField, MemoryIndex, ModeEntry, Module, Resolved, ResolvedState, StartField,
         TableField, TypeField, TypeUse, UncompiledExpr, Unresolved,
     },
 };
@@ -110,9 +112,7 @@ impl<R: Read> Parser<R> {
                                 data: d,
                                 init: Some(DataInit {
                                     memidx: Index::unnamed(memidx),
-                                    offset: UncompiledExpr {
-                                        instr: vec![Instruction::i32const(0)],
-                                    },
+                                    offset: parse_text_unresolved_instructions("i32.const 0"),
                                 }),
                             })
                             .result(self)?;
