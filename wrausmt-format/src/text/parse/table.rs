@@ -35,6 +35,7 @@ impl<R: Read> Parser<R> {
 
     pub fn try_table_field(&mut self) -> Result<Option<Field<Unresolved>>> {
         pctx!(self, "try table field");
+        let location = self.location();
         if !self.try_expr_start("table")? {
             return Ok(None);
         }
@@ -68,6 +69,7 @@ impl<R: Read> Parser<R> {
                         offset:   parse_text_unresolved_instructions("i32.const 0"),
                     }),
                     elemlist,
+                    location,
                 });
                 (tabletype, elemfied)
             }
@@ -128,6 +130,7 @@ impl<R: Read> Parser<R> {
     // tableuse can be omitted, defaulting to 0.
     pub fn try_elem_field(&mut self) -> Result<Option<Field<Unresolved>>> {
         pctx!(self, "try elem field");
+        let location = self.location();
         if !self.try_expr_start("elem")? {
             return Ok(None);
         }
@@ -151,6 +154,11 @@ impl<R: Read> Parser<R> {
             ModeEntry::Passive
         };
         self.expect_close()?;
-        Ok(Some(Field::Elem(ElemField { id, mode, elemlist })))
+        Ok(Some(Field::Elem(ElemField {
+            id,
+            mode,
+            elemlist,
+            location,
+        })))
     }
 }

@@ -6,8 +6,8 @@ use {
     crate::text::parse_text_resolved_instructions,
     validation::Result,
     wrausmt_runtime::syntax::{
-        CompiledExpr, DataField, DataInit, ElemField, ElemList, FuncField, GlobalField, ModeEntry,
-        Module, Resolved, TablePosition, UncompiledExpr,
+        location::Location, CompiledExpr, DataField, DataInit, ElemField, ElemList, FuncField,
+        GlobalField, ModeEntry, Module, Resolved, TablePosition, UncompiledExpr,
     },
 };
 
@@ -78,6 +78,7 @@ fn compile_func(
         typeuse: func.typeuse,
         locals: func.locals,
         body,
+        location: func.location,
     })
 }
 
@@ -96,7 +97,9 @@ fn compile_global(
             module,
             &global.init,
             vec![expect_type],
+            &global.location,
         )?,
+        location:   global.location,
     })
 }
 
@@ -114,8 +117,10 @@ fn compile_elem(
             elem.mode,
             elem.elemlist.items.len(),
             ei,
+            &elem.location,
         )?,
-        elemlist: compile_elem_list(validation_mode, module, elem.elemlist)?,
+        elemlist: compile_elem_list(validation_mode, module, elem.elemlist, &elem.location)?,
+        location: elem.location,
     })
 }
 
@@ -127,18 +132,20 @@ fn compile_data(
 ) -> Result<DataField<Resolved, CompiledExpr>> {
     let dlen = data.data.len();
     Ok(DataField {
-        id:   data.id,
-        data: data.data,
-        init: match data.init {
+        id:       data.id,
+        data:     data.data,
+        init:     match data.init {
             Some(data_init) => Some(compile_data_init(
                 validation_mode,
                 module,
                 data_init,
                 dlen,
                 di,
+                &data.location,
             )?),
             None => None,
         },
+        location: data.location,
     })
 }
 
@@ -148,6 +155,7 @@ fn compile_table_position(
     table_position: TablePosition<Resolved, UncompiledExpr<Resolved>>,
     cnt: usize,
     ei: usize,
+    location: &Location,
 ) -> Result<TablePosition<Resolved, CompiledExpr>> {
     let ti = table_position.tableuse.tableidx.value();
     let init_expr = parse_text_resolved_instructions(&format!(
@@ -160,6 +168,7 @@ fn compile_table_position(
             module,
             &[&table_position.offset, &init_expr],
             vec![],
+            location,
         )?,
     })
 }
@@ -169,6 +178,7 @@ fn compile_elem_mode(
     elem_mode: ModeEntry<Resolved, UncompiledExpr<Resolved>>,
     cnt: usize,
     ei: usize,
+    location: &Location,
 ) -> Result<ModeEntry<Resolved, CompiledExpr>> {
     Ok(match elem_mode {
         ModeEntry::Active(tp) => ModeEntry::Active(compile_table_position(
@@ -177,6 +187,7 @@ fn compile_elem_mode(
             tp,
             cnt,
             ei,
+            location,
         )?),
         ModeEntry::Passive => ModeEntry::Passive,
         ModeEntry::Declarative => ModeEntry::Declarative,
@@ -187,6 +198,7 @@ fn compile_elem_list(
     validation_mode: ValidationMode,
     module: &ModuleContext,
     elem_list: ElemList<UncompiledExpr<Resolved>>,
+    location: &Location,
 ) -> Result<ElemList<CompiledExpr>> {
     Ok(ElemList {
         reftype: elem_list.reftype,
@@ -194,9 +206,13 @@ fn compile_elem_list(
             .items
             .iter()
             .map(|e| {
-                ValidatingEmitter::simple_expression(validation_mode, module, e, vec![elem_list
-                    .reftype
-                    .into()])
+                ValidatingEmitter::simple_expression(
+                    validation_mode,
+                    module,
+                    e,
+                    vec![elem_list.reftype.into()],
+                    location,
+                )
             })
             .collect::<Result<Vec<_>>>()?,
     })
@@ -208,6 +224,7 @@ fn compile_data_init(
     data_init: DataInit<Resolved, UncompiledExpr<Resolved>>,
     cnt: usize,
     di: usize,
+    location: &Location,
 ) -> Result<DataInit<Resolved, CompiledExpr>> {
     let init_expr = parse_text_resolved_instructions(&format!(
         "(i32.const 0) (i32.const {cnt}) (memory.init {di}) (data.drop {di})"
@@ -219,6 +236,7 @@ fn compile_data_init(
             module,
             &[&data_init.offset, &init_expr],
             vec![],
+            location,
         )?,
     })
 }

@@ -21,7 +21,7 @@ impl ValueStack {
     }
 
     pub fn push_many(&mut self, vs: &[ValueType]) {
-        for v in vs.iter().rev() {
+        for v in vs.iter() {
             self.values.push(*v);
         }
     }

@@ -8,6 +8,7 @@ use {
         instructions::opcodes,
         syntax::{
             self,
+            location::Location,
             types::{GlobalType, MemType, RefType, TableType, ValueType},
             ImportDesc, Index, Instruction, LocalIndex, Module, Resolved, UncompiledExpr,
         },
@@ -55,12 +56,13 @@ pub enum ValidationErrorKind {
 
 #[derive(Debug)]
 pub struct ValidationError {
-    kind: ValidationErrorKind,
+    kind:     ValidationErrorKind,
+    location: Location,
 }
 
 impl ValidationError {
-    pub fn new(kind: ValidationErrorKind) -> ValidationError {
-        ValidationError { kind }
+    pub fn new(kind: ValidationErrorKind, location: Location) -> ValidationError {
+        ValidationError { kind, location }
     }
 
     pub fn kind(&self) -> &ValidationErrorKind {
@@ -70,7 +72,7 @@ impl ValidationError {
 
 impl std::fmt::Display for ValidationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "{:?}", self.kind)
+        writeln!(f, "{:?} {:?}", self.location, self.kind)
     }
 }
 
@@ -88,8 +90,9 @@ pub enum ValidationMode {
     // Use panic to abort the entire process if validation fails.
     Panic,
 }
-pub type KindResult<T> = std::result::Result<T, ValidationErrorKind>;
+
 pub type Result<T> = std::result::Result<T, ValidationError>;
+type KindResult<T> = std::result::Result<T, ValidationErrorKind>;
 
 /// Type representations during validation.
 ///

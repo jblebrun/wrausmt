@@ -55,7 +55,7 @@ macro_rules! pctx {
     };
 }
 pub use pctx;
-use wrausmt_common::true_or::TrueOr;
+use {wrausmt_common::true_or::TrueOr, wrausmt_runtime::syntax::location::Location};
 
 // Implementation for the basic token-handling methods.
 impl<R: Read> Parser<R> {
@@ -74,6 +74,13 @@ impl<R: Read> Parser<R> {
 
     pub fn new(reader: R) -> Parser<R> {
         Parser::new_from_tokenizer(Tokenizer::new(reader))
+    }
+
+    fn location(&self) -> Location {
+        Location {
+            line: self.current.location.line,
+            pos:  self.current.location.pos,
+        }
     }
 
     pub fn assure_started(&mut self) -> Result<()> {

@@ -1,7 +1,10 @@
 use {
     super::{error::Result, leb128::ReadLeb128, BinaryParser, ParserReader},
     crate::{
-        binary::error::{BinaryParseErrorKind, ParseResult},
+        binary::{
+            error::{BinaryParseErrorKind, ParseResult},
+            read_with_location::Locate,
+        },
         pctx,
     },
     wrausmt_common::true_or::TrueOr,
@@ -68,14 +71,16 @@ impl<R: ParserReader> BinaryParser<R> {
 
     fn read_init_funcs(&mut self) -> Result<Vec<UncompiledExpr<Resolved>>> {
         pctx!(self, "read init funcs");
+        let location = self.location();
         Ok(self
             .read_vec_funcidx()?
             .into_iter()
             .map(|idx| UncompiledExpr {
                 instr: vec![Instruction {
-                    name:     Id::literal("ref.func"),
-                    opcode:   Opcode::Normal(0xD2),
+                    name: Id::literal("ref.func"),
+                    opcode: Opcode::Normal(0xD2),
                     operands: syntax::Operands::FuncIndex(idx),
+                    location,
                 }],
             })
             .collect())
@@ -83,6 +88,7 @@ impl<R: ParserReader> BinaryParser<R> {
 
     fn read_elem(&mut self) -> Result<ElemField<Resolved, UncompiledExpr<Resolved>>> {
         pctx!(self, "read elem");
+        let location = self.location();
         let variants = ElemVariant::new(self.read_u32_leb_128().result(self)?);
 
         let tidx = if variants.has_tableidx() {
@@ -139,6 +145,7 @@ impl<R: ParserReader> BinaryParser<R> {
             id: None,
             mode,
             elemlist,
+            location,
         })
     }
 

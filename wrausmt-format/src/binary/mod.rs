@@ -201,6 +201,7 @@ impl<T: ParserReader> Locate for BinaryParser<T> {
         self.reader.location()
     }
 }
+
 impl<T: ParserReader> ParserReader for BinaryParser<T> {}
 
 /// Attempt to interpret the data in the provided std::io:Read as a WASM binary

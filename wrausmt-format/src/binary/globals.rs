@@ -18,11 +18,13 @@ impl<R: ParserReader> BinaryParser<R> {
 
     fn read_global_field(&mut self) -> Result<GlobalField<UncompiledExpr<Resolved>>> {
         pctx!(self, "read global field");
+        let location = self.reader.location();
         Ok(GlobalField {
-            id:         None,
-            exports:    vec![],
+            id: None,
+            exports: vec![],
             globaltype: self.read_global_type()?,
-            init:       self.read_expr(false)?,
+            init: self.read_expr(false)?,
+            location,
         })
     }
 }

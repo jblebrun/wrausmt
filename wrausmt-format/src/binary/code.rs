@@ -4,7 +4,10 @@ use {
         leb128::ReadLeb128,
         BinaryParser, ParserReader,
     },
-    crate::{binary::error::ParseResult, pctx},
+    crate::{
+        binary::{error::ParseResult, read_with_location::Locate},
+        pctx,
+    },
     std::io::Read,
     wrausmt_common::true_or::TrueOr,
     wrausmt_runtime::{
@@ -77,16 +80,18 @@ impl<R: ParserReader> BinaryParser<R> {
         data_indices_ok: bool,
     ) -> Result<FuncField<Resolved, UncompiledExpr<Resolved>>> {
         pctx!(self, "read func");
+        let location = self.location();
         let code_size_expected = self.read_u32_leb_128().result(self)?;
 
         let (function, amount_read) = self.count_reads(|s| {
             Ok(FuncField {
-                id:      None,
+                id: None,
                 exports: vec![],
                 // The types are parsed earlier and will be set on the returned values.
                 typeuse: TypeUse::default(),
-                locals:  s.read_locals()?,
-                body:    s.read_expr(data_indices_ok)?,
+                locals: s.read_locals()?,
+                body: s.read_expr(data_indices_ok)?,
+                location,
             })
         })?;
 
@@ -167,6 +172,7 @@ impl<R: ParserReader> BinaryParser<R> {
     /// Returns Err result otherwise.
     fn read_inst(&mut self, data_indices_ok: bool) -> Result<InstructionOrEnd> {
         pctx!(self, "read inst");
+        let location = self.reader.location();
         let mut opcode_buf = [0u8; 1];
         self.read_exact(&mut opcode_buf).result(self)?;
 
@@ -292,6 +298,7 @@ impl<R: ParserReader> BinaryParser<R> {
             name: Id::default(),
             opcode,
             operands,
+            location,
         }))
     }
 }
