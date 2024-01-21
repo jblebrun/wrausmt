@@ -23,6 +23,7 @@ impl<R: ParserReader> BinaryParser<R> {
 
     fn read_data_field(&mut self) -> Result<DataField<Resolved, UncompiledExpr<Resolved>>> {
         pctx!(self, "read data field");
+        let location = self.reader.location();
         let variants = self.read_u32_leb_128().result(self)?;
         let active = (variants & 0x01) == 0;
         let active_memidx = (variants & 0x02) != 0;
@@ -47,6 +48,7 @@ impl<R: ParserReader> BinaryParser<R> {
             id: None,
             data,
             init,
+            location,
         })
     }
 }

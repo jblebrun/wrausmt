@@ -29,6 +29,7 @@ impl<R: Read> Parser<R> {
             return Ok(None);
         }
 
+        let location = self.location();
         let instruction_data = instruction_by_name(name);
 
         match instruction_data {
@@ -111,6 +112,7 @@ impl<R: Read> Parser<R> {
                     name,
                     opcode: data.opcode,
                     operands,
+                    location,
                 }))
             }
             None => Err(self.err(ParseErrorKind::UnrecognizedInstruction(
@@ -223,6 +225,7 @@ impl<R: Read> Parser<R> {
         cnt: Continuation,
     ) -> Result<Instruction<Unresolved>> {
         pctx!(self, "parse folded block");
+        let location = self.location();
         let label = self.try_id()?;
         let typeuse = self.parse_type_use(super::module::FParamId::Forbidden)?;
         let instr = self.parse_instructions()?;
@@ -232,11 +235,13 @@ impl<R: Read> Parser<R> {
             name,
             opcode,
             operands,
+            location,
         })
     }
 
     fn parse_folded_if(&mut self) -> Result<Vec<Instruction<Unresolved>>> {
         pctx!(self, "parse folded if");
+        let location = self.location();
         let label = self.try_id()?;
         let typeuse = self.parse_type_use(super::module::FParamId::Forbidden)?;
         let condition = self.zero_or_more_groups(Self::try_folded_instruction)?;
@@ -263,6 +268,7 @@ impl<R: Read> Parser<R> {
             name: Id::literal("if"),
             opcode: Opcode::Normal(0x04),
             operands,
+            location,
         });
 
         Ok(unfolded)

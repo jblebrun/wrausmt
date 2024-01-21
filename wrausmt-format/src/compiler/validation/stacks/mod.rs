@@ -95,6 +95,8 @@ impl Stacks {
         // TODO - remove clone?
         let end_types = frame.end_types.clone();
         let cur_height = frame.height;
+        println!("STACK {:?}", self.val);
+        println!("POP CTRL VALS {:?}", end_types);
         self.pop_vals(&end_types)?;
         (self.val.len() == cur_height).true_or(ValidationErrorKind::UnusedValues)?;
         self.ctrl.pop()

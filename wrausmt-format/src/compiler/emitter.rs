@@ -7,6 +7,7 @@ use {
         instructions::{op_consts, opcodes},
         syntax::{
             self,
+            location::Location,
             types::{RefType, ValueType},
             CompiledExpr, FuncField, Id, Instruction, Opcode, Operands, Resolved, TypeUse,
             UncompiledExpr,
@@ -31,6 +32,7 @@ pub trait Emitter {
         typeuse: &syntax::TypeUse<Resolved>,
         expr: &syntax::UncompiledExpr<Resolved>,
         cnt: &syntax::Continuation,
+        location: &Location,
     ) -> Result<()> {
         let startcnt = self.len() as u32 - 1;
 
@@ -48,7 +50,7 @@ pub trait Emitter {
         }
 
         self.emit_expr(expr)?;
-        self.emit_end()?;
+        self.emit_end(location)?;
 
         // If the continuation is at the end of the block, we go back to the space
         // we reserved (just above), and write self the position of the last item
@@ -77,6 +79,7 @@ pub trait Emitter {
         typeuse: &TypeUse<Resolved>,
         th: &UncompiledExpr<Resolved>,
         el: &UncompiledExpr<Resolved>,
+        location: &Location,
     ) -> Result<()> {
         self.emit32(typeuse.index().value());
 
@@ -93,13 +96,13 @@ pub trait Emitter {
         if !el.instr.is_empty() {
             self.splice32(else_location, self.len() as u32 + 1);
             // Replace the `end` for the then expression with the else opcode.
-            self.emit_else()?;
+            self.emit_else(location)?;
             self.emit_expr(el)?;
         } else {
             self.splice32(else_location, self.len() as u32);
         }
 
-        self.emit_end()?;
+        self.emit_end(location)?;
         self.splice32(end_location, self.len() as u32);
         Ok(())
     }
@@ -117,7 +120,9 @@ pub trait Emitter {
         // Emit operands
         match &instr.operands {
             syntax::Operands::None => (),
-            syntax::Operands::Block(_, typeuse, e, cnt) => self.emit_block(typeuse, e, cnt)?,
+            syntax::Operands::Block(_, typeuse, e, cnt) => {
+                self.emit_block(typeuse, e, cnt, &instr.location)?
+            }
             syntax::Operands::BrTable(indices, last) => self.emit_br_table(indices, last),
             syntax::Operands::CallIndirect(idx, typeuse) => {
                 self.emit32(idx.value());
@@ -125,7 +130,9 @@ pub trait Emitter {
             }
             // SelectT operands are only used during validation.
             syntax::Operands::SelectT(_) => (),
-            syntax::Operands::If(_, typeuse, th, el) => self.emit_if(typeuse, th, el)?,
+            syntax::Operands::If(_, typeuse, th, el) => {
+                self.emit_if(typeuse, th, el, &instr.location)?
+            }
             syntax::Operands::I32(n) => self.emit32(*n),
             syntax::Operands::I64(n) => self.emit64(*n),
             syntax::Operands::F32(n) => self.emit32(n.to_bits()),
@@ -162,27 +169,30 @@ pub trait Emitter {
         Ok(())
     }
 
-    fn validate_end(&mut self) -> Result<()> {
+    fn validate_end(&mut self, location: &Location) -> Result<()> {
         self.validate_instr(&Instruction {
             name:     Id::literal("end"),
             opcode:   opcodes::END,
             operands: Operands::None,
+            location: *location,
         })
     }
 
-    fn emit_end(&mut self) -> Result<()> {
+    fn emit_end(&mut self, location: &Location) -> Result<()> {
         self.emit_instr(&Instruction {
             name:     Id::literal("end"),
             opcode:   opcodes::END,
             operands: Operands::None,
+            location: *location,
         })
     }
 
-    fn emit_else(&mut self) -> Result<()> {
+    fn emit_else(&mut self, location: &Location) -> Result<()> {
         self.emit_instr(&Instruction {
             name:     Id::literal("else"),
             opcode:   opcodes::ELSE,
             operands: Operands::None,
+            location: *location,
         })
     }
 }
@@ -211,7 +221,7 @@ impl<'a> ValidatingEmitter<'a> {
         let mut out = ValidatingEmitter::new(validation_mode, module, localtypes, resulttypes);
 
         out.emit_expr(&func.body)?;
-        out.emit_end()?;
+        out.emit_end(&func.location)?;
 
         Ok(CompiledExpr {
             instr: out.finish()?,
@@ -228,8 +238,9 @@ impl<'a> ValidatingEmitter<'a> {
         module: &ModuleContext,
         expr: &UncompiledExpr<Resolved>,
         resulttypes: Vec<ValueType>,
+        location: &Location,
     ) -> Result<CompiledExpr> {
-        Self::simple_expressions(validation_mode, module, &[expr], resulttypes)
+        Self::simple_expressions(validation_mode, module, &[expr], resulttypes, location)
     }
 
     pub fn simple_expressions(
@@ -237,12 +248,13 @@ impl<'a> ValidatingEmitter<'a> {
         module: &ModuleContext,
         exprs: &[&UncompiledExpr<Resolved>],
         resulttypes: Vec<ValueType>,
+        location: &Location,
     ) -> Result<CompiledExpr> {
         let mut out = ValidatingEmitter::new(validation_mode, module, vec![], resulttypes);
         for expr in exprs {
             out.emit_expr(expr)?;
         }
-        out.validate_end()?;
+        out.validate_end(location)?;
         Ok(CompiledExpr {
             instr: out.finish()?,
         })
@@ -269,7 +281,7 @@ impl<'a> Emitter for ValidatingEmitter<'a> {
     fn validate_instr(&mut self, instr: &Instruction<Resolved>) -> Result<()> {
         self.validation
             .handle_instr(instr)
-            .map_err(ValidationError::new)
+            .map_err(|kind| ValidationError::new(kind, instr.location))
     }
 
     fn emit8(&mut self, v: u8) {

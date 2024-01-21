@@ -14,6 +14,7 @@ pub use indices::{
     Resolved, ResolvedState, TableIndex, TypeIndex, Unresolved,
 };
 use {
+    self::location::Location,
     std::{
         borrow::Cow,
         fmt::{self, Debug},
@@ -422,35 +423,27 @@ impl std::fmt::Debug for TypeField {
 // func := (func id? (import <modname> <name>) <typeuse>)
 #[derive(PartialEq)]
 pub struct FuncField<R: ResolvedState, E> {
-    pub id:      Option<Id>,
-    pub exports: Vec<String>,
-    pub typeuse: TypeUse<R>,
-    pub locals:  Vec<Local>,
-    pub body:    E,
+    pub id:       Option<Id>,
+    pub exports:  Vec<String>,
+    pub typeuse:  TypeUse<R>,
+    pub locals:   Vec<Local>,
+    pub body:     E,
+    pub location: Location,
 }
 
 impl Default for FuncField<Unresolved, UncompiledExpr<Unresolved>> {
     fn default() -> Self {
         Self {
-            id:      Default::default(),
-            exports: Default::default(),
-            typeuse: Default::default(),
-            locals:  Default::default(),
-            body:    Default::default(),
+            id:       Default::default(),
+            exports:  Default::default(),
+            typeuse:  Default::default(),
+            locals:   Default::default(),
+            body:     Default::default(),
+            location: Location { line: 0, pos: 0 },
         }
     }
 }
-impl FuncField<Resolved, UncompiledExpr<Resolved>> {
-    pub fn simple(body: UncompiledExpr<Resolved>) -> FuncField<Resolved, UncompiledExpr<Resolved>> {
-        FuncField {
-            id: None,
-            exports: Vec::new(),
-            typeuse: TypeUse::ByIndex(Index::unnamed(0)),
-            locals: Vec::new(),
-            body,
-        }
-    }
-}
+
 impl<R: ResolvedState, E: Debug> std::fmt::Debug for FuncField<R, E> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "(func")?;
@@ -519,6 +512,7 @@ pub struct GlobalField<E> {
     pub exports:    Vec<String>,
     pub globaltype: GlobalType,
     pub init:       E,
+    pub location:   Location,
 }
 
 impl<E: Debug> fmt::Debug for GlobalField<E> {
@@ -605,6 +599,7 @@ pub struct Instruction<R: ResolvedState> {
     pub name:     Id,
     pub opcode:   Opcode,
     pub operands: Operands<R>,
+    pub location: Location,
 }
 
 impl std::fmt::Display for Opcode {
@@ -722,6 +717,7 @@ pub struct ElemField<R: ResolvedState, E> {
     pub id:       Option<Id>,
     pub mode:     ModeEntry<R, E>,
     pub elemlist: ElemList<E>,
+    pub location: Location,
 }
 
 #[derive(Debug, PartialEq)]
@@ -736,7 +732,8 @@ pub struct DataInit<R: ResolvedState, E> {
 // memuse := (memory <memidx>)
 #[derive(Debug, PartialEq)]
 pub struct DataField<R: ResolvedState, E> {
-    pub id:   Option<Id>,
-    pub data: Box<[u8]>,
-    pub init: Option<DataInit<R, E>>,
+    pub id:       Option<Id>,
+    pub data:     Box<[u8]>,
+    pub init:     Option<DataInit<R, E>>,
+    pub location: Location,
 }

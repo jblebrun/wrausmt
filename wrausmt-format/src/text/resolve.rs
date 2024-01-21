@@ -208,6 +208,7 @@ impl Resolve<Instruction<Resolved>> for Instruction<Unresolved> {
             name:     self.name,
             opcode:   self.opcode,
             operands: self.operands.resolve(ic)?,
+            location: self.location,
         })
     }
 }
@@ -322,6 +323,7 @@ impl Resolve<GlobalField<UncompiledExpr<Resolved>>> for GlobalField<UncompiledEx
             exports:    self.exports,
             globaltype: self.globaltype,
             init:       self.init.resolve(ic)?,
+            location:   self.location,
         })
     }
 }
@@ -345,6 +347,7 @@ impl Resolve<ElemField<Resolved, UncompiledExpr<Resolved>>>
             id:       self.id,
             mode:     self.mode.resolve(ic)?,
             elemlist: self.elemlist.resolve(ic)?,
+            location: self.location,
         })
     }
 }
@@ -398,6 +401,7 @@ impl Resolve<DataField<Resolved, UncompiledExpr<Resolved>>>
             id: self.id,
             data: self.data,
             init,
+            location: self.location,
         })
     }
 }
@@ -583,6 +587,7 @@ impl Resolve<FuncField<Resolved, UncompiledExpr<Resolved>>>
             typeuse: TypeUse::ByIndex(typeuse.index().clone()),
             locals: self.locals,
             body,
+            location: self.location,
         })
     }
 }

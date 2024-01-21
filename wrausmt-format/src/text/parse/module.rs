@@ -91,6 +91,7 @@ impl<R: Read> Parser<R> {
         // This is a fairly involved match tree, since many fields may generate
         // multiple fields due to inline type defs or imports/exports.
         while let Some(field) = self.try_field().transpose() {
+            let location = self.location();
             match field? {
                 Field::Type(f) => module_builder.add_typefield(f).result(self)?,
                 Field::Func(f) => module_builder.add_funcfield(f).result(self)?,
@@ -108,12 +109,13 @@ impl<R: Read> Parser<R> {
                     if let Some(d) = d {
                         module_builder
                             .add_datafield(DataField {
-                                id:   None,
+                                id: None,
                                 data: d,
                                 init: Some(DataInit {
                                     memidx: Index::unnamed(memidx),
                                     offset: parse_text_unresolved_instructions("i32.const 0"),
                                 }),
+                                location,
                             })
                             .result(self)?;
                     }
@@ -196,6 +198,7 @@ impl<R: Read> Parser<R> {
     // func := (func id? (export <name>)* (import <modname> <name>) <typeuse>)
     pub fn try_func_field(&mut self) -> Result<Option<Field<Unresolved>>> {
         pctx!(self, "try function field");
+        let location = self.location();
         if !self.try_expr_start("func")? {
             return Ok(None);
         }
@@ -230,6 +233,7 @@ impl<R: Read> Parser<R> {
             typeuse,
             locals,
             body: UncompiledExpr { instr },
+            location,
         })))
     }
 
@@ -453,6 +457,7 @@ impl<R: Read> Parser<R> {
 
     pub fn try_global_field(&mut self) -> Result<Option<Field<Unresolved>>> {
         pctx!(self, "try global field");
+        let location = self.location();
         if !self.try_expr_start("global")? {
             return Ok(None);
         }
@@ -484,6 +489,7 @@ impl<R: Read> Parser<R> {
             exports,
             globaltype,
             init: UncompiledExpr { instr: init },
+            location,
         })))
     }
 
@@ -502,6 +508,7 @@ impl<R: Read> Parser<R> {
 
     pub fn try_data_field(&mut self) -> Result<Option<Field<Unresolved>>> {
         pctx!(self, "try data field");
+        let location = self.location();
         if !self.try_expr_start("data")? {
             return Ok(None);
         }
@@ -525,7 +532,12 @@ impl<R: Read> Parser<R> {
 
         let init = offset.map(|offset| DataInit { memidx, offset });
 
-        Ok(Some(Field::Data(DataField { id, data, init })))
+        Ok(Some(Field::Data(DataField {
+            id,
+            data,
+            init,
+            location,
+        })))
     }
 
     pub fn try_memuse(&mut self) -> Result<Index<Unresolved, MemoryIndex>> {
