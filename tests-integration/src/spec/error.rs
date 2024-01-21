@@ -1,6 +1,6 @@
 use {
     super::format::ActionResult,
-    wrausmt_format::{loader::LoaderError, text::location::Location, ValidationError},
+    wrausmt_format::{compiler::ValidationError, loader::LoaderError, text::location::Location},
     wrausmt_runtime::{
         runtime::{error::RuntimeError, values::Value},
         syntax::Id,

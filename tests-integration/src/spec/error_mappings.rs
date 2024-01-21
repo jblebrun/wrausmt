@@ -8,12 +8,13 @@ use {
             error::{BinaryParseError, BinaryParseErrorKind},
             leb128::LEB128Error,
         },
+        compiler::ValidationError,
         loader::LoaderError,
         text::{
             parse::error::{ParseError, ParseErrorKind},
             resolve::ResolveError,
         },
-        ValidationError,
+        ValidationErrorKind,
     },
     wrausmt_runtime::runtime::error::{RuntimeErrorKind, TrapKind},
 };
@@ -196,18 +197,18 @@ fn matches_resolve_error(failure: &str, err: &ResolveError) -> bool {
 }
 
 fn matches_validation_error(failure: &str, err: &ValidationError) -> bool {
-    match err {
-        ValidationError::ValStackUnderflow => ["type mismatch"].contains(&failure),
-        ValidationError::TypeMismatch { .. } => ["type mismatch"].contains(&failure),
-        ValidationError::ExpectedRef { .. } => ["type mismatch"].contains(&failure),
-        ValidationError::UnknownData => ["unknown data"].contains(&failure),
-        ValidationError::UnknownFunc => ["unknown func"].contains(&failure),
-        ValidationError::UnknownGlobal => ["unknown global"].contains(&failure),
-        ValidationError::UnknownMemory => ["unknown memory"].contains(&failure),
-        ValidationError::UnknownTable => ["unknown table"].contains(&failure),
-        ValidationError::UnknownType => ["unknown type"].contains(&failure),
-        ValidationError::ImmutableGlobal => ["global is immutable"].contains(&failure),
-        ValidationError::WrongTableType => ["wrong table type"].contains(&failure),
+    match err.kind() {
+        ValidationErrorKind::ValStackUnderflow => ["type mismatch"].contains(&failure),
+        ValidationErrorKind::TypeMismatch { .. } => ["type mismatch"].contains(&failure),
+        ValidationErrorKind::ExpectedRef { .. } => ["type mismatch"].contains(&failure),
+        ValidationErrorKind::UnknownData => ["unknown data"].contains(&failure),
+        ValidationErrorKind::UnknownFunc => ["unknown func"].contains(&failure),
+        ValidationErrorKind::UnknownGlobal => ["unknown global"].contains(&failure),
+        ValidationErrorKind::UnknownMemory => ["unknown memory"].contains(&failure),
+        ValidationErrorKind::UnknownTable => ["unknown table"].contains(&failure),
+        ValidationErrorKind::UnknownType => ["unknown type"].contains(&failure),
+        ValidationErrorKind::ImmutableGlobal => ["global is immutable"].contains(&failure),
+        ValidationErrorKind::WrongTableType => ["wrong table type"].contains(&failure),
         _ => false,
     }
 }

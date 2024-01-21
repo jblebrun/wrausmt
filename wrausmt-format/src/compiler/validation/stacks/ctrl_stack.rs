@@ -1,5 +1,5 @@
 use {
-    crate::compiler::validation::{Result, ValidationError},
+    crate::compiler::validation::{KindResult as Result, ValidationErrorKind},
     wrausmt_runtime::{
         instructions::opcodes,
         syntax::{types::ValueType, Index, LabelIndex, Opcode, Resolved},
@@ -29,7 +29,7 @@ impl CtrlStack {
     pub fn peek(&self) -> Result<&CtrlFrame> {
         self.frames
             .last()
-            .ok_or(ValidationError::CtrlStackUnderflow)
+            .ok_or(ValidationErrorKind::CtrlStackUnderflow)
     }
 
     pub fn push(&mut self, frame: CtrlFrame) {
@@ -37,14 +37,16 @@ impl CtrlStack {
     }
 
     pub fn pop(&mut self) -> Result<CtrlFrame> {
-        self.frames.pop().ok_or(ValidationError::CtrlStackUnderflow)
+        self.frames
+            .pop()
+            .ok_or(ValidationErrorKind::CtrlStackUnderflow)
     }
 
     pub fn label_types(&self, idx: &Index<Resolved, LabelIndex>) -> Result<Vec<ValueType>> {
         let frame = self
             .frames
             .get(self.frames.len() - 1 - idx.value() as usize)
-            .ok_or(ValidationError::LabelOutOfRange)?;
+            .ok_or(ValidationErrorKind::LabelOutOfRange)?;
 
         Ok(if frame.opcode == opcodes::LOOP {
             // TODO - return ref?
@@ -64,7 +66,7 @@ impl CtrlStack {
         let frame = self
             .frames
             .last_mut()
-            .ok_or(ValidationError::CtrlStackUnderflow)?;
+            .ok_or(ValidationErrorKind::CtrlStackUnderflow)?;
 
         frame.unreachable = true;
         Ok(frame.height)

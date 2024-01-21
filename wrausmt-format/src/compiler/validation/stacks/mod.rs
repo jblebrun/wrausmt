@@ -4,7 +4,7 @@ use {
         val_stack::ValueStack,
     },
     super::ValidationType,
-    crate::{compiler::validation::Result, ValidationError},
+    crate::{compiler::validation::KindResult as Result, ValidationErrorKind},
     wrausmt_common::true_or::TrueOr,
     wrausmt_runtime::syntax::{
         types::{NumType, RefType, ValueType},
@@ -43,7 +43,7 @@ impl Stacks {
                 if actual == expect {
                     Ok(actual)
                 } else {
-                    Err(ValidationError::TypeMismatch { actual, expect })
+                    Err(ValidationErrorKind::TypeMismatch { actual, expect })
                 }
             }
         }
@@ -53,7 +53,7 @@ impl Stacks {
         let actual = self.val.pop_val(self.ctrl.peek()?)?;
         match actual {
             ValidationType::Value(ValueType::Ref(rt)) => Ok(rt),
-            x => Err(ValidationError::ExpectedRef { actual: x }),
+            x => Err(ValidationErrorKind::ExpectedRef { actual: x }),
         }
     }
 
@@ -61,7 +61,7 @@ impl Stacks {
         let actual = self.val.pop_val(self.ctrl.peek()?)?;
         match actual {
             ValidationType::Value(ValueType::Num(nt)) => Ok(nt),
-            x => Err(ValidationError::ExpectedNum { actual: x }),
+            x => Err(ValidationErrorKind::ExpectedNum { actual: x }),
         }
     }
 
@@ -96,7 +96,7 @@ impl Stacks {
         let end_types = frame.end_types.clone();
         let cur_height = frame.height;
         self.pop_vals(&end_types)?;
-        (self.val.len() == cur_height).true_or(ValidationError::UnusedValues)?;
+        (self.val.len() == cur_height).true_or(ValidationErrorKind::UnusedValues)?;
         self.ctrl.pop()
     }
 

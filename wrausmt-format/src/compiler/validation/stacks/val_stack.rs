@@ -1,6 +1,6 @@
 use {
     super::ctrl_stack::CtrlFrame,
-    crate::compiler::validation::{Result, ValidationError, ValidationType},
+    crate::compiler::validation::{KindResult as Result, ValidationErrorKind, ValidationType},
     wrausmt_runtime::syntax::types::ValueType,
 };
 
@@ -39,13 +39,13 @@ impl ValueStack {
             return if ctrl.unreachable {
                 Ok(ValidationType::Unknown)
             } else {
-                Err(ValidationError::ValStackUnderflow)
+                Err(ValidationErrorKind::ValStackUnderflow)
             };
         }
         let val = self
             .values
             .pop()
-            .ok_or(ValidationError::ValStackUnderflow)?;
+            .ok_or(ValidationErrorKind::ValStackUnderflow)?;
         Ok(ValidationType::Value(val))
     }
 
@@ -53,7 +53,7 @@ impl ValueStack {
         let _ = self
             .values
             .pop()
-            .ok_or(ValidationError::ValStackUnderflow)?;
+            .ok_or(ValidationErrorKind::ValStackUnderflow)?;
         Ok(())
     }
 
