@@ -1,6 +1,6 @@
 use {
-    super::{location::Location, string::WasmString},
-    wrausmt_runtime::syntax::Id,
+    super::string::WasmString,
+    wrausmt_runtime::syntax::{location::Location, Id},
 };
 
 /// A [Token] along with context about its location in the source file.
@@ -75,14 +75,4 @@ pub enum NumToken {
     Inf(Sign),
     Integer(Sign, Base, String),
     Float(Sign, Base, String, String, String),
-}
-
-impl Location {
-    /// Create a new [FileToken] from this [Location] for the provided [Token].
-    pub fn token(self, token: Token) -> FileToken {
-        FileToken {
-            token,
-            location: self,
-        }
-    }
 }

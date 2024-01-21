@@ -1,9 +1,9 @@
 use {
     super::format::ActionResult,
-    wrausmt_format::{compiler::ValidationError, loader::LoaderError, text::location::Location},
+    wrausmt_format::{compiler::ValidationError, loader::LoaderError},
     wrausmt_runtime::{
         runtime::{error::RuntimeError, values::Value},
-        syntax::Id,
+        syntax::{location::Location, Id},
     },
 };
 
