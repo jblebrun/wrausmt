@@ -1,7 +1,6 @@
 use {
     std::io::Read,
     wrausmt_format::text::{
-        location::Location,
         parse::{error::Result, pctx, Parser},
         string::WasmString,
         token::Token,
@@ -10,6 +9,7 @@ use {
         runtime::values::{Num, Ref, Value},
         syntax::{
             self as modulesyntax,
+            location::Location,
             types::{NumType, RefType},
             Id, Resolved, UncompiledExpr,
         },

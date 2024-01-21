@@ -1,7 +1,7 @@
 use {
     self::{
         error::{BinaryParseError, EofAsKind},
-        read_with_location::{Location, ReadWithLocation},
+        read_with_location::{Locate, ReadWithLocation},
     },
     crate::pctx,
     std::{cell::RefCell, rc::Rc},
@@ -9,7 +9,7 @@ use {
         tracer::{TraceDropper, Tracer},
         true_or::TrueOr,
     },
-    wrausmt_runtime::syntax::{TypeUse, UncompiledExpr},
+    wrausmt_runtime::syntax::{location::Location, TypeUse, UncompiledExpr},
 };
 
 pub mod error;
@@ -47,7 +47,7 @@ use {
     wrausmt_runtime::syntax::{FuncField, Index, Module, Resolved, TypeIndex},
 };
 
-pub trait ParserReader: Read + Location {}
+pub trait ParserReader: Read + Locate {}
 
 impl<R: ParserReader> BinaryParser<R> {
     /// Inner parse method accepts a mutable module, so that the outer parse
@@ -161,7 +161,7 @@ impl<R: ParserReader> BinaryParser<R> {
     }
 }
 
-pub struct BinaryParser<R: Read + Location + Sized> {
+pub struct BinaryParser<R: Read + Locate + Sized> {
     reader: R,
     tracer: Rc<RefCell<Tracer>>,
 }
@@ -183,12 +183,9 @@ impl<R: ParserReader> BinaryParser<R> {
 
     // A helper that tracks the amount of data read for the duration of the provided
     // action closure.
-    pub fn count_reads<T>(
-        &mut self,
-        action: impl Fn(&mut Self) -> Result<T>,
-    ) -> Result<(T, usize)> {
-        let start = self.location();
-        Ok((action(self)?, self.location() - start))
+    pub fn count_reads<T>(&mut self, action: impl Fn(&mut Self) -> Result<T>) -> Result<(T, u32)> {
+        let start = self.location().pos;
+        Ok((action(self)?, self.location().pos - start))
     }
 }
 
@@ -199,8 +196,8 @@ impl<T: ParserReader> Read for BinaryParser<T> {
         self.reader.read(buf)
     }
 }
-impl<T: ParserReader> Location for BinaryParser<T> {
-    fn location(&self) -> usize {
+impl<T: ParserReader> Locate for BinaryParser<T> {
+    fn location(&self) -> Location {
         self.reader.location()
     }
 }

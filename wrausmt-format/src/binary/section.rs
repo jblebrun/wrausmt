@@ -43,7 +43,7 @@ impl<R: ParserReader> BinaryParser<R> {
         &mut self,
         parsefn: impl Fn(&mut Self) -> Result<S>,
     ) -> Result<S> {
-        let expected_size = self.read_u32_leb_128().result(self)? as usize;
+        let expected_size = self.read_u32_leb_128().result(self)?;
         let (section, amount_read) = self
             .count_reads(parsefn)
             .eof_as_kind(BinaryParseErrorKind::UnxpectedEndOfSectionOrFunction)?;

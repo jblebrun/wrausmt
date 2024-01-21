@@ -1,7 +1,6 @@
 use {
     self::error::LexError,
     super::{
-        location::Location,
         num,
         token::{FileToken, Token},
     },
@@ -9,7 +8,7 @@ use {
     error::Result,
     std::{io::Read, iter::Iterator},
     wrausmt_common::true_or::TrueOr,
-    wrausmt_runtime::syntax::Id,
+    wrausmt_runtime::syntax::{location::Location, Id},
 };
 mod chars;
 pub mod error;
@@ -269,7 +268,10 @@ impl<R: Read> Iterator for Tokenizer<R> {
     fn next(&mut self) -> Option<Result<FileToken>> {
         match self.next_token() {
             Ok(Token::Eof) => None,
-            t => Some(t.map(|t| self.location.token(t))),
+            t => Some(t.map(|token| FileToken {
+                token,
+                location: self.location,
+            })),
         }
     }
 }

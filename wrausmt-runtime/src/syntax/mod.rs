@@ -3,6 +3,7 @@
 //! [Spec]: https://webassembly.github.io/spec/core/text/modules.html#modules
 
 mod indices;
+pub mod location;
 pub mod types;
 
 #[cfg(test)]

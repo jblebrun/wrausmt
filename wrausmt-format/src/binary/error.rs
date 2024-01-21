@@ -1,7 +1,7 @@
 use {
-    super::{leb128::LEB128Error, read_with_location::Location, BinaryParser, ParserReader},
+    super::{leb128::LEB128Error, read_with_location::Locate, BinaryParser, ParserReader},
     std::{io::Read, string::FromUtf8Error},
-    wrausmt_runtime::syntax::Opcode,
+    wrausmt_runtime::syntax::{location::Location, Opcode},
 };
 
 #[derive(Debug)]
@@ -40,11 +40,11 @@ pub enum BinaryParseErrorKind {
 pub struct BinaryParseError {
     pub kind: BinaryParseErrorKind,
     msgs:     Vec<String>,
-    location: usize,
+    location: Location,
 }
 
 impl BinaryParseError {
-    pub fn new(kind: BinaryParseErrorKind, msgs: Vec<String>, location: usize) -> Self {
+    pub fn new(kind: BinaryParseErrorKind, msgs: Vec<String>, location: Location) -> Self {
         Self {
             kind,
             msgs,
@@ -52,7 +52,7 @@ impl BinaryParseError {
         }
     }
 
-    pub fn with_location(self, location: usize) -> Self {
+    pub fn with_location(self, location: Location) -> Self {
         Self {
             kind: self.kind,
             msgs: self.msgs,
@@ -86,13 +86,13 @@ impl std::fmt::Display for BinaryParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "{:?}: (at {}) [{:?}]",
+            "{:?}: (at {:?}) [{:?}]",
             self.kind, self.location, self.msgs
         )
     }
 }
 
-pub trait ParseError<T: Read + Location> {
+pub trait ParseError<T: Read + Locate> {
     fn err(self, parser: BinaryParser<T>) -> BinaryParseError;
 }
 

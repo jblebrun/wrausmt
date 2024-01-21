@@ -1,24 +1,24 @@
-use std::io::Read;
+use {std::io::Read, wrausmt_runtime::syntax::location::Location};
 
 #[derive(Debug)]
 pub struct ReadWithLocation<R> {
     inner:    R,
-    location: usize,
+    location: Location,
 }
 
-pub trait Location {
-    fn location(&self) -> usize;
+pub trait Locate {
+    fn location(&self) -> Location;
 }
 
 impl<R> ReadWithLocation<R> {
     pub fn new(r: R) -> Self {
         ReadWithLocation {
             inner:    r,
-            location: 0,
+            location: Location::default(),
         }
     }
 
-    pub fn location(&self) -> usize {
+    pub fn location(&self) -> Location {
         self.location
     }
 }
@@ -26,13 +26,13 @@ impl<R> ReadWithLocation<R> {
 impl<T: Read> Read for ReadWithLocation<T> {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         let cnt = self.inner.read(buf)?;
-        self.location += cnt;
+        self.location.advanceby(cnt);
         Ok(cnt)
     }
 }
 
-impl<T: Read> Location for ReadWithLocation<T> {
-    fn location(&self) -> usize {
+impl<T: Read> Locate for ReadWithLocation<T> {
+    fn location(&self) -> Location {
         self.location()
     }
 }

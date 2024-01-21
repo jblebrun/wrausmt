@@ -77,7 +77,7 @@ impl<R: ParserReader> BinaryParser<R> {
         data_indices_ok: bool,
     ) -> Result<FuncField<Resolved, UncompiledExpr<Resolved>>> {
         pctx!(self, "read func");
-        let code_size_expected = self.read_u32_leb_128().result(self)? as usize;
+        let code_size_expected = self.read_u32_leb_128().result(self)?;
 
         let (function, amount_read) = self.count_reads(|s| {
             Ok(FuncField {
