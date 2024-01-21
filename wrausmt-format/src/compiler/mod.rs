@@ -1,6 +1,6 @@
 mod emitter;
 mod validation;
-pub use validation::{ValidationError, ValidationMode};
+pub use validation::{ValidationError, ValidationErrorKind, ValidationMode};
 use {
     self::{emitter::ValidatingEmitter, validation::ModuleContext},
     validation::Result,

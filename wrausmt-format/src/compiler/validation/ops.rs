@@ -1,5 +1,5 @@
 use {
-    super::{FunctionType, Result, Validation, ValidationError, ValidationMode},
+    super::{FunctionType, KindResult as Result, Validation, ValidationErrorKind, ValidationMode},
     crate::compiler::validation::ValidationType,
     wrausmt_common::true_or::TrueOr,
     wrausmt_runtime::{
@@ -87,7 +87,8 @@ impl<'a> Validation<'a> {
         alignment: u32,
         natural_alignment: u32,
     ) -> Result<()> {
-        (alignment <= natural_alignment).true_or(ValidationError::AlignmentTooLarge(alignment))?;
+        (alignment <= natural_alignment)
+            .true_or(ValidationErrorKind::AlignmentTooLarge(alignment))?;
         self.stacks.pop_val(i)?;
         self.stacks.push_val(o);
         Ok(())
@@ -100,7 +101,8 @@ impl<'a> Validation<'a> {
         alignment: u32,
         natural_alignment: u32,
     ) -> Result<()> {
-        (alignment <= natural_alignment).true_or(ValidationError::AlignmentTooLarge(alignment))?;
+        (alignment <= natural_alignment)
+            .true_or(ValidationErrorKind::AlignmentTooLarge(alignment))?;
         self.stacks.pop_val(v)?;
         self.stacks.pop_val(a)?;
         Ok(())
@@ -117,7 +119,7 @@ impl<'a> Validation<'a> {
     fn local_type(&self, idx: &Index<Resolved, LocalIndex>) -> Result<ValueType> {
         self.localtypes
             .get(idx.value() as usize)
-            .ok_or(ValidationError::UnknownLocal(idx.clone()))
+            .ok_or(ValidationErrorKind::UnknownLocal(idx.clone()))
             .copied()
     }
 
@@ -151,7 +153,7 @@ impl<'a> Validation<'a> {
 
             instr!(opcodes::ELSE) => {
                 let frame = self.stacks.pop_ctrl()?;
-                (frame.opcode == opcodes::IF).true_or(ValidationError::OpcodeMismatch)?;
+                (frame.opcode == opcodes::IF).true_or(ValidationErrorKind::OpcodeMismatch)?;
                 self.stacks
                     .push_ctrl(frame.opcode, frame.start_types, frame.end_types);
                 Ok(())
@@ -188,7 +190,8 @@ impl<'a> Validation<'a> {
                 let default_arity = self.stacks.label_arity(last)?;
                 for idx in idxes {
                     let break_arity = self.stacks.label_arity(idx)?;
-                    (break_arity == default_arity).true_or(ValidationError::BreakTypeMismatch)?;
+                    (break_arity == default_arity)
+                        .true_or(ValidationErrorKind::BreakTypeMismatch)?;
                     self.stacks.pop_label_types(idx)?;
                     self.stacks.push_label_types(idx)?;
                 }
@@ -211,7 +214,7 @@ impl<'a> Validation<'a> {
                     .module
                     .funcs
                     .get(idx.value() as usize)
-                    .ok_or(ValidationError::UnknownFunc)?;
+                    .ok_or(ValidationErrorKind::UnknownFunc)?;
                 self.stacks.pop_vals(&ft.params)?;
                 self.stacks.push_vals(&ft.results);
                 Ok(())
@@ -222,13 +225,13 @@ impl<'a> Validation<'a> {
                     .tables
                     .get(tabidx.value() as usize)
                     .map(|t| t.reftype == RefType::Func)
-                    .ok_or(ValidationError::UnknownTable)?
-                    .true_or(ValidationError::WrongTableType)?;
+                    .ok_or(ValidationErrorKind::UnknownTable)?
+                    .true_or(ValidationErrorKind::WrongTableType)?;
                 let ft = self
                     .module
                     .types
                     .get(typeuse.index().value() as usize)
-                    .ok_or(ValidationError::UnknownType)?;
+                    .ok_or(ValidationErrorKind::UnknownType)?;
                 self.stacks.pop_val(I32)?;
                 self.stacks.pop_vals(&ft.params)?;
                 self.stacks.push_vals(&ft.results);
@@ -241,7 +244,7 @@ impl<'a> Validation<'a> {
                 self.stacks.pop_val(I32)?;
                 let n1 = self.stacks.pop_num()?;
                 let n2 = self.stacks.pop_num()?;
-                (n1 == n2).true_or(ValidationError::TypeMismatch {
+                (n1 == n2).true_or(ValidationErrorKind::TypeMismatch {
                     actual: ValidationType::Value(n2.into()),
                     expect: ValidationType::Value(n1.into()),
                 })?;
@@ -249,7 +252,7 @@ impl<'a> Validation<'a> {
                 Ok(())
             }
             instr!(opcodes::SELECT => Operands::SelectT(t)) => {
-                (t.len() == 1).true_or(ValidationError::UnsupportedSelect)?;
+                (t.len() == 1).true_or(ValidationErrorKind::UnsupportedSelect)?;
                 let vt = t[0].valuetype;
                 self.stacks.pop_val(I32)?;
                 self.stacks.pop_val(vt)?;
@@ -278,7 +281,7 @@ impl<'a> Validation<'a> {
                     .module
                     .globals
                     .get(idx.value() as usize)
-                    .ok_or(ValidationError::UnknownGlobal)?;
+                    .ok_or(ValidationErrorKind::UnknownGlobal)?;
                 self.stacks.push_val(global.valtype);
                 Ok(())
             }
@@ -287,8 +290,8 @@ impl<'a> Validation<'a> {
                     .module
                     .globals
                     .get(idx.value() as usize)
-                    .ok_or(ValidationError::UnknownGlobal)?;
-                (global.mutable).true_or(ValidationError::ImmutableGlobal)?;
+                    .ok_or(ValidationErrorKind::UnknownGlobal)?;
+                (global.mutable).true_or(ValidationErrorKind::ImmutableGlobal)?;
                 self.stacks.pop_val(global.valtype)?;
                 Ok(())
             }
@@ -297,7 +300,7 @@ impl<'a> Validation<'a> {
                     .module
                     .tables
                     .get(idx.value() as usize)
-                    .ok_or(ValidationError::UnknownTable)?;
+                    .ok_or(ValidationErrorKind::UnknownTable)?;
                 self.stacks.pop_val(I32)?;
                 self.stacks.push_val(table.reftype.into());
                 Ok(())
@@ -307,7 +310,7 @@ impl<'a> Validation<'a> {
                     .module
                     .tables
                     .get(idx.value() as usize)
-                    .ok_or(ValidationError::UnknownTable)?;
+                    .ok_or(ValidationErrorKind::UnknownTable)?;
                 self.stacks.pop_val(I32)?;
                 self.stacks.pop_val(table.reftype.into())?;
                 Ok(())
@@ -340,12 +343,12 @@ impl<'a> Validation<'a> {
             meminstr!(opcodes::I64_STORE32, align: a) => self.storeop(I64, I32, *a, 4),
 
             instr!(opcodes::MEMORY_SIZE) => {
-                (!self.module.mems.is_empty()).true_or(ValidationError::UnknownMemory)?;
+                (!self.module.mems.is_empty()).true_or(ValidationErrorKind::UnknownMemory)?;
                 self.stacks.push_val(I32);
                 Ok(())
             }
             instr!(opcodes::MEMORY_GROW) => {
-                (!self.module.mems.is_empty()).true_or(ValidationError::UnknownMemory)?;
+                (!self.module.mems.is_empty()).true_or(ValidationErrorKind::UnknownMemory)?;
                 self.stacks.pop_val(I32)?;
                 self.stacks.push_val(I32);
                 Ok(())
@@ -528,7 +531,7 @@ impl<'a> Validation<'a> {
             }
             instr!(opcodes::REF_FUNC => Operands::FuncIndex(idx)) => {
                 ((idx.value() as usize) < self.module.funcs.len())
-                    .true_or(ValidationError::UnknownFunc)?;
+                    .true_or(ValidationErrorKind::UnknownFunc)?;
                 self.stacks.push_val(FUNC);
                 Ok(())
             }
@@ -545,8 +548,8 @@ impl<'a> Validation<'a> {
             // 0xFC 0x08
             instr!(opcodes::MEMORY_INIT => Operands::DataIndex(idx)) => {
                 ((idx.value() as usize) < self.module.datas)
-                    .true_or(ValidationError::UnknownData)?;
-                (!self.module.mems.is_empty()).true_or(ValidationError::UnknownMemory)?;
+                    .true_or(ValidationErrorKind::UnknownData)?;
+                (!self.module.mems.is_empty()).true_or(ValidationErrorKind::UnknownMemory)?;
                 self.stacks.pop_val(I32)?;
                 self.stacks.pop_val(I32)?;
                 self.stacks.pop_val(I32)?;
@@ -554,11 +557,11 @@ impl<'a> Validation<'a> {
             }
             instr!(opcodes::DATA_DROP => Operands::DataIndex(idx)) => {
                 ((idx.value() as usize) < self.module.datas)
-                    .true_or(ValidationError::UnknownData)?;
+                    .true_or(ValidationErrorKind::UnknownData)?;
                 Ok(())
             }
             instr!(opcodes::MEMORY_COPY) | instr!(opcodes::MEMORY_FILL) => {
-                (0 < self.module.datas).true_or(ValidationError::UnknownMemory)?;
+                (0 < self.module.datas).true_or(ValidationErrorKind::UnknownMemory)?;
                 self.stacks.pop_val(I32)?;
                 self.stacks.pop_val(I32)?;
                 self.stacks.pop_val(I32)?;
@@ -566,9 +569,9 @@ impl<'a> Validation<'a> {
             }
             instr!(opcodes::TABLE_INIT => Operands::TableInit(tidx, eidx)) => {
                 ((tidx.value() as usize) < self.module.tables.len())
-                    .true_or(ValidationError::UnknownTable)?;
+                    .true_or(ValidationErrorKind::UnknownTable)?;
                 ((eidx.value() as usize) < self.module.elems.len())
-                    .true_or(ValidationError::UnknownElem)?;
+                    .true_or(ValidationErrorKind::UnknownElem)?;
                 self.stacks.pop_val(I32)?;
                 self.stacks.pop_val(I32)?;
                 self.stacks.pop_val(I32)?;
@@ -576,14 +579,14 @@ impl<'a> Validation<'a> {
             }
             instr!(opcodes::ELEM_DROP => Operands::ElemIndex(idx)) => {
                 ((idx.value() as usize) < self.module.elems.len())
-                    .true_or(ValidationError::UnknownElem)?;
+                    .true_or(ValidationErrorKind::UnknownElem)?;
                 Ok(())
             }
             instr!(opcodes::TABLE_COPY => Operands::TableCopy(srcidx, dstidx)) => {
                 ((srcidx.value() as usize) < self.module.tables.len())
-                    .true_or(ValidationError::UnknownTable)?;
+                    .true_or(ValidationErrorKind::UnknownTable)?;
                 ((dstidx.value() as usize) < self.module.tables.len())
-                    .true_or(ValidationError::UnknownTable)?;
+                    .true_or(ValidationErrorKind::UnknownTable)?;
                 self.stacks.pop_val(I32)?;
                 self.stacks.pop_val(I32)?;
                 self.stacks.pop_val(I32)?;
@@ -594,7 +597,7 @@ impl<'a> Validation<'a> {
                     .module
                     .tables
                     .get(idx.value() as usize)
-                    .ok_or(ValidationError::UnknownTable)?;
+                    .ok_or(ValidationErrorKind::UnknownTable)?;
                 self.stacks.pop_val(I32)?;
                 self.stacks.pop_val(tabletype.reftype.into())?;
                 self.stacks.push_val(I32);
@@ -602,7 +605,7 @@ impl<'a> Validation<'a> {
             }
             instr!(opcodes::TABLE_SIZE => Operands::TableIndex(idx)) => {
                 ((idx.value() as usize) < self.module.tables.len())
-                    .true_or(ValidationError::UnknownTable)?;
+                    .true_or(ValidationErrorKind::UnknownTable)?;
                 self.stacks.push_val(I32);
                 Ok(())
             }
@@ -611,7 +614,7 @@ impl<'a> Validation<'a> {
                     .module
                     .tables
                     .get(idx.value() as usize)
-                    .ok_or(ValidationError::UnknownTable)?;
+                    .ok_or(ValidationErrorKind::UnknownTable)?;
                 println!("TABLEF FILL FOR REFTYPE {:?}", tabletype.reftype);
                 self.stacks.pop_val(I32)?;
                 self.stacks.pop_val(tabletype.reftype.into())?;
@@ -619,7 +622,7 @@ impl<'a> Validation<'a> {
                 Ok(())
             }
 
-            _ => Err(ValidationError::UnhandledInstruction(instr.clone())),
+            _ => Err(ValidationErrorKind::UnhandledInstruction(instr.clone())),
         }
     }
 }

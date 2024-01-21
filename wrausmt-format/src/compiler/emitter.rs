@@ -1,5 +1,8 @@
 use {
-    super::validation::{ModuleContext, Result, Validation, ValidationMode},
+    super::{
+        validation::{ModuleContext, Result, Validation, ValidationMode},
+        ValidationError,
+    },
     wrausmt_runtime::{
         instructions::{op_consts, opcodes},
         syntax::{
@@ -264,7 +267,9 @@ impl<'a> ValidatingEmitter<'a> {
 
 impl<'a> Emitter for ValidatingEmitter<'a> {
     fn validate_instr(&mut self, instr: &Instruction<Resolved>) -> Result<()> {
-        self.validation.handle_instr(instr)
+        self.validation
+            .handle_instr(instr)
+            .map_err(ValidationError::new)
     }
 
     fn emit8(&mut self, v: u8) {

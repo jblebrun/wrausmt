@@ -18,7 +18,7 @@ mod ops;
 mod stacks;
 
 #[derive(Debug)]
-pub enum ValidationError {
+pub enum ValidationErrorKind {
     ValStackUnderflow,
     CtrlStackUnderflow,
     MemoryTooLarge,
@@ -53,6 +53,29 @@ pub enum ValidationError {
     WrongTableType,
 }
 
+#[derive(Debug)]
+pub struct ValidationError {
+    kind: ValidationErrorKind,
+}
+
+impl ValidationError {
+    pub fn new(kind: ValidationErrorKind) -> ValidationError {
+        ValidationError { kind }
+    }
+
+    pub fn kind(&self) -> &ValidationErrorKind {
+        &self.kind
+    }
+}
+
+impl std::fmt::Display for ValidationError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "{:?}", self.kind)
+    }
+}
+
+impl std::error::Error for ValidationError {}
+
 /// How to treat Validator issues.
 #[derive(Debug, Default, Clone, Copy)]
 pub enum ValidationMode {
@@ -65,6 +88,7 @@ pub enum ValidationMode {
     // Use panic to abort the entire process if validation fails.
     Panic,
 }
+pub type KindResult<T> = std::result::Result<T, ValidationErrorKind>;
 pub type Result<T> = std::result::Result<T, ValidationError>;
 
 /// Type representations during validation.

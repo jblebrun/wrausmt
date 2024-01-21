@@ -4,4 +4,4 @@ pub mod file_loader;
 pub mod loader;
 pub mod text;
 
-pub use compiler::{ValidationError, ValidationMode};
+pub use compiler::{ValidationErrorKind, ValidationMode};

@@ -2,10 +2,9 @@
 /// runtime, which expects a fully resolved module as input.
 use crate::{
     binary::{error::BinaryParseError, parse_wasm_data},
-    compiler::{compile_module, ValidationMode},
+    compiler::{compile_module, ValidationError, ValidationMode},
     text::parse::error::ParseError,
     text::{parse_wast_data, resolve::ResolveError},
-    ValidationError,
 };
 use {
     std::{io::Read, rc::Rc},
