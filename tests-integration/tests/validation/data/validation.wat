@@ -177,6 +177,6 @@
     (table.get $t2 (local.get $i))
   )
   (func (export "set-funcref") (param $i i32) (param funcref)
-    (table.set $t3 (local.get 1) (local.get $i))
+    (table.set $t3 (local.get $i) (local.get 1))
   )
 )

@@ -107,10 +107,10 @@ impl<R: Read> Parser<R> {
         allow_bare_funcidx: bool,
     ) -> Result<ElemList<UncompiledExpr<Unresolved>>> {
         pctx!(self, "try elemlist");
-        let _reftype = self.try_reftype()?;
-        let items = self.zero_or_more(Self::try_item_expression)?;
-        if !items.is_empty() {
-            return Ok(ElemList::func(items));
+        let reftype = self.try_reftype()?;
+        if let Some(reftype) = reftype {
+            let items = self.zero_or_more(Self::try_item_expression)?;
+            return Ok(ElemList { reftype, items });
         }
 
         if self.take_keyword_if(|kw| kw == "func")?.is_some() || allow_bare_funcidx {

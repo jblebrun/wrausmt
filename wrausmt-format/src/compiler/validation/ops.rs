@@ -181,7 +181,6 @@ impl<'a> Validation<'a> {
                 self.stacks.pop_val(I32)?;
                 self.stacks.pop_label_types(idx)?;
                 self.stacks.push_label_types(idx)?;
-                self.stacks.unreachable()?;
                 Ok(())
             }
 
@@ -192,8 +191,10 @@ impl<'a> Validation<'a> {
                     let break_arity = self.stacks.label_arity(idx)?;
                     (break_arity == default_arity)
                         .true_or(ValidationErrorKind::BreakTypeMismatch)?;
-                    self.stacks.pop_label_types(idx)?;
-                    self.stacks.push_label_types(idx)?;
+                    let popped = self.stacks.pop_label_types(idx)?;
+                    for p in popped.iter() {
+                        self.stacks.push_val(*p)
+                    }
                 }
                 self.stacks.pop_label_types(last)?;
                 self.stacks.unreachable()?;
@@ -242,13 +243,31 @@ impl<'a> Validation<'a> {
             // with opcode 0x1b, but different operand types.
             instr!(opcodes::SELECT) => {
                 self.stacks.pop_val(I32)?;
-                let n1 = self.stacks.pop_num()?;
-                let n2 = self.stacks.pop_num()?;
-                (n1 == n2).true_or(ValidationErrorKind::TypeMismatch {
-                    actual: ValidationType::Value(n2.into()),
-                    expect: ValidationType::Value(n1.into()),
-                })?;
-                self.stacks.push_val(n1);
+                let v1 = self.stacks.pop_any()?;
+                let v2 = self.stacks.pop_any()?;
+
+                match (v1, v2) {
+                    (
+                        ref v1 @ ValidationType::Value(ValueType::Num(n1)),
+                        ref v2 @ ValidationType::Value(ValueType::Num(n2)),
+                    ) => {
+                        (n1 == n2).true_or(ValidationErrorKind::TypeMismatch {
+                            actual: *v1,
+                            expect: *v2,
+                        })?;
+                        self.stacks.push_val(*v1);
+                    }
+                    (ValidationType::Unknown, v2 @ ValidationType::Value(ValueType::Num(_))) => {
+                        self.stacks.push_val(v2);
+                    }
+                    (v1 @ ValidationType::Value(ValueType::Num(_)), ValidationType::Unknown) => {
+                        self.stacks.push_val(v1);
+                    }
+                    (ValidationType::Unknown, ValidationType::Unknown) => {
+                        self.stacks.push_val(ValidationType::Unknown)
+                    }
+                    (v1, _) => Err(ValidationErrorKind::ExpectedNum { actual: v1 })?,
+                };
                 Ok(())
             }
             instr!(opcodes::SELECT => Operands::SelectT(t)) => {
@@ -311,8 +330,8 @@ impl<'a> Validation<'a> {
                     .tables
                     .get(idx.value() as usize)
                     .ok_or(ValidationErrorKind::UnknownTable)?;
-                self.stacks.pop_val(I32)?;
                 self.stacks.pop_val(table.reftype.into())?;
+                self.stacks.pop_val(I32)?;
                 Ok(())
             }
             // 0x28
@@ -495,15 +514,15 @@ impl<'a> Validation<'a> {
             // 0xB2
             instr!(opcodes::F32_CONVERT_I32_S) => self.unop(I32, F32),
             instr!(opcodes::F32_CONVERT_I32_U) => self.unop(I32, F32),
-            instr!(opcodes::F32_CONVERT_I64_S) => self.unop(I32, F32),
-            instr!(opcodes::F32_CONVERT_I64_U) => self.unop(I32, F32),
+            instr!(opcodes::F32_CONVERT_I64_S) => self.unop(I64, F32),
+            instr!(opcodes::F32_CONVERT_I64_U) => self.unop(I64, F32),
             instr!(opcodes::F32_DEMOTE_F64) => self.unop(F64, F32),
 
             // 0xB7
             instr!(opcodes::F64_CONVERT_I32_S) => self.unop(I32, F64),
             instr!(opcodes::F64_CONVERT_I32_U) => self.unop(I32, F64),
-            instr!(opcodes::F64_CONVERT_I64_S) => self.unop(I32, F64),
-            instr!(opcodes::F64_CONVERT_I64_U) => self.unop(I32, F64),
+            instr!(opcodes::F64_CONVERT_I64_S) => self.unop(I64, F64),
+            instr!(opcodes::F64_CONVERT_I64_U) => self.unop(I64, F64),
             instr!(opcodes::F64_PROMOTE_F32) => self.unop(F32, F64),
 
             // 0BC
@@ -525,7 +544,10 @@ impl<'a> Validation<'a> {
                 Ok(())
             }
             instr!(opcodes::REF_IS_NULL) => {
-                self.stacks.pop_ref()?;
+                match self.stacks.pop_any()? {
+                    ValidationType::Value(ValueType::Ref(_)) | ValidationType::Unknown => {}
+                    x => Err(ValidationErrorKind::ExpectedRef { actual: x })?,
+                };
                 self.stacks.push_val(I32);
                 Ok(())
             }
@@ -561,7 +583,7 @@ impl<'a> Validation<'a> {
                 Ok(())
             }
             instr!(opcodes::MEMORY_COPY) | instr!(opcodes::MEMORY_FILL) => {
-                (0 < self.module.datas).true_or(ValidationErrorKind::UnknownMemory)?;
+                (!self.module.mems.is_empty()).true_or(ValidationErrorKind::UnknownMemory)?;
                 self.stacks.pop_val(I32)?;
                 self.stacks.pop_val(I32)?;
                 self.stacks.pop_val(I32)?;
@@ -615,7 +637,6 @@ impl<'a> Validation<'a> {
                     .tables
                     .get(idx.value() as usize)
                     .ok_or(ValidationErrorKind::UnknownTable)?;
-                println!("TABLEF FILL FOR REFTYPE {:?}", tabletype.reftype);
                 self.stacks.pop_val(I32)?;
                 self.stacks.pop_val(tabletype.reftype.into())?;
                 self.stacks.pop_val(I32)?;

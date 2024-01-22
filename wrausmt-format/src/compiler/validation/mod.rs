@@ -97,7 +97,7 @@ type KindResult<T> = std::result::Result<T, ValidationErrorKind>;
 /// Type representations during validation.
 ///
 /// [Spec]: https://webassembly.github.io/spec/core/appendix/algorithm.html#data-structures
-#[derive(Debug, Default, PartialEq)]
+#[derive(Copy, Clone, Debug, Default, PartialEq)]
 pub enum ValidationType {
     #[default]
     Unknown,

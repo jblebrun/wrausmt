@@ -50,7 +50,7 @@ macro_rules! spectest {
                 RunConfig {
                     runset: $runset,
                     validation_mode: $vmode,
-                    failures_to_ignore: GLOBAL_FAILURES_TO_IGNORE
+                    failures_to_ignore: GLOBAL_FAILURES_TO_IGNORE,
                 }
             )
         }
@@ -59,9 +59,9 @@ macro_rules! spectest {
         spectest!($name; val:$vmode; [RunSet::All]);
     };
     ($name:ident; [$runset:expr]) => {
-        spectest!($name; val:ValidationMode::Warn; [$runset]);
+        spectest!($name; val:ValidationMode::Fail; [$runset]);
     };
-    ($name:ident) => { spectest!($name; val: ValidationMode::Warn; [RunSet::All]); };
+    ($name:ident) => { spectest!($name; val: ValidationMode::Fail; [RunSet::All]); };
 }
 
 #[allow(unused_macros)]
