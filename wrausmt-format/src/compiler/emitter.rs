@@ -1,6 +1,6 @@
 use {
     super::{
-        validation::{ModuleContext, Result, Validation, ValidationMode},
+        validation::{ExpressionType, ModuleContext, Result, Validation, ValidationMode},
         ToValidationError,
     },
     wrausmt_runtime::{
@@ -17,6 +17,8 @@ use {
 
 pub trait Emitter {
     fn validate_instr(&mut self, instr: &Instruction<Resolved>) -> Result<()>;
+    fn validate_end(&mut self, location: &Location) -> Result<()>;
+    fn validate_else(&mut self, location: &Location) -> Result<()>;
     fn emit8(&mut self, v: u8);
     fn emit32(&mut self, v: u32);
     fn emit64(&mut self, v: u64);
@@ -172,24 +174,6 @@ pub trait Emitter {
         Ok(())
     }
 
-    fn validate_end(&mut self, location: &Location) -> Result<()> {
-        self.validate_instr(&Instruction {
-            name:     Id::literal("end"),
-            opcode:   opcodes::END,
-            operands: Operands::None,
-            location: *location,
-        })
-    }
-
-    fn validate_else(&mut self, location: &Location) -> Result<()> {
-        self.validate_instr(&Instruction {
-            name:     Id::literal("else"),
-            opcode:   opcodes::ELSE,
-            operands: Operands::None,
-            location: *location,
-        })
-    }
-
     fn emit_end(&mut self, location: &Location) -> Result<()> {
         self.emit_instr(&Instruction {
             name:     Id::literal("end"),
@@ -230,7 +214,13 @@ impl<'a> ValidatingEmitter<'a> {
 
         let resulttypes: Vec<_> = functype.results.clone();
 
-        let mut out = ValidatingEmitter::new(validation_mode, module, localtypes, resulttypes);
+        let mut out = ValidatingEmitter::new(
+            validation_mode,
+            module,
+            localtypes,
+            resulttypes,
+            ExpressionType::Normal,
+        );
 
         out.emit_expr(&func.body)?;
         out.emit_end(&func.location)?;
@@ -251,21 +241,16 @@ impl<'a> ValidatingEmitter<'a> {
         expr: &UncompiledExpr<Resolved>,
         resulttypes: Vec<ValueType>,
         location: &Location,
+        expression_type: ExpressionType,
     ) -> Result<CompiledExpr> {
-        Self::simple_expressions(validation_mode, module, &[expr], resulttypes, location)
-    }
-
-    pub fn simple_expressions(
-        validation_mode: ValidationMode,
-        module: &ModuleContext,
-        exprs: &[&UncompiledExpr<Resolved>],
-        resulttypes: Vec<ValueType>,
-        location: &Location,
-    ) -> Result<CompiledExpr> {
-        let mut out = ValidatingEmitter::new(validation_mode, module, vec![], resulttypes);
-        for expr in exprs {
-            out.emit_expr(expr)?;
-        }
+        let mut out = ValidatingEmitter::new(
+            validation_mode,
+            module,
+            vec![],
+            resulttypes,
+            expression_type,
+        );
+        out.emit_expr(expr)?;
         out.validate_end(location)?;
         Ok(CompiledExpr {
             instr: out.finish()?,
@@ -277,10 +262,17 @@ impl<'a> ValidatingEmitter<'a> {
         module: &ModuleContext,
         localtypes: Vec<ValueType>,
         resulttypes: Vec<ValueType>,
+        expression_type: ExpressionType,
     ) -> ValidatingEmitter {
         ValidatingEmitter {
             output:     Vec::new(),
-            validation: Validation::new(validation_mode, module, localtypes, resulttypes),
+            validation: Validation::new(
+                validation_mode,
+                module,
+                localtypes,
+                resulttypes,
+                expression_type,
+            ),
         }
     }
 
@@ -292,8 +284,16 @@ impl<'a> ValidatingEmitter<'a> {
 impl<'a> Emitter for ValidatingEmitter<'a> {
     fn validate_instr(&mut self, instr: &Instruction<Resolved>) -> Result<()> {
         self.validation
-            .handle_instr(instr)
+            .validate_instr(instr)
             .validation_error(instr.location)
+    }
+
+    fn validate_end(&mut self, location: &Location) -> Result<()> {
+        self.validation.validate_end().validation_error(*location)
+    }
+
+    fn validate_else(&mut self, location: &Location) -> Result<()> {
+        self.validation.validate_else().validation_error(*location)
     }
 
     fn emit8(&mut self, v: u8) {
