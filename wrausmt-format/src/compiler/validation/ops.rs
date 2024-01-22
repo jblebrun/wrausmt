@@ -1,5 +1,8 @@
 use {
-    super::{FunctionType, KindResult as Result, Validation, ValidationErrorKind, ValidationMode},
+    super::{
+        ExpressionType, FunctionType, KindResult as Result, Validation, ValidationErrorKind,
+        ValidationMode,
+    },
     crate::compiler::validation::ValidationType,
     wrausmt_common::true_or::TrueOr,
     wrausmt_runtime::{
@@ -44,7 +47,7 @@ macro_rules! meminstr {
 impl<'a> Validation<'a> {
     /// Validate one instruction. The returned error will respect the
     /// [`ValidationMode`] provided at creation.
-    pub fn handle_instr(&mut self, instr: &Instruction<Resolved>) -> Result<()> {
+    pub fn validate_instr(&mut self, instr: &Instruction<Resolved>) -> Result<()> {
         self.error_for_mode(|s| s.validation_result(instr))
     }
 
@@ -123,8 +126,55 @@ impl<'a> Validation<'a> {
             .copied()
     }
 
+    fn validate_instruction_allowed(&mut self, instr: &Instruction<Resolved>) -> Result<()> {
+        match self.expression_type {
+            ExpressionType::Normal => Ok(()),
+            ExpressionType::Constant => match instr {
+                instr!(opcodes::I32_CONST => Operands::I32(_))
+                | instr!(opcodes::I64_CONST => Operands::I64(_))
+                | instr!(opcodes::F32_CONST => Operands::F32(_))
+                | instr!(opcodes::F64_CONST => Operands::F64(_))
+                | instr!(opcodes::REF_NULL => Operands::HeapType(_))
+                | instr!(opcodes::REF_FUNC => Operands::FuncIndex(_)) => Ok(()),
+                instr!(opcodes::GLOBAL_GET => Operands::GlobalIndex(idx)) => {
+                    self.module
+                        .globals
+                        .get(idx.value() as usize)
+                        .map(|g| !g.mutable)
+                        .ok_or(ValidationErrorKind::UnknownGlobal)?
+                        .true_or(ValidationErrorKind::InvalidConstantGlobal)?;
+                    Ok(())
+                }
+                _ => {
+                    println!("INVALID {:?}", instr);
+                    Err(ValidationErrorKind::InvalidConstantInstruction)?
+                }
+            },
+        }
+    }
+
+    pub fn validate_end(&mut self) -> Result<()> {
+        self.error_for_mode(|s| {
+            let frame = s.stacks.pop_ctrl()?;
+            s.stacks.push_vals(&frame.end_types);
+            Ok(())
+        })
+    }
+
+    pub fn validate_else(&mut self) -> Result<()> {
+        self.error_for_mode(|s| {
+            let frame = s.stacks.pop_ctrl()?;
+            (frame.opcode == opcodes::IF).true_or(ValidationErrorKind::OpcodeMismatch)?;
+            s.stacks
+                .push_ctrl(frame.opcode, frame.start_types, frame.end_types);
+            Ok(())
+        })
+    }
+
     fn validation_result(&mut self, instr: &Instruction<Resolved>) -> Result<()> {
         println!("VALIDATION {instr:?}");
+        self.validate_instruction_allowed(instr)?;
+
         match instr {
             instr!(opcodes::UNREACHABLE) => self.stacks.unreachable(),
             instr!(opcodes::NOP) => Ok(()),
@@ -151,19 +201,9 @@ impl<'a> Validation<'a> {
                 Ok(())
             }
 
-            instr!(opcodes::ELSE) => {
-                let frame = self.stacks.pop_ctrl()?;
-                (frame.opcode == opcodes::IF).true_or(ValidationErrorKind::OpcodeMismatch)?;
-                self.stacks
-                    .push_ctrl(frame.opcode, frame.start_types, frame.end_types);
-                Ok(())
-            }
+            instr!(opcodes::ELSE) => self.validate_else(),
 
-            instr!(opcodes::END) => {
-                let frame = self.stacks.pop_ctrl()?;
-                self.stacks.push_vals(&frame.end_types);
-                Ok(())
-            }
+            instr!(opcodes::END) => self.validate_end(),
 
             // 0x1A
             instr!(opcodes::DROP) => {

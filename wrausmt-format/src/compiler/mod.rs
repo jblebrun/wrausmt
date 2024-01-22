@@ -3,12 +3,13 @@ mod validation;
 pub use validation::{ValidationError, ValidationErrorKind, ValidationMode};
 use {
     self::{emitter::ValidatingEmitter, validation::ModuleContext},
-    crate::text::parse_text_resolved_instructions,
     validation::{KindResult, Result},
     wrausmt_common::true_or::TrueOr,
     wrausmt_runtime::syntax::{
-        location::Location, CompiledExpr, DataField, DataInit, ElemField, ElemList, FuncField,
-        GlobalField, ModeEntry, Module, Resolved, TablePosition, UncompiledExpr,
+        location::Location,
+        types::{NumType, ValueType},
+        CompiledExpr, DataField, DataInit, ElemField, ElemList, FuncField, GlobalField, ModeEntry,
+        Module, Resolved, TablePosition, UncompiledExpr,
     },
 };
 
@@ -109,6 +110,7 @@ fn compile_global(
             &global.init,
             vec![expect_type],
             &global.location,
+            validation::ExpressionType::Constant,
         )?,
         location:   global.location,
     })
@@ -184,18 +186,33 @@ fn compile_table_position(
         })
         .validation_error(*location)?;
 
-    let init_expr = parse_text_resolved_instructions(&format!(
-        "(i32.const 0) (i32.const {cnt}) (table.init {ti} {ei}) (elem.drop {ei})"
-    ));
+    let mut offset = ValidatingEmitter::simple_expression(
+        validation_mode,
+        module,
+        &table_position.offset,
+        vec![ValueType::Num(NumType::I32)],
+        location,
+        validation::ExpressionType::Constant,
+    )?;
+    let mut offset_expr_instrs = offset.instr.to_vec();
+
+    // Add this to the end:
+    // (i32.const 0) (i32.const {cnt}) (table.init {ti} {ei}) (elem.drop {ei})
+    offset_expr_instrs.push(0x41);
+    offset_expr_instrs.extend(0u32.to_le_bytes());
+    offset_expr_instrs.push(0x41);
+    offset_expr_instrs.extend((cnt as u32).to_le_bytes());
+    offset_expr_instrs.extend(&[0xFC, 0x0C]);
+    offset_expr_instrs.extend(ti.to_le_bytes());
+    offset_expr_instrs.extend((ei as u32).to_le_bytes());
+    offset_expr_instrs.extend(&[0xFC, 0x0D]);
+    offset_expr_instrs.extend((ei as u32).to_le_bytes());
+
+    offset.instr = offset_expr_instrs.into_boxed_slice();
+
     Ok(TablePosition {
         tableuse: table_position.tableuse,
-        offset:   ValidatingEmitter::simple_expressions(
-            validation_mode,
-            module,
-            &[&table_position.offset, &init_expr],
-            vec![],
-            location,
-        )?,
+        offset,
     })
 }
 fn compile_elem_mode(
@@ -238,6 +255,7 @@ fn compile_elem_list(
                     e,
                     vec![elem_list.reftype.into()],
                     location,
+                    validation::ExpressionType::Constant,
                 )
             })
             .collect::<Result<Vec<_>>>()?,
@@ -252,17 +270,30 @@ fn compile_data_init(
     di: usize,
     location: &Location,
 ) -> Result<DataInit<Resolved, CompiledExpr>> {
-    let init_expr = parse_text_resolved_instructions(&format!(
-        "(i32.const 0) (i32.const {cnt}) (memory.init {di}) (data.drop {di})"
-    ));
+    let mut offset = ValidatingEmitter::simple_expression(
+        validation_mode,
+        module,
+        &data_init.offset,
+        vec![ValueType::Num(NumType::I32)],
+        location,
+        validation::ExpressionType::Constant,
+    )?;
+    let mut offset_expr_instrs = offset.instr.to_vec();
+
+    // "(i32.const 0) (i32.const {cnt}) (memory.init {di}) (data.drop {di})"
+    offset_expr_instrs.push(0x41);
+    offset_expr_instrs.extend(0u32.to_le_bytes());
+    offset_expr_instrs.push(0x41);
+    offset_expr_instrs.extend((cnt as u32).to_le_bytes());
+    offset_expr_instrs.extend(&[0xFC, 0x08]);
+    offset_expr_instrs.extend((di as u32).to_le_bytes());
+    offset_expr_instrs.extend(&[0xFC, 0x09]);
+    offset_expr_instrs.extend((di as u32).to_le_bytes());
+
+    offset.instr = offset_expr_instrs.into_boxed_slice();
+
     Ok(DataInit {
         memidx: data_init.memidx,
-        offset: ValidatingEmitter::simple_expressions(
-            validation_mode,
-            module,
-            &[&data_init.offset, &init_expr],
-            vec![],
-            location,
-        )?,
+        offset,
     })
 }

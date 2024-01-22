@@ -35,6 +35,8 @@ pub enum ValidationErrorKind {
         actual: ValidationType,
     },
     ImmutableGlobal,
+    InvalidConstantGlobal,
+    InvalidConstantInstruction,
     UnusedValues,
     UnknownLocal(Index<Resolved, LocalIndex>),
     AlignmentTooLarge(u32),
@@ -197,6 +199,15 @@ impl ModuleContext {
         }
     }
 }
+
+/// Differentiate between constant and normal expressions.
+pub enum ExpressionType {
+    /// A normal expression allowing all instructions
+    Normal,
+    /// A constant expression allowing only the instructions defined by the spec
+    /// for constant expressions.
+    Constant,
+}
 /// The Validation context and implementation.
 ///
 /// [Spec]: https://webassembly.github.io/spec/core/appendix/algorithm.html
@@ -210,6 +221,8 @@ pub struct Validation<'a> {
     pub localtypes: Vec<ValueType>,
 
     stacks: Stacks,
+
+    expression_type: ExpressionType,
 }
 
 impl<'a> Validation<'a> {
@@ -218,6 +231,7 @@ impl<'a> Validation<'a> {
         module: &ModuleContext,
         localtypes: Vec<ValueType>,
         resulttypes: Vec<ValueType>,
+        expression_type: ExpressionType,
     ) -> Validation {
         let stacks = Stacks::new();
         let mut val = Validation {
@@ -225,6 +239,7 @@ impl<'a> Validation<'a> {
             module,
             localtypes,
             stacks,
+            expression_type,
         };
 
         val.stacks
