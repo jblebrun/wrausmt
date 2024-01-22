@@ -1,6 +1,6 @@
 use {
     super::{error::Result, BinaryParser, ParserReader},
-    crate::pctx,
+    crate::{binary::read_with_location::Locate, pctx},
     wrausmt_runtime::syntax::MemoryField,
 };
 
@@ -16,10 +16,12 @@ impl<R: ParserReader> BinaryParser<R> {
 
     fn read_memory_field(&mut self) -> Result<MemoryField> {
         pctx!(self, "read memory field");
+        let location = self.location();
         Ok(MemoryField {
-            id:      None,
+            id: None,
             memtype: self.read_memory_type()?,
             exports: vec![],
+            location,
         })
     }
 }

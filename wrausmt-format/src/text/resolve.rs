@@ -276,11 +276,12 @@ impl Resolve<ElemList<UncompiledExpr<Resolved>>> for ElemList<UncompiledExpr<Unr
 impl Resolve<ImportField<Resolved>> for ImportField<Unresolved> {
     fn resolve(self, ic: &mut ResolutionContext) -> Result<ImportField<Resolved>> {
         Ok(ImportField {
-            modname: self.modname,
-            name:    self.name,
-            id:      self.id,
-            exports: self.exports,
-            desc:    self.desc.resolve(ic)?,
+            modname:  self.modname,
+            name:     self.name,
+            id:       self.id,
+            exports:  self.exports,
+            desc:     self.desc.resolve(ic)?,
+            location: self.location,
         })
     }
 }
@@ -301,6 +302,7 @@ impl Resolve<ExportField<Resolved>> for ExportField<Unresolved> {
         Ok(ExportField {
             name:       self.name,
             exportdesc: self.exportdesc.resolve(ic)?,
+            location:   self.location,
         })
     }
 }
@@ -331,7 +333,8 @@ impl Resolve<GlobalField<UncompiledExpr<Resolved>>> for GlobalField<UncompiledEx
 impl Resolve<StartField<Resolved>> for StartField<Unresolved> {
     fn resolve(self, ic: &mut ResolutionContext) -> Result<StartField<Resolved>> {
         Ok(StartField {
-            idx: self.idx.resolve(ic)?,
+            idx:      self.idx.resolve(ic)?,
+            location: self.location,
         })
     }
 }

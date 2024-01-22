@@ -3,7 +3,7 @@ use {
         error::{BinaryParseErrorKind, Result},
         BinaryParser, ParserReader,
     },
-    crate::pctx,
+    crate::{binary::read_with_location::Locate, pctx},
     wrausmt_runtime::syntax::{ImportDesc, ImportField, Resolved},
 };
 
@@ -20,13 +20,14 @@ impl<R: ParserReader> BinaryParser<R> {
     /// 0x03 (global) gt:globaltype
     pub(in crate::binary) fn read_imports_section(&mut self) -> Result<Vec<ImportField<Resolved>>> {
         pctx!(self, "read imports section");
+        let location = self.location();
         self.read_vec(|_, s| {
             Ok(ImportField {
-                id:      None,
+                id: None,
                 modname: s.read_name()?,
-                name:    s.read_name()?,
+                name: s.read_name()?,
                 exports: vec![],
-                desc:    {
+                desc: {
                     let kind = s.read_byte()?;
                     match kind {
                         0 => ImportDesc::Func(s.read_type_use()?),
@@ -36,6 +37,7 @@ impl<R: ParserReader> BinaryParser<R> {
                         _ => return Err(s.err(BinaryParseErrorKind::MalformedImportKind(kind))),
                     }
                 },
+                location,
             })
         })
     }

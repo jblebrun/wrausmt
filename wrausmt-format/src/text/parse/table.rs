@@ -55,6 +55,7 @@ impl<R: Read> Parser<R> {
                 name: import.1,
                 exports,
                 desc: ImportDesc::Table(tabletype),
+                location,
             })));
         }
 
@@ -83,6 +84,7 @@ impl<R: Read> Parser<R> {
                 id,
                 exports,
                 tabletype,
+                location,
             },
             elemfield,
         )))

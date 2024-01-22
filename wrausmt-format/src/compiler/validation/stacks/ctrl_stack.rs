@@ -1,5 +1,6 @@
 use {
     crate::compiler::validation::{KindResult as Result, ValidationErrorKind},
+    wrausmt_common::true_or::TrueOr,
     wrausmt_runtime::{
         instructions::opcodes,
         syntax::{types::ValueType, Index, LabelIndex, Opcode, Resolved},
@@ -44,10 +45,11 @@ impl CtrlStack {
     }
 
     pub fn label_types(&self, idx: &Index<Resolved, LabelIndex>) -> Result<Vec<ValueType>> {
+        ((idx.value() as usize) < self.frames.len()).true_or(ValidationErrorKind::UnknownLabel)?;
         let frame = self
             .frames
             .get(self.frames.len() - 1 - idx.value() as usize)
-            .ok_or(ValidationErrorKind::LabelOutOfRange)?;
+            .ok_or(ValidationErrorKind::UnknownLabel)?;
 
         Ok(if frame.opcode == opcodes::LOOP {
             // TODO - return ref?

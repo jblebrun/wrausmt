@@ -491,6 +491,7 @@ pub struct TableField {
     pub id:        Option<Id>,
     pub exports:   Vec<String>,
     pub tabletype: TableType,
+    pub location:  Location,
 }
 
 // memory := (memory id? <memtype>)
@@ -500,9 +501,10 @@ pub struct TableField {
 // Inline data segments
 #[derive(Debug, PartialEq)]
 pub struct MemoryField {
-    pub id:      Option<Id>,
-    pub exports: Vec<String>,
-    pub memtype: MemType,
+    pub id:       Option<Id>,
+    pub exports:  Vec<String>,
+    pub memtype:  MemType,
+    pub location: Location,
 }
 
 // global := (global <id>? <globaltype> <expr>)
@@ -534,11 +536,12 @@ pub enum ImportDesc<R: ResolvedState> {
 
 #[derive(PartialEq)]
 pub struct ImportField<R: ResolvedState> {
-    pub id:      Option<Id>,
-    pub modname: String,
-    pub name:    String,
-    pub exports: Vec<String>,
-    pub desc:    ImportDesc<R>,
+    pub id:       Option<Id>,
+    pub modname:  String,
+    pub name:     String,
+    pub exports:  Vec<String>,
+    pub desc:     ImportDesc<R>,
+    pub location: Location,
 }
 
 impl<R: ResolvedState> fmt::Debug for ImportField<R> {
@@ -568,6 +571,7 @@ pub enum ExportDesc<R: ResolvedState> {
 pub struct ExportField<R: ResolvedState> {
     pub name:       String,
     pub exportdesc: ExportDesc<R>,
+    pub location:   Location,
 }
 
 impl<R: ResolvedState> fmt::Debug for ExportField<R> {
@@ -676,7 +680,8 @@ impl<R: ResolvedState> std::fmt::Debug for Instruction<R> {
 // start := (start <funcidx>)
 #[derive(Debug, PartialEq)]
 pub struct StartField<R: ResolvedState> {
-    pub idx: Index<R, FuncIndex>,
+    pub idx:      Index<R, FuncIndex>,
+    pub location: Location,
 }
 
 #[derive(Debug, Default, PartialEq)]

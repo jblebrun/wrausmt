@@ -3,7 +3,7 @@ use {
         error::{BinaryParseErrorKind, Result},
         BinaryParser, ParserReader,
     },
-    crate::pctx,
+    crate::{binary::read_with_location::Locate, pctx},
     wrausmt_runtime::syntax::{ExportDesc, ExportField, Resolved},
 };
 
@@ -36,9 +36,11 @@ impl<R: ParserReader> BinaryParser<R> {
 
     fn read_export_field(&mut self) -> Result<ExportField<Resolved>> {
         pctx!(self, "read exprt field");
+        let location = self.location();
         Ok(ExportField {
-            name:       self.read_name()?,
+            name: self.read_name()?,
             exportdesc: self.read_export_desc()?,
+            location,
         })
     }
 }

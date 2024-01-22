@@ -219,6 +219,7 @@ impl<R: Read> Parser<R> {
                 id,
                 exports,
                 desc: ImportDesc::Func(typeuse),
+                location,
             })));
         }
 
@@ -284,6 +285,7 @@ impl<R: Read> Parser<R> {
 
     pub fn try_memory_field(&mut self) -> Result<Option<Field<Unresolved>>> {
         pctx!(self, "try memory field");
+        let location = self.location();
         if !self.try_expr_start("memory")? {
             return Ok(None);
         }
@@ -313,6 +315,7 @@ impl<R: Read> Parser<R> {
                     id,
                     exports,
                     memtype,
+                    location,
                 },
                 Some(inline_data),
             )));
@@ -330,6 +333,7 @@ impl<R: Read> Parser<R> {
                 name: import.1,
                 exports,
                 desc: ImportDesc::Mem(memtype),
+                location,
             })));
         }
         self.expect_close()?;
@@ -338,6 +342,7 @@ impl<R: Read> Parser<R> {
                 id,
                 exports,
                 memtype,
+                location,
             },
             None,
         )))
@@ -350,6 +355,7 @@ impl<R: Read> Parser<R> {
     //             | (global <id?> <globaltype>)
     pub fn try_import_field(&mut self) -> Result<Option<Field<Unresolved>>> {
         pctx!(self, "try import field");
+        let location = self.location();
         if !self.try_expr_start("import")? {
             return Ok(None);
         }
@@ -367,6 +373,7 @@ impl<R: Read> Parser<R> {
             name,
             desc,
             exports: vec![],
+            location,
         })))
     }
 
@@ -419,6 +426,7 @@ impl<R: Read> Parser<R> {
 
     pub fn try_export_field(&mut self) -> Result<Option<Field<Unresolved>>> {
         pctx!(self, "try export field");
+        let location = self.location();
         if !self.try_expr_start("export")? {
             return Ok(None);
         }
@@ -429,7 +437,11 @@ impl<R: Read> Parser<R> {
 
         self.expect_close()?;
 
-        Ok(Some(Field::Export(ExportField { name, exportdesc })))
+        Ok(Some(Field::Export(ExportField {
+            name,
+            exportdesc,
+            location,
+        })))
     }
 
     fn expect_exportdesc(&mut self) -> Result<ExportDesc<Unresolved>> {
@@ -478,6 +490,7 @@ impl<R: Read> Parser<R> {
                 name: import.1,
                 desc: ImportDesc::Global(globaltype),
                 exports,
+                location,
             })));
         }
 
@@ -495,6 +508,7 @@ impl<R: Read> Parser<R> {
 
     pub fn try_start_field(&mut self) -> Result<Option<Field<Unresolved>>> {
         pctx!(self, "try start field");
+        let location = self.location();
         if !self.try_expr_start("start")? {
             return Ok(None);
         }
@@ -503,7 +517,7 @@ impl<R: Read> Parser<R> {
 
         self.expect_close()?;
 
-        Ok(Some(Field::Start(StartField { idx })))
+        Ok(Some(Field::Start(StartField { idx, location })))
     }
 
     pub fn try_data_field(&mut self) -> Result<Option<Field<Unresolved>>> {

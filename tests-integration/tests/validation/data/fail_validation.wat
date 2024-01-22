@@ -61,7 +61,7 @@
         (memory (export "memory0") 1 1)
         (data (i32.const 2) "\03\01\04\01")
         (func (memory.init 1 (i32.const 7) (i32.const 0) (i32.const 4))) 
-    ) "unknown data")
+    ) "unknown data segment")
 
 (assert_invalid
   (func $f1 (export "funcref-not-i32") (param $x i32) (result i32)
