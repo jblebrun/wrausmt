@@ -4,6 +4,7 @@
 
 use {
     self::stacks::Stacks,
+    super::ToValidationError,
     wrausmt_runtime::{
         instructions::opcodes,
         syntax::{
@@ -20,14 +21,10 @@ mod stacks;
 
 #[derive(Debug)]
 pub enum ValidationErrorKind {
-    ValStackUnderflow,
+    AlignmentTooLarge(u32),
+    BreakTypeMismatch,
     CtrlStackUnderflow,
-    MemoryTooLarge,
-    TableTooLarge,
-    TypeMismatch {
-        actual: ValidationType,
-        expect: ValidationType,
-    },
+
     ExpectedRef {
         actual: ValidationType,
     },
@@ -37,22 +34,27 @@ pub enum ValidationErrorKind {
     ImmutableGlobal,
     InvalidConstantGlobal,
     InvalidConstantInstruction,
-    UnusedValues,
-    UnknownLocal(Index<Resolved, LocalIndex>),
-    AlignmentTooLarge(u32),
-    UnhandledInstruction(Instruction<Resolved>),
+    MemoryTooLarge,
     OpcodeMismatch,
     OperandsMismatch,
-    LabelOutOfRange,
-    BreakTypeMismatch,
-    UnknownMemory,
+    TableTooLarge,
+    TypeMismatch {
+        actual: ValidationType,
+        expect: ValidationType,
+    },
+    UnhandledInstruction(Instruction<Resolved>),
+    UnknownLocal(Index<Resolved, LocalIndex>),
     UnknownData,
-    UnknownTable,
     UnknownElem,
     UnknownFunc,
     UnknownGlobal,
+    UnknownLabel,
+    UnknownMemory,
+    UnknownTable,
     UnknownType,
+    UnusedValues,
     UnsupportedSelect,
+    ValStackUnderflow,
     WrongTableType,
 }
 
@@ -126,6 +128,13 @@ impl From<syntax::FunctionType> for FunctionType {
         }
     }
 }
+
+#[derive(Clone, Debug)]
+pub struct GlobalValidationType {
+    globaltype: GlobalType,
+    imported:   bool,
+}
+
 /// A simple struct containing the type information needed for validation of the
 /// module. It contains all of the items in the context for the current module.
 ///
@@ -136,13 +145,14 @@ impl From<syntax::FunctionType> for FunctionType {
 ///   that's pushed to the `ctrl_strack`.
 ///
 /// [Spec]: https://webassembly.github.io/spec/core/valid/conventions.html#context
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
+
 pub struct ModuleContext {
     pub types:   Vec<FunctionType>,
     pub funcs:   Vec<FunctionType>,
     pub tables:  Vec<TableType>,
     pub mems:    Vec<MemType>,
-    pub globals: Vec<GlobalType>,
+    pub globals: Vec<GlobalValidationType>,
     pub elems:   Vec<RefType>,
     pub datas:   usize,
 }
@@ -151,37 +161,54 @@ impl ModuleContext {
     /// Create a new [`ModuleContext`] for validation, using the type
     /// information in the provided [`Module`]. The informatin will be copied
     /// out of the module.
-    pub fn new(module: &Module<Resolved, UncompiledExpr<Resolved>>) -> Self {
+    pub fn new(module: &Module<Resolved, UncompiledExpr<Resolved>>) -> Result<Self> {
         let mut funcs: Vec<FunctionType> = Vec::new();
         let mut tables: Vec<TableType> = Vec::new();
         let mut mems: Vec<MemType> = Vec::new();
-        let mut globals: Vec<GlobalType> = Vec::new();
+        let mut globals: Vec<GlobalValidationType> = Vec::new();
 
         for import in module.imports.iter() {
             match &import.desc {
                 ImportDesc::Func(tu) => funcs.push(
-                    module.types[tu.index().value() as usize]
+                    module
+                        .types
+                        .get(tu.index().value() as usize)
+                        .ok_or(ValidationErrorKind::UnknownType)
+                        .validation_error(import.location)?
                         .functiontype
                         .clone()
                         .into(),
                 ),
                 ImportDesc::Table(tt) => tables.push(tt.clone()),
                 ImportDesc::Mem(mt) => mems.push(mt.clone()),
-                ImportDesc::Global(gt) => globals.push(gt.clone()),
+                ImportDesc::Global(gt) => globals.push(GlobalValidationType {
+                    globaltype: gt.clone(),
+                    imported:   true,
+                }),
             }
         }
-        funcs.extend(module.funcs.iter().map(|f| {
-            module.types[f.typeuse.index().value() as usize]
-                .functiontype
-                .clone()
-                .into()
-        }));
+
+        for f in &module.funcs {
+            funcs.push(
+                module
+                    .types
+                    .get(f.typeuse.index().value() as usize)
+                    .ok_or(ValidationErrorKind::UnknownType)
+                    .validation_error(f.location)?
+                    .functiontype
+                    .clone()
+                    .into(),
+            );
+        }
 
         tables.extend(module.tables.iter().map(|t| t.tabletype.clone()));
         mems.extend(module.memories.iter().map(|m| m.memtype.clone()));
-        globals.extend(module.globals.iter().map(|g| g.globaltype.clone()));
+        globals.extend(module.globals.iter().map(|g| GlobalValidationType {
+            globaltype: g.globaltype.clone(),
+            imported:   false,
+        }));
 
-        ModuleContext {
+        Ok(ModuleContext {
             types: module
                 .types
                 .iter()
@@ -196,7 +223,7 @@ impl ModuleContext {
             globals,
             elems: module.elems.iter().map(|e| e.elemlist.reftype).collect(),
             datas: module.data.len(),
-        }
+        })
     }
 }
 

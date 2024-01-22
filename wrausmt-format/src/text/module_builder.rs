@@ -104,6 +104,7 @@ impl ModuleBuilder {
             self.module.exports.push(ExportField {
                 name:       export_name.clone(),
                 exportdesc: ExportDesc::Func(Index::unnamed(funcidx)),
+                location:   f.location,
             })
         }
         self.module.funcs.push(f);
@@ -119,6 +120,7 @@ impl ModuleBuilder {
             self.module.exports.push(ExportField {
                 name:       export_name.clone(),
                 exportdesc: ExportDesc::Table(Index::unnamed(tableidx)),
+                location:   f.location,
             })
         }
         self.module.tables.push(f);
@@ -134,6 +136,7 @@ impl ModuleBuilder {
             self.module.exports.push(ExportField {
                 name:       export_name.clone(),
                 exportdesc: ExportDesc::Mem(Index::unnamed(memidx)),
+                location:   f.location,
             })
         }
         self.module.memories.push(f);
@@ -158,6 +161,7 @@ impl ModuleBuilder {
                     self.module.exports.push(ExportField {
                         name:       export_name.clone(),
                         exportdesc: ExportDesc::Func(Index::unnamed(self.funcidx_offset)),
+                        location:   f.location,
                     })
                 }
                 self.funcidx_offset += 1;
@@ -168,6 +172,7 @@ impl ModuleBuilder {
                     self.module.exports.push(ExportField {
                         name:       export_name.clone(),
                         exportdesc: ExportDesc::Mem(Index::unnamed(self.memidx_offset)),
+                        location:   f.location,
                     })
                 }
                 self.memidx_offset += 1;
@@ -178,6 +183,7 @@ impl ModuleBuilder {
                     self.module.exports.push(ExportField {
                         name:       export_name.clone(),
                         exportdesc: ExportDesc::Table(Index::unnamed(self.tableidx_offset)),
+                        location:   f.location,
                     })
                 }
                 self.tableidx_offset += 1;
@@ -188,6 +194,7 @@ impl ModuleBuilder {
                     self.module.exports.push(ExportField {
                         name:       export_name.clone(),
                         exportdesc: ExportDesc::Global(Index::unnamed(self.globalidx_offset)),
+                        location:   f.location,
                     })
                 }
                 self.globalidx_offset += 1;
@@ -209,6 +216,7 @@ impl ModuleBuilder {
             self.module.exports.push(ExportField {
                 name:       export_name.clone(),
                 exportdesc: ExportDesc::Global(Index::unnamed(globalidx)),
+                location:   f.location,
             })
         }
         // export field may define new exports.

@@ -90,6 +90,7 @@ impl<'a> Validation<'a> {
         alignment: u32,
         natural_alignment: u32,
     ) -> Result<()> {
+        (!self.module.mems.is_empty()).true_or(ValidationErrorKind::UnknownMemory)?;
         (alignment <= natural_alignment)
             .true_or(ValidationErrorKind::AlignmentTooLarge(alignment))?;
         self.stacks.pop_val(i)?;
@@ -104,6 +105,7 @@ impl<'a> Validation<'a> {
         alignment: u32,
         natural_alignment: u32,
     ) -> Result<()> {
+        (!self.module.mems.is_empty()).true_or(ValidationErrorKind::UnknownMemory)?;
         (alignment <= natural_alignment)
             .true_or(ValidationErrorKind::AlignmentTooLarge(alignment))?;
         self.stacks.pop_val(v)?;
@@ -140,7 +142,7 @@ impl<'a> Validation<'a> {
                     self.module
                         .globals
                         .get(idx.value() as usize)
-                        .map(|g| !g.mutable)
+                        .map(|g| g.imported && !g.globaltype.mutable)
                         .ok_or(ValidationErrorKind::UnknownGlobal)?
                         .true_or(ValidationErrorKind::InvalidConstantGlobal)?;
                     Ok(())
@@ -336,12 +338,13 @@ impl<'a> Validation<'a> {
                 Ok(())
             }
             instr!(opcodes::GLOBAL_GET => Operands::GlobalIndex(idx)) => {
+                println!("VALIDATING GLOBAL {:?} IN {:?}", idx, self.module.globals);
                 let global = self
                     .module
                     .globals
                     .get(idx.value() as usize)
                     .ok_or(ValidationErrorKind::UnknownGlobal)?;
-                self.stacks.push_val(global.valtype);
+                self.stacks.push_val(global.globaltype.valtype);
                 Ok(())
             }
             instr!(opcodes::GLOBAL_SET => Operands::GlobalIndex(idx)) => {
@@ -350,8 +353,8 @@ impl<'a> Validation<'a> {
                     .globals
                     .get(idx.value() as usize)
                     .ok_or(ValidationErrorKind::UnknownGlobal)?;
-                (global.mutable).true_or(ValidationErrorKind::ImmutableGlobal)?;
-                self.stacks.pop_val(global.valtype)?;
+                (global.globaltype.mutable).true_or(ValidationErrorKind::ImmutableGlobal)?;
+                self.stacks.pop_val(global.globaltype.valtype)?;
                 Ok(())
             }
             instr!(opcodes::TABLE_GET => Operands::TableIndex(idx)) => {
@@ -609,9 +612,9 @@ impl<'a> Validation<'a> {
 
             // 0xFC 0x08
             instr!(opcodes::MEMORY_INIT => Operands::DataIndex(idx)) => {
+                (!self.module.mems.is_empty()).true_or(ValidationErrorKind::UnknownMemory)?;
                 ((idx.value() as usize) < self.module.datas)
                     .true_or(ValidationErrorKind::UnknownData)?;
-                (!self.module.mems.is_empty()).true_or(ValidationErrorKind::UnknownMemory)?;
                 self.stacks.pop_val(I32)?;
                 self.stacks.pop_val(I32)?;
                 self.stacks.pop_val(I32)?;

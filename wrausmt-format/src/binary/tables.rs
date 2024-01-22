@@ -16,10 +16,12 @@ impl<R: ParserReader> BinaryParser<R> {
 
     fn read_table_field(&mut self) -> Result<TableField> {
         pctx!(self, "read table field");
+        let location = self.reader.location();
         Ok(TableField {
-            id:        None,
+            id: None,
             tabletype: self.read_table_type()?,
-            exports:   vec![],
+            exports: vec![],
+            location,
         })
     }
 }

@@ -18,23 +18,6 @@ const GLOBAL_FAILURES_TO_IGNORE: &[&str] = &[
     "size minimum must not be greater than maximum",
     "start function",
     "undeclared function reference",
-    "unknown data segment",
-    "unknown data segment 1",
-    "unknown elem segment 0",
-    "unknown elem segment 4",
-    "unknown function",
-    "unknown function 7",
-    "unknown global",
-    "unknown global 0",
-    "unknown global 1",
-    "unknown label",
-    "unknown local",
-    "unknown memory",
-    "unknown memory 0",
-    "unknown memory 1",
-    "unknown table",
-    "unknown table 0",
-    "unknown type",
 ];
 // To regenerate the spectest! lines below using the transform this macro
 // expects: "".join(["spectest!(r#{});

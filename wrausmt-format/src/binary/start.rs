@@ -1,6 +1,6 @@
 use {
     super::{error::Result, BinaryParser, ParserReader},
-    crate::pctx,
+    crate::{binary::read_with_location::Locate, pctx},
     wrausmt_runtime::syntax::{Resolved, StartField},
 };
 
@@ -11,8 +11,10 @@ impl<R: ParserReader> BinaryParser<R> {
     /// correlate with the rest of the function data in the code section.
     pub(in crate::binary) fn read_start_section(&mut self) -> Result<StartField<Resolved>> {
         pctx!(self, "read start");
+        let location = self.location();
         Ok(StartField {
             idx: self.read_index_use()?,
+            location,
         })
     }
 }

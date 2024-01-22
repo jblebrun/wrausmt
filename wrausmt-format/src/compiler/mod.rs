@@ -2,14 +2,17 @@ mod emitter;
 mod validation;
 pub use validation::{ValidationError, ValidationErrorKind, ValidationMode};
 use {
-    self::{emitter::ValidatingEmitter, validation::ModuleContext},
+    self::{
+        emitter::ValidatingEmitter,
+        validation::{ExpressionType, ModuleContext},
+    },
     validation::{KindResult, Result},
     wrausmt_common::true_or::TrueOr,
     wrausmt_runtime::syntax::{
         location::Location,
         types::{NumType, ValueType},
-        CompiledExpr, DataField, DataInit, ElemField, ElemList, FuncField, GlobalField, ModeEntry,
-        Module, Resolved, TablePosition, UncompiledExpr,
+        CompiledExpr, DataField, DataInit, ElemField, ElemList, ExportDesc, ExportField, FuncField,
+        GlobalField, ModeEntry, Module, Resolved, StartField, TablePosition, UncompiledExpr,
     },
 };
 
@@ -32,7 +35,7 @@ pub fn compile_module(
 ) -> Result<Module<Resolved, CompiledExpr>> {
     // We need to create this now and hold onto it, beacuse the module will
     // change as we process its elements.
-    let module_context = ModuleContext::new(&module);
+    let module_context = ModuleContext::new(&module)?;
 
     let mut module = module;
 
@@ -62,6 +65,14 @@ pub fn compile_module(
         .collect();
     let data = data?;
 
+    let exports: Result<Vec<_>> = std::mem::take(&mut module.exports)
+        .into_iter()
+        .map(|e| compile_export(&module_context, e))
+        .collect();
+    let exports = exports?;
+
+    let start = compile_start(&module_context, module.start)?;
+
     Ok(Module {
         id: module.id,
         customs: module.customs,
@@ -70,9 +81,9 @@ pub fn compile_module(
         tables: module.tables,
         memories: module.memories,
         imports: module.imports,
-        exports: module.exports,
+        exports,
         globals,
-        start: module.start,
+        start,
         elems,
         data,
     })
@@ -110,7 +121,7 @@ fn compile_global(
             &global.init,
             vec![expect_type],
             &global.location,
-            validation::ExpressionType::Constant,
+            ExpressionType::Constant,
         )?,
         location:   global.location,
     })
@@ -161,6 +172,64 @@ fn compile_data(
         },
         location: data.location,
     })
+}
+
+// TODO - We need to add a validated type marker as well.
+fn compile_export(
+    module: &ModuleContext,
+    export: ExportField<Resolved>,
+) -> Result<ExportField<Resolved>> {
+    Ok(ExportField {
+        name:       export.name,
+        exportdesc: compile_export_desc(module, export.exportdesc)
+            .validation_error(export.location)?,
+        location:   export.location,
+    })
+}
+
+fn compile_start(
+    module: &ModuleContext,
+    start: Option<StartField<Resolved>>,
+) -> Result<Option<StartField<Resolved>>> {
+    match start {
+        Some(start) => {
+            (module.funcs.len() > start.idx.value() as usize)
+                .true_or(ValidationErrorKind::UnknownFunc)
+                .validation_error(start.location)?;
+            Ok(Some(StartField {
+                idx:      start.idx,
+                location: start.location,
+            }))
+        }
+        None => Ok(None),
+    }
+}
+
+fn compile_export_desc(
+    module: &ModuleContext,
+    exportdesc: ExportDesc<Resolved>,
+) -> KindResult<ExportDesc<Resolved>> {
+    match exportdesc {
+        ExportDesc::Func(fi) => {
+            (module.funcs.len() > fi.value() as usize).true_or(ValidationErrorKind::UnknownFunc)?;
+            Ok(ExportDesc::Func(fi))
+        }
+        ExportDesc::Global(gi) => {
+            (module.globals.len() > gi.value() as usize)
+                .true_or(ValidationErrorKind::UnknownGlobal)?;
+            Ok(ExportDesc::Global(gi))
+        }
+        ExportDesc::Mem(mi) => {
+            (module.mems.len() > mi.value() as usize)
+                .true_or(ValidationErrorKind::UnknownMemory)?;
+            Ok(ExportDesc::Mem(mi))
+        }
+        ExportDesc::Table(ti) => {
+            (module.tables.len() > ti.value() as usize)
+                .true_or(ValidationErrorKind::UnknownTable)?;
+            Ok(ExportDesc::Table(ti))
+        }
+    }
 }
 
 fn compile_table_position(
@@ -255,7 +324,7 @@ fn compile_elem_list(
                     e,
                     vec![elem_list.reftype.into()],
                     location,
-                    validation::ExpressionType::Constant,
+                    ExpressionType::Constant,
                 )
             })
             .collect::<Result<Vec<_>>>()?,
@@ -270,13 +339,17 @@ fn compile_data_init(
     di: usize,
     location: &Location,
 ) -> Result<DataInit<Resolved, CompiledExpr>> {
+    ((data_init.memidx.value() as usize) < module.mems.len())
+        .true_or(ValidationErrorKind::UnknownMemory)
+        .validation_error(*location)?;
+
     let mut offset = ValidatingEmitter::simple_expression(
         validation_mode,
         module,
         &data_init.offset,
         vec![ValueType::Num(NumType::I32)],
         location,
-        validation::ExpressionType::Constant,
+        ExpressionType::Constant,
     )?;
     let mut offset_expr_instrs = offset.instr.to_vec();
 
