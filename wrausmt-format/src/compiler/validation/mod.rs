@@ -92,7 +92,7 @@ pub enum ValidationMode {
 }
 
 pub type Result<T> = std::result::Result<T, ValidationError>;
-type KindResult<T> = std::result::Result<T, ValidationErrorKind>;
+pub(crate) type KindResult<T> = std::result::Result<T, ValidationErrorKind>;
 
 /// Type representations during validation.
 ///

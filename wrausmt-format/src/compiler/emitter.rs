@@ -1,7 +1,7 @@
 use {
     super::{
         validation::{ModuleContext, Result, Validation, ValidationMode},
-        ValidationError,
+        ToValidationError,
     },
     wrausmt_runtime::{
         instructions::{op_consts, opcodes},
@@ -99,6 +99,9 @@ pub trait Emitter {
             self.emit_else(location)?;
             self.emit_expr(el)?;
         } else {
+            // Even though we don't emit an else opcde, we need to validate
+            // the typing.
+            self.validate_else(location)?;
             self.splice32(else_location, self.len() as u32);
         }
 
@@ -173,6 +176,15 @@ pub trait Emitter {
         self.validate_instr(&Instruction {
             name:     Id::literal("end"),
             opcode:   opcodes::END,
+            operands: Operands::None,
+            location: *location,
+        })
+    }
+
+    fn validate_else(&mut self, location: &Location) -> Result<()> {
+        self.validate_instr(&Instruction {
+            name:     Id::literal("else"),
+            opcode:   opcodes::ELSE,
             operands: Operands::None,
             location: *location,
         })
@@ -281,7 +293,7 @@ impl<'a> Emitter for ValidatingEmitter<'a> {
     fn validate_instr(&mut self, instr: &Instruction<Resolved>) -> Result<()> {
         self.validation
             .handle_instr(instr)
-            .map_err(|kind| ValidationError::new(kind, instr.location))
+            .validation_error(instr.location)
     }
 
     fn emit8(&mut self, v: u8) {

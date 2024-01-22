@@ -4,12 +4,23 @@ pub use validation::{ValidationError, ValidationErrorKind, ValidationMode};
 use {
     self::{emitter::ValidatingEmitter, validation::ModuleContext},
     crate::text::parse_text_resolved_instructions,
-    validation::Result,
+    validation::{KindResult, Result},
+    wrausmt_common::true_or::TrueOr,
     wrausmt_runtime::syntax::{
         location::Location, CompiledExpr, DataField, DataInit, ElemField, ElemList, FuncField,
         GlobalField, ModeEntry, Module, Resolved, TablePosition, UncompiledExpr,
     },
 };
+
+trait ToValidationError<T> {
+    fn validation_error(self, location: Location) -> T;
+}
+
+impl<T> ToValidationError<Result<T>> for KindResult<T> {
+    fn validation_error(self, location: Location) -> Result<T> {
+        self.map_err(|kind| ValidationError::new(kind, location))
+    }
+}
 
 // Compiles all functions in the module.
 // It will consume the provided module, so you should clone the module if you
@@ -109,17 +120,18 @@ fn compile_elem(
     elem: ElemField<Resolved, UncompiledExpr<Resolved>>,
     ei: usize,
 ) -> Result<ElemField<Resolved, CompiledExpr>> {
+    let elemlist = compile_elem_list(validation_mode, module, &elem.elemlist, &elem.location)?;
     Ok(ElemField {
-        id:       elem.id,
-        mode:     compile_elem_mode(
+        id: elem.id,
+        mode: compile_elem_mode(
             validation_mode,
             module,
             elem.mode,
-            elem.elemlist.items.len(),
+            elem.elemlist,
             ei,
             &elem.location,
         )?,
-        elemlist: compile_elem_list(validation_mode, module, elem.elemlist, &elem.location)?,
+        elemlist,
         location: elem.location,
     })
 }
@@ -153,11 +165,25 @@ fn compile_table_position(
     validation_mode: ValidationMode,
     module: &ModuleContext,
     table_position: TablePosition<Resolved, UncompiledExpr<Resolved>>,
-    cnt: usize,
+    elem_list: ElemList<UncompiledExpr<Resolved>>,
     ei: usize,
     location: &Location,
 ) -> Result<TablePosition<Resolved, CompiledExpr>> {
     let ti = table_position.tableuse.tableidx.value();
+    let cnt = elem_list.items.len();
+    let table = module
+        .tables
+        .get(ti as usize)
+        .ok_or(ValidationErrorKind::UnknownTable)
+        .validation_error(*location)?;
+
+    (table.reftype == elem_list.reftype)
+        .true_or(ValidationErrorKind::TypeMismatch {
+            actual: elem_list.reftype.into(),
+            expect: table.reftype.into(),
+        })
+        .validation_error(*location)?;
+
     let init_expr = parse_text_resolved_instructions(&format!(
         "(i32.const 0) (i32.const {cnt}) (table.init {ti} {ei}) (elem.drop {ei})"
     ));
@@ -176,7 +202,7 @@ fn compile_elem_mode(
     validation_mode: ValidationMode,
     module: &ModuleContext,
     elem_mode: ModeEntry<Resolved, UncompiledExpr<Resolved>>,
-    cnt: usize,
+    elem_list: ElemList<UncompiledExpr<Resolved>>,
     ei: usize,
     location: &Location,
 ) -> Result<ModeEntry<Resolved, CompiledExpr>> {
@@ -185,7 +211,7 @@ fn compile_elem_mode(
             validation_mode,
             module,
             tp,
-            cnt,
+            elem_list,
             ei,
             location,
         )?),
@@ -197,7 +223,7 @@ fn compile_elem_mode(
 fn compile_elem_list(
     validation_mode: ValidationMode,
     module: &ModuleContext,
-    elem_list: ElemList<UncompiledExpr<Resolved>>,
+    elem_list: &ElemList<UncompiledExpr<Resolved>>,
     location: &Location,
 ) -> Result<ElemList<CompiledExpr>> {
     Ok(ElemList {
