@@ -665,7 +665,11 @@ impl<R: ResolvedState> std::fmt::Display for Operands<R> {
 
 impl<R: ResolvedState> std::fmt::Debug for Instruction<R> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "({}({}) {})", self.name, self.opcode, self.operands)
+        write!(
+            f,
+            "({}({}) {}) ({}:{})",
+            self.name, self.opcode, self.operands, self.location.line, self.location.pos
+        )
     }
 }
 

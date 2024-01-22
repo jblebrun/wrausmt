@@ -32,8 +32,9 @@ impl CtrlStack {
             .ok_or(ValidationErrorKind::CtrlStackUnderflow)
     }
 
-    pub fn push(&mut self, frame: CtrlFrame) {
+    pub fn push(&mut self, frame: CtrlFrame) -> &CtrlFrame {
         self.frames.push(frame);
+        self.frames.last().unwrap()
     }
 
     pub fn pop(&mut self) -> Result<CtrlFrame> {
