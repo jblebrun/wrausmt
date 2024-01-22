@@ -590,10 +590,20 @@ impl<'a> Validation<'a> {
                 Ok(())
             }
             instr!(opcodes::TABLE_INIT => Operands::TableInit(tidx, eidx)) => {
-                ((tidx.value() as usize) < self.module.tables.len())
-                    .true_or(ValidationErrorKind::UnknownTable)?;
-                ((eidx.value() as usize) < self.module.elems.len())
-                    .true_or(ValidationErrorKind::UnknownElem)?;
+                let table = self
+                    .module
+                    .tables
+                    .get(tidx.value() as usize)
+                    .ok_or(ValidationErrorKind::UnknownTable)?;
+                let elemtype = self
+                    .module
+                    .elems
+                    .get(eidx.value() as usize)
+                    .ok_or(ValidationErrorKind::UnknownElem)?;
+                (&table.reftype == elemtype).true_or(ValidationErrorKind::TypeMismatch {
+                    actual: (*elemtype).into(),
+                    expect: table.reftype.into(),
+                })?;
                 self.stacks.pop_val(I32)?;
                 self.stacks.pop_val(I32)?;
                 self.stacks.pop_val(I32)?;
@@ -605,10 +615,20 @@ impl<'a> Validation<'a> {
                 Ok(())
             }
             instr!(opcodes::TABLE_COPY => Operands::TableCopy(srcidx, dstidx)) => {
-                ((srcidx.value() as usize) < self.module.tables.len())
-                    .true_or(ValidationErrorKind::UnknownTable)?;
-                ((dstidx.value() as usize) < self.module.tables.len())
-                    .true_or(ValidationErrorKind::UnknownTable)?;
+                let t1 = self
+                    .module
+                    .tables
+                    .get(srcidx.value() as usize)
+                    .ok_or(ValidationErrorKind::UnknownTable)?;
+                let t2 = self
+                    .module
+                    .tables
+                    .get(dstidx.value() as usize)
+                    .ok_or(ValidationErrorKind::UnknownTable)?;
+                (t1.reftype == t2.reftype).true_or(ValidationErrorKind::TypeMismatch {
+                    actual: t2.reftype.into(),
+                    expect: t1.reftype.into(),
+                })?;
                 self.stacks.pop_val(I32)?;
                 self.stacks.pop_val(I32)?;
                 self.stacks.pop_val(I32)?;

@@ -17,7 +17,6 @@ const GLOBAL_FAILURES_TO_IGNORE: &[&str] = &[
     "multiple memories",
     "size minimum must not be greater than maximum",
     "start function",
-    "type mismatch",
     "undeclared function reference",
     "unknown data segment",
     "unknown data segment 1",
