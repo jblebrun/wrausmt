@@ -340,11 +340,9 @@
 | _ec.relop::<u64>(|l, r| l >= r)
 
 0x5b      ,f32.eq                        ,()
-| #[allow(clippy::float_cmp)]
 | _ec.relop::<f32>(|l, r| l == r)
 
 0x5c      ,f32.ne                        ,()
-| #[allow(clippy::float_cmp)]
 | _ec.relop::<f32>(|l, r| l != r)
 
 0x5d      ,f32.lt                        ,()
