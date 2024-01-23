@@ -1,10 +1,10 @@
 use {
     super::{
-        validation::{ExpressionType, ModuleContext, Result, Validation, ValidationMode},
+        validation::{ModuleContext, Result, Validation, ValidationMode},
         ToValidationError,
     },
     wrausmt_runtime::{
-        instructions::{op_consts, opcodes},
+        instructions::opcodes,
         syntax::{
             self,
             location::Location,
@@ -214,44 +214,11 @@ impl<'a> ValidatingEmitter<'a> {
 
         let resulttypes: Vec<_> = functype.results.clone();
 
-        let mut out = ValidatingEmitter::new(
-            validation_mode,
-            module,
-            localtypes,
-            resulttypes,
-            ExpressionType::Normal,
-        );
+        let mut out = ValidatingEmitter::new(validation_mode, module, localtypes, resulttypes);
 
         out.emit_expr(&func.body)?;
         out.emit_end(&func.location)?;
 
-        Ok(CompiledExpr {
-            instr: out.finish()?,
-        })
-    }
-
-    /// Compile the body of the provided [`FuncField`] as if it were the
-    /// provided type. Instructions will be validated using the provided
-    /// [`ValidationMode`]. Validation uses the provided [`Module`] to
-    /// resolve module-wide indices. A final `END` opcode will not be
-    /// emitted.
-    pub fn simple_expression(
-        validation_mode: ValidationMode,
-        module: &ModuleContext,
-        expr: &UncompiledExpr<Resolved>,
-        resulttypes: Vec<ValueType>,
-        location: &Location,
-        expression_type: ExpressionType,
-    ) -> Result<CompiledExpr> {
-        let mut out = ValidatingEmitter::new(
-            validation_mode,
-            module,
-            vec![],
-            resulttypes,
-            expression_type,
-        );
-        out.emit_expr(expr)?;
-        out.validate_end(location)?;
         Ok(CompiledExpr {
             instr: out.finish()?,
         })
@@ -262,17 +229,10 @@ impl<'a> ValidatingEmitter<'a> {
         module: &ModuleContext,
         localtypes: Vec<ValueType>,
         resulttypes: Vec<ValueType>,
-        expression_type: ExpressionType,
     ) -> ValidatingEmitter {
         ValidatingEmitter {
             output:     Vec::new(),
-            validation: Validation::new(
-                validation_mode,
-                module,
-                localtypes,
-                resulttypes,
-                expression_type,
-            ),
+            validation: Validation::new(validation_mode, module, localtypes, resulttypes),
         }
     }
 
@@ -320,11 +280,7 @@ impl<'a> Emitter for ValidatingEmitter<'a> {
     }
 
     fn emit_opcode(&mut self, opcode: Opcode) {
-        match opcode {
-            Opcode::Normal(o) => self.output.push(o),
-            Opcode::Extended(o) => self.output.extend(&[op_consts::EXTENDED_PREFIX, o]),
-            Opcode::Simd(o) => self.output.extend(&[op_consts::SIMD_PREFIX, o]),
-        }
+        self.output.extend(opcode.bytes());
     }
 
     fn len(&self) -> usize {
