@@ -12,7 +12,7 @@ use {
 impl<R: Read> Parser<R> {
     pub fn parse_instructions(&mut self) -> Result<Vec<Instruction<Unresolved>>> {
         pctx!(self, "parse instructiosn");
-        self.zero_or_more_groups(Self::try_instruction)
+        Ok(self.zero_or_more_groups(Self::try_instruction)?.0)
     }
 
     /// Called at a point where we expect an instruction name keyword
@@ -63,8 +63,8 @@ impl<R: Read> Parser<R> {
                         syntax::Operands::BrTable(idxs, last)
                     }
                     Operands::Select => {
-                        let results = self.zero_or_more_groups(Self::try_parse_fresult)?;
-                        if results.is_empty() {
+                        let (results, any) = self.zero_or_more_groups(Self::try_parse_fresult)?;
+                        if !any {
                             syntax::Operands::None
                         } else {
                             syntax::Operands::SelectT(results)
@@ -244,17 +244,17 @@ impl<R: Read> Parser<R> {
         let location = self.location();
         let label = self.try_id()?;
         let typeuse = self.parse_type_use(super::module::FParamId::Forbidden)?;
-        let condition = self.zero_or_more_groups(Self::try_folded_instruction)?;
+        let (condition, _) = self.zero_or_more_groups(Self::try_folded_instruction)?;
         let mut unfolded = condition;
         let thexpr = if self.try_expr_start("then")? {
-            let instr = self.zero_or_more_groups(Self::try_instruction)?;
+            let (instr, _) = self.zero_or_more_groups(Self::try_instruction)?;
             self.expect_close()?;
             UncompiledExpr { instr }
         } else {
             Err(self.unexpected_token("then"))?
         };
         let elexpr = if self.try_expr_start("else")? {
-            let instr = self.zero_or_more_groups(Self::try_instruction)?;
+            let (instr, _) = self.zero_or_more_groups(Self::try_instruction)?;
             self.expect_close()?;
             UncompiledExpr { instr }
         } else {
@@ -321,7 +321,7 @@ impl<R: Read> Parser<R> {
             None => return Ok(None),
         };
 
-        let mut rest = self.zero_or_more_groups(Self::try_folded_instruction)?;
+        let (mut rest, _) = self.zero_or_more_groups(Self::try_folded_instruction)?;
 
         rest.push(first);
         self.expect_close()?;
