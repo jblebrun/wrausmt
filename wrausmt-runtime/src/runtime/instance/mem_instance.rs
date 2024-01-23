@@ -2,7 +2,10 @@ use {
     crate::{
         log_tag::Tag,
         runtime::error::{Result, TrapKind},
-        syntax::{types::MemType, MemoryField},
+        syntax::{
+            types::{Limits, MemType},
+            MemoryField, Validated,
+        },
     },
     std::ops::Range,
     wrausmt_common::{
@@ -27,9 +30,9 @@ use {
 /// [Spec]: https://webassembly.github.io/spec/core/exec/runtime.html#memory-instances
 #[derive(Default, Debug)]
 pub struct MemInstance {
-    logger:      PrintLogger,
-    pub memtype: MemType,
-    pub data:    Vec<u8>,
+    logger:     PrintLogger,
+    pub limits: Limits,
+    pub data:   Vec<u8>,
 }
 
 const PAGE_SIZE: usize = 65536;
@@ -38,24 +41,24 @@ impl MemInstance {
     /// Create a new [MemInstance] for the provided [MemType].
     /// As per the [Spec][Spec], the meory is initialized to `n` pages of `0`s,
     /// where `n` is the lower value of the
-    /// [Limits][crate::syntax::types::Limits] in the provided [MemType].
+    /// [Limits] in the provided [MemType].
     ///
     /// [Spec]: https://webassembly.github.io/spec/core/exec/runtime.html#memory-instances
-    pub fn new(memtype: MemType) -> MemInstance {
+    pub fn new(memtype: MemType<Validated>) -> MemInstance {
         let data = vec![0u8; memtype.limits.lower as usize * PAGE_SIZE];
         MemInstance {
             logger: PrintLogger,
-            memtype,
+            limits: memtype.limits,
             data,
         }
     }
 
-    pub fn new_ast(memfield: MemoryField) -> Result<MemInstance> {
+    pub fn new_ast(memfield: MemoryField<Validated>) -> Result<MemInstance> {
         let memtype = memfield.memtype;
         let data = vec![0u8; memtype.limits.lower as usize * PAGE_SIZE];
         Ok(MemInstance {
             logger: PrintLogger,
-            memtype,
+            limits: memtype.limits,
             data,
         })
     }
@@ -71,7 +74,7 @@ impl MemInstance {
 
         let old_size_in_pages = self.data.len() / PAGE_SIZE;
 
-        if let Some(upper) = self.memtype.limits.upper {
+        if let Some(upper) = self.limits.upper {
             if old_size_in_pages as u32 + pgs > upper {
                 return None;
             }

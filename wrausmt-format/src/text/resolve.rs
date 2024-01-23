@@ -273,8 +273,8 @@ impl Resolve<ElemList<UncompiledExpr<Resolved>>> for ElemList<UncompiledExpr<Unr
     }
 }
 
-impl Resolve<ImportField<Resolved>> for ImportField<Unresolved> {
-    fn resolve(self, ic: &mut ResolutionContext) -> Result<ImportField<Resolved>> {
+impl Resolve<ImportField<Resolved, Unvalidated>> for ImportField<Unresolved, Unvalidated> {
+    fn resolve(self, ic: &mut ResolutionContext) -> Result<ImportField<Resolved, Unvalidated>> {
         Ok(ImportField {
             modname:  self.modname,
             name:     self.name,
@@ -286,8 +286,8 @@ impl Resolve<ImportField<Resolved>> for ImportField<Unresolved> {
     }
 }
 
-impl Resolve<ImportDesc<Resolved>> for ImportDesc<Unresolved> {
-    fn resolve(self, ic: &mut ResolutionContext) -> Result<ImportDesc<Resolved>> {
+impl Resolve<ImportDesc<Resolved, Unvalidated>> for ImportDesc<Unresolved, Unvalidated> {
+    fn resolve(self, ic: &mut ResolutionContext) -> Result<ImportDesc<Resolved, Unvalidated>> {
         Ok(match self {
             ImportDesc::Func(tu) => ImportDesc::Func(tu.resolve(ic)?),
             ImportDesc::Table(tt) => ImportDesc::Table(tt),

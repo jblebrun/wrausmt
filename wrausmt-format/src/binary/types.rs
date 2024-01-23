@@ -6,7 +6,7 @@ use {
     },
     wrausmt_runtime::syntax::{
         types::{GlobalType, Limits, MemType, NumType, RefType, TableType, ValueType},
-        FParam, FResult, FunctionType, Index, Resolved, TypeField, TypeUse,
+        FParam, FResult, FunctionType, Index, Resolved, TypeField, TypeUse, Unvalidated,
     },
 };
 
@@ -59,19 +59,16 @@ impl<R: ParserReader> BinaryParser<R> {
         Ok(TypeUse::ByIndex(self.read_index_use()?))
     }
 
-    pub(in crate::binary) fn read_memory_type(&mut self) -> Result<MemType> {
+    pub(in crate::binary) fn read_memory_type(&mut self) -> Result<MemType<Unvalidated>> {
         pctx!(self, "read memory type");
-        Ok(MemType {
-            limits: self.read_limits()?,
-        })
+        Ok(MemType::new(self.read_limits()?))
     }
 
-    pub(in crate::binary) fn read_table_type(&mut self) -> Result<TableType> {
+    pub(in crate::binary) fn read_table_type(&mut self) -> Result<TableType<Unvalidated>> {
         pctx!(self, "read table type");
-        Ok(TableType {
-            reftype: self.read_ref_type()?,
-            limits:  self.read_limits()?,
-        })
+        let reftype = self.read_ref_type()?;
+        let limits = self.read_limits()?;
+        Ok(TableType::new(limits, reftype))
     }
 
     pub(in crate::binary) fn read_global_type(&mut self) -> Result<GlobalType> {

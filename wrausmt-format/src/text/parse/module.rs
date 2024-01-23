@@ -20,9 +20,9 @@ use {
 pub enum Field<R: ResolvedState, V: ValidatedState> {
     Type(TypeField),
     Func(FuncField<R, UncompiledExpr<R>>),
-    Table(TableField, Option<ElemField<R, UncompiledExpr<R>>>),
-    Memory(MemoryField, Option<Box<[u8]>>),
-    Import(ImportField<R>),
+    Table(TableField<V>, Option<ElemField<R, UncompiledExpr<R>>>),
+    Memory(MemoryField<V>, Option<Box<[u8]>>),
+    Import(ImportField<R, V>),
     Export(ExportField<R, V>),
     Global(GlobalField<UncompiledExpr<R>>),
     Start(StartField<R, V>),
@@ -310,12 +310,10 @@ impl<R: Read> Parser<R> {
             if inline_data.len() % PAGE_SIZE > 0 {
                 n += 1;
             }
-            let memtype = MemType {
-                limits: Limits {
-                    lower: n,
-                    upper: Some(n),
-                },
-            };
+            let memtype = MemType::new(Limits {
+                lower: n,
+                upper: Some(n),
+            });
             return Ok(Some(Field::Memory(
                 MemoryField {
                     id,
@@ -329,7 +327,7 @@ impl<R: Read> Parser<R> {
 
         let limits = self.expect_limits()?;
 
-        let memtype = MemType { limits };
+        let memtype = MemType::new(limits);
 
         if let Some(import) = import {
             self.expect_close()?;
@@ -383,7 +381,9 @@ impl<R: Read> Parser<R> {
         })))
     }
 
-    pub fn expect_importdesc(&mut self) -> Result<(Option<Id>, ImportDesc<Unresolved>)> {
+    pub fn expect_importdesc(
+        &mut self,
+    ) -> Result<(Option<Id>, ImportDesc<Unresolved, Unvalidated>)> {
         pctx!(self, "expect importdesc");
         if self.try_expr_start("func")? {
             let id = self.try_id()?;
@@ -399,7 +399,7 @@ impl<R: Read> Parser<R> {
             let id = self.try_id()?;
             let limits = self.expect_limits()?;
             self.expect_close()?;
-            Ok((id, ImportDesc::Mem(MemType { limits })))
+            Ok((id, ImportDesc::Mem(MemType::new(limits))))
         } else if self.try_expr_start("global")? {
             let id = self.try_id()?;
             let globaltype = self.expect_globaltype()?;
@@ -410,11 +410,11 @@ impl<R: Read> Parser<R> {
         }
     }
 
-    pub fn expect_tabletype(&mut self) -> Result<TableType> {
+    pub fn expect_tabletype(&mut self) -> Result<TableType<Unvalidated>> {
         pctx!(self, "expect tabletype");
         let limits = self.expect_limits()?;
         let reftype = self.expect_reftype()?;
-        Ok(TableType { limits, reftype })
+        Ok(TableType::new(limits, reftype))
     }
 
     pub fn expect_globaltype(&mut self) -> Result<GlobalType> {

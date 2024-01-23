@@ -37,6 +37,7 @@ pub enum ValidationErrorKind {
     ImmutableGlobal,
     InvalidConstantGlobal,
     InvalidConstantInstruction,
+    InvalidLimits,
     MemoryTooLarge,
     MultipleMemories,
     OpcodeMismatch,
@@ -156,8 +157,8 @@ pub struct GlobalValidationType {
 pub struct ModuleContext {
     pub types:    Vec<FunctionType>,
     pub funcs:    Vec<FunctionType>,
-    pub tables:   Vec<TableType>,
-    pub mems:     Vec<MemType>,
+    pub tables:   Vec<TableType<Unvalidated>>,
+    pub mems:     Vec<MemType<Unvalidated>>,
     pub globals:  Vec<GlobalValidationType>,
     pub elems:    Vec<RefType>,
     pub datas:    usize,
@@ -170,8 +171,8 @@ impl ModuleContext {
     /// out of the module.
     pub fn new(module: &Module<Resolved, Unvalidated, UncompiledExpr<Resolved>>) -> Result<Self> {
         let mut funcs: Vec<FunctionType> = Vec::new();
-        let mut tables: Vec<TableType> = Vec::new();
-        let mut mems: Vec<MemType> = Vec::new();
+        let mut tables: Vec<TableType<Unvalidated>> = Vec::new();
+        let mut mems: Vec<MemType<Unvalidated>> = Vec::new();
         let mut globals: Vec<GlobalValidationType> = Vec::new();
 
         for import in module.imports.iter() {

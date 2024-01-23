@@ -6,6 +6,8 @@
 //!
 //! [Spec]: https://webassembly.github.io/spec/core/syntax/types.html
 
+use {super::ValidatedState, std::marker::PhantomData};
+
 /// Number types classify numeric values. [Spec][Spec]
 ///
 /// The types i32 and i64 classify 32 and 64 bit integers, respectively.
@@ -113,8 +115,18 @@ impl Limits {
 ///
 /// [Spec]: https://webassembly.github.io/spec/core/syntax/types.html#memory-types
 #[derive(Debug, Default, Clone, PartialEq)]
-pub struct MemType {
-    pub limits: Limits,
+pub struct MemType<V: ValidatedState> {
+    pub limits:      Limits,
+    validated_state: PhantomData<V>,
+}
+
+impl<V: ValidatedState> MemType<V> {
+    pub fn new(limits: Limits) -> Self {
+        Self {
+            limits,
+            validated_state: PhantomData {},
+        }
+    }
 }
 
 /// Table types classify tables over elements of reference type within a size
@@ -125,22 +137,32 @@ pub struct MemType {
 ///
 /// [Spec]: https://webassembly.github.io/spec/core/syntax/types.html#table-types
 #[derive(Debug, Clone, PartialEq)]
-pub struct TableType {
+pub struct TableType<V: ValidatedState> {
     pub limits: Limits,
 
     /// The [RefType] contained by this table type.
     pub reftype: RefType,
+
+    validated_state: PhantomData<V>,
 }
 
-impl TableType {
-    pub fn fixed_size(size: u32) -> Self {
+impl<V: ValidatedState> TableType<V> {
+    pub fn new(limits: Limits, reftype: RefType) -> Self {
         Self {
-            reftype: RefType::Func,
-            limits:  Limits {
+            limits,
+            reftype,
+            validated_state: PhantomData {},
+        }
+    }
+
+    pub fn fixed_size(size: u32) -> Self {
+        Self::new(
+            Limits {
                 lower: size,
                 upper: Some(size),
             },
-        }
+            RefType::Func,
+        )
     }
 }
 

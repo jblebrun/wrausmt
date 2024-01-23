@@ -7,10 +7,7 @@ use {
     wrausmt_format::ValidationMode,
 };
 
-const GLOBAL_FAILURES_TO_IGNORE: &[&str] = &[
-    "memory size must be at most 65536 pages (4GiB)",
-    "size minimum must not be greater than maximum",
-];
+const GLOBAL_FAILURES_TO_IGNORE: &[&str] = &[];
 // To regenerate the spectest! lines below using the transform this macro
 // expects: "".join(["spectest!(r#{});
 // ".format(i.replace(".wast","").replace("-","_x_")) for i in
