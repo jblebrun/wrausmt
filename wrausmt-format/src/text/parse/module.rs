@@ -196,8 +196,8 @@ impl<R: Read> Parser<R> {
                     FParamId::Allowed => Self::try_parse_fparam_id_allowed,
                     FParamId::Forbidden => Self::try_parse_fparam_id_forbidden,
                 })?
-                .0,
-            results: self.zero_or_more_groups(Self::try_parse_fresult)?.0,
+                .result,
+            results: self.zero_or_more_groups(Self::try_parse_fresult)?.result,
         })
     }
 
@@ -229,7 +229,7 @@ impl<R: Read> Parser<R> {
             })));
         }
 
-        let (locals, _) = self.zero_or_more_groups(Self::try_locals)?;
+        let locals = self.zero_or_more_groups(Self::try_locals)?.result;
 
         let instr = self.parse_instructions()?;
         self.expect_close()?;
