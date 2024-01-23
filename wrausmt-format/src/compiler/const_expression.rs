@@ -106,8 +106,9 @@ fn validate_and_emit_instr(
                 .globals
                 .get(gi.value() as usize)
                 .ok_or(ValidationErrorKind::UnknownGlobal)?;
-            (global.imported && !global.globaltype.mutable)
-                .true_or(ValidationErrorKind::InvalidConstantGlobal)?;
+            (global.imported).true_or(ValidationErrorKind::InvalidConstantGlobal)?;
+            (!global.globaltype.mutable)
+                .true_or(ValidationErrorKind::InvalidConstantInstruction)?;
             stack.push(global.globaltype.valtype);
 
             let bytes = &gi.value().to_le_bytes()[..];

@@ -7,6 +7,7 @@ use {
     self::{
         const_expression::compile_const_expr, emitter::ValidatingEmitter, validation::ModuleContext,
     },
+    std::collections::HashSet,
     validation::{KindResult, Result},
     wrausmt_common::true_or::TrueOr,
     wrausmt_runtime::syntax::{
@@ -60,9 +61,16 @@ pub fn compile_module(
         .collect();
     let data = data?;
 
+    let mut export_names: HashSet<String> = HashSet::new();
     let exports: Result<Vec<_>> = std::mem::take(&mut module.exports)
         .into_iter()
-        .map(|e| validate_export(&module_context, &mut funcrefs, e))
+        .map(|e| {
+            export_names
+                .insert(e.name.clone())
+                .true_or(ValidationErrorKind::DuplicateExport)
+                .validation_error(e.location)?;
+            validate_export(&module_context, &mut funcrefs, e)
+        })
         .collect();
     let exports = exports?;
 

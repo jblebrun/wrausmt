@@ -180,11 +180,19 @@ fn matches_resolve_error(failure: &str, err: &ResolveError) -> bool {
 
 fn matches_validation_error(failure: &str, err: &ValidationError) -> bool {
     match err.kind() {
+        ValidationErrorKind::AlignmentTooLarge(_) => {
+            failure == "alignment must not be larger than natural"
+        }
         ValidationErrorKind::BreakTypeMismatch => failure == "type mismatch",
+        ValidationErrorKind::DuplicateExport => failure == "duplicate export name",
         ValidationErrorKind::ExpectedNum { .. } => failure == "type mismatch",
         ValidationErrorKind::ExpectedRef { .. } => failure == "type mismatch",
         ValidationErrorKind::InvalidConstantGlobal => failure == "unknown global",
+        ValidationErrorKind::InvalidConstantInstruction => {
+            failure == "constant expression required"
+        }
         ValidationErrorKind::ImmutableGlobal => failure == "global is immutable",
+        ValidationErrorKind::MultipleMemories => failure == "multiple memories",
         ValidationErrorKind::TypeMismatch { .. } => failure == "type mismatch",
         ValidationErrorKind::UndeclaredFunctionRef => failure == "undeclared function reference",
         ValidationErrorKind::UnknownData => failure.starts_with("unknown data segment"),
@@ -196,6 +204,7 @@ fn matches_validation_error(failure: &str, err: &ValidationError) -> bool {
         ValidationErrorKind::UnknownMemory => failure.starts_with("unknown memory"),
         ValidationErrorKind::UnknownTable => failure.starts_with("unknown table"),
         ValidationErrorKind::UnknownType => failure == "unknown type",
+        ValidationErrorKind::UnsupportedSelect => failure == "invalid result arity",
         ValidationErrorKind::UnusedValues => failure == "type mismatch",
         ValidationErrorKind::ValStackUnderflow => failure == "type mismatch",
         ValidationErrorKind::WrongStartFunctionType => failure == "start function",
