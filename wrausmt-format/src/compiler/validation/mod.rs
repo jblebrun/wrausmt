@@ -11,7 +11,8 @@ use {
             self,
             location::Location,
             types::{GlobalType, MemType, RefType, TableType, ValueType},
-            ImportDesc, Index, Instruction, LocalIndex, Module, Resolved, UncompiledExpr,
+            FuncIndex, ImportDesc, Index, Instruction, LocalIndex, Module, Resolved,
+            UncompiledExpr,
         },
     },
 };
@@ -42,6 +43,7 @@ pub enum ValidationErrorKind {
         actual: ValidationType,
         expect: ValidationType,
     },
+    UndeclaredFunctionRef,
     UnhandledInstruction(Instruction<Resolved>),
     UnknownLocal(Index<Resolved, LocalIndex>),
     UnknownData,
@@ -55,6 +57,7 @@ pub enum ValidationErrorKind {
     UnusedValues,
     UnsupportedSelect,
     ValStackUnderflow,
+    WrongStartFunctionType,
     WrongTableType,
 }
 
@@ -148,13 +151,14 @@ pub struct GlobalValidationType {
 #[derive(Clone, Debug)]
 
 pub struct ModuleContext {
-    pub types:   Vec<FunctionType>,
-    pub funcs:   Vec<FunctionType>,
-    pub tables:  Vec<TableType>,
-    pub mems:    Vec<MemType>,
-    pub globals: Vec<GlobalValidationType>,
-    pub elems:   Vec<RefType>,
-    pub datas:   usize,
+    pub types:    Vec<FunctionType>,
+    pub funcs:    Vec<FunctionType>,
+    pub tables:   Vec<TableType>,
+    pub mems:     Vec<MemType>,
+    pub globals:  Vec<GlobalValidationType>,
+    pub elems:    Vec<RefType>,
+    pub datas:    usize,
+    pub funcrefs: Vec<Index<Resolved, FuncIndex>>,
 }
 
 impl ModuleContext {
@@ -223,7 +227,13 @@ impl ModuleContext {
             globals,
             elems: module.elems.iter().map(|e| e.elemlist.reftype).collect(),
             datas: module.data.len(),
+            funcrefs: Vec::new(),
         })
+    }
+
+    pub fn update_func_refs(mut self, funcrefs: Vec<Index<Resolved, FuncIndex>>) -> Self {
+        self.funcrefs = funcrefs;
+        self
     }
 }
 

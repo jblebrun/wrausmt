@@ -566,6 +566,8 @@ impl<'a> Validation<'a> {
             instr!(opcodes::REF_FUNC => Operands::FuncIndex(idx)) => {
                 ((idx.value() as usize) < self.module.funcs.len())
                     .true_or(ValidationErrorKind::UnknownFunc)?;
+                (self.module.funcrefs.contains(idx))
+                    .true_or(ValidationErrorKind::UndeclaredFunctionRef)?;
                 self.stacks.push_val(FUNC);
                 Ok(())
             }
