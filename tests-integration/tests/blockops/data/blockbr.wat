@@ -3,7 +3,6 @@
     (block (result i32)
         i32.const 14
         br 0
-        drop
         i32.const 12
     ))
 
@@ -12,7 +11,6 @@
     block (result i32)
         i32.const 114
         br 0
-        drop
         i32.const 112
     end)
 
@@ -21,7 +19,6 @@
       (block (result i32)
         i32.const 14
         br 0
-        drop
         i32.const 12
       )
       drop
@@ -32,7 +29,6 @@
       block (result i32)
         i32.const 114
         br 0
-        drop
         i32.const 112
       end
       drop

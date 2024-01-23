@@ -1,6 +1,6 @@
 use {
     super::{
-        validation::{ModuleContext, Result, Validation, ValidationMode},
+        validation::{ModuleContext, Result, Validation},
         ToValidationError,
     },
     wrausmt_runtime::{
@@ -203,7 +203,6 @@ impl<'a> ValidatingEmitter<'a> {
     /// provided [`ValidationMode`]. Validation uses the provided
     /// [`Module`] to resolve module-wide indices.
     pub fn function_body(
-        validation_mode: ValidationMode,
         module: &ModuleContext,
         func: &FuncField<Resolved, UncompiledExpr<Resolved>>,
     ) -> Result<CompiledExpr> {
@@ -214,7 +213,7 @@ impl<'a> ValidatingEmitter<'a> {
 
         let resulttypes: Vec<_> = functype.results.clone();
 
-        let mut out = ValidatingEmitter::new(validation_mode, module, localtypes, resulttypes);
+        let mut out = ValidatingEmitter::new(module, localtypes, resulttypes);
 
         out.emit_expr(&func.body)?;
         out.emit_end(&func.location)?;
@@ -225,14 +224,13 @@ impl<'a> ValidatingEmitter<'a> {
     }
 
     fn new(
-        validation_mode: ValidationMode,
         module: &ModuleContext,
         localtypes: Vec<ValueType>,
         resulttypes: Vec<ValueType>,
     ) -> ValidatingEmitter {
         ValidatingEmitter {
             output:     Vec::new(),
-            validation: Validation::new(validation_mode, module, localtypes, resulttypes),
+            validation: Validation::new(module, localtypes, resulttypes),
         }
     }
 

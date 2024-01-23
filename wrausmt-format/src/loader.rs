@@ -2,7 +2,7 @@
 /// runtime, which expects a fully resolved module as input.
 use crate::{
     binary::{error::BinaryParseError, parse_wasm_data},
-    compiler::{compile_module, ValidationError, ValidationMode},
+    compiler::{compile_module, ValidationError},
     text::parse::error::ParseError,
     text::{parse_wast_data, resolve::ResolveError},
 };
@@ -74,40 +74,24 @@ impl From<ResolveError> for LoaderError {
 pub type Result<T> = std::result::Result<T, LoaderError>;
 
 pub trait Loader {
-    fn load_wasm_data(
-        &mut self,
-        read: &mut impl Read,
-        validation_mode: ValidationMode,
-    ) -> Result<Rc<ModuleInstance>>;
+    fn load_wasm_data(&mut self, read: &mut impl Read) -> Result<Rc<ModuleInstance>>;
 
-    fn load_wast_data(
-        &mut self,
-        read: &mut impl Read,
-        validation_mode: ValidationMode,
-    ) -> Result<Rc<ModuleInstance>>;
+    fn load_wast_data(&mut self, read: &mut impl Read) -> Result<Rc<ModuleInstance>>;
 }
 
 impl Loader for Runtime {
-    fn load_wasm_data(
-        &mut self,
-        reader: &mut impl Read,
-        validation_mode: ValidationMode,
-    ) -> Result<Rc<ModuleInstance>> {
+    fn load_wasm_data(&mut self, reader: &mut impl Read) -> Result<Rc<ModuleInstance>> {
         let module = parse_wasm_data(reader)?;
         // TODO Switch to fail when validation is complete.
-        let compiled = compile_module(validation_mode, module)?;
+        let compiled = compile_module(module)?;
         let mod_inst = self.load(compiled)?;
         Ok(mod_inst)
     }
 
-    fn load_wast_data(
-        &mut self,
-        reader: &mut impl Read,
-        validation_mode: ValidationMode,
-    ) -> Result<Rc<ModuleInstance>> {
+    fn load_wast_data(&mut self, reader: &mut impl Read) -> Result<Rc<ModuleInstance>> {
         let module = parse_wast_data(reader)?;
         // TODO Switch to fail when validation is complete.
-        let compiled = compile_module(validation_mode, module)?;
+        let compiled = compile_module(module)?;
         let mod_inst = self.load(compiled)?;
         Ok(mod_inst)
     }
