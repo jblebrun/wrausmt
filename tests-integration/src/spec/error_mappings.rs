@@ -186,6 +186,7 @@ fn matches_validation_error(failure: &str, err: &ValidationError) -> bool {
         ValidationErrorKind::InvalidConstantGlobal => failure == "unknown global",
         ValidationErrorKind::ImmutableGlobal => failure == "global is immutable",
         ValidationErrorKind::TypeMismatch { .. } => failure == "type mismatch",
+        ValidationErrorKind::UndeclaredFunctionRef => failure == "undeclared function reference",
         ValidationErrorKind::UnknownData => failure.starts_with("unknown data segment"),
         ValidationErrorKind::UnknownElem => failure.starts_with("unknown elem segment"),
         ValidationErrorKind::UnknownFunc => failure.starts_with("unknown func"),
@@ -197,6 +198,7 @@ fn matches_validation_error(failure: &str, err: &ValidationError) -> bool {
         ValidationErrorKind::UnknownType => failure == "unknown type",
         ValidationErrorKind::UnusedValues => failure == "type mismatch",
         ValidationErrorKind::ValStackUnderflow => failure == "type mismatch",
+        ValidationErrorKind::WrongStartFunctionType => failure == "start function",
         ValidationErrorKind::WrongTableType => failure == "wrong table type",
         _ => false,
     }

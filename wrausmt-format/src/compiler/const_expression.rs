@@ -6,7 +6,7 @@ use {
         instructions::opcodes,
         syntax::{
             types::{NumType, RefType, ValueType},
-            CompiledExpr, Instruction, Operands, Resolved, UncompiledExpr,
+            CompiledExpr, FuncIndex, Index, Instruction, Operands, Resolved, UncompiledExpr,
         },
     },
 };
@@ -31,12 +31,13 @@ macro_rules! instr {
 pub fn compile_const_expr(
     expr: &UncompiledExpr<Resolved>,
     module: &ModuleContext,
+    funcrefs: &mut Vec<Index<Resolved, FuncIndex>>,
     expect_type: ValueType,
 ) -> KindResult<CompiledExpr> {
     let mut out = Vec::<u8>::new();
     let mut stack = Vec::<ValueType>::new();
     for instr in &expr.instr {
-        validate_and_emit_instr(instr, &mut out, module, &mut stack)?;
+        validate_and_emit_instr(instr, &mut out, module, funcrefs, &mut stack)?;
     }
 
     (stack == [expect_type]).true_or(ValidationErrorKind::TypeMismatch {
@@ -53,6 +54,7 @@ fn validate_and_emit_instr(
     instr: &Instruction<Resolved>,
     out: &mut Vec<u8>,
     module: &ModuleContext,
+    funcrefs: &mut Vec<Index<Resolved, FuncIndex>>,
     stack: &mut Vec<ValueType>,
 ) -> KindResult<()> {
     out.extend(instr.opcode.bytes());
@@ -93,6 +95,7 @@ fn validate_and_emit_instr(
         instr!(opcodes::REF_FUNC => Operands::FuncIndex(fi)) => {
             ((fi.value() as usize) < module.funcs.len())
                 .true_or(ValidationErrorKind::UnknownFunc)?;
+            funcrefs.push(fi.clone());
             stack.push(RefType::Func.into());
 
             let bytes = &fi.value().to_le_bytes()[..];

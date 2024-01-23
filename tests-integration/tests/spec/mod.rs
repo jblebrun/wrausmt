@@ -16,8 +16,6 @@ const GLOBAL_FAILURES_TO_IGNORE: &[&str] = &[
     "memory size must be at most 65536 pages (4GiB)",
     "multiple memories",
     "size minimum must not be greater than maximum",
-    "start function",
-    "undeclared function reference",
 ];
 // To regenerate the spectest! lines below using the transform this macro
 // expects: "".join(["spectest!(r#{});

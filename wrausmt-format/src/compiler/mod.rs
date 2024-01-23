@@ -11,8 +11,8 @@ use {
     wrausmt_common::true_or::TrueOr,
     wrausmt_runtime::syntax::{
         location::Location, types::NumType, CompiledExpr, DataField, DataInit, ElemField, ElemList,
-        ExportDesc, ExportField, FuncField, GlobalField, ModeEntry, Module, Resolved, StartField,
-        TablePosition, UncompiledExpr,
+        ExportDesc, ExportField, FuncField, FuncIndex, GlobalField, Index, ModeEntry, Module,
+        Resolved, StartField, TablePosition, UncompiledExpr,
     },
 };
 
@@ -35,41 +35,43 @@ pub fn compile_module(
 ) -> Result<Module<Resolved, CompiledExpr>> {
     // We need to create this now and hold onto it, beacuse the module will
     // change as we process its elements.
+    let mut funcrefs: Vec<Index<Resolved, FuncIndex>> = Vec::new();
     let module_context = ModuleContext::new(&module)?;
 
     let mut module = module;
 
-    let funcs: Result<Vec<_>> = std::mem::take(&mut module.funcs)
-        .into_iter()
-        .map(|f| compile_func(validation_mode, &module_context, f))
-        .collect();
-    let funcs = funcs?;
-
     let globals: Result<Vec<_>> = std::mem::take(&mut module.globals)
         .into_iter()
-        .map(|g| compile_global(&module_context, g))
+        .map(|g| compile_global(&module_context, &mut funcrefs, g))
         .collect();
     let globals = globals?;
 
     let elems: Result<Vec<_>> = std::mem::take(&mut module.elems)
         .into_iter()
         .enumerate()
-        .map(|(i, e)| compile_elem(&module_context, e, i))
+        .map(|(i, e)| compile_elem(&module_context, &mut funcrefs, e, i))
         .collect();
     let elems = elems?;
 
     let data: Result<Vec<_>> = std::mem::take(&mut module.data)
         .into_iter()
         .enumerate()
-        .map(|(i, d)| compile_data(&module_context, d, i))
+        .map(|(i, d)| compile_data(&module_context, &mut funcrefs, d, i))
         .collect();
     let data = data?;
 
     let exports: Result<Vec<_>> = std::mem::take(&mut module.exports)
         .into_iter()
-        .map(|e| compile_export(&module_context, e))
+        .map(|e| compile_export(&module_context, &mut funcrefs, e))
         .collect();
     let exports = exports?;
+
+    let module_context = module_context.update_func_refs(funcrefs);
+    let funcs: Result<Vec<_>> = std::mem::take(&mut module.funcs)
+        .into_iter()
+        .map(|f| compile_func(validation_mode, &module_context, f))
+        .collect();
+    let funcs = funcs?;
 
     let start = compile_start(&module_context, module.start)?;
 
@@ -107,6 +109,7 @@ fn compile_func(
 
 fn compile_global(
     module: &ModuleContext,
+    funcrefs: &mut Vec<Index<Resolved, FuncIndex>>,
     global: GlobalField<UncompiledExpr<Resolved>>,
 ) -> Result<GlobalField<CompiledExpr>> {
     let expect_type = global.globaltype.valtype;
@@ -114,7 +117,7 @@ fn compile_global(
         id:         global.id,
         exports:    global.exports,
         globaltype: global.globaltype,
-        init:       compile_const_expr(&global.init, module, expect_type)
+        init:       compile_const_expr(&global.init, module, funcrefs, expect_type)
             .validation_error(global.location)?,
         location:   global.location,
     })
@@ -122,13 +125,21 @@ fn compile_global(
 
 fn compile_elem(
     module: &ModuleContext,
+    funcrefs: &mut Vec<Index<Resolved, FuncIndex>>,
     elem: ElemField<Resolved, UncompiledExpr<Resolved>>,
     ei: usize,
 ) -> Result<ElemField<Resolved, CompiledExpr>> {
-    let elemlist = compile_elem_list(module, &elem.elemlist, &elem.location)?;
+    let elemlist = compile_elem_list(module, funcrefs, &elem.elemlist, &elem.location)?;
     Ok(ElemField {
         id: elem.id,
-        mode: compile_elem_mode(module, elem.mode, elem.elemlist, ei, &elem.location)?,
+        mode: compile_elem_mode(
+            module,
+            funcrefs,
+            elem.mode,
+            elem.elemlist,
+            ei,
+            &elem.location,
+        )?,
         elemlist,
         location: elem.location,
     })
@@ -136,6 +147,7 @@ fn compile_elem(
 
 fn compile_data(
     module: &ModuleContext,
+    funcrefs: &mut Vec<Index<Resolved, FuncIndex>>,
     data: DataField<Resolved, UncompiledExpr<Resolved>>,
     di: usize,
 ) -> Result<DataField<Resolved, CompiledExpr>> {
@@ -146,6 +158,7 @@ fn compile_data(
         init:     match data.init {
             Some(data_init) => Some(compile_data_init(
                 module,
+                funcrefs,
                 data_init,
                 dlen,
                 di,
@@ -160,11 +173,12 @@ fn compile_data(
 // TODO - We need to add a validated type marker as well.
 fn compile_export(
     module: &ModuleContext,
+    funcrefs: &mut Vec<Index<Resolved, FuncIndex>>,
     export: ExportField<Resolved>,
 ) -> Result<ExportField<Resolved>> {
     Ok(ExportField {
         name:       export.name,
-        exportdesc: compile_export_desc(module, export.exportdesc)
+        exportdesc: compile_export_desc(module, funcrefs, export.exportdesc)
             .validation_error(export.location)?,
         location:   export.location,
     })
@@ -176,8 +190,11 @@ fn compile_start(
 ) -> Result<Option<StartField<Resolved>>> {
     match start {
         Some(start) => {
-            (module.funcs.len() > start.idx.value() as usize)
-                .true_or(ValidationErrorKind::UnknownFunc)
+            let f = (module.funcs.get(start.idx.value() as usize))
+                .ok_or(ValidationErrorKind::UnknownFunc)
+                .validation_error(start.location)?;
+            (f.params.is_empty() && f.results.is_empty())
+                .true_or(ValidationErrorKind::WrongStartFunctionType)
                 .validation_error(start.location)?;
             Ok(Some(StartField {
                 idx:      start.idx,
@@ -190,11 +207,13 @@ fn compile_start(
 
 fn compile_export_desc(
     module: &ModuleContext,
+    funcrefs: &mut Vec<Index<Resolved, FuncIndex>>,
     exportdesc: ExportDesc<Resolved>,
 ) -> KindResult<ExportDesc<Resolved>> {
     match exportdesc {
         ExportDesc::Func(fi) => {
             (module.funcs.len() > fi.value() as usize).true_or(ValidationErrorKind::UnknownFunc)?;
+            funcrefs.push(fi.clone());
             Ok(ExportDesc::Func(fi))
         }
         ExportDesc::Global(gi) => {
@@ -217,6 +236,7 @@ fn compile_export_desc(
 
 fn compile_table_position(
     module: &ModuleContext,
+    funcrefs: &mut Vec<Index<Resolved, FuncIndex>>,
     table_position: TablePosition<Resolved, UncompiledExpr<Resolved>>,
     elem_list: ElemList<UncompiledExpr<Resolved>>,
     ei: usize,
@@ -237,8 +257,13 @@ fn compile_table_position(
         })
         .validation_error(*location)?;
 
-    let mut offset = compile_const_expr(&table_position.offset, module, NumType::I32.into())
-        .validation_error(*location)?;
+    let mut offset = compile_const_expr(
+        &table_position.offset,
+        module,
+        funcrefs,
+        NumType::I32.into(),
+    )
+    .validation_error(*location)?;
     let mut offset_expr_instrs = offset.instr.to_vec();
 
     // Add this to the end:
@@ -262,15 +287,16 @@ fn compile_table_position(
 }
 fn compile_elem_mode(
     module: &ModuleContext,
+    funcrefs: &mut Vec<Index<Resolved, FuncIndex>>,
     elem_mode: ModeEntry<Resolved, UncompiledExpr<Resolved>>,
     elem_list: ElemList<UncompiledExpr<Resolved>>,
     ei: usize,
     location: &Location,
 ) -> Result<ModeEntry<Resolved, CompiledExpr>> {
     Ok(match elem_mode {
-        ModeEntry::Active(tp) => {
-            ModeEntry::Active(compile_table_position(module, tp, elem_list, ei, location)?)
-        }
+        ModeEntry::Active(tp) => ModeEntry::Active(compile_table_position(
+            module, funcrefs, tp, elem_list, ei, location,
+        )?),
         ModeEntry::Passive => ModeEntry::Passive,
         ModeEntry::Declarative => ModeEntry::Declarative,
     })
@@ -278,6 +304,7 @@ fn compile_elem_mode(
 
 fn compile_elem_list(
     module: &ModuleContext,
+    funcrefs: &mut Vec<Index<Resolved, FuncIndex>>,
     elem_list: &ElemList<UncompiledExpr<Resolved>>,
     location: &Location,
 ) -> Result<ElemList<CompiledExpr>> {
@@ -287,7 +314,8 @@ fn compile_elem_list(
             .items
             .iter()
             .map(|e| {
-                compile_const_expr(e, module, elem_list.reftype.into()).validation_error(*location)
+                compile_const_expr(e, module, funcrefs, elem_list.reftype.into())
+                    .validation_error(*location)
             })
             .collect::<Result<Vec<_>>>()?,
     })
@@ -295,6 +323,7 @@ fn compile_elem_list(
 
 fn compile_data_init(
     module: &ModuleContext,
+    funcrefs: &mut Vec<Index<Resolved, FuncIndex>>,
     data_init: DataInit<Resolved, UncompiledExpr<Resolved>>,
     cnt: usize,
     di: usize,
@@ -304,7 +333,7 @@ fn compile_data_init(
         .true_or(ValidationErrorKind::UnknownMemory)
         .validation_error(*location)?;
 
-    let mut offset = compile_const_expr(&data_init.offset, module, NumType::I32.into())
+    let mut offset = compile_const_expr(&data_init.offset, module, funcrefs, NumType::I32.into())
         .validation_error(*location)?;
     let mut offset_expr_instrs = offset.instr.to_vec();
 
