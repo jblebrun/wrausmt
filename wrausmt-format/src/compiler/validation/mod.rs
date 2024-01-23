@@ -89,19 +89,6 @@ impl std::fmt::Display for ValidationError {
 
 impl std::error::Error for ValidationError {}
 
-/// How to treat Validator issues.
-#[derive(Debug, Default, Clone, Copy)]
-pub enum ValidationMode {
-    // Ignore completely (the program will possibly crash in undefined ways based on the warnings
-    // you see.)
-    Warn,
-    // The instantiation will fail by returning an error to the compile call.
-    #[default]
-    Fail,
-    // Use panic to abort the entire process if validation fails.
-    Panic,
-}
-
 pub type Result<T> = std::result::Result<T, ValidationError>;
 pub(crate) type KindResult<T> = std::result::Result<T, ValidationErrorKind>;
 
@@ -255,8 +242,6 @@ impl ModuleContext {
 ///
 /// [Spec]: https://webassembly.github.io/spec/core/appendix/algorithm.html
 pub struct Validation<'a> {
-    pub mode: ValidationMode,
-
     // Module
     pub module: &'a ModuleContext,
 
@@ -268,14 +253,12 @@ pub struct Validation<'a> {
 
 impl<'a> Validation<'a> {
     pub fn new(
-        mode: ValidationMode,
         module: &ModuleContext,
         localtypes: Vec<ValueType>,
         resulttypes: Vec<ValueType>,
     ) -> Validation {
         let stacks = Stacks::new();
         let mut val = Validation {
-            mode,
             module,
             localtypes,
             stacks,

@@ -1,15 +1,11 @@
-use {
-    tests::spec::{
-        error::Result,
-        loader::parse_and_run,
-        runner::{RunConfig, RunSet},
-    },
-    wrausmt_format::ValidationMode,
+use tests::spec::{
+    error::Result,
+    loader::parse_and_run,
+    runner::{RunConfig, RunSet},
 };
 
 const RUN_CONFIG: RunConfig = RunConfig {
     runset:             RunSet::All,
-    validation_mode:    ValidationMode::Fail,
     failures_to_ignore: &[],
 };
 

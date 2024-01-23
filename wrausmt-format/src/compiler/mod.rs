@@ -2,7 +2,7 @@ mod const_expression;
 mod emitter;
 mod validation;
 
-pub use validation::{ValidationError, ValidationErrorKind, ValidationMode};
+pub use validation::{ValidationError, ValidationErrorKind};
 use {
     self::{
         const_expression::compile_const_expr, emitter::ValidatingEmitter, validation::ModuleContext,
@@ -33,7 +33,6 @@ impl<T> ToValidationError<Result<T>> for KindResult<T> {
 // It will consume the provided module, so you should clone the module if you
 // need to do anything else with it later.
 pub fn compile_module(
-    validation_mode: ValidationMode,
     module: Module<Resolved, Unvalidated, UncompiledExpr<Resolved>>,
 ) -> Result<Module<Resolved, Validated, CompiledExpr>> {
     // We need to create this now and hold onto it, beacuse the module will
@@ -97,7 +96,7 @@ pub fn compile_module(
     let module_context = module_context.update_func_refs(funcrefs);
     let funcs: Result<Vec<_>> = std::mem::take(&mut module.funcs)
         .into_iter()
-        .map(|f| compile_func(validation_mode, &module_context, f))
+        .map(|f| compile_func(&module_context, f))
         .collect();
     let funcs = funcs?;
 
@@ -120,11 +119,10 @@ pub fn compile_module(
 }
 
 fn compile_func(
-    validation_mode: ValidationMode,
     module: &ModuleContext,
     func: FuncField<Resolved, UncompiledExpr<Resolved>>,
 ) -> Result<FuncField<Resolved, CompiledExpr>> {
-    let body = ValidatingEmitter::function_body(validation_mode, module, &func)?;
+    let body = ValidatingEmitter::function_body(module, &func)?;
     Ok(FuncField {
         id: func.id,
         exports: func.exports,

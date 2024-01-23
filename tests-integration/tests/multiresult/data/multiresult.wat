@@ -6,9 +6,9 @@
 
   (func (export "test") (result i64 i32) (local i32 i64)
     call 0
-    local.set 0
     local.set 1
-    local.get 0
+    local.set 0
     local.get 1
+    local.get 0
     )
 )

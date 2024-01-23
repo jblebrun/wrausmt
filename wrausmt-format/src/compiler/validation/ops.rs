@@ -1,5 +1,5 @@
 use {
-    super::{FunctionType, KindResult as Result, Validation, ValidationErrorKind, ValidationMode},
+    super::{FunctionType, KindResult as Result, Validation, ValidationErrorKind},
     crate::compiler::validation::ValidationType,
     wrausmt_common::true_or::TrueOr,
     wrausmt_runtime::{
@@ -42,26 +42,6 @@ macro_rules! meminstr {
 }
 
 impl<'a> Validation<'a> {
-    /// Validate one instruction. The returned error will respect the
-    /// [`ValidationMode`] provided at creation.
-    pub fn validate_instr(&mut self, instr: &Instruction<Resolved>) -> Result<()> {
-        self.error_for_mode(|s| s.validation_result(instr))
-    }
-
-    fn error_for_mode(&mut self, op: impl Fn(&mut Self) -> Result<()>) -> Result<()> {
-        match (self.mode, op(self)) {
-            (_, Ok(())) => Ok(()),
-            (ValidationMode::Warn, Err(e)) => {
-                println!("WARNING: Validation Failed: {e:?}");
-                Ok(())
-            }
-            (ValidationMode::Fail, r) => r,
-            (ValidationMode::Panic, Err(e)) => {
-                panic!("Validation failed: {e:?}")
-            }
-        }
-    }
-
     fn constop(&mut self, o: ValueType) -> Result<()> {
         self.stacks.push_val(o);
         Ok(())
@@ -126,24 +106,20 @@ impl<'a> Validation<'a> {
     }
 
     pub fn validate_end(&mut self) -> Result<()> {
-        self.error_for_mode(|s| {
-            let frame = s.stacks.pop_ctrl()?;
-            s.stacks.push_vals(&frame.end_types);
-            Ok(())
-        })
+        let frame = self.stacks.pop_ctrl()?;
+        self.stacks.push_vals(&frame.end_types);
+        Ok(())
     }
 
     pub fn validate_else(&mut self) -> Result<()> {
-        self.error_for_mode(|s| {
-            let frame = s.stacks.pop_ctrl()?;
-            (frame.opcode == opcodes::IF).true_or(ValidationErrorKind::OpcodeMismatch)?;
-            s.stacks
-                .push_ctrl(frame.opcode, frame.start_types, frame.end_types);
-            Ok(())
-        })
+        let frame = self.stacks.pop_ctrl()?;
+        (frame.opcode == opcodes::IF).true_or(ValidationErrorKind::OpcodeMismatch)?;
+        self.stacks
+            .push_ctrl(frame.opcode, frame.start_types, frame.end_types);
+        Ok(())
     }
 
-    fn validation_result(&mut self, instr: &Instruction<Resolved>) -> Result<()> {
+    pub fn validate_instr(&mut self, instr: &Instruction<Resolved>) -> Result<()> {
         println!("VALIDATION {instr:?}");
 
         match instr {

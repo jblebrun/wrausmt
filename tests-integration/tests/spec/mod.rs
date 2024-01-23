@@ -1,10 +1,7 @@
-use {
-    tests::spec::{
-        error::Result,
-        loader::parse_and_run,
-        runner::{RunConfig, RunSet},
-    },
-    wrausmt_format::ValidationMode,
+use tests::spec::{
+    error::Result,
+    loader::parse_and_run,
+    runner::{RunConfig, RunSet},
 };
 
 const GLOBAL_FAILURES_TO_IGNORE: &[&str] = &[];
@@ -13,26 +10,19 @@ const GLOBAL_FAILURES_TO_IGNORE: &[&str] = &[];
 // ".format(i.replace(".wast","").replace("-","_x_")) for i in
 // sorted(os.listdir('testdata/spec'))])
 macro_rules! spectest {
-    ($name:ident; val:$vmode:expr; [$runset:expr]) => {
+    ($name:ident; [$runset:expr]) => {
         #[test]
         fn $name() -> Result<()> {
             parse_and_run(
                 format!("tests/spec/data/{}.wast", stringify!($name)[2..].replace("_x_", "-")),
                 RunConfig {
                     runset: $runset,
-                    validation_mode: $vmode,
                     failures_to_ignore: GLOBAL_FAILURES_TO_IGNORE,
                 }
             )
         }
     };
-    ($name:ident; val:$vmode:expr) => {
-        spectest!($name; val:$vmode; [RunSet::All]);
-    };
-    ($name:ident; [$runset:expr]) => {
-        spectest!($name; val:ValidationMode::Fail; [$runset]);
-    };
-    ($name:ident) => { spectest!($name; val: ValidationMode::Fail; [RunSet::All]); };
+    ($name:ident) => { spectest!($name; [RunSet::All]); };
 }
 
 #[allow(unused_macros)]

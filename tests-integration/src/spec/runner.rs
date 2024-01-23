@@ -12,8 +12,7 @@ use {
     },
     wrausmt_common::logger::{Logger, PrintLogger},
     wrausmt_format::{
-        compiler::compile_module, file_loader::FileLoader, loader::Loader,
-        text::string::WasmString, ValidationMode,
+        compiler::compile_module, file_loader::FileLoader, loader::Loader, text::string::WasmString,
     },
     wrausmt_runtime::{
         runtime::{
@@ -62,7 +61,6 @@ pub enum RunSet {
 
 pub struct RunConfig<'a> {
     pub runset:             RunSet,
-    pub validation_mode:    ValidationMode,
     pub failures_to_ignore: &'a [&'a str],
 }
 
@@ -200,31 +198,19 @@ impl SpecTestRunner {
         Ok(())
     }
 
-    fn handle_module(
-        &mut self,
-        m: Module,
-        validation_mode: ValidationMode,
-    ) -> CmdResult<(Option<Id>, Rc<ModuleInstance>)> {
+    fn handle_module(&mut self, m: Module) -> CmdResult<(Option<Id>, Rc<ModuleInstance>)> {
         match m {
             Module::Module(m) => {
-                let compiled = compile_module(validation_mode, m)?;
+                let compiled = compile_module(m)?;
                 Ok((compiled.id.clone(), self.runtime.load(compiled)?))
             }
             Module::Binary(n, b) => {
                 let data = module_data(b);
-                Ok((
-                    n,
-                    self.runtime
-                        .load_wasm_data(&mut data.as_ref(), validation_mode)?,
-                ))
+                Ok((n, self.runtime.load_wasm_data(&mut data.as_ref())?))
             }
             Module::Quote(n, b) => {
                 let data = module_data(b);
-                Ok((
-                    n,
-                    self.runtime
-                        .load_wast_data(&mut data.as_ref(), validation_mode)?,
-                ))
+                Ok((n, self.runtime.load_wast_data(&mut data.as_ref())?))
             }
         }
     }
@@ -234,7 +220,7 @@ impl SpecTestRunner {
             .log(Tag::Spec, || format!("EXECUTE CMD {:?}", cmd));
         match cmd {
             Cmd::Module(m) => {
-                let (name, modinst) = self.handle_module(m, runconfig.validation_mode)?;
+                let (name, modinst) = self.handle_module(m)?;
                 if let Some(name) = name {
                     self.named_modules.insert(name, modinst.clone());
                 }
@@ -274,11 +260,11 @@ impl SpecTestRunner {
                         verify_failure(result, &failure).map_err(|e| e.into())
                     }
                     Assertion::ModuleTrap { module, failure } => {
-                        let result = self.handle_module(module, runconfig.validation_mode);
+                        let result = self.handle_module(module);
                         verify_failure(result, &failure).map_err(|e| e.into())
                     }
                     Assertion::Malformed { module, failure } => {
-                        let result = self.handle_module(module, runconfig.validation_mode);
+                        let result = self.handle_module(module);
                         verify_failure(result, &failure).map_err(|e| e.into())
                     }
                     Assertion::Exhaustion { action, failure } => {
@@ -286,7 +272,7 @@ impl SpecTestRunner {
                         verify_failure(result, &failure).map_err(|e| e.into())
                     }
                     Assertion::Unlinkable { module, failure } => {
-                        let result = self.handle_module(module, runconfig.validation_mode);
+                        let result = self.handle_module(module);
                         verify_failure(result, &failure).map_err(|e| e.into())
                     }
                     Assertion::Invalid { module, failure } => {
@@ -295,9 +281,7 @@ impl SpecTestRunner {
                         }
                         let result = unsafe {
                             let pself = self as *mut Self;
-                            catch_unwind(|| {
-                                (*pself).handle_module(module, runconfig.validation_mode)
-                            })
+                            catch_unwind(|| (*pself).handle_module(module))
                         };
                         match result {
                             Ok(result) => verify_failure(result, &failure).map_err(|e| e.into()),
