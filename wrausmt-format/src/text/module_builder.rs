@@ -5,7 +5,7 @@ use {
     wrausmt_runtime::syntax::{
         DataField, ElemField, ExportDesc, ExportField, FuncField, GlobalField, Id, ImportDesc,
         ImportField, Index, MemoryField, Module, Resolved, StartField, TableField, TypeField,
-        UncompiledExpr, Unresolved,
+        UncompiledExpr, Unresolved, Unvalidated,
     },
 };
 
@@ -29,7 +29,7 @@ impl ModuleIdentifiers {}
 /// happens in a subsequent resolution pass.
 #[derive(Debug, Default)]
 pub struct ModuleBuilder {
-    module:             Module<Unresolved, UncompiledExpr<Unresolved>>,
+    module:             Module<Unresolved, Unvalidated, UncompiledExpr<Unresolved>>,
     module_identifiers: ModuleIdentifiers,
     funcidx_offset:     u32,
     tableidx_offset:    u32,
@@ -74,7 +74,7 @@ impl ModuleBuilder {
             && self.module.data.is_empty()
     }
 
-    pub fn build(self) -> Result<Module<Resolved, UncompiledExpr<Resolved>>> {
+    pub fn build(self) -> Result<Module<Resolved, Unvalidated, UncompiledExpr<Resolved>>> {
         self.module.resolve(&self.module_identifiers)
     }
 
@@ -101,11 +101,11 @@ impl ModuleBuilder {
         // export field may define new exports.
         let funcidx = self.module.funcs.len() as u32 + self.funcidx_offset;
         for export_name in &f.exports {
-            self.module.exports.push(ExportField {
-                name:       export_name.clone(),
-                exportdesc: ExportDesc::Func(Index::unnamed(funcidx)),
-                location:   f.location,
-            })
+            self.module.exports.push(ExportField::new(
+                export_name.clone(),
+                ExportDesc::Func(Index::unnamed(funcidx)),
+                f.location,
+            ))
         }
         self.module.funcs.push(f);
         Ok(())
@@ -117,11 +117,11 @@ impl ModuleBuilder {
         // export field may define new exports.
         let tableidx = self.module.tables.len() as u32 + self.tableidx_offset;
         for export_name in &f.exports {
-            self.module.exports.push(ExportField {
-                name:       export_name.clone(),
-                exportdesc: ExportDesc::Table(Index::unnamed(tableidx)),
-                location:   f.location,
-            })
+            self.module.exports.push(ExportField::new(
+                export_name.clone(),
+                ExportDesc::Table(Index::unnamed(tableidx)),
+                f.location,
+            ))
         }
         self.module.tables.push(f);
         Ok(())
@@ -133,11 +133,11 @@ impl ModuleBuilder {
         // export field may define new exports.
         let memidx = self.module.memories.len() as u32 + self.memidx_offset;
         for export_name in &f.exports {
-            self.module.exports.push(ExportField {
-                name:       export_name.clone(),
-                exportdesc: ExportDesc::Mem(Index::unnamed(memidx)),
-                location:   f.location,
-            })
+            self.module.exports.push(ExportField::new(
+                export_name.clone(),
+                ExportDesc::Mem(Index::unnamed(memidx)),
+                f.location,
+            ))
         }
         self.module.memories.push(f);
         // data contents may define new data
@@ -158,44 +158,44 @@ impl ModuleBuilder {
             ImportDesc::Func(_) => {
                 add_ident!(self, f, funcindices, funcs, self.funcidx_offset; DuplicateFunc);
                 for export_name in &f.exports {
-                    self.module.exports.push(ExportField {
-                        name:       export_name.clone(),
-                        exportdesc: ExportDesc::Func(Index::unnamed(self.funcidx_offset)),
-                        location:   f.location,
-                    })
+                    self.module.exports.push(ExportField::new(
+                        export_name.clone(),
+                        ExportDesc::Func(Index::unnamed(self.funcidx_offset)),
+                        f.location,
+                    ))
                 }
                 self.funcidx_offset += 1;
             }
             ImportDesc::Mem(_) => {
                 add_ident!(self, f, memindices, memories, self.memidx_offset; DuplicateMem);
                 for export_name in &f.exports {
-                    self.module.exports.push(ExportField {
-                        name:       export_name.clone(),
-                        exportdesc: ExportDesc::Mem(Index::unnamed(self.memidx_offset)),
-                        location:   f.location,
-                    })
+                    self.module.exports.push(ExportField::new(
+                        export_name.clone(),
+                        ExportDesc::Mem(Index::unnamed(self.memidx_offset)),
+                        f.location,
+                    ))
                 }
                 self.memidx_offset += 1;
             }
             ImportDesc::Table(_) => {
                 add_ident!(self, f, tableindices, tables, self.tableidx_offset; DuplicateTable);
                 for export_name in &f.exports {
-                    self.module.exports.push(ExportField {
-                        name:       export_name.clone(),
-                        exportdesc: ExportDesc::Table(Index::unnamed(self.tableidx_offset)),
-                        location:   f.location,
-                    })
+                    self.module.exports.push(ExportField::new(
+                        export_name.clone(),
+                        ExportDesc::Table(Index::unnamed(self.tableidx_offset)),
+                        f.location,
+                    ))
                 }
                 self.tableidx_offset += 1;
             }
             ImportDesc::Global(_) => {
                 add_ident!(self, f, globalindices, globals, self.globalidx_offset; DuplicateGlobal);
                 for export_name in &f.exports {
-                    self.module.exports.push(ExportField {
-                        name:       export_name.clone(),
-                        exportdesc: ExportDesc::Global(Index::unnamed(self.globalidx_offset)),
-                        location:   f.location,
-                    })
+                    self.module.exports.push(ExportField::new(
+                        export_name.clone(),
+                        ExportDesc::Global(Index::unnamed(self.globalidx_offset)),
+                        f.location,
+                    ))
                 }
                 self.globalidx_offset += 1;
             }
@@ -204,7 +204,7 @@ impl ModuleBuilder {
         Ok(())
     }
 
-    pub fn add_exportfield(&mut self, f: ExportField<Unresolved>) {
+    pub fn add_exportfield(&mut self, f: ExportField<Unresolved, Unvalidated>) {
         self.module.exports.push(f)
     }
 
@@ -213,18 +213,18 @@ impl ModuleBuilder {
 
         let globalidx = self.module.globals.len() as u32 + self.globalidx_offset;
         for export_name in &f.exports {
-            self.module.exports.push(ExportField {
-                name:       export_name.clone(),
-                exportdesc: ExportDesc::Global(Index::unnamed(globalidx)),
-                location:   f.location,
-            })
+            self.module.exports.push(ExportField::new(
+                export_name.clone(),
+                ExportDesc::Global(Index::unnamed(globalidx)),
+                f.location,
+            ))
         }
         // export field may define new exports.
         self.module.globals.push(f);
         Ok(())
     }
 
-    pub fn add_startfield(&mut self, f: StartField<Unresolved>) -> Result<()> {
+    pub fn add_startfield(&mut self, f: StartField<Unresolved, Unvalidated>) -> Result<()> {
         if self.module.start.is_some() {
             Err(ResolveError::MultipleStartSections)
         } else {

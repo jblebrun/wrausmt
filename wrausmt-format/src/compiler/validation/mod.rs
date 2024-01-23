@@ -12,7 +12,7 @@ use {
             location::Location,
             types::{GlobalType, MemType, RefType, TableType, ValueType},
             FuncIndex, ImportDesc, Index, Instruction, LocalIndex, Module, Resolved,
-            UncompiledExpr,
+            UncompiledExpr, Unvalidated,
         },
     },
 };
@@ -165,7 +165,7 @@ impl ModuleContext {
     /// Create a new [`ModuleContext`] for validation, using the type
     /// information in the provided [`Module`]. The informatin will be copied
     /// out of the module.
-    pub fn new(module: &Module<Resolved, UncompiledExpr<Resolved>>) -> Result<Self> {
+    pub fn new(module: &Module<Resolved, Unvalidated, UncompiledExpr<Resolved>>) -> Result<Self> {
         let mut funcs: Vec<FunctionType> = Vec::new();
         let mut tables: Vec<TableType> = Vec::new();
         let mut mems: Vec<MemType> = Vec::new();
