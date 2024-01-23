@@ -5,6 +5,7 @@
 use {
     self::stacks::Stacks,
     super::ToValidationError,
+    wrausmt_common::true_or::TrueOr,
     wrausmt_runtime::{
         instructions::opcodes,
         syntax::{
@@ -26,6 +27,7 @@ pub enum ValidationErrorKind {
     BreakTypeMismatch,
     CtrlStackUnderflow,
 
+    DuplicateExport,
     ExpectedRef {
         actual: ValidationType,
     },
@@ -36,6 +38,7 @@ pub enum ValidationErrorKind {
     InvalidConstantGlobal,
     InvalidConstantInstruction,
     MemoryTooLarge,
+    MultipleMemories,
     OpcodeMismatch,
     OperandsMismatch,
     TableTooLarge,
@@ -184,7 +187,12 @@ impl ModuleContext {
                         .into(),
                 ),
                 ImportDesc::Table(tt) => tables.push(tt.clone()),
-                ImportDesc::Mem(mt) => mems.push(mt.clone()),
+                ImportDesc::Mem(mt) => {
+                    (mems.is_empty())
+                        .true_or(ValidationErrorKind::MultipleMemories)
+                        .validation_error(import.location)?;
+                    mems.push(mt.clone())
+                }
                 ImportDesc::Global(gt) => globals.push(GlobalValidationType {
                     globaltype: gt.clone(),
                     imported:   true,
@@ -206,7 +214,12 @@ impl ModuleContext {
         }
 
         tables.extend(module.tables.iter().map(|t| t.tabletype.clone()));
-        mems.extend(module.memories.iter().map(|m| m.memtype.clone()));
+        for mem in &module.memories {
+            (mems.is_empty())
+                .true_or(ValidationErrorKind::MultipleMemories)
+                .validation_error(mem.location)?;
+            mems.push(mem.memtype.clone())
+        }
         globals.extend(module.globals.iter().map(|g| GlobalValidationType {
             globaltype: g.globaltype.clone(),
             imported:   false,
