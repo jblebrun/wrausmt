@@ -191,7 +191,13 @@ fn matches_validation_error(failure: &str, err: &ValidationError) -> bool {
         ValidationErrorKind::InvalidConstantInstruction => {
             failure == "constant expression required"
         }
+        ValidationErrorKind::InvalidLimits => {
+            failure == "size minimum must not be greater than maximum"
+        }
         ValidationErrorKind::ImmutableGlobal => failure == "global is immutable",
+        ValidationErrorKind::MemoryTooLarge => {
+            failure == "memory size must be at most 65536 pages (4GiB)"
+        }
         ValidationErrorKind::MultipleMemories => failure == "multiple memories",
         ValidationErrorKind::TypeMismatch { .. } => failure == "type mismatch",
         ValidationErrorKind::UndeclaredFunctionRef => failure == "undeclared function reference",

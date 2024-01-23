@@ -113,7 +113,7 @@ impl Store {
         let mem = self.mem_mut(addr)?;
         let old_size = mem.grow(pgs);
         if old_size.is_some() {
-            mem.memtype.limits.lower = mem.size() as u32;
+            mem.limits.lower = mem.size() as u32;
         }
         Ok(old_size)
     }

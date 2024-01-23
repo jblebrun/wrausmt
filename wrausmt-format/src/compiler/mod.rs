@@ -11,9 +11,11 @@ use {
     validation::{KindResult, Result},
     wrausmt_common::true_or::TrueOr,
     wrausmt_runtime::syntax::{
-        location::Location, types::NumType, CompiledExpr, DataField, DataInit, ElemField, ElemList,
-        ExportDesc, ExportField, FuncField, FuncIndex, GlobalField, Index, ModeEntry, Module,
-        Resolved, StartField, TablePosition, UncompiledExpr, Unvalidated, Validated,
+        location::Location,
+        types::{MemType, NumType, TableType},
+        CompiledExpr, DataField, DataInit, ElemField, ElemList, ExportDesc, ExportField, FuncField,
+        FuncIndex, GlobalField, ImportDesc, ImportField, Index, MemoryField, ModeEntry, Module,
+        Resolved, StartField, TableField, TablePosition, UncompiledExpr, Unvalidated, Validated,
     },
 };
 
@@ -74,6 +76,24 @@ pub fn compile_module(
         .collect();
     let exports = exports?;
 
+    let memories: Result<Vec<_>> = std::mem::take(&mut module.memories)
+        .into_iter()
+        .map(validate_memory)
+        .collect();
+    let memories = memories?;
+
+    let tables: Result<Vec<_>> = std::mem::take(&mut module.tables)
+        .into_iter()
+        .map(validate_table)
+        .collect();
+    let tables = tables?;
+
+    let imports: Result<Vec<_>> = std::mem::take(&mut module.imports)
+        .into_iter()
+        .map(validate_import)
+        .collect();
+    let imports = imports?;
+
     let module_context = module_context.update_func_refs(funcrefs);
     let funcs: Result<Vec<_>> = std::mem::take(&mut module.funcs)
         .into_iter()
@@ -88,9 +108,9 @@ pub fn compile_module(
         customs: module.customs,
         types: module.types,
         funcs,
-        tables: module.tables,
-        memories: module.memories,
-        imports: module.imports,
+        tables,
+        memories,
+        imports,
         exports,
         globals,
         start,
@@ -207,6 +227,64 @@ fn validate_start(
         }
         None => Ok(None),
     }
+}
+
+fn validate_memory(memory: MemoryField<Unvalidated>) -> Result<MemoryField<Validated>> {
+    Ok(MemoryField {
+        id:       memory.id,
+        exports:  memory.exports,
+        memtype:  validate_memtype(memory.memtype).validation_error(memory.location)?,
+        location: memory.location,
+    })
+}
+
+fn validate_table(table: TableField<Unvalidated>) -> Result<TableField<Validated>> {
+    Ok(TableField {
+        id:        table.id,
+        exports:   table.exports,
+        tabletype: validate_tabletype(table.tabletype).validation_error(table.location)?,
+        location:  table.location,
+    })
+}
+
+fn validate_memtype(memtype: MemType<Unvalidated>) -> KindResult<MemType<Validated>> {
+    if let Some(upper) = memtype.limits.upper {
+        (memtype.limits.lower <= upper).true_or(ValidationErrorKind::InvalidLimits)?;
+    }
+    (memtype.limits.upper.unwrap_or(memtype.limits.lower) <= 65536)
+        .true_or(ValidationErrorKind::MemoryTooLarge)?;
+    Ok(MemType::new(memtype.limits))
+}
+
+fn validate_tabletype(tabletype: TableType<Unvalidated>) -> KindResult<TableType<Validated>> {
+    if let Some(upper) = tabletype.limits.upper {
+        (tabletype.limits.lower <= upper).true_or(ValidationErrorKind::InvalidLimits)?
+    }
+    Ok(TableType::new(tabletype.limits, tabletype.reftype))
+}
+
+fn validate_import(
+    import: ImportField<Resolved, Unvalidated>,
+) -> Result<ImportField<Resolved, Validated>> {
+    Ok(ImportField {
+        id:       import.id,
+        modname:  import.modname,
+        name:     import.name,
+        exports:  import.exports,
+        desc:     validate_import_desc(import.desc).validation_error(import.location)?,
+        location: import.location,
+    })
+}
+
+fn validate_import_desc(
+    desc: ImportDesc<Resolved, Unvalidated>,
+) -> KindResult<ImportDesc<Resolved, Validated>> {
+    Ok(match desc {
+        ImportDesc::Func(t) => ImportDesc::Func(t),
+        ImportDesc::Global(g) => ImportDesc::Global(g),
+        ImportDesc::Mem(m) => ImportDesc::Mem(validate_memtype(m)?),
+        ImportDesc::Table(t) => ImportDesc::Table(validate_tabletype(t)?),
+    })
 }
 
 fn compile_export_desc(

@@ -3,7 +3,7 @@ use crate::{
         error::{Result, TrapKind},
         values::Ref,
     },
-    syntax::types::TableType,
+    syntax::{types::TableType, Validated},
 };
 
 /// A table instance is the runtime representation of a table. [Spec][Spec]
@@ -21,12 +21,12 @@ use crate::{
 /// [Spec]: https://webassembly.github.io/spec/core/exec/runtime.html#table-instances
 #[derive(Debug)]
 pub struct TableInstance {
-    pub tabletype: TableType,
+    pub tabletype: TableType<Validated>,
     pub elem:      Vec<Ref>,
 }
 
 impl TableInstance {
-    pub fn new(tabletype: TableType) -> Result<TableInstance> {
+    pub fn new(tabletype: TableType<Validated>) -> Result<TableInstance> {
         let elem: Vec<Ref> = std::iter::repeat(tabletype.reftype.default())
             .take(tabletype.limits.lower as usize)
             .collect();

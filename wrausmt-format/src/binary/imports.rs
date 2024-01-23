@@ -4,7 +4,7 @@ use {
         BinaryParser, ParserReader,
     },
     crate::{binary::read_with_location::Locate, pctx},
-    wrausmt_runtime::syntax::{ImportDesc, ImportField, Resolved},
+    wrausmt_runtime::syntax::{ImportDesc, ImportField, Resolved, Unvalidated},
 };
 
 /// A trait to allow parsing of an imports section from something implementing
@@ -18,7 +18,9 @@ impl<R: ParserReader> BinaryParser<R> {
     /// 0x01 (table) tt:tabletype
     /// 0x02 (memory) mt:memorytype
     /// 0x03 (global) gt:globaltype
-    pub(in crate::binary) fn read_imports_section(&mut self) -> Result<Vec<ImportField<Resolved>>> {
+    pub(in crate::binary) fn read_imports_section(
+        &mut self,
+    ) -> Result<Vec<ImportField<Resolved, Unvalidated>>> {
         pctx!(self, "read imports section");
         let location = self.location();
         self.read_vec(|_, s| {

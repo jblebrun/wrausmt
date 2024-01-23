@@ -218,9 +218,9 @@ pub struct Module<R: ResolvedState, V: ValidatedState, E> {
     pub customs:  Vec<CustomField>,
     pub types:    Vec<TypeField>,
     pub funcs:    Vec<FuncField<R, E>>,
-    pub tables:   Vec<TableField>,
-    pub memories: Vec<MemoryField>,
-    pub imports:  Vec<ImportField<R>>,
+    pub tables:   Vec<TableField<V>>,
+    pub memories: Vec<MemoryField<V>>,
+    pub imports:  Vec<ImportField<R, V>>,
     pub exports:  Vec<ExportField<R, V>>,
     pub globals:  Vec<GlobalField<E>>,
     pub start:    Option<StartField<R, V>>,
@@ -504,10 +504,10 @@ impl std::fmt::Debug for Local {
 // Abbreviations:
 // inline imports/exports
 // inline elem
-pub struct TableField {
+pub struct TableField<V: ValidatedState> {
     pub id:        Option<Id>,
     pub exports:   Vec<String>,
-    pub tabletype: TableType,
+    pub tabletype: TableType<V>,
     pub location:  Location,
 }
 
@@ -517,10 +517,10 @@ pub struct TableField {
 // Inline import/export
 // Inline data segments
 #[derive(Debug, PartialEq)]
-pub struct MemoryField {
+pub struct MemoryField<V: ValidatedState> {
     pub id:       Option<Id>,
     pub exports:  Vec<String>,
-    pub memtype:  MemType,
+    pub memtype:  MemType<V>,
     pub location: Location,
 }
 
@@ -544,24 +544,24 @@ impl<E: Debug> fmt::Debug for GlobalField<E> {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum ImportDesc<R: ResolvedState> {
+pub enum ImportDesc<R: ResolvedState, V: ValidatedState> {
     Func(TypeUse<R>),
-    Table(TableType),
-    Mem(MemType),
+    Table(TableType<V>),
+    Mem(MemType<V>),
     Global(GlobalType),
 }
 
 #[derive(PartialEq)]
-pub struct ImportField<R: ResolvedState> {
+pub struct ImportField<R: ResolvedState, V: ValidatedState> {
     pub id:       Option<Id>,
     pub modname:  String,
     pub name:     String,
     pub exports:  Vec<String>,
-    pub desc:     ImportDesc<R>,
+    pub desc:     ImportDesc<R, V>,
     pub location: Location,
 }
 
-impl<R: ResolvedState> fmt::Debug for ImportField<R> {
+impl<R: ResolvedState, V: ValidatedState> fmt::Debug for ImportField<R, V> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "(import")?;
         if let Some(id) = &self.id {

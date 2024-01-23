@@ -36,7 +36,7 @@ impl Runtime {
 
     fn validate_import(
         &self,
-        import: &syntax::ImportField<Resolved>,
+        import: &syntax::ImportField<Resolved, Validated>,
         candidate_addr: &ExternalVal,
         types: &[FunctionType],
     ) -> Result<()> {
@@ -52,7 +52,7 @@ impl Runtime {
             }
             (ImportDesc::Mem(mi), ExternalVal::Memory(ma)) => {
                 let resolved = &self.store.mem(*ma)?;
-                resolved.memtype.limits.works_as(&mi.limits)
+                resolved.limits.works_as(&mi.limits)
             }
             (ImportDesc::Global(gi), ExternalVal::Global(ga)) => {
                 let existing = self.store.global_inst(*ga)?;
@@ -67,7 +67,7 @@ impl Runtime {
 
     fn find_import(
         &self,
-        import: &syntax::ImportField<Resolved>,
+        import: &syntax::ImportField<Resolved, Validated>,
         types: &[FunctionType],
     ) -> Result<ExternalVal> {
         let regmod = self

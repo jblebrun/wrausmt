@@ -1,6 +1,6 @@
 use {
     super::instance::ExternalVal,
-    crate::syntax::{ImportDesc, Resolved},
+    crate::syntax::{ImportDesc, Resolved, Validated},
     std::fmt,
 };
 
@@ -41,7 +41,7 @@ pub enum RuntimeErrorKind {
     ModuleNotFound(String),
     TypeNotFound(u32),
     ImportNotFound(String, String),
-    ImportMismatch(ImportDesc<Resolved>, ExternalVal),
+    ImportMismatch(ImportDesc<Resolved, Validated>, ExternalVal),
     ImplementationBug(String),
     ArgumentCountError { expected: usize, got: usize },
     CallStackExhaustion,

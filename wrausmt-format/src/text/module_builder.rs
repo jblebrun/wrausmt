@@ -111,7 +111,7 @@ impl ModuleBuilder {
         Ok(())
     }
 
-    pub fn add_tablefield(&mut self, f: TableField) -> Result<()> {
+    pub fn add_tablefield(&mut self, f: TableField<Unvalidated>) -> Result<()> {
         add_ident!(self, f, tableindices, tables, self.tableidx_offset; DuplicateTable);
 
         // export field may define new exports.
@@ -127,7 +127,7 @@ impl ModuleBuilder {
         Ok(())
     }
 
-    pub fn add_memoryfield(&mut self, f: MemoryField) -> Result<()> {
+    pub fn add_memoryfield(&mut self, f: MemoryField<Unvalidated>) -> Result<()> {
         add_ident!(self, f, memindices, memories, self.memidx_offset; DuplicateMem);
 
         // export field may define new exports.
@@ -144,7 +144,7 @@ impl ModuleBuilder {
         Ok(())
     }
 
-    pub fn add_importfield(&mut self, f: ImportField<Unresolved>) -> Result<()> {
+    pub fn add_importfield(&mut self, f: ImportField<Unresolved, Unvalidated>) -> Result<()> {
         (self.module.funcs.is_empty()).true_or(ResolveError::ImportAfterFunction)?;
         (self.module.globals.is_empty()).true_or(ResolveError::ImportAfterGlobal)?;
         (self.module.memories.is_empty()).true_or(ResolveError::ImportAfterMemory)?;
