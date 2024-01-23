@@ -12,20 +12,20 @@ use {
         DataField, DataInit, ElemField, ExportDesc, ExportField, FParam, FResult, FuncField,
         FunctionType, GlobalField, Id, ImportDesc, ImportField, Index, IndexSpace, Local,
         MemoryField, MemoryIndex, ModeEntry, Module, Resolved, ResolvedState, StartField,
-        TableField, TypeField, TypeUse, UncompiledExpr, Unresolved,
+        TableField, TypeField, TypeUse, UncompiledExpr, Unresolved, Unvalidated, ValidatedState,
     },
 };
 
 #[derive(Debug, PartialEq)]
-pub enum Field<R: ResolvedState> {
+pub enum Field<R: ResolvedState, V: ValidatedState> {
     Type(TypeField),
     Func(FuncField<R, UncompiledExpr<R>>),
     Table(TableField, Option<ElemField<R, UncompiledExpr<R>>>),
     Memory(MemoryField, Option<Box<[u8]>>),
     Import(ImportField<R>),
-    Export(ExportField<R>),
+    Export(ExportField<R, V>),
     Global(GlobalField<UncompiledExpr<R>>),
-    Start(StartField<R>),
+    Start(StartField<R, V>),
     Elem(ElemField<R, UncompiledExpr<R>>),
     Data(DataField<R, UncompiledExpr<R>>),
 }
@@ -42,7 +42,9 @@ impl<R: Read> Parser<R> {
     /// Attempt to parse the current token stream as a WebAssembly module.
     /// On success, a vector of sections is returned. They can be organized into
     /// a module object.
-    pub fn try_module(&mut self) -> Result<Option<Module<Resolved, UncompiledExpr<Resolved>>>> {
+    pub fn try_module(
+        &mut self,
+    ) -> Result<Option<Module<Resolved, Unvalidated, UncompiledExpr<Resolved>>>> {
         pctx!(self, "try module");
         let (expect_close, id) = if self.try_expr_start("module")? {
             (true, self.try_id()?)
@@ -53,7 +55,9 @@ impl<R: Read> Parser<R> {
         self.try_module_rest(id, expect_close)
     }
 
-    pub fn parse_full_module(&mut self) -> Result<Module<Resolved, UncompiledExpr<Resolved>>> {
+    pub fn parse_full_module(
+        &mut self,
+    ) -> Result<Module<Resolved, Unvalidated, UncompiledExpr<Resolved>>> {
         pctx!(self, "parse full module");
         self.assure_started()?;
 
@@ -82,7 +86,7 @@ impl<R: Read> Parser<R> {
         &mut self,
         id: Option<Id>,
         expect_close: bool,
-    ) -> Result<Option<Module<Resolved, UncompiledExpr<Resolved>>>> {
+    ) -> Result<Option<Module<Resolved, Unvalidated, UncompiledExpr<Resolved>>>> {
         pctx!(self, "try module rest");
         let mut module_builder = ModuleBuilder::new(id);
 
@@ -144,7 +148,7 @@ impl<R: Read> Parser<R> {
     }
 
     // Parser should be located at the token immediately following a '('
-    fn try_field(&mut self) -> Result<Option<Field<Unresolved>>> {
+    fn try_field(&mut self) -> Result<Option<Field<Unresolved, Unvalidated>>> {
         pctx!(self, "try field");
         self.first_of(&[
             Self::try_type_field,
@@ -160,7 +164,7 @@ impl<R: Read> Parser<R> {
         ])
     }
 
-    pub fn try_type_field(&mut self) -> Result<Option<Field<Unresolved>>> {
+    pub fn try_type_field(&mut self) -> Result<Option<Field<Unresolved, Unvalidated>>> {
         pctx!(self, "try type field");
         if !self.try_expr_start("type")? {
             return Ok(None);
@@ -196,7 +200,7 @@ impl<R: Read> Parser<R> {
     }
 
     // func := (func id? (export <name>)* (import <modname> <name>) <typeuse>)
-    pub fn try_func_field(&mut self) -> Result<Option<Field<Unresolved>>> {
+    pub fn try_func_field(&mut self) -> Result<Option<Field<Unresolved, Unvalidated>>> {
         pctx!(self, "try function field");
         let location = self.location();
         if !self.try_expr_start("func")? {
@@ -283,7 +287,7 @@ impl<R: Read> Parser<R> {
         Ok(Some(data))
     }
 
-    pub fn try_memory_field(&mut self) -> Result<Option<Field<Unresolved>>> {
+    pub fn try_memory_field(&mut self) -> Result<Option<Field<Unresolved, Unvalidated>>> {
         pctx!(self, "try memory field");
         let location = self.location();
         if !self.try_expr_start("memory")? {
@@ -353,7 +357,7 @@ impl<R: Read> Parser<R> {
     //             | (table <id>? <tabletype>)
     //             | (memory <id?> <memtype>)
     //             | (global <id?> <globaltype>)
-    pub fn try_import_field(&mut self) -> Result<Option<Field<Unresolved>>> {
+    pub fn try_import_field(&mut self) -> Result<Option<Field<Unresolved, Unvalidated>>> {
         pctx!(self, "try import field");
         let location = self.location();
         if !self.try_expr_start("import")? {
@@ -424,7 +428,7 @@ impl<R: Read> Parser<R> {
         Ok(GlobalType { mutable, valtype })
     }
 
-    pub fn try_export_field(&mut self) -> Result<Option<Field<Unresolved>>> {
+    pub fn try_export_field(&mut self) -> Result<Option<Field<Unresolved, Unvalidated>>> {
         pctx!(self, "try export field");
         let location = self.location();
         if !self.try_expr_start("export")? {
@@ -437,11 +441,9 @@ impl<R: Read> Parser<R> {
 
         self.expect_close()?;
 
-        Ok(Some(Field::Export(ExportField {
-            name,
-            exportdesc,
-            location,
-        })))
+        Ok(Some(Field::Export(ExportField::new(
+            name, exportdesc, location,
+        ))))
     }
 
     fn expect_exportdesc(&mut self) -> Result<ExportDesc<Unresolved>> {
@@ -467,7 +469,7 @@ impl<R: Read> Parser<R> {
         }
     }
 
-    pub fn try_global_field(&mut self) -> Result<Option<Field<Unresolved>>> {
+    pub fn try_global_field(&mut self) -> Result<Option<Field<Unresolved, Unvalidated>>> {
         pctx!(self, "try global field");
         let location = self.location();
         if !self.try_expr_start("global")? {
@@ -506,7 +508,7 @@ impl<R: Read> Parser<R> {
         })))
     }
 
-    pub fn try_start_field(&mut self) -> Result<Option<Field<Unresolved>>> {
+    pub fn try_start_field(&mut self) -> Result<Option<Field<Unresolved, Unvalidated>>> {
         pctx!(self, "try start field");
         let location = self.location();
         if !self.try_expr_start("start")? {
@@ -517,10 +519,10 @@ impl<R: Read> Parser<R> {
 
         self.expect_close()?;
 
-        Ok(Some(Field::Start(StartField { idx, location })))
+        Ok(Some(Field::Start(StartField::new(idx, location))))
     }
 
-    pub fn try_data_field(&mut self) -> Result<Option<Field<Unresolved>>> {
+    pub fn try_data_field(&mut self) -> Result<Option<Field<Unresolved, Unvalidated>>> {
         pctx!(self, "try data field");
         let location = self.location();
         if !self.try_expr_start("data")? {

@@ -5,7 +5,7 @@ use {
     wrausmt_runtime::syntax::{
         types::{RefType, TableType},
         ElemField, ElemList, FuncIndex, ImportDesc, ImportField, ModeEntry, TableField,
-        TablePosition, TableUse, UncompiledExpr, Unresolved,
+        TablePosition, TableUse, UncompiledExpr, Unresolved, Unvalidated,
     },
 };
 
@@ -33,7 +33,7 @@ impl<R: Read> Parser<R> {
         Ok(ElemList::func(items))
     }
 
-    pub fn try_table_field(&mut self) -> Result<Option<Field<Unresolved>>> {
+    pub fn try_table_field(&mut self) -> Result<Option<Field<Unresolved, Unvalidated>>> {
         pctx!(self, "try table field");
         let location = self.location();
         if !self.try_expr_start("table")? {
@@ -130,7 +130,7 @@ impl<R: Read> Parser<R> {
     // (<instr>) === (offset <instr>)
     // (<instr>) === (item <instr>)
     // tableuse can be omitted, defaulting to 0.
-    pub fn try_elem_field(&mut self) -> Result<Option<Field<Unresolved>>> {
+    pub fn try_elem_field(&mut self) -> Result<Option<Field<Unresolved, Unvalidated>>> {
         pctx!(self, "try elem field");
         let location = self.location();
         if !self.try_expr_start("elem")? {

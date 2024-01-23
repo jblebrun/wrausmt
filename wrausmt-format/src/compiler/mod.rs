@@ -12,7 +12,7 @@ use {
     wrausmt_runtime::syntax::{
         location::Location, types::NumType, CompiledExpr, DataField, DataInit, ElemField, ElemList,
         ExportDesc, ExportField, FuncField, FuncIndex, GlobalField, Index, ModeEntry, Module,
-        Resolved, StartField, TablePosition, UncompiledExpr,
+        Resolved, StartField, TablePosition, UncompiledExpr, Unvalidated, Validated,
     },
 };
 
@@ -31,8 +31,8 @@ impl<T> ToValidationError<Result<T>> for KindResult<T> {
 // need to do anything else with it later.
 pub fn compile_module(
     validation_mode: ValidationMode,
-    module: Module<Resolved, UncompiledExpr<Resolved>>,
-) -> Result<Module<Resolved, CompiledExpr>> {
+    module: Module<Resolved, Unvalidated, UncompiledExpr<Resolved>>,
+) -> Result<Module<Resolved, Validated, CompiledExpr>> {
     // We need to create this now and hold onto it, beacuse the module will
     // change as we process its elements.
     let mut funcrefs: Vec<Index<Resolved, FuncIndex>> = Vec::new();
@@ -62,7 +62,7 @@ pub fn compile_module(
 
     let exports: Result<Vec<_>> = std::mem::take(&mut module.exports)
         .into_iter()
-        .map(|e| compile_export(&module_context, &mut funcrefs, e))
+        .map(|e| validate_export(&module_context, &mut funcrefs, e))
         .collect();
     let exports = exports?;
 
@@ -73,7 +73,7 @@ pub fn compile_module(
         .collect();
     let funcs = funcs?;
 
-    let start = compile_start(&module_context, module.start)?;
+    let start = validate_start(&module_context, module.start)?;
 
     Ok(Module {
         id: module.id,
@@ -170,24 +170,23 @@ fn compile_data(
     })
 }
 
-// TODO - We need to add a validated type marker as well.
-fn compile_export(
+fn validate_export(
     module: &ModuleContext,
     funcrefs: &mut Vec<Index<Resolved, FuncIndex>>,
-    export: ExportField<Resolved>,
-) -> Result<ExportField<Resolved>> {
-    Ok(ExportField {
-        name:       export.name,
-        exportdesc: compile_export_desc(module, funcrefs, export.exportdesc)
+    export: ExportField<Resolved, Unvalidated>,
+) -> Result<ExportField<Resolved, Validated>> {
+    Ok(ExportField::new(
+        export.name,
+        compile_export_desc(module, funcrefs, export.exportdesc)
             .validation_error(export.location)?,
-        location:   export.location,
-    })
+        export.location,
+    ))
 }
 
-fn compile_start(
+fn validate_start(
     module: &ModuleContext,
-    start: Option<StartField<Resolved>>,
-) -> Result<Option<StartField<Resolved>>> {
+    start: Option<StartField<Resolved, Unvalidated>>,
+) -> Result<Option<StartField<Resolved, Validated>>> {
     match start {
         Some(start) => {
             let f = (module.funcs.get(start.idx.value() as usize))
@@ -196,10 +195,7 @@ fn compile_start(
             (f.params.is_empty() && f.results.is_empty())
                 .true_or(ValidationErrorKind::WrongStartFunctionType)
                 .validation_error(start.location)?;
-            Ok(Some(StartField {
-                idx:      start.idx,
-                location: start.location,
-            }))
+            Ok(Some(StartField::new(start.idx, start.location)))
         }
         None => Ok(None),
     }

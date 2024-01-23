@@ -17,6 +17,7 @@ use {
             self,
             types::{FunctionType, ValueType},
             CompiledExpr, DataInit, FuncField, ImportDesc, ModeEntry, Resolved, TablePosition,
+            Validated,
         },
     },
     std::{convert::identity, rc::Rc},
@@ -28,7 +29,7 @@ impl Runtime {
     /// [syntax::Module].
     pub fn load(
         &mut self,
-        module: syntax::Module<Resolved, CompiledExpr>,
+        module: syntax::Module<Resolved, Validated, CompiledExpr>,
     ) -> Result<Rc<ModuleInstance>> {
         self.instantiate(module)
     }
@@ -124,7 +125,7 @@ impl Runtime {
     }
 
     pub fn instantiate_export(
-        ast: syntax::ExportField<Resolved>,
+        ast: syntax::ExportField<Resolved, Validated>,
         modinst: &ModuleInstance,
     ) -> ExportInstance {
         ExportInstance {
@@ -135,7 +136,7 @@ impl Runtime {
 
     fn instantiate(
         &mut self,
-        module: syntax::Module<Resolved, CompiledExpr>,
+        module: syntax::Module<Resolved, Validated, CompiledExpr>,
     ) -> Result<Rc<ModuleInstance>> {
         let mut modinst_builder = ModuleInstanceBuilder {
             types: module

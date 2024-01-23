@@ -4,7 +4,7 @@ use {
         BinaryParser, ParserReader,
     },
     crate::{binary::read_with_location::Locate, pctx},
-    wrausmt_runtime::syntax::{ExportDesc, ExportField, Resolved},
+    wrausmt_runtime::syntax::{ExportDesc, ExportField, Resolved, Unvalidated},
 };
 
 /// A trait to allow parsing of an exports section from something implementing
@@ -18,7 +18,9 @@ impl<R: ParserReader> BinaryParser<R> {
     /// 0x01 Table
     /// 0x02 Memory
     /// 0x03 Global
-    pub(in crate::binary) fn read_exports_section(&mut self) -> Result<Vec<ExportField<Resolved>>> {
+    pub(in crate::binary) fn read_exports_section(
+        &mut self,
+    ) -> Result<Vec<ExportField<Resolved, Unvalidated>>> {
         self.read_vec(|_, s| s.read_export_field())
     }
 
@@ -34,13 +36,13 @@ impl<R: ParserReader> BinaryParser<R> {
         }
     }
 
-    fn read_export_field(&mut self) -> Result<ExportField<Resolved>> {
+    fn read_export_field(&mut self) -> Result<ExportField<Resolved, Unvalidated>> {
         pctx!(self, "read exprt field");
         let location = self.location();
-        Ok(ExportField {
-            name: self.read_name()?,
-            exportdesc: self.read_export_desc()?,
+        Ok(ExportField::new(
+            self.read_name()?,
+            self.read_export_desc()?,
             location,
-        })
+        ))
     }
 }

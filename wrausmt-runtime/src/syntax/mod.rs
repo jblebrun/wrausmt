@@ -23,7 +23,23 @@ use {
         slice::SliceIndex,
     },
     types::{GlobalType, MemType, RefType, TableType, ValueType},
+    wrausmt_common::marker,
 };
+
+/// ValidatedState tracks whether or not a module syntax tree has passed thorugh
+/// the validation algorithm. The runtime only accepts validated modules.
+pub trait ValidatedState: std::fmt::Debug {}
+marker!(
+    /// A module parameterized by [Validated] has been verifeid by the
+    /// validation algorithm and is ready to be instantiated.
+    Validated: ValidatedState
+);
+
+marker!(
+    /// A module parameterized by [Unvalidated] has not been verifeid by the
+    /// validation algorithm and can not be instantiated by the runtime.
+    Unvalidated: ValidatedState
+);
 
 /// A wasm identifier. Contains only valid `idchar` characters.
 #[derive(Clone, Default, Debug, Eq, Hash, PartialEq)]
@@ -197,7 +213,7 @@ pub trait ExprT {}
 /// A parsed text format module. [Spec]
 ///
 /// [Spec]: https://webassembly.github.io/spec/core/text/modules.html#modules
-pub struct Module<R: ResolvedState, E> {
+pub struct Module<R: ResolvedState, V: ValidatedState, E> {
     pub id:       Option<Id>,
     pub customs:  Vec<CustomField>,
     pub types:    Vec<TypeField>,
@@ -205,14 +221,14 @@ pub struct Module<R: ResolvedState, E> {
     pub tables:   Vec<TableField>,
     pub memories: Vec<MemoryField>,
     pub imports:  Vec<ImportField<R>>,
-    pub exports:  Vec<ExportField<R>>,
+    pub exports:  Vec<ExportField<R, V>>,
     pub globals:  Vec<GlobalField<E>>,
-    pub start:    Option<StartField<R>>,
+    pub start:    Option<StartField<R, V>>,
     pub elems:    Vec<ElemField<R, E>>,
     pub data:     Vec<DataField<R, E>>,
 }
 
-impl<I: ResolvedState, E: Debug> fmt::Debug for Module<I, E> {
+impl<I: ResolvedState, V: ValidatedState, E: Debug> fmt::Debug for Module<I, V, E> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "(module")?;
         macro_rules! print_all {
@@ -569,13 +585,25 @@ pub enum ExportDesc<R: ResolvedState> {
 
 // export := (export <name> <exportdesc>)
 #[derive(PartialEq)]
-pub struct ExportField<R: ResolvedState> {
-    pub name:       String,
-    pub exportdesc: ExportDesc<R>,
-    pub location:   Location,
+pub struct ExportField<R: ResolvedState, V: ValidatedState> {
+    pub name:        String,
+    pub exportdesc:  ExportDesc<R>,
+    validated_state: PhantomData<V>,
+    pub location:    Location,
 }
 
-impl<R: ResolvedState> fmt::Debug for ExportField<R> {
+impl<R: ResolvedState, V: ValidatedState> ExportField<R, V> {
+    pub fn new(name: String, exportdesc: ExportDesc<R>, location: Location) -> Self {
+        Self {
+            name,
+            exportdesc,
+            location,
+            validated_state: PhantomData {},
+        }
+    }
+}
+
+impl<R: ResolvedState, V: ValidatedState> fmt::Debug for ExportField<R, V> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "(export {} {:?})", self.name, self.exportdesc)
     }
@@ -690,9 +718,20 @@ impl<R: ResolvedState> std::fmt::Debug for Instruction<R> {
 
 // start := (start <funcidx>)
 #[derive(Debug, PartialEq)]
-pub struct StartField<R: ResolvedState> {
-    pub idx:      Index<R, FuncIndex>,
-    pub location: Location,
+pub struct StartField<R: ResolvedState, V: ValidatedState> {
+    pub idx:         Index<R, FuncIndex>,
+    pub location:    Location,
+    validated_state: PhantomData<V>,
+}
+
+impl<R: ResolvedState, V: ValidatedState> StartField<R, V> {
+    pub fn new(idx: Index<R, FuncIndex>, location: Location) -> Self {
+        StartField {
+            idx,
+            location,
+            validated_state: PhantomData {},
+        }
+    }
 }
 
 #[derive(Debug, Default, PartialEq)]

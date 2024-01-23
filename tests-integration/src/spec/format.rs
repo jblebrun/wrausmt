@@ -11,7 +11,7 @@ use {
             self as modulesyntax,
             location::Location,
             types::{NumType, RefType},
-            Id, Resolved, UncompiledExpr,
+            Id, Resolved, UncompiledExpr, Unvalidated,
         },
     },
 };
@@ -489,7 +489,7 @@ pub struct CmdEntry {
 /// ```
 #[derive(Debug)]
 pub enum Module {
-    Module(modulesyntax::Module<Resolved, UncompiledExpr<Resolved>>),
+    Module(modulesyntax::Module<Resolved, Unvalidated, UncompiledExpr<Resolved>>),
     Binary(Option<Id>, Vec<WasmString>),
     Quote(Option<Id>, Vec<WasmString>),
 }

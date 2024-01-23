@@ -9,7 +9,7 @@ use {
         FParam, FuncField, FuncIndex, GlobalField, GlobalIndex, Id, ImportDesc, ImportField, Index,
         Instruction, LabelIndex, LocalIndex, MemoryIndex, ModeEntry, Module, Operands, Resolved,
         StartField, TableIndex, TablePosition, TableUse, TypeField, TypeIndex, TypeUse,
-        UncompiledExpr, Unresolved,
+        UncompiledExpr, Unresolved, Unvalidated,
     },
 };
 
@@ -297,13 +297,13 @@ impl Resolve<ImportDesc<Resolved>> for ImportDesc<Unresolved> {
     }
 }
 
-impl Resolve<ExportField<Resolved>> for ExportField<Unresolved> {
-    fn resolve(self, ic: &mut ResolutionContext) -> Result<ExportField<Resolved>> {
-        Ok(ExportField {
-            name:       self.name,
-            exportdesc: self.exportdesc.resolve(ic)?,
-            location:   self.location,
-        })
+impl Resolve<ExportField<Resolved, Unvalidated>> for ExportField<Unresolved, Unvalidated> {
+    fn resolve(self, ic: &mut ResolutionContext) -> Result<ExportField<Resolved, Unvalidated>> {
+        Ok(ExportField::new(
+            self.name,
+            self.exportdesc.resolve(ic)?,
+            self.location,
+        ))
     }
 }
 
@@ -330,12 +330,9 @@ impl Resolve<GlobalField<UncompiledExpr<Resolved>>> for GlobalField<UncompiledEx
     }
 }
 
-impl Resolve<StartField<Resolved>> for StartField<Unresolved> {
-    fn resolve(self, ic: &mut ResolutionContext) -> Result<StartField<Resolved>> {
-        Ok(StartField {
-            idx:      self.idx.resolve(ic)?,
-            location: self.location,
-        })
+impl Resolve<StartField<Resolved, Unvalidated>> for StartField<Unresolved, Unvalidated> {
+    fn resolve(self, ic: &mut ResolutionContext) -> Result<StartField<Resolved, Unvalidated>> {
+        Ok(StartField::new(self.idx.resolve(ic)?, self.location))
     }
 }
 
@@ -427,14 +424,14 @@ pub trait ResolveModule {
     fn resolve(
         self,
         idents: &ModuleIdentifiers,
-    ) -> Result<Module<Resolved, UncompiledExpr<Resolved>>>;
+    ) -> Result<Module<Resolved, Unvalidated, UncompiledExpr<Resolved>>>;
 }
 
-impl ResolveModule for Module<Unresolved, UncompiledExpr<Unresolved>> {
+impl ResolveModule for Module<Unresolved, Unvalidated, UncompiledExpr<Unresolved>> {
     fn resolve(
         mut self,
         mi: &ModuleIdentifiers,
-    ) -> Result<Module<Resolved, UncompiledExpr<Resolved>>> {
+    ) -> Result<Module<Resolved, Unvalidated, UncompiledExpr<Resolved>>> {
         let mut rc = ResolutionContext::new(mi, &mut self.types);
         let customs = self.customs;
         let funcs = resolve_all!(self.funcs, &mut rc)?;
