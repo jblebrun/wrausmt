@@ -159,9 +159,6 @@ pub fn generate_exec_code() -> io::Result<()> {
         read_instruction_list("../codegen/master_simd_ops_list.csv", Variant::Simd)?,
     ];
 
-    // Emit the module wrapping the various generated items.
-    emit_module(out)?;
-
     // Emit the file containing the code and descriptor structs.
     let mut code_file = new_output_file(format!("{out}/instruction_code.rs")).unwrap();
     code_file.emit_code_file(inst_groups)?;
@@ -187,17 +184,6 @@ fn new_output_file(name: impl AsRef<str>) -> io::Result<fs::File> {
     f.write_all(GEN_HEADER)?;
     Ok(f)
 }
-
-fn emit_module(out: &str) -> io::Result<()> {
-    let mut f = new_output_file(format!("{out}/instruction_mod.rs"))?;
-    f.write_all(GEN_HEADER)?;
-    f.write_all(MODULE)
-}
-
-pub static MODULE: &[u8] = br#"pub mod data_table;
-pub mod exec_table;
-pub mod instructions;
-"#;
 
 pub static GEN_HEADER: &[u8] = br#"/// This file was generated automatically by the codegen crate.
 /// Do not edit it manually.
