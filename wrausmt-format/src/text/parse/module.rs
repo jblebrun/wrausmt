@@ -188,14 +188,16 @@ impl<R: Read> Parser<R> {
     pub fn try_function_type(&mut self, fparam_id: FParamId) -> Result<FunctionType> {
         pctx!(self, "try function type");
         Ok(FunctionType {
-            params:  self.zero_or_more_groups(match fparam_id {
-                // Using closures makes the combinators a lot more complicated.
-                // For this use case, it's simpler to just create variants for the
-                // two types of FParam variants.
-                FParamId::Allowed => Self::try_parse_fparam_id_allowed,
-                FParamId::Forbidden => Self::try_parse_fparam_id_forbidden,
-            })?,
-            results: self.zero_or_more_groups(Self::try_parse_fresult)?,
+            params:  self
+                .zero_or_more_groups(match fparam_id {
+                    // Using closures makes the combinators a lot more complicated.
+                    // For this use case, it's simpler to just create variants for the
+                    // two types of FParam variants.
+                    FParamId::Allowed => Self::try_parse_fparam_id_allowed,
+                    FParamId::Forbidden => Self::try_parse_fparam_id_forbidden,
+                })?
+                .0,
+            results: self.zero_or_more_groups(Self::try_parse_fresult)?.0,
         })
     }
 
@@ -227,7 +229,7 @@ impl<R: Read> Parser<R> {
             })));
         }
 
-        let locals = self.zero_or_more_groups(Self::try_locals)?;
+        let (locals, _) = self.zero_or_more_groups(Self::try_locals)?;
 
         let instr = self.parse_instructions()?;
         self.expect_close()?;

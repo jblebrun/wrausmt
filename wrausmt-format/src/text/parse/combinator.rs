@@ -22,13 +22,18 @@ impl<R: Read> Parser<R> {
     /// Attempts to parse a series of items using the provided parse method.
     /// The parse method should return 0 or more of the item type.
     /// Returns the results as a flattened vector of items.
-    pub fn zero_or_more_groups<T>(&mut self, parse: ParseGroupFn<Self, T>) -> Result<Vec<T>> {
+    pub fn zero_or_more_groups<T>(
+        &mut self,
+        parse: ParseGroupFn<Self, T>,
+    ) -> Result<(Vec<T>, bool)> {
         pctx!(self, "zero or more groups");
         let mut result: Vec<T> = vec![];
+        let mut any = false;
         while let Some(t) = parse(self)? {
+            any = true;
             result.extend(t);
         }
-        Ok(result)
+        Ok((result, any))
     }
 
     /// Attempts to parse a series of items using the provided parse method.
