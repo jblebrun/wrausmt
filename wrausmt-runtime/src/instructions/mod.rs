@@ -3,8 +3,20 @@
 //! generated. See the [codegen] crate for more details on the generation
 //! process.
 
+mod code {
+    include!(concat!(env!("OUT_DIR"), "/instruction_code.rs"));
+}
+mod data_table {
+    include!(concat!(env!("OUT_DIR"), "/instruction_data_table.rs"));
+}
+
+mod exec_table {
+    include!(concat!(env!("OUT_DIR"), "/instruction_exec_table.rs"));
+}
+
+pub use code::opcodes;
 use {
-    self::generated::{
+    self::{
         data_table::{EXTENDED_INSTRUCTION_DATA, INSTRUCTION_DATA, SIMD_INSTRUCTION_DATA},
         exec_table::{EXEC_TABLE, EXTENDED_EXEC_TABLE, SIMD_EXEC_TABLE},
     },
@@ -14,10 +26,6 @@ use {
         syntax::{Id, Opcode},
     },
 };
-
-mod generated;
-
-pub use generated::instructions::opcodes;
 
 /// Function bodies, initialization values for globals, and offsets of element
 /// or data segments are given as expressions, which are sequences of

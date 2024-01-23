@@ -149,46 +149,47 @@ fn read_instruction_list(file: &str, variant: Variant) -> io::Result<Instruction
 
 /// Read master_ops_list.csv and emit functions, function tables, and data
 /// tables.
-pub fn parse() -> io::Result<()> {
+pub fn generate_exec_code() -> io::Result<()> {
+    let out = std::env::var("OUT_DIR").unwrap();
+    let out = out.as_str();
+
     let inst_groups = &[
         read_instruction_list("../codegen/master_ops_list.csv", Variant::Normal)?,
         read_instruction_list("../codegen/master_extended_ops_list.csv", Variant::Extended)?,
         read_instruction_list("../codegen/master_simd_ops_list.csv", Variant::Simd)?,
     ];
 
-    fs::create_dir_all("src/instructions/generated")?;
-
     // Emit the module wrapping the various generated items.
-    emit_module()?;
+    emit_module(out)?;
 
     // Emit the file containing the code and descriptor structs.
-    let mut code_file = new_output_file("src/instructions/generated/instructions.rs")?;
+    let mut code_file = new_output_file(format!("{out}/instruction_code.rs")).unwrap();
     code_file.emit_code_file(inst_groups)?;
 
     // Emit the file containing the lookup array.
-    let mut code_file = new_output_file("src/instructions/generated/exec_table.rs")?;
+    let mut code_file = new_output_file(format!("{out}/instruction_exec_table.rs"))?;
     code_file.emit_exec_table(inst_groups)?;
 
     // Emit the file containing the lookup array for instruction data, by opcode.
-    let mut code_file = new_output_file("src/instructions/generated/data_table.rs")?;
+    let mut code_file = new_output_file(format!("{out}/instruction_data_table.rs"))?;
     code_file.emit_instruction_data_table(inst_groups)?;
 
     Ok(())
 }
 
-fn new_output_file(name: &str) -> io::Result<fs::File> {
+fn new_output_file(name: impl AsRef<str>) -> io::Result<fs::File> {
     let mut f = fs::OpenOptions::new()
         .write(true)
         .create(true)
         .truncate(true)
-        .open(name)?;
+        .open(name.as_ref())?;
 
     f.write_all(GEN_HEADER)?;
     Ok(f)
 }
 
-fn emit_module() -> io::Result<()> {
-    let mut f = new_output_file("src/instructions/generated/mod.rs")?;
+fn emit_module(out: &str) -> io::Result<()> {
+    let mut f = new_output_file(format!("{out}/instruction_mod.rs"))?;
     f.write_all(GEN_HEADER)?;
     f.write_all(MODULE)
 }

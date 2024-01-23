@@ -11,3 +11,4 @@ normalize_comments = true
 overflow_delimited_expr = true
 struct_field_align_threshold = 20
 use_field_init_shorthand = true
+format_generated_files = true

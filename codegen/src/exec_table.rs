@@ -33,11 +33,11 @@ impl<W: Write + std::fmt::Debug> EmitExecTable for W {}
 fn exec_table_item(inst: &Option<Instruction>) -> String {
     match inst {
         None => "    bad,\n".into(),
-        Some(i) => format!("    instructions::{}_exec,\n", i.typename),
+        Some(i) => format!("    {}_exec,\n", i.typename),
     }
 }
 
-static EXEC_TABLE_IMPORTS: &[u8] = br#"use super::instructions;
+static EXEC_TABLE_IMPORTS: &[u8] = br#"use crate::instructions::code::*;
 use crate::instructions::{bad, ExecFn};
 "#;
 
