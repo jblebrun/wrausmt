@@ -1,18 +1,18 @@
+mod const_expression;
 mod emitter;
 mod validation;
+
 pub use validation::{ValidationError, ValidationErrorKind, ValidationMode};
 use {
     self::{
-        emitter::ValidatingEmitter,
-        validation::{ExpressionType, ModuleContext},
+        const_expression::compile_const_expr, emitter::ValidatingEmitter, validation::ModuleContext,
     },
     validation::{KindResult, Result},
     wrausmt_common::true_or::TrueOr,
     wrausmt_runtime::syntax::{
-        location::Location,
-        types::{NumType, ValueType},
-        CompiledExpr, DataField, DataInit, ElemField, ElemList, ExportDesc, ExportField, FuncField,
-        GlobalField, ModeEntry, Module, Resolved, StartField, TablePosition, UncompiledExpr,
+        location::Location, types::NumType, CompiledExpr, DataField, DataInit, ElemField, ElemList,
+        ExportDesc, ExportField, FuncField, GlobalField, ModeEntry, Module, Resolved, StartField,
+        TablePosition, UncompiledExpr,
     },
 };
 
@@ -47,21 +47,21 @@ pub fn compile_module(
 
     let globals: Result<Vec<_>> = std::mem::take(&mut module.globals)
         .into_iter()
-        .map(|g| compile_global(validation_mode, &module_context, g))
+        .map(|g| compile_global(&module_context, g))
         .collect();
     let globals = globals?;
 
     let elems: Result<Vec<_>> = std::mem::take(&mut module.elems)
         .into_iter()
         .enumerate()
-        .map(|(i, e)| compile_elem(validation_mode, &module_context, e, i))
+        .map(|(i, e)| compile_elem(&module_context, e, i))
         .collect();
     let elems = elems?;
 
     let data: Result<Vec<_>> = std::mem::take(&mut module.data)
         .into_iter()
         .enumerate()
-        .map(|(i, d)| compile_data(validation_mode, &module_context, d, i))
+        .map(|(i, d)| compile_data(&module_context, d, i))
         .collect();
     let data = data?;
 
@@ -106,7 +106,6 @@ fn compile_func(
 }
 
 fn compile_global(
-    validation_mode: ValidationMode,
     module: &ModuleContext,
     global: GlobalField<UncompiledExpr<Resolved>>,
 ) -> Result<GlobalField<CompiledExpr>> {
@@ -115,42 +114,27 @@ fn compile_global(
         id:         global.id,
         exports:    global.exports,
         globaltype: global.globaltype,
-        init:       ValidatingEmitter::simple_expression(
-            validation_mode,
-            module,
-            &global.init,
-            vec![expect_type],
-            &global.location,
-            ExpressionType::Constant,
-        )?,
+        init:       compile_const_expr(&global.init, module, expect_type)
+            .validation_error(global.location)?,
         location:   global.location,
     })
 }
 
 fn compile_elem(
-    validation_mode: ValidationMode,
     module: &ModuleContext,
     elem: ElemField<Resolved, UncompiledExpr<Resolved>>,
     ei: usize,
 ) -> Result<ElemField<Resolved, CompiledExpr>> {
-    let elemlist = compile_elem_list(validation_mode, module, &elem.elemlist, &elem.location)?;
+    let elemlist = compile_elem_list(module, &elem.elemlist, &elem.location)?;
     Ok(ElemField {
         id: elem.id,
-        mode: compile_elem_mode(
-            validation_mode,
-            module,
-            elem.mode,
-            elem.elemlist,
-            ei,
-            &elem.location,
-        )?,
+        mode: compile_elem_mode(module, elem.mode, elem.elemlist, ei, &elem.location)?,
         elemlist,
         location: elem.location,
     })
 }
 
 fn compile_data(
-    validation_mode: ValidationMode,
     module: &ModuleContext,
     data: DataField<Resolved, UncompiledExpr<Resolved>>,
     di: usize,
@@ -161,7 +145,6 @@ fn compile_data(
         data:     data.data,
         init:     match data.init {
             Some(data_init) => Some(compile_data_init(
-                validation_mode,
                 module,
                 data_init,
                 dlen,
@@ -233,7 +216,6 @@ fn compile_export_desc(
 }
 
 fn compile_table_position(
-    validation_mode: ValidationMode,
     module: &ModuleContext,
     table_position: TablePosition<Resolved, UncompiledExpr<Resolved>>,
     elem_list: ElemList<UncompiledExpr<Resolved>>,
@@ -255,14 +237,8 @@ fn compile_table_position(
         })
         .validation_error(*location)?;
 
-    let mut offset = ValidatingEmitter::simple_expression(
-        validation_mode,
-        module,
-        &table_position.offset,
-        vec![ValueType::Num(NumType::I32)],
-        location,
-        validation::ExpressionType::Constant,
-    )?;
+    let mut offset = compile_const_expr(&table_position.offset, module, NumType::I32.into())
+        .validation_error(*location)?;
     let mut offset_expr_instrs = offset.instr.to_vec();
 
     // Add this to the end:
@@ -285,7 +261,6 @@ fn compile_table_position(
     })
 }
 fn compile_elem_mode(
-    validation_mode: ValidationMode,
     module: &ModuleContext,
     elem_mode: ModeEntry<Resolved, UncompiledExpr<Resolved>>,
     elem_list: ElemList<UncompiledExpr<Resolved>>,
@@ -293,21 +268,15 @@ fn compile_elem_mode(
     location: &Location,
 ) -> Result<ModeEntry<Resolved, CompiledExpr>> {
     Ok(match elem_mode {
-        ModeEntry::Active(tp) => ModeEntry::Active(compile_table_position(
-            validation_mode,
-            module,
-            tp,
-            elem_list,
-            ei,
-            location,
-        )?),
+        ModeEntry::Active(tp) => {
+            ModeEntry::Active(compile_table_position(module, tp, elem_list, ei, location)?)
+        }
         ModeEntry::Passive => ModeEntry::Passive,
         ModeEntry::Declarative => ModeEntry::Declarative,
     })
 }
 
 fn compile_elem_list(
-    validation_mode: ValidationMode,
     module: &ModuleContext,
     elem_list: &ElemList<UncompiledExpr<Resolved>>,
     location: &Location,
@@ -318,21 +287,13 @@ fn compile_elem_list(
             .items
             .iter()
             .map(|e| {
-                ValidatingEmitter::simple_expression(
-                    validation_mode,
-                    module,
-                    e,
-                    vec![elem_list.reftype.into()],
-                    location,
-                    ExpressionType::Constant,
-                )
+                compile_const_expr(e, module, elem_list.reftype.into()).validation_error(*location)
             })
             .collect::<Result<Vec<_>>>()?,
     })
 }
 
 fn compile_data_init(
-    validation_mode: ValidationMode,
     module: &ModuleContext,
     data_init: DataInit<Resolved, UncompiledExpr<Resolved>>,
     cnt: usize,
@@ -343,14 +304,8 @@ fn compile_data_init(
         .true_or(ValidationErrorKind::UnknownMemory)
         .validation_error(*location)?;
 
-    let mut offset = ValidatingEmitter::simple_expression(
-        validation_mode,
-        module,
-        &data_init.offset,
-        vec![ValueType::Num(NumType::I32)],
-        location,
-        ExpressionType::Constant,
-    )?;
+    let mut offset = compile_const_expr(&data_init.offset, module, NumType::I32.into())
+        .validation_error(*location)?;
     let mut offset_expr_instrs = offset.instr.to_vec();
 
     // "(i32.const 0) (i32.const {cnt}) (memory.init {di}) (data.drop {di})"

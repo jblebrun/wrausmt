@@ -15,6 +15,7 @@ pub use indices::{
 };
 use {
     self::location::Location,
+    crate::instructions::op_consts,
     std::{
         borrow::Cow,
         fmt::{self, Debug},
@@ -596,6 +597,16 @@ pub enum Opcode {
     Extended(u8),
     // 0xFD-prefix instructions
     Simd(u8),
+}
+
+impl Opcode {
+    pub fn bytes(&self) -> Vec<u8> {
+        match self {
+            Opcode::Normal(o) => vec![*o],
+            Opcode::Extended(o) => vec![op_consts::EXTENDED_PREFIX, *o],
+            Opcode::Simd(o) => vec![op_consts::SIMD_PREFIX, *o],
+        }
+    }
 }
 
 #[derive(Clone, PartialEq)]
