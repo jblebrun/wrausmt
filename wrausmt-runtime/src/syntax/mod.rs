@@ -448,19 +448,6 @@ pub struct FuncField<R: ResolvedState, E> {
     pub location: Location,
 }
 
-impl Default for FuncField<Unresolved, UncompiledExpr<Unresolved>> {
-    fn default() -> Self {
-        Self {
-            id:       Default::default(),
-            exports:  Default::default(),
-            typeuse:  Default::default(),
-            locals:   Default::default(),
-            body:     Default::default(),
-            location: Location { line: 0, pos: 0 },
-        }
-    }
-}
-
 impl<R: ResolvedState, E: Debug> std::fmt::Debug for FuncField<R, E> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "(func")?;

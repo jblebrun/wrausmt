@@ -117,7 +117,8 @@ impl<R: ParserReader> BinaryParser<R> {
         if id == Some(10) {
             pctx!(self, "code section");
             let data_indices_allowed = datacount.is_some();
-            module.funcs = self.read_section(|s| s.read_code_section(data_indices_allowed))?;
+            module.funcs =
+                self.read_section(|s| s.read_code_section(data_indices_allowed, &functypes))?;
             id = self.read_next_section_id(&mut module.customs)?;
         }
         if id == Some(11) {
@@ -128,6 +129,9 @@ impl<R: ParserReader> BinaryParser<R> {
 
         (id.is_none())
             .true_or_else(|| self.err(BinaryParseErrorKind::UnexpectedContentAfterEnd))?;
+
+        (module.funcs.len() == functypes.len())
+            .true_or_else(|| self.err(BinaryParseErrorKind::FuncSizeMismatch))?;
 
         if let Some(datacount) = datacount {
             (datacount as usize == module.data.len())
@@ -148,12 +152,6 @@ impl<R: ParserReader> BinaryParser<R> {
         funcs: &mut [FuncField<Resolved, UncompiledExpr<Resolved>>],
         functypes: &[Index<Resolved, TypeIndex>],
     ) -> Result<()> {
-        // In a valid module, we will have parsed the func types section already, so
-        // we'll have some partially-initialized function items ready.
-        (funcs.len() == functypes.len())
-            .true_or_else(|| self.err(BinaryParseErrorKind::FuncSizeMismatch))?;
-
-        // Add the functype type to the returned function structs.
         for (i, func) in funcs.iter_mut().enumerate() {
             func.typeuse = TypeUse::ByIndex(functypes[i].clone());
         }
