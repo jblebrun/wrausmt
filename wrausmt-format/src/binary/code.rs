@@ -13,8 +13,8 @@ use {
     wrausmt_runtime::{
         instructions::{instruction_data, op_consts, Operands, BAD_INSTRUCTION},
         syntax::{
-            self, types::ValueType, Continuation, FResult, FuncField, Id, Instruction, Local,
-            Opcode, Resolved, TypeUse, UncompiledExpr,
+            self, types::ValueType, Continuation, FResult, FuncField, Id, Index, Instruction,
+            Local, Opcode, Resolved, TypeIndex, TypeUse, UncompiledExpr,
         },
     },
 };
@@ -51,9 +51,17 @@ impl<R: ParserReader> BinaryParser<R> {
     pub(in crate::binary) fn read_code_section(
         &mut self,
         data_indices_ok: bool,
+        types: &[Index<Resolved, TypeIndex>],
     ) -> Result<Vec<FuncField<Resolved, UncompiledExpr<Resolved>>>> {
         pctx!(self, "read code section");
-        self.read_vec(|_, s| s.read_func(data_indices_ok))
+        self.read_vec(|i, s| {
+            s.read_func(
+                data_indices_ok,
+                types
+                    .get(i as usize)
+                    .ok_or(s.err(BinaryParseErrorKind::FuncSizeMismatch))?,
+            )
+        })
     }
 
     pub(in crate::binary) fn read_vec_exprs(
@@ -78,6 +86,7 @@ impl<R: ParserReader> BinaryParser<R> {
     fn read_func(
         &mut self,
         data_indices_ok: bool,
+        tyidx: &Index<Resolved, TypeIndex>,
     ) -> Result<FuncField<Resolved, UncompiledExpr<Resolved>>> {
         pctx!(self, "read func");
         let location = self.location();
@@ -88,7 +97,7 @@ impl<R: ParserReader> BinaryParser<R> {
                 id: None,
                 exports: vec![],
                 // The types are parsed earlier and will be set on the returned values.
-                typeuse: TypeUse::default(),
+                typeuse: TypeUse::ByIndex(tyidx.clone()),
                 locals: s.read_locals()?,
                 body: s.read_expr(data_indices_ok)?,
                 location,
