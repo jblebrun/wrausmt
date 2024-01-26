@@ -350,14 +350,6 @@ impl<R: ResolvedState> TypeUse<R> {
             params:  vec![],
         })
     }
-
-    pub fn function_type(&self) -> Option<&FunctionType> {
-        match self {
-            TypeUse::ByIndex(_) => None,
-            TypeUse::NamedInline { functiontype, .. } => Some(functiontype),
-            TypeUse::AnonymousInline(ft) => Some(ft),
-        }
-    }
 }
 
 impl<R: ResolvedState> std::fmt::Debug for TypeUse<R> {

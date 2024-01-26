@@ -529,25 +529,27 @@ fn get_func_params(typeuse: &TypeUse<Resolved>, types: &[TypeField]) -> Vec<FPar
 fn validate_inline_typeuse(typeuse: &TypeUse<Unresolved>, ic: &ResolutionContext) -> Result<()> {
     // We only need to check something if the incoming inline typeuse defined a
     // function and an index explicitly.
-    let (new_typeidx, new_functiontype) = match (typeuse.index(), typeuse.function_type()) {
-        (Some(ti), Some(ft)) if !ti.name().as_bytes().is_empty() => (ti, ft),
-        _ => return Ok(()),
-    };
+    match typeuse {
+        TypeUse::NamedInline {
+            functiontype,
+            index,
+        } if !index.name().as_bytes().is_empty() => {
+            // If a type doesn't exist, then one is (hopefully) being created. That
+            // gets checked elsewhere.
+            let existing_functiontype = match ic.typeindex(index.name()) {
+                Some(ei) => &ic.types[ei as usize].functiontype,
+                _ => return Ok(()),
+            };
 
-    // If a type doesn't exist, then one is (hopefully) being created. That
-    // gets checked elsewhere.
-    let existing_functiontype = match ic.typeindex(new_typeidx.name()) {
-        Some(ei) => &ic.types[ei as usize].functiontype,
-        _ => return Ok(()),
-    };
-
-    // If no params/results were in the inline def, the existing type doesn't
-    // need to be void, since in that case, the (type $i) is just reference
-    // type i as anything.
-    if !new_functiontype.matches_existing(existing_functiontype) {
-        Err(ResolveError::DuplicateTypeIndex(new_typeidx.name().clone()))
-    } else {
-        Ok(())
+            // If no params/results were in the inline def, the existing type doesn't
+            // need to be void, since in that case, the (type $i) is just reference
+            // type i as anything.
+            functiontype
+                .matches_existing(existing_functiontype)
+                .true_or(ResolveError::DuplicateTypeIndex(index.name().clone()))?;
+            Ok(())
+        }
+        _ => Ok(()),
     }
 }
 
