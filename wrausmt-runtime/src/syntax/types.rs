@@ -59,7 +59,6 @@ pub enum RefType {
 pub enum ValueType {
     Num(NumType),
     Ref(RefType),
-    Void,
 }
 
 /// Result types classify the result of executing instructions or functions,

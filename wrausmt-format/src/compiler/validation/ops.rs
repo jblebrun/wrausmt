@@ -6,7 +6,7 @@ use {
         instructions::opcodes,
         syntax::{
             types::{NumType, RefType, ValueType},
-            Index, Instruction, LocalIndex, Operands, Resolved, TypeUse,
+            BlockType, Index, Instruction, LocalIndex, Operands, Resolved,
         },
     },
 };
@@ -90,11 +90,14 @@ impl<'a> Validation<'a> {
         Ok(())
     }
 
-    fn function_type_for_typeuse(&self, typeuse: &TypeUse<Resolved>) -> FunctionType {
-        if typeuse.index().value() == 0x040 {
-            FunctionType::default()
-        } else {
-            self.module.types[typeuse.index().value() as usize].clone()
+    fn function_type_for_blocktype(&self, blocktype: &BlockType<Resolved>) -> FunctionType {
+        match blocktype {
+            BlockType::Void => FunctionType::default(),
+            BlockType::SingleResult(t) => FunctionType {
+                params:  vec![],
+                results: vec![*t],
+            },
+            BlockType::TypeUse(tu) => self.module.types[tu.index().value() as usize].clone(),
         }
     }
 
@@ -126,22 +129,22 @@ impl<'a> Validation<'a> {
             instr!(opcodes::UNREACHABLE) => self.stacks.unreachable(),
             instr!(opcodes::NOP) => Ok(()),
 
-            instr!(opcodes::BLOCK => Operands::Block(_, typeuse, ..)) => {
-                let ft = self.function_type_for_typeuse(typeuse);
+            instr!(opcodes::BLOCK => Operands::Block(_, blocktype, ..)) => {
+                let ft = self.function_type_for_blocktype(blocktype);
                 self.stacks.pop_vals(&ft.params)?;
                 self.stacks.push_ctrl(opcodes::BLOCK, ft.params, ft.results);
                 Ok(())
             }
 
-            instr!(opcodes::LOOP => Operands::Block(_, typeuse, ..)) => {
-                let ft = self.function_type_for_typeuse(typeuse);
+            instr!(opcodes::LOOP => Operands::Block(_, blocktype, ..)) => {
+                let ft = self.function_type_for_blocktype(blocktype);
                 self.stacks.pop_vals(&ft.params)?;
                 self.stacks.push_ctrl(opcodes::LOOP, ft.params, ft.results);
                 Ok(())
             }
 
-            instr!(opcodes::IF => Operands::If(_, typeuse, ..)) => {
-                let ft = self.function_type_for_typeuse(typeuse);
+            instr!(opcodes::IF => Operands::If(_, blocktype, ..)) => {
+                let ft = self.function_type_for_blocktype(blocktype);
                 self.stacks.pop_val(I32)?;
                 self.stacks.pop_vals(&ft.params)?;
                 self.stacks.push_ctrl(opcodes::IF, ft.params, ft.results);

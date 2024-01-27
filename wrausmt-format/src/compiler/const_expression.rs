@@ -41,7 +41,11 @@ pub fn compile_const_expr(
     }
 
     (stack == [expect_type]).true_or(ValidationErrorKind::TypeMismatch {
-        actual: ValidationType::Value(*stack.first().unwrap_or(&ValueType::Void)),
+        actual: ValidationType::Value(
+            *stack
+                .first()
+                .ok_or(ValidationErrorKind::ValStackUnderflow)?,
+        ),
         expect: ValidationType::Value(expect_type),
     })?;
 
