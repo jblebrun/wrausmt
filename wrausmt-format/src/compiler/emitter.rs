@@ -3,14 +3,15 @@ use {
         validation::{ModuleContext, Result, Validation},
         ToValidationError,
     },
+    crate::ValidationErrorKind,
     wrausmt_runtime::{
         instructions::opcodes,
         syntax::{
             self,
             location::Location,
             types::{RefType, ValueType},
-            CompiledExpr, FuncField, Id, Instruction, Opcode, Operands, Resolved, TypeUse,
-            UncompiledExpr,
+            BlockType, CompiledExpr, FuncField, Id, Instruction, Opcode, Operands, Resolved,
+            TypeUse, UncompiledExpr,
         },
     },
 };
@@ -26,19 +27,38 @@ pub trait Emitter {
     fn splice32(&mut self, idx: usize, v: u32);
     fn len(&self) -> usize;
     fn emit_opcode(&mut self, opcode: Opcode);
+    fn func_arity(&self, typeuse: &TypeUse<Resolved>, location: &Location) -> Result<(u32, u32)>;
 
     fn is_empty(&self) -> bool;
 
+    /// Emit the block type for the executor to read.
+    /// During execution we only need to know arity, so that's all that's
+    /// emitted.
+    fn emit_block_type(
+        &mut self,
+        blocktype: &syntax::BlockType<Resolved>,
+        location: &Location,
+    ) -> Result<()> {
+        let (params, results) = match blocktype {
+            BlockType::Void => (0, 0),
+            BlockType::SingleResult(_) => (0, 1),
+            BlockType::TypeUse(tu) => self.func_arity(tu, location)?,
+        };
+        self.emit32(params);
+        self.emit32(results);
+        Ok(())
+    }
+
     fn emit_block(
         &mut self,
-        typeuse: &syntax::TypeUse<Resolved>,
+        blocktype: &syntax::BlockType<Resolved>,
         expr: &syntax::UncompiledExpr<Resolved>,
         cnt: &syntax::Continuation,
         location: &Location,
     ) -> Result<()> {
         let startcnt = self.len() as u32 - 1;
 
-        self.emit32(typeuse.index().value());
+        self.emit_block_type(blocktype, location)?;
 
         let continuation_location = self.len();
         // If the continuation is at the start, we write self the current length
@@ -78,12 +98,12 @@ pub trait Emitter {
 
     fn emit_if(
         &mut self,
-        typeuse: &TypeUse<Resolved>,
+        blocktype: &BlockType<Resolved>,
         th: &UncompiledExpr<Resolved>,
         el: &UncompiledExpr<Resolved>,
         location: &Location,
     ) -> Result<()> {
-        self.emit32(typeuse.index().value());
+        self.emit_block_type(blocktype, location)?;
 
         // Store the space for end continuation
         let end_location = self.len();
@@ -125,8 +145,8 @@ pub trait Emitter {
         // Emit operands
         match &instr.operands {
             syntax::Operands::None => (),
-            syntax::Operands::Block(_, typeuse, e, cnt) => {
-                self.emit_block(typeuse, e, cnt, &instr.location)?
+            syntax::Operands::Block(_, blocktype, e, cnt) => {
+                self.emit_block(blocktype, e, cnt, &instr.location)?
             }
             syntax::Operands::BrTable(indices, last) => self.emit_br_table(indices, last),
             syntax::Operands::CallIndirect(idx, typeuse) => {
@@ -135,8 +155,8 @@ pub trait Emitter {
             }
             // SelectT operands are only used during validation.
             syntax::Operands::SelectT(_) => (),
-            syntax::Operands::If(_, typeuse, th, el) => {
-                self.emit_if(typeuse, th, el, &instr.location)?
+            syntax::Operands::If(_, blocktype, th, el) => {
+                self.emit_if(blocktype, th, el, &instr.location)?
             }
             syntax::Operands::I32(n) => self.emit32(*n),
             syntax::Operands::I64(n) => self.emit64(*n),
@@ -240,6 +260,17 @@ impl<'a> ValidatingEmitter<'a> {
 }
 
 impl<'a> Emitter for ValidatingEmitter<'a> {
+    fn func_arity(&self, tu: &TypeUse<Resolved>, location: &Location) -> Result<(u32, u32)> {
+        let ft = self
+            .validation
+            .module
+            .types
+            .get(tu.index().value() as usize)
+            .ok_or(ValidationErrorKind::UnknownFunc)
+            .validation_error(*location)?;
+        Ok((ft.params.len() as u32, ft.results.len() as u32))
+    }
+
     fn validate_instr(&mut self, instr: &Instruction<Resolved>) -> Result<()> {
         self.validation
             .validate_instr(instr)

@@ -10,10 +10,7 @@ use {
         instructions::{exec_method, op_consts},
         log_tag::Tag,
         runtime::{instance::MemInstance, stack::Label},
-        syntax::{
-            types::{FunctionType, RefType},
-            Opcode,
-        },
+        syntax::{types::RefType, Opcode},
     },
     std::convert::{TryFrom, TryInto},
     wrausmt_common::{logger::Logger, true_or::TrueOr},
@@ -30,16 +27,6 @@ pub struct ExecutionContext<'l> {
 pub enum LabelType {
     Start,
     End,
-}
-
-impl LabelType {
-    /// Returns the arity of the function (param, result) for LabelType.
-    pub fn function_arity(&self, ftype: &FunctionType) -> (u32, u32) {
-        match self {
-            LabelType::Start => (ftype.params.len() as u32, ftype.params.len() as u32),
-            LabelType::End => (ftype.params.len() as u32, ftype.result.len() as u32),
-        }
-    }
 }
 
 pub type TrapResult<T> = std::result::Result<T, TrapKind>;
@@ -435,12 +422,13 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
     }
 
     fn push_label(&mut self, label_type: LabelType) -> Result<()> {
-        let tyidx = self.op_u32()?;
-        let continuation = self.op_u32()?;
-        let (param_arity, result_arity) = {
-            let ftype = self.runtime.stack.active_module()?.func_type(tyidx);
-            label_type.function_arity(ftype)
+        let param_arity = self.op_u32()?;
+        let result_arity = self.op_u32()?;
+        let result_arity = match label_type {
+            LabelType::End => result_arity,
+            LabelType::Start => param_arity,
         };
+        let continuation = self.op_u32()?;
         self.runtime
             .stack
             .push_label(param_arity, result_arity, continuation)?;

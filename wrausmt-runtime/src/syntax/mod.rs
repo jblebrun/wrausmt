@@ -315,10 +315,11 @@ pub enum TypeUse<R: ResolvedState> {
     },
 }
 
-impl<R: ResolvedState> Default for TypeUse<R> {
-    fn default() -> Self {
-        TypeUse::ByIndex(Index::unnamed(0))
-    }
+#[derive(Clone, Debug, PartialEq)]
+pub enum BlockType<R: ResolvedState> {
+    Void,
+    SingleResult(ValueType),
+    TypeUse(TypeUse<R>),
 }
 
 impl TypeUse<Resolved> {
@@ -340,15 +341,6 @@ impl TypeUse<Unresolved> {
             TypeUse::NamedInline { index, .. } => Some(index),
             TypeUse::AnonymousInline(_) => None,
         }
-    }
-}
-
-impl<R: ResolvedState> TypeUse<R> {
-    pub fn single_result(valuetype: ValueType) -> Self {
-        Self::AnonymousInline(FunctionType {
-            results: vec![FResult { valuetype }],
-            params:  vec![],
-        })
     }
 }
 
@@ -644,8 +636,13 @@ pub enum Continuation {
 pub enum Operands<R: ResolvedState> {
     None,
     CallIndirect(Index<R, TableIndex>, TypeUse<R>),
-    Block(Option<Id>, TypeUse<R>, UncompiledExpr<R>, Continuation),
-    If(Option<Id>, TypeUse<R>, UncompiledExpr<R>, UncompiledExpr<R>),
+    Block(Option<Id>, BlockType<R>, UncompiledExpr<R>, Continuation),
+    If(
+        Option<Id>,
+        BlockType<R>,
+        UncompiledExpr<R>,
+        UncompiledExpr<R>,
+    ),
     BrTable(Vec<Index<R, LabelIndex>>, Index<R, LabelIndex>),
     SelectT(Vec<FResult>),
     FuncIndex(Index<R, FuncIndex>),

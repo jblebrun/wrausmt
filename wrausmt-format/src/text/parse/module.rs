@@ -9,9 +9,9 @@ use {
     std::io::Read,
     wrausmt_runtime::syntax::{
         types::{GlobalType, Limits, MemType, TableType},
-        DataField, DataInit, ElemField, ExportDesc, ExportField, FParam, FResult, FuncField,
-        FunctionType, GlobalField, Id, ImportDesc, ImportField, Index, IndexSpace, Local,
-        MemoryField, MemoryIndex, ModeEntry, Module, Resolved, ResolvedState, StartField,
+        BlockType, DataField, DataInit, ElemField, ExportDesc, ExportField, FParam, FResult,
+        FuncField, FunctionType, GlobalField, Id, ImportDesc, ImportField, Index, IndexSpace,
+        Local, MemoryField, MemoryIndex, ModeEntry, Module, Resolved, ResolvedState, StartField,
         TableField, TypeField, TypeUse, UncompiledExpr, Unresolved, Unvalidated, ValidatedState,
     },
 };
@@ -619,6 +619,25 @@ impl<R: Read> Parser<R> {
                 index,
             }),
         }
+    }
+
+    pub fn parse_block_type(&mut self) -> Result<BlockType<Unresolved>> {
+        let typeuse = self.parse_type_use(FParamId::Forbidden)?;
+        Ok(match typeuse {
+            tu @ TypeUse::ByIndex(_) => BlockType::TypeUse(tu),
+            tu @ TypeUse::NamedInline { .. } => BlockType::TypeUse(tu),
+            TypeUse::AnonymousInline(ft) => {
+                if ft.params.is_empty() {
+                    match ft.results.as_slice() {
+                        [] => BlockType::Void,
+                        [t] => BlockType::SingleResult(t.valuetype),
+                        _ => BlockType::TypeUse(TypeUse::AnonymousInline(ft)),
+                    }
+                } else {
+                    BlockType::TypeUse(TypeUse::AnonymousInline(ft))
+                }
+            }
+        })
     }
 
     // Try to parse an inline export for a func, table, global, or memory.

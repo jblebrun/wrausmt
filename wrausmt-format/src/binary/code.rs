@@ -265,12 +265,12 @@ impl<R: ParserReader> BinaryParser<R> {
                 syntax::Operands::None
             }
             Operands::Block => {
-                let bt = self.read_type_use()?;
+                let bt = self.read_blocktype()?;
                 let expr = self.read_expr(data_indices_ok)?;
                 syntax::Operands::Block(None, bt, expr, Continuation::End)
             }
             Operands::Loop => {
-                let bt = self.read_type_use()?;
+                let bt = self.read_blocktype()?;
                 let expr = self.read_expr(data_indices_ok)?;
                 syntax::Operands::Block(None, bt, expr, Continuation::Start)
             }

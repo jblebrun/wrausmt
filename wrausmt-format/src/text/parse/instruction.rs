@@ -133,13 +133,13 @@ impl<R: Read> Parser<R> {
     fn parse_plain_block(&mut self, cnt: Continuation) -> Result<syntax::Operands<Unresolved>> {
         pctx!(self, "parse plain block");
         let label = self.try_id()?;
-        let typeuse = self.parse_type_use(super::module::FParamId::Forbidden)?;
+        let blocktype = self.parse_block_type()?;
         let instr = self.parse_instructions()?;
         self.expect_plain_end(&label)?;
 
         Ok(syntax::Operands::Block(
             label,
-            typeuse,
+            blocktype,
             UncompiledExpr { instr },
             cnt,
         ))
@@ -149,7 +149,7 @@ impl<R: Read> Parser<R> {
         pctx!(self, "parse plain if operands");
         let label = self.try_id()?;
 
-        let typeuse = self.parse_type_use(super::module::FParamId::Forbidden)?;
+        let blocktype = self.parse_block_type()?;
 
         let thengroup = self.parse_instructions()?;
 
@@ -165,7 +165,7 @@ impl<R: Read> Parser<R> {
 
         Ok(syntax::Operands::If(
             label,
-            typeuse,
+            blocktype,
             UncompiledExpr { instr: thengroup },
             UncompiledExpr { instr: elsegroup },
         ))
@@ -228,10 +228,10 @@ impl<R: Read> Parser<R> {
         pctx!(self, "parse folded block");
         let location = self.location();
         let label = self.try_id()?;
-        let typeuse = self.parse_type_use(super::module::FParamId::Forbidden)?;
+        let blocktype = self.parse_block_type()?;
         let instr = self.parse_instructions()?;
         self.expect_close()?;
-        let operands = syntax::Operands::Block(label, typeuse, UncompiledExpr { instr }, cnt);
+        let operands = syntax::Operands::Block(label, blocktype, UncompiledExpr { instr }, cnt);
         Ok(Instruction {
             name,
             opcode,
@@ -244,7 +244,7 @@ impl<R: Read> Parser<R> {
         pctx!(self, "parse folded if");
         let location = self.location();
         let label = self.try_id()?;
-        let typeuse = self.parse_type_use(super::module::FParamId::Forbidden)?;
+        let blocktype = self.parse_block_type()?;
         let condition = self
             .zero_or_more_groups(Self::try_folded_instruction)?
             .result;
@@ -265,7 +265,7 @@ impl<R: Read> Parser<R> {
         };
 
         self.expect_close()?;
-        let operands = syntax::Operands::If(label, typeuse, thexpr, elexpr);
+        let operands = syntax::Operands::If(label, blocktype, thexpr, elexpr);
 
         unfolded.push(Instruction {
             name: Id::literal("if"),

@@ -5,11 +5,11 @@ use {
     std::collections::HashSet,
     wrausmt_common::true_or::TrueOr,
     wrausmt_runtime::syntax::{
-        DataField, DataIndex, DataInit, ElemField, ElemIndex, ElemList, ExportDesc, ExportField,
-        FParam, FuncField, FuncIndex, GlobalField, GlobalIndex, Id, ImportDesc, ImportField, Index,
-        Instruction, LabelIndex, LocalIndex, MemoryIndex, ModeEntry, Module, Operands, Resolved,
-        StartField, TableIndex, TablePosition, TableUse, TypeField, TypeIndex, TypeUse,
-        UncompiledExpr, Unresolved, Unvalidated,
+        BlockType, DataField, DataIndex, DataInit, ElemField, ElemIndex, ElemList, ExportDesc,
+        ExportField, FParam, FuncField, FuncIndex, GlobalField, GlobalIndex, Id, ImportDesc,
+        ImportField, Index, Instruction, LabelIndex, LocalIndex, MemoryIndex, ModeEntry, Module,
+        Operands, Resolved, StartField, TableIndex, TablePosition, TableUse, TypeField, TypeIndex,
+        TypeUse, UncompiledExpr, Unresolved, Unvalidated,
     },
 };
 
@@ -217,9 +217,9 @@ impl Resolve<Operands<Resolved>> for Operands<Unresolved> {
     fn resolve(self, ic: &mut ResolutionContext) -> Result<Operands<Resolved>> {
         Ok(match self {
             Operands::None => Operands::None,
-            Operands::If(id, tu, th, el) => {
+            Operands::If(id, bt, th, el) => {
                 let mut bic = ic.with_label(id.or_empty());
-                let tu = tu.resolve(&mut bic)?;
+                let tu = bt.resolve(&mut bic)?;
                 let th = th.resolve(&mut bic)?;
                 let el = el.resolve(&mut bic)?;
                 Operands::If(id, tu, th, el)
@@ -233,9 +233,9 @@ impl Resolve<Operands<Resolved>> for Operands<Unresolved> {
                 let tu = tu.resolve(ic)?;
                 Operands::CallIndirect(idx, tu)
             }
-            Operands::Block(id, tu, expr, cnt) => {
+            Operands::Block(id, bt, expr, cnt) => {
                 let mut bic = ic.with_label(id.or_empty());
-                let tu = tu.resolve(&mut bic)?;
+                let tu = bt.resolve(&mut bic)?;
                 let expr = expr.resolve(&mut bic)?;
                 Operands::Block(id, tu, expr, cnt)
             }
@@ -506,6 +506,16 @@ impl Resolve<TypeUse<Resolved>> for TypeUse<Unresolved> {
                 })
             }
         }
+    }
+}
+
+impl Resolve<BlockType<Resolved>> for BlockType<Unresolved> {
+    fn resolve(self, ic: &mut ResolutionContext) -> Result<BlockType<Resolved>> {
+        Ok(match self {
+            Self::Void => BlockType::Void,
+            Self::SingleResult(t) => BlockType::SingleResult(t),
+            Self::TypeUse(tu) => BlockType::TypeUse(tu.resolve(ic)?),
+        })
     }
 }
 
