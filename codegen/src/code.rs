@@ -48,7 +48,7 @@ impl<W: Write + std::fmt::Debug> EmitCode for W {}
 pub static CODE_HEADER: &[u8] = br#"use crate::runtime::error::Result;
 use crate::runtime::{
     error::TrapKind,
-    exec::{ExecutionContext, ExecutionContextActions},
+    exec::{ExecutionContext, ExecutionContextActions, LabelType},
     instance::addr::Address,
     values::Ref,
 };
