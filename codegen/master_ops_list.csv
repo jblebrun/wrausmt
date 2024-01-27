@@ -5,10 +5,10 @@
 | Ok(())
 
 0x02      ,block                         ,(Block)
-| _ec.push_label_end()
+| _ec.push_label(LabelType::End)
 
 0x03      ,loop                          ,(Loop)
-| _ec.push_label_start()
+| _ec.push_label(LabelType::Start)
 
 0x04      ,if                            ,(If)
 | // Note: pop the condition first, 
@@ -16,7 +16,7 @@
 | // return location.
 | let cnd = _ec.pop::<i32>()?;
 |
-| _ec.push_label_end()?;
+| _ec.push_label(LabelType::End)?;
 | let el = _ec.op_u32()?;
 |
 | if cnd == 0 {

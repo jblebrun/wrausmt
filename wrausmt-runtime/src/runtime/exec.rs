@@ -10,7 +10,10 @@ use {
         instructions::{exec_method, op_consts},
         log_tag::Tag,
         runtime::{instance::MemInstance, stack::Label},
-        syntax::{types::RefType, Opcode},
+        syntax::{
+            types::{FunctionType, RefType},
+            Opcode,
+        },
     },
     std::convert::{TryFrom, TryInto},
     wrausmt_common::{logger::Logger, true_or::TrueOr},
@@ -20,6 +23,23 @@ pub struct ExecutionContext<'l> {
     runtime: &'l mut Runtime,
     body:    &'l [u8],
     pc:      usize,
+}
+
+/// Passed to `push_label` to differentiate between blocks that return the param
+/// types (loops) and all other normal blocks.
+pub enum LabelType {
+    Start,
+    End,
+}
+
+impl LabelType {
+    /// Returns the arity of the function (param, result) for LabelType.
+    pub fn function_arity(&self, ftype: &FunctionType) -> (u32, u32) {
+        match self {
+            LabelType::Start => (ftype.params.len() as u32, ftype.params.len() as u32),
+            LabelType::End => (ftype.params.len() as u32, ftype.result.len() as u32),
+        }
+    }
 }
 
 pub type TrapResult<T> = std::result::Result<T, TrapKind>;
@@ -48,8 +68,7 @@ pub trait ExecutionContextActions {
     fn set_global(&mut self, gidx: u32, val: Value) -> Result<()>;
     fn push_value(&mut self, val: Value) -> Result<()>;
     fn push_func_ref(&mut self, fidx: u32) -> Result<()>;
-    fn push_label_end(&mut self) -> Result<()>;
-    fn push_label_start(&mut self) -> Result<()>;
+    fn push_label(&mut self, label_type: LabelType) -> Result<()>;
     fn push(&mut self, val: impl Into<Value>) -> Result<()>;
     fn pop_value(&mut self) -> Result<Value>;
     fn pop_label(&mut self) -> Result<Label>;
@@ -415,25 +434,12 @@ impl<'l> ExecutionContextActions for ExecutionContext<'l> {
         Ok(())
     }
 
-    fn push_label_start(&mut self) -> Result<()> {
+    fn push_label(&mut self, label_type: LabelType) -> Result<()> {
         let tyidx = self.op_u32()?;
         let continuation = self.op_u32()?;
         let (param_arity, result_arity) = {
             let ftype = self.runtime.stack.active_module()?.func_type(tyidx);
-            (ftype.params.len() as u32, ftype.params.len() as u32)
-        };
-        self.runtime
-            .stack
-            .push_label(param_arity, result_arity, continuation)?;
-        Ok(())
-    }
-
-    fn push_label_end(&mut self) -> Result<()> {
-        let tyidx = self.op_u32()?;
-        let continuation = self.op_u32()?;
-        let (param_arity, result_arity) = {
-            let ftype = self.runtime.stack.active_module()?.func_type(tyidx);
-            (ftype.params.len() as u32, ftype.result.len() as u32)
+            label_type.function_arity(ftype)
         };
         self.runtime
             .stack
